@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.3 2001/03/05 17:33:50 waldi Exp $
+ * $Id: dvbdev.c,v 1.4 2001/03/09 17:42:46 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -172,7 +172,10 @@ void dvb_unregister_device ( dvb_device_t * dev )
   for ( i = 0; i < DVB_DEVICES_NUM; i++ )
   {
     if ( dvb_device[i] == dev )
+    {
       dvbdev_unregister_devfs ( dev );
+      dvb_device[i] = NULL;
+    }
   }
 
   MOD_DEC_USE_COUNT;
