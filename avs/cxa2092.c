@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.14  2001/03/14 17:05:04  gillem
+ *   - fix mute/unmute
+ *
  *   Revision 1.13  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -56,7 +59,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -165,13 +168,13 @@ inline int cxa2092_set_volume( struct i2c_client *client, int vol )
 
 inline int cxa2092_set_mute( struct i2c_client *client, int type )
 {
-	if ((type<0) || (type>3))
+	if ((type<0) || (type>1))
 	{
 		return -EINVAL;
-    }
+  }
 
-    cxa2092_data.tvmute1 = (type>>1)&1;
-    cxa2092_data.zcd     = type&1;
+    cxa2092_data.tvmute1 = type;
+    cxa2092_data.tvmute2 = type;
 
 	return cxa2092_set(client);
 }
