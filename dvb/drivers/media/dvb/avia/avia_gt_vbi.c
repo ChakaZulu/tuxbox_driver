@@ -36,36 +36,16 @@
 #include <asm/pgtable.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-#include <linux/devfs_fs_kernel.h>
-
-#include <ost/demux.h>
 
 #include <dbox/avia_gt.h>
-#include <dbox/avia_gt_dmx.h>
 #include <dbox/avia_gt_vbi.h>
 
-#ifndef CONFIG_DEVFS_FS
-#error no devfs
-#endif
+static u8 ttx_flag = 0;
+static sAviaGtInfo *gt_info = NULL;
 
-static int ttx_flag = 0;
+//#define VBI_IRQ
 
-static devfs_handle_t devfs_handle;
-static int active_vtxt_pid = -1;
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
-
-#ifdef MODULE
-MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("eNX/GTX-VBI driver");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-#endif
-
-static dmx_ts_feed_t* feed_vtxt = (dmx_ts_feed_t *)NULL;
-static dmx_demux_t *dmx_demux = (dmx_demux_t *)NULL;
-
-static void avia_gt_vbi_reset(unsigned char reenable)
+static void avia_gt_vbi_reset(u8 reenable)
 {
 
 	if (avia_gt_chip(ENX))
@@ -86,7 +66,24 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 
 }
 
-static int avia_gt_vbi_stop_vtxt(void)
+void avia_gt_vbi_start(void)
+{
+
+	avia_gt_vbi_stop();
+
+	dprintk("avia_gt_vbi: starting vbi reinsertion\n");
+
+	if (!ttx_flag)
+		avia_gt_vbi_reset(1);
+
+	if (avia_gt_chip(ENX))
+		enx_reg_set(TCNTL, GO, 1);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(TTCR, GO, 1);
+
+}
+
+void avia_gt_vbi_stop(void)
 {
 
 	if (avia_gt_chip(ENX))
@@ -94,108 +91,59 @@ static int avia_gt_vbi_stop_vtxt(void)
 	else if (avia_gt_chip(GTX))
 		gtx_reg_set(TTCR, GO, 0);
 
-	if (active_vtxt_pid >= 0) {
-
-		if (feed_vtxt->stop_filtering(feed_vtxt) < 0) {
-
-			printk("avia_gt_vbi: error while stoping vtxt feed\n");
-
-			return -EIO;
-
-		}
-
-		active_vtxt_pid = -1;
-
-	}
-
-	return 0;
+	dprintk("avia_gt_vbi: stopped vbi reinsertion\n");
 
 }
 
-static int avia_gt_vbi_start_vtxt(unsigned long pid)
+#ifdef VBI_IRQ
+static void avia_gt_vbi_irq(u16 irq)
 {
 
-	struct timespec timeout;
+	u8 tt_error = 0;
+	u8 tt_pts = 0;
 
-	avia_gt_vbi_stop_vtxt();
+	if (avia_gt_chip(ENX)) {
+	
+		tt_error = enx_reg_s(TSTATUS)->E;
+		tt_pts = enx_reg_s(TSTATUS)->R;
+		
+		enx_reg_set(TSTATUS, E, 0);
+		enx_reg_set(TSTATUS, R, 0);
+	
+	} else if (avia_gt_chip(GTX)) {
 
-	if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
+		tt_error = gtx_reg_s(TSR)->E;
+		tt_pts = gtx_reg_s(TSR)->R;
 
-		printk("avia_gt_vbi: error while setting vtxt feed\n");
-
-		return -EIO;
-
+		gtx_reg_set(TSR, E, 0);
+		gtx_reg_set(TSR, R, 0);
+	
+	}
+	
+	if (tt_error) {
+	
+		printk("avia_gt_vbi: error in TS stream\n");	
+		
+		avia_gt_vbi_stop();
+		avia_gt_vbi_reset(1);
+		avia_gt_vbi_start();
+		
 	}
 
-	if (feed_vtxt->start_filtering(feed_vtxt) < 0) {
-
-		printk("avia_gt_vbi: error while starting vtxt feed\n");
-
-		return -EIO;
-
-	}
-
-	if(!ttx_flag) avia_gt_vbi_reset(1);
-
-	if (avia_gt_chip(ENX))
-		enx_reg_set(TCNTL, GO, 1);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(TTCR, GO, 1);
-
-	active_vtxt_pid = pid;
-
-	return 0;
+	if (tt_pts)
+		printk("avia_gt_vbi: got pts\n");	
 
 }
+#endif
 
-static int avia_gt_vbi_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+int __init avia_gt_vbi_init(void)
 {
 
-	switch (cmd) {
+#ifdef VBI_IRQ
+	u16 irq_nr = 0;
+#endif
 
-		case AVIA_VBI_START_VTXT:
-
-			dprintk("avia_gt_vbi: start_vtxt (pid = 0x%X)\n", (int)arg);
-			return avia_gt_vbi_start_vtxt(arg);
-
-		case AVIA_VBI_STOP_VTXT:
-
-			dprintk("avia_gt_vbi: stop_vtxt)\n");
-			return avia_gt_vbi_stop_vtxt();
-
-		default:
-
-			printk("avia_gt_vbi: unknown ioctl\n");
-			break;
-
-	}
-
-	return 0;
-
-}
-
-static struct file_operations avia_gt_vbi_fops = {
-
-	owner:	THIS_MODULE,
-	ioctl:	avia_gt_vbi_ioctl
-
-};
-
-int dmx_ts_callback(__u8* buffer1, size_t buffer1_length, __u8* buffer2, size_t buffer2_length, dmx_ts_feed_t *source, dmx_success_t success)
-{
-
-	dprintk("VBI-IRQ!!!!\n");
-
-	return 0;
-
-}
-
-static int __init avia_gt_vbi_init(void)
-{
-
-	struct list_head *dmx_list = (struct list_head *)NULL;
-
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.16 2002/08/22 13:39:33 Jolt Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.17 2002/10/05 15:01:12 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -207,60 +155,56 @@ static int __init avia_gt_vbi_init(void)
 
 	}
 
+#ifdef VBI_IRQ
+	if (avia_gt_chip(ENX))
+		irq_nr = ENX_IRQ_TT;
+	else if (avia_gt_chip(GTX))
+		irq_nr = GTX_IRQ_TT;
+	
+	if (avia_gt_alloc_irq(irq_nr, avia_gt_vbi_irq)) {
+
+		printk("avia_gt_pcm: unable to get vbi interrupt\n");
+		
+		return -EIO;
+			
+	}	
+#endif
+	
 	if (avia_gt_chip(ENX))
 		enx_reg_set(CFGR0, TCP, 0);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_set(CR1, TCP, 0);
 
-	devfs_handle = devfs_register(NULL, "dbox/vbi0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_vbi_fops, NULL);
-
-	if (!devfs_handle) {
-
-		printk("avia_gt_vbi: error - can't register devfs handle\n");
-
-		return -EIO;
-
-	}
-
-	dmx_list = dmx_get_demuxes();
-
-	if (!dmx_list) {
-
-		printk("avia_gt_vbi: error - no demux found\n");
-
-		return -EIO;
-
-	}
-
-	dmx_demux = DMX_DIR_ENTRY(dmx_list->next);
-	printk("avia_gt_vbi: got demux %s - %s\n", dmx_demux->vendor, dmx_demux->model);
-
-	if (dmx_demux->allocate_ts_feed(dmx_demux, &feed_vtxt, dmx_ts_callback, TS_PACKET, DMX_TS_PES_TELETEXT) < 0) {
-
-		printk("avia_gt_vbi: error while allocating vtxt feed\n");
-
-		return -EIO;
-
-	}
-
 	return 0;
 
 }
 
-static void __exit avia_gt_vbi_exit(void)
+void __exit avia_gt_vbi_exit(void)
 {
 
-	avia_gt_vbi_stop_vtxt();
-
-	dmx_demux->release_ts_feed(dmx_demux, feed_vtxt);
-
-	devfs_unregister (devfs_handle);
-
+	avia_gt_vbi_stop();
 	avia_gt_vbi_reset(0);
+
+#ifdef VBI_IRQ
+	if (avia_gt_chip(ENX))
+		avia_gt_free_irq(ENX_IRQ_TT);
+	else if (avia_gt_chip(GTX))
+		avia_gt_free_irq(GTX_IRQ_TT);
+#endif
 
 }
 
 #ifdef MODULE
+EXPORT_SYMBOL(avia_gt_vbi_start);
+EXPORT_SYMBOL(avia_gt_vbi_stop);
+#endif
+
+#if defined(MODULE) && defined(STANDALONE)
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA VBI driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 module_init(avia_gt_vbi_init);
 module_exit(avia_gt_vbi_exit);
 #endif

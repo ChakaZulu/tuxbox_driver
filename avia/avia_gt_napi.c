@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.131 $
+ *   $Revision: 1.132 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.132  2002/10/05 15:01:12  Jolt
+ *   New NAPI compatible VBI interface
+ *
  *   Revision 1.131  2002/09/30 19:46:10  Jolt
  *   SPTS support
  *
@@ -915,7 +918,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 			// handle TS
 			case DMX_TYPE_TS:
 
-				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+				for (i = USER_QUEUE_START - 1; i < LAST_USER_QUEUE; i++) {
 
 					if ((gtx->feed[i].state == DMX_STATE_GO) &&
 						(gtx->feed[i].pid == gtxfeed->pid) &&
@@ -1362,8 +1365,8 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->type=GTX_FILTER_PID;
 
 #ifndef AVIA_SPTS
-	if (gtxfeed->output&TS_DECODER)
-		gtxfeed->output|=TS_PAYLOAD_ONLY;	 // weil: wir haben dual-pes
+	if ((gtxfeed->output & TS_DECODER) && (gtxfeed->pes_type != DMX_TS_PES_TELETEXT))
+		gtxfeed->output |= TS_PAYLOAD_ONLY;	 // weil: wir haben dual-pes
 #endif
 
 	if (gtxfeed->output&TS_PAYLOAD_ONLY)
@@ -1955,7 +1958,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.131 2002/09/30 19:46:10 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.132 2002/10/05 15:01:12 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

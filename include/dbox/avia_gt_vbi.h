@@ -21,5 +21,13 @@
  *
  */
 
-#define AVIA_VBI_START_VTXT	1
-#define AVIA_VBI_STOP_VTXT	2
+#ifndef AVIA_GT_VBI_H
+#define AVIA_GT_VBI_H
+
+void avia_gt_vbi_start(void);
+void avia_gt_vbi_stop(void);
+
+extern int avia_gt_vbi_init(void);
+extern void avia_gt_vbi_exit(void);
+
+#endif

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.23  2002/10/05 15:01:12  Jolt
+ *   New NAPI compatible VBI interface
+ *
  *   Revision 1.22  2002/09/13 22:53:55  Jolt
  *   HW CRC support
  *
@@ -93,7 +96,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -120,15 +123,16 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/info.h"
-#include "dbox/avia_gt.h"
-#include "dbox/avia_gt_accel.h"
-#include "dbox/avia_gt_dmx.h"
-#include "dbox/avia_gt_gv.h"
-#include "dbox/avia_gt_pcm.h"
-#include "dbox/avia_gt_capture.h"
-#include "dbox/avia_gt_pig.h"
-#include "dbox/avia_gt_ir.h"
+#include <dbox/info.h>
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_accel.h>
+#include <dbox/avia_gt_dmx.h>
+#include <dbox/avia_gt_gv.h>
+#include <dbox/avia_gt_pcm.h>
+#include <dbox/avia_gt_capture.h>
+#include <dbox/avia_gt_pig.h>
+#include <dbox/avia_gt_ir.h>
+#include <dbox/avia_gt_vbi.h>
 
 #ifdef MODULE
 MODULE_PARM(chip_type, "i");
@@ -285,7 +289,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.22 2002/09/13 22:53:55 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.23 2002/10/05 15:01:12 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -466,6 +470,18 @@ int __init avia_gt_init(void)
 
 	init_state = 12;
 
+	if (avia_gt_vbi_init()) {
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+	
+	avia_gt_vbi_start();
+
+	init_state = 13;
+
 #endif
 
 	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
@@ -478,6 +494,9 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
+	if (init_state >= 13)
+		avia_gt_vbi_exit();
+
 	if (init_state >= 12)
 		avia_gt_ir_exit();
 

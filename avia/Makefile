@@ -5,8 +5,8 @@
 DEBUG = 0
 STANDALONE = 0
 
-M_OBJS   = avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia_gt_lirc.o avia_gt_dvr.o
-obj-m    = avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia_gt_lirc.o avia_gt_dvr.o
+M_OBJS   = avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_dvr.o
+obj-m    = avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_dvr.o
 
 FB_GEN = $(KERNEL_LOCATION)/drivers/video/fbgen.o
 
@@ -14,7 +14,7 @@ FB_GEN = $(KERNEL_LOCATION)/drivers/video/fbgen.o
 AVIA_AV_MODS = avia_av_event.o avia_av_proc.o
 AVIA_AV      = avia_av_core.o 
 
-AVIA_GT_MODS = avia_gt_accel.o avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o avia_gt_ir.o
+AVIA_GT_MODS = avia_gt_accel.o avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o avia_gt_ir.o avia_gt_vbi.o
 AVIA_GT      = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o
 AVIA_GT_FB   = avia_gt_fb_core.o $(FB_GEN)
 
