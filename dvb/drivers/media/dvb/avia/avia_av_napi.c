@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.26 2003/11/20 01:20:50 obi Exp $
+ * $Id: avia_av_napi.c,v 1.27 2003/11/21 19:36:19 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -476,7 +476,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			/* unmute av spdif (2) and analog audio (4) */
 			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 6);
 		}
-		avia_av_dram_write(NEW_AUDIO_CONFIG, 0xffff);
+		avia_av_new_audio_config();
 		audiostate.mute_state = !!arg;
 		break;
 
@@ -513,7 +513,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 		}
 
 		avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | val);
-		avia_av_dram_write(NEW_AUDIO_CONFIG, 0xffff);
+		avia_av_new_audio_config();
 		audiostate.channel_select = select;
 		break;
 	}
@@ -726,7 +726,7 @@ static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.26 2003/11/20 01:20:50 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.27 2003/11/21 19:36:19 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_ksyms.c,v 1.1 2003/09/12 03:01:51 obi Exp $
+ * $Id: avia_av_ksyms.c,v 1.2 2003/11/21 19:36:19 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -44,4 +44,5 @@ EXPORT_SYMBOL(avia_av_audio_pts_to_stc);
 EXPORT_SYMBOL(avia_av_register_video_event_handler);
 EXPORT_SYMBOL(avia_av_unregister_video_event_handler);
 EXPORT_SYMBOL(avia_av_get_video_size);
+EXPORT_SYMBOL(avia_av_new_audio_config);
 

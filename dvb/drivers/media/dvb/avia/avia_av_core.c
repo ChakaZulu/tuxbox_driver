@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.79 2003/10/16 08:42:20 alexw Exp $
+ * $Id: avia_av_core.c,v 1.80 2003/11/21 19:36:19 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <asm/commproc.h>
+#include <asm/hardirq.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -302,8 +303,13 @@ int avia_av_wait(u32 reg, u32 val, u32 ms)
 
 	while ((avia_av_dram_read(reg) != val) && (--tries)) {
 		printk(KERN_DEBUG "avia_av: reg %08x != %08x (%d tries left)\n", reg, val, tries);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(((HZ * ms) + 500) / 1000);
+		if (in_interrupt()) {
+			udelay(ms);
+		}
+		else {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(((HZ * ms) + 500) / 1000);
+		}
 	}
 
 	return tries ? 0 : -1;
@@ -317,6 +323,19 @@ void avia_av_htd_interrupt(void)
 }
 
 /* ---------------------------------------------------------------------- */
+
+int avia_av_new_audio_config(void)
+{
+	/* looks like 0x0001 is more non-zero than 0xffff */
+	avia_av_dram_write(NEW_AUDIO_CONFIG, 0x0001);
+
+	if (avia_av_wait(NEW_AUDIO_CONFIG, 0, 100) < 0) {
+		printk(KERN_ERR "avia_av: new_audio_config timeout\n");
+		return -1;
+	}
+
+	return 0;
+}
 
 static
 void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
@@ -413,7 +432,7 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 			}
 
 		if (sem & 0xFF)
-			avia_av_dram_write(NEW_AUDIO_CONFIG, 0xFFFF);
+			avia_av_new_audio_config();
 	}
 
 	/* intr. ack */
@@ -1010,10 +1029,7 @@ static int avia_av_init(void)
 	}
 
 	/* new audio config */
-	avia_av_dram_write(NEW_AUDIO_CONFIG, 0xFFFF);
-
-	if (avia_av_wait(NEW_AUDIO_CONFIG, 0, 100) < 0) {
-		printk(KERN_ERR "avia_av: new_audio_config timeout\n");
+	if (avia_av_new_audio_config() < 0) {
 		iounmap((void *)aviamem);
 		aviamem = NULL;
 		free_irq(AVIA_INTERRUPT, &dev);
@@ -1079,7 +1095,7 @@ void avia_av_bypass_mode_set(const u8 enable)
 	else
 		avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 1);
 
-	avia_av_dram_write(NEW_AUDIO_CONFIG, 0xFFFF);
+	avia_av_new_audio_config();
 
 	bypass_mode = !!enable;
 	bypass_mode_changed = 1;
@@ -1375,7 +1391,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.79 2003/10/16 08:42:20 alexw Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.80 2003/11/21 19:36:19 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();

@@ -341,6 +341,7 @@ int avia_av_audio_pts_to_stc(struct pes_header *pes);
 int avia_av_register_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio));
 void avia_av_unregister_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio));
 void avia_av_get_video_size(u16 *w, u16 *h, u16 *ratio);
+int avia_av_new_audio_config(void);
 
 u32 avia_av_read(const u8 mode, u32 address);
 void avia_av_write(const u8 mode, u32 address, const u32 data);
