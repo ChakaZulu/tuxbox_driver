@@ -6,6 +6,8 @@
 #define FP_IOCTL_REBOOT         2
 #define FP_IOCTL_LCD_DIMM		3
 #define FP_IOCTL_LED			4
+#define FP_IOCTL_GET_WAKEUP_TIMER		5
+#define FP_IOCTL_SET_WAKEUP_TIMER		6
 
 #define RC_IOCTL_BCODES 	0	
 
