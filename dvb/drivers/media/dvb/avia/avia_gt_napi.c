@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.200 2004/05/19 20:15:00 derget Exp $
+ * $Id: avia_gt_napi.c,v 1.201 2004/06/04 14:03:01 ghostrider Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -809,7 +809,7 @@ static int __init avia_gt_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.200 2004/05/19 20:15:00 derget Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.201 2004/06/04 14:03:01 ghostrider Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -856,6 +856,7 @@ static int __init avia_gt_napi_init(void)
 	// set overrides for clipmode
 	demux.dmx.connect_frontend = avia_gt_napi_connect_frontend;
 	demux.dmx.disconnect_frontend = avia_gt_napi_disconnect_frontend;
+	demux.dmx.get_stc = avia_gt_dmx_get_stc;
 
 	dmxdev.filternum = 31;
 	dmxdev.demux = &demux.dmx;

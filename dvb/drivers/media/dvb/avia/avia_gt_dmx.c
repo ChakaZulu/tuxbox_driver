@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.204 2004/05/19 20:15:00 derget Exp $
+ * $Id: avia_gt_dmx.c,v 1.205 2004/06/04 14:03:01 ghostrider Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1064,6 +1064,17 @@ u64 avia_gt_dmx_get_stc_base(void)
 	return (stc2 << 17) | (stc1 << 1) | (stc0 >> 15);
 }
 
+int avia_gt_dmx_get_stc( struct dmx_demux* demux, unsigned int num,
+			u64 *stc, unsigned int *base)
+{
+	if (num != 0)
+		return -EINVAL;
+	else
+		*stc = avia_gt_dmx_get_latched_stc_base();
+
+	return 0;
+}
+
 static
 void avia_gt_dmx_set_dac(s16 pulse_count)
 {
@@ -1334,7 +1345,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.204 2004/05/19 20:15:00 derget Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.205 2004/06/04 14:03:01 ghostrider Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
@@ -1508,4 +1519,5 @@ EXPORT_SYMBOL(avia_gt_dmx_disable_clip_mode);
 EXPORT_SYMBOL(avia_gt_dmx_queue_write);
 EXPORT_SYMBOL(avia_gt_dmx_queue_nr_get_bytes_free);
 EXPORT_SYMBOL(avia_gt_dmx_get_ucode_info);
-EXPORT_SYMBOL(avia_gt_dmx_set_ucode_info);;
+EXPORT_SYMBOL(avia_gt_dmx_set_ucode_info);
+EXPORT_SYMBOL(avia_gt_dmx_get_stc);

@@ -36,6 +36,8 @@
 
 #define AVIA_GT_DMX_SYSTEM_QUEUES		0xff	/* alias for video+audio+teletext queues */
 
+#include "demux.h"
+
 struct avia_gt_dmx_queue {
 	u8 index;
 	u8 feed_idx;
@@ -113,5 +115,7 @@ int avia_gt_dmx_queue_nr_get_bytes_free(u8 queue_nr);
 
 int avia_gt_dmx_init(void);
 void avia_gt_dmx_exit(void);
+
+int avia_gt_dmx_get_stc( struct dmx_demux* demux, unsigned int num, u64 *stc, unsigned int *base);
 
 #endif /* AVIA_GT_DMX_H */
