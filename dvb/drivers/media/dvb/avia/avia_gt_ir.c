@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.15  2002/05/13 22:38:36  Jolt
+ *   GTX fixes
+ *
  *   Revision 1.14  2002/05/11 22:46:16  Jolt
  *   IR fixes
  *
@@ -65,7 +68,7 @@
  *
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -109,6 +112,7 @@ static void avia_gt_ir_rx_irq(unsigned short irq)
 {
 
 	dprintk("avia_gt_ir: rx irq\n");
+//	dprintk("IRR (RTC=0x%X RPH=0x%X)\n", enx_reg_16(RTC), enx_reg_16(RPH));
 
 }
 
@@ -265,9 +269,9 @@ void avia_gt_ir_set_duty_cycle(u32 new_duty_cycle)
 	duty_cycle = new_duty_cycle;
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_HALFSYSCLK * duty_cycle) / (frequency * 100)) - 1;
+		enx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_ENX_IR_CLOCK * duty_cycle) / (frequency * 100)) - 1;
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_HALFSYSCLK * duty_cycle) / (frequency * 100)) - 1;
+		gtx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_GTX_IR_CLOCK * duty_cycle) / (frequency * 100)) - 1;
 
 }
 
@@ -277,9 +281,9 @@ void avia_gt_ir_set_frequency(u32 new_frequency)
 	frequency = new_frequency;
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_HALFSYSCLK / frequency) - 1;
+		enx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_ENX_IR_CLOCK / frequency) - 1;
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_HALFSYSCLK / frequency) - 1;
+		gtx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_GTX_IR_CLOCK / frequency) - 1;
 
 	avia_gt_ir_set_duty_cycle(duty_cycle);
 
@@ -337,7 +341,7 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq;
 	u16 tx_irq;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.14 2002/05/11 22:46:16 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.15 2002/05/13 22:38:36 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		
