@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.51 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.52 2003/11/06 14:25:59 tklamm Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -97,6 +97,7 @@ struct gtxfb_par {
 	int interlaced;
 	// calculated of the above stuff
 	int xres, yres;
+	int vyres;
 	int stride;
 };
 
@@ -124,6 +125,7 @@ static void avia_gt_fb_get_par(void *fb_par, struct fb_info_gen *info);
 static void avia_gt_fb_set_par(const void *fb_par, struct fb_info_gen *info);
 static int avia_gt_fb_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue, u_int *transp, struct fb_info *info);
 static int avia_gt_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int transp, struct fb_info *info);
+static int avia_gt_fb_pan_display(const struct fb_var_screeninfo *var,struct fb_info_gen *info);
 static int avia_gt_fb_blank(int blank, struct fb_info_gen *info);
 static void avia_gt_fb_set_disp(const void *fb_par, struct display *disp, struct fb_info_gen *info);
 
@@ -152,7 +154,7 @@ int avia_gt_fb_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, str
 	fix->smem_len = 1024 * 1024;	/* FIXME: AVIA_GT_MEM_GV_SIZE? */
 
 	fix->xpanstep = 0;
-	fix->ypanstep = 0;
+	fix->ypanstep = 1;
 	fix->ywrapstep = 0;
 
 	if (avia_gt_chip(GTX)) {
@@ -207,6 +209,7 @@ int avia_gt_fb_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
 
 	par->xres = var->xres;
 	par->yres = var->yres;
+	par->vyres = var->yres_virtual;
 	par->stride = (var->xres * par->bpp) / 8;
 
 	return 0;
@@ -229,7 +232,7 @@ int avia_gt_fb_encode_var(struct fb_var_screeninfo *var, const void *fb_par, str
 	var->sync = 0;
 
 	var->xres_virtual = var->xres;
-	var->yres_virtual = var->yres;
+	var->yres_virtual = par->vyres;
 
 	var->xoffset = 0;
 	var->yoffset = 0;
@@ -367,6 +370,24 @@ int avia_gt_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int 
 	return 0;
 }
 
+static 
+int avia_gt_fb_pan_display(const struct fb_var_screeninfo *var, struct fb_info_gen *info)
+{
+	/* FIXME: do not access registers directly here */
+	/* FIXME: enx support */
+
+	sAviaGtInfo *gt_info = avia_gt_get_info();
+	
+	__u32 display_start = 1024*1024 + (var->yoffset * var->xres_virtual);
+	
+	if (avia_gt_chip(GTX))
+		gtx_reg_32(GVSA) = display_start;
+	else
+		enx_reg_32(GVSA1) = display_start;
+
+	return 0;
+}
+
 static
 int avia_gt_fb_blank(int blank, struct fb_info_gen *info)
 {
@@ -423,6 +444,7 @@ struct fbgen_hwswitch avia_gt_fb_switch = {
 	.set_disp = avia_gt_fb_set_disp,
 	.set_par = avia_gt_fb_set_par,
 	.setcolreg = avia_gt_fb_setcolreg,
+	.pan_display = avia_gt_fb_pan_display
 };
 
 static int avia_gt_fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
@@ -469,7 +491,7 @@ static struct fb_ops avia_gt_fb_ops = {
 	.fb_set_var = fbgen_set_var,
 	.fb_get_cmap = fbgen_get_cmap,
 	.fb_set_cmap = fbgen_set_cmap,
-	.fb_pan_display = NULL,
+	.fb_pan_display = fbgen_pan_display,
 	.fb_ioctl = avia_gt_fb_ioctl,
 	.fb_mmap = NULL,
 	.fb_rasterimg = NULL,
@@ -477,7 +499,7 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.51 2003/09/30 05:45:35 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.52 2003/11/06 14:25:59 tklamm Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
