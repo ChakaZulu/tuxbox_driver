@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.25  2002/12/21 13:43:43  Jolt
+ *   Fixes
+ *
  *   Revision 1.24  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -99,7 +102,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -133,7 +136,7 @@
 #include "avia_gt_gv.h"
 #include "avia_gt_pcm.h"
 #include <linux/dvb/avia/avia_gt_capture.h>
-#include <linux/dvb/avia/avia_gt_pig.h>
+#include "avia_gt_pig.h"
 #include "avia_gt_ir.h"
 #include "avia_gt_vbi.h"
 
@@ -292,7 +295,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.24 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.25 2002/12/21 13:43:43 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 

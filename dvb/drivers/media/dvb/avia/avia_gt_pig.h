@@ -28,5 +28,8 @@ int avia_gt_pig_hide(unsigned char pig_nr);
 int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y);
 int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short height, unsigned char stretch);
 int avia_gt_pig_show(unsigned char pig_nr);
+
+int avia_gt_pig_init(void);
+void avia_gt_pig_exit(void);
 	    
 #endif

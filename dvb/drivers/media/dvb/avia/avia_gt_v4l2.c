@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_v4l2.c,v $
+ *   Revision 1.3  2002/12/21 13:43:43  Jolt
+ *   Fixes
+ *
  *   Revision 1.2  2002/12/20 22:30:43  Jolt
  *   Misc fixes / tweaks
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -59,6 +62,8 @@ static int avia_gt_v4l2_open(struct v4l2_device	*device, int flags, void **idptr
 {
 
 	dprintk("avia_gt_v4l2: open\n");
+	
+	*idptr = device;
 	
 	return 0;
 
@@ -98,10 +103,29 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 	dprintk("avia_gt_v4l2: ioctl\n");
 	
 	switch(cmd) {
-	
+
+		case VIDIOC_ENUMINPUT:
+		{
+			struct v4l2_input *input = arg;
+			
+			if (input->index != 0)
+				return -EINVAL;
+				
+			strcpy(input->name, "AViA eNX/GTX digital tv picture");
+			input->type = V4L2_INPUT_TYPE_TUNER;
+			input->capability = 0;
+			
+			return 0;
+			
+		}
+
+		case VIDIOC_G_INPUT:
+		
+			(*((int *)arg)) = 0;
+					
 		case VIDIOC_PREVIEW:
 		
-			if (*(int *)arg)
+			if ((*((int *)arg)) != 0)
 				return avia_gt_pig_show(0);
 			else
 				return avia_gt_pig_hide(0);
@@ -121,11 +145,18 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 			capability->maxheight = 576;	//CHECKME
 			capability->minwidth = 32;	//CHECKME
 			capability->minheight = 32;	//CHECKME
-			capability->maxframerate = 30;
+			capability->maxframerate = 25;
 			
 			return 0;
 			
 		}
+
+		case VIDIOC_S_INPUT:
+		
+			if ((*((int *)arg)) != 0)
+				return -EINVAL;
+			else
+				return 0;
 
 		case VIDIOC_S_WIN:
 		{
@@ -198,7 +229,7 @@ static int unit_video = 0;
 static int __init avia_gt_v4l2_init(void)
 {
 
-    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.2 2002/12/20 22:30:43 Jolt Exp $\n");
+    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.3 2002/12/21 13:43:43 Jolt Exp $\n");
 	
 	device_info.minor = unit_video;
 
