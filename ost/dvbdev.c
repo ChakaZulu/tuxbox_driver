@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.5 2001/03/11 18:26:35 waldi Exp $
+ * $Id: dvbdev.c,v 1.6 2001/03/12 03:27:26 kwon Exp $
  */
 
 #include <linux/config.h>
@@ -124,13 +124,13 @@ static struct file_operations dvbdev_fops =
   poll:         dvbdev_poll
 };
 
-void dvbdev_devfs_init ()
+void dvbdev_devfs_init (void)
 {
   devfs_dir_handle[DVB_DEVFSDIR_DVB] = devfs_mk_dir ( NULL, "dvb", NULL );
   devfs_dir_handle[DVB_DEVFSDIR_OST] = devfs_mk_dir ( NULL, "ost", NULL );
 }
 
-void dvbdev_devfs_cleanup ()
+void dvbdev_devfs_cleanup (void)
 {
   devfs_unregister ( devfs_dir_handle[DVB_DEVFSDIR_DVB] );
   devfs_unregister ( devfs_dir_handle[DVB_DEVFSDIR_OST] );
@@ -208,7 +208,7 @@ void dvb_unregister_device ( dvb_device_t * dev )
   MOD_DEC_USE_COUNT;
 }
 
-int __init dvbdev_init_module ()
+int __init dvbdev_init_module (void)
 {
   int i;
 
@@ -220,7 +220,7 @@ int __init dvbdev_init_module ()
   return 0;
 }
 
-void __exit dvbdev_cleanup_module ()
+void __exit dvbdev_cleanup_module (void)
 {
   dvbdev_devfs_cleanup ();
 }
