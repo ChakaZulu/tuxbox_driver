@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.154 $
+ *   $Revision: 1.155 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.155  2002/11/04 08:06:54  Jolt
+ *   Queue handling changes part4
+ *
  *   Revision 1.154  2002/11/03 19:11:12  Jolt
  *   Queue handling changes part3
  *
@@ -533,7 +536,7 @@ static void dmx_set_filter(gtx_demux_filter_t *filter)
 		
 }
 
-static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
+static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
 {
 
 	if (dvbdmxfeed->type == DMX_TYPE_SEC)
@@ -543,7 +546,7 @@ static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb
 	
 		printk("avia_gt_napi: strange feed type %d found\n", dvbdmxfeed->type);
 		
-		return -EINVAL;
+		return NULL;
 	
 	}
 
@@ -569,7 +572,7 @@ static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb
 			
 		default:
 			
-			return -EINVAL;				
+			return NULL;
 
 	}
 
@@ -637,18 +640,18 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	gtx_demux_filter_t *filter = &pid2filter[dvbdmxfeed->pid];
-	int queue_nr = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_generic);
+	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_generic);
 	
-	if (queue_nr < 0)
-		return queue_nr;
+	if (!queue)
+		return -EBUSY;
 
-	printk("avia_gt_napi: got queue %d for pid 0x%X\n", queue_nr, dvbdmxfeed->pid);
+	printk("avia_gt_napi: got queue %d for pid 0x%X\n", queue->index, dvbdmxfeed->pid);
 		
 	filter->output = 0;
 	filter->pid = dvbdmxfeed->pid;
 	filter->wait_pusi = 0;
-	filter->index = queue_nr;
-	filter->queue = queue_nr;
+	filter->index = queue->index;
+	filter->queue = queue->index;
 	filter->invalid = 1;
 	filter->fork = 0;
 	filter->cw_offset = 0;
@@ -791,7 +794,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.154 2002/11/03 19:11:12 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.155 2002/11/04 08:06:54 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

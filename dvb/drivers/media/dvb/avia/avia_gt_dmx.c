@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.144  2002/11/04 08:06:54  Jolt
+ *   Queue handling changes part4
+ *
  *   Revision 1.143  2002/11/03 19:11:12  Jolt
  *   Queue handling changes part3
  *
@@ -239,7 +242,7 @@
  *
  *
  *
- *   $Revision: 1.143 $
+ *   $Revision: 1.144 $
  *
  */
 
@@ -332,14 +335,14 @@ static void avia_gt_dmx_dump(void) {
 }
 #endif
 
-s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
 		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
 
-		return -EINVAL;
+		return NULL;
 
 	}
 
@@ -347,7 +350,7 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmx
 
 		printk("avia_gt_dmx: alloc_queue: queue %d busy\n", queue_nr);
 
-		return -EBUSY;
+		return NULL;
 
 	}
 
@@ -361,32 +364,32 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmx
 	queue_list[queue_nr].read_pos = 0;
 	queue_list[queue_nr].write_pos = 0;
 	
-	return queue_nr;
+	return &queue_list[queue_nr].info;
 
 }
 
-s32 avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
     return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO, irq_proc, cb_proc, priv_data);
 
 }
 
-s32 avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
     return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_MESSAGE, irq_proc, cb_proc, priv_data);
 
 }
 
-s32 avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
     return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT, irq_proc, cb_proc, priv_data);
 
 }
 
-s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
     u8 queue_nr;
@@ -398,11 +401,11 @@ s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueuePro
 
 	}
 
-	return -EBUSY;
+	return NULL;
 
 }
 
-s32 avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 
 	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_VIDEO, irq_proc, cb_proc, priv_data);
@@ -2044,7 +2047,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.143 2002/11/03 19:11:12 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.144 2002/11/04 08:06:54 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
