@@ -21,15 +21,12 @@
 
 #include "gtx.h"
 
-#define RES_X           768
+#define RES_X           720
 #define RES_Y           576
 
 static void InitGraphics(int pal)
 {
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
-  VCR_SET_HP(2);
-  VCR_SET_FP(2);
-
   rh(VHT)=pal?858:852;
   rh(VLT)=pal?(623|(21<<11)):(523|(18<<11));
 
@@ -47,6 +44,13 @@ static void InitGraphics(int pal)
   rw(GVSA)=0;                      // dram start address
   rh(GVP)=0;
   rw(GVS)=(RES_X<<16)|(RES_Y);
+
+  VCR_SET_HP(2);
+  VCR_SET_FP(2);
+  GVP_SET_COORD(127,43);
+//  GVS_SET_XSZ(740);
+//  GVS_SET_YSZ(622);
+
 
   rw(VBR)=0;                       // disable background..
 }
