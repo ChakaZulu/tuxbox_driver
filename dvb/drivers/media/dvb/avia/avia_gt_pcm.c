@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pcm.c,v 1.28 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_gt_pcm.c,v 1.29 2004/01/29 19:38:20 zwen Exp $
  *
  * AViA eNX/GTX pcm driver (dbox-II-project)
  *
@@ -202,18 +202,21 @@ void avia_gt_pcm_set_pcm_attenuation(u8 left, u8 right)
 int avia_gt_pcm_set_rate(u16 rate)
 {
 	unsigned char divider_mode = 3;
-
+	printk("avia_gt_pcm_set_rate(%d)\n", rate);
 	switch (rate) {
 	case 48000:
 	case 44100:
+	case 32000:
 		divider_mode = 3;
 		break;
 	case 24000:
 	case 22050:
+	case 16000:
 		divider_mode = 2;
 		break;
 	case 12000:
 	case 11025:
+	case 8000:
 		divider_mode = 1;
 		break;
 	default:
@@ -368,7 +371,7 @@ int avia_gt_pcm_init(void)
 {
 	u8 buf_nr = 0;
 
-	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.28 2003/09/30 05:45:35 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.29 2004/01/29 19:38:20 zwen Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

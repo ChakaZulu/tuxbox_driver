@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.85 2003/12/24 14:42:47 obi Exp $
+ * $Id: avia_av_core.c,v 1.86 2004/01/29 19:38:19 zwen Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -636,7 +636,7 @@ int new_audio_sequence(u32 val)
 */
 
 static
-void avia_av_audio_init(void)
+void avia_av_audio_init(u16 rate)
 {
 	u32 val;
 
@@ -669,7 +669,19 @@ void avia_av_audio_init(void)
 
 	/* AUDIO_CLOCK_SELECTION */
 	val = 0;
-	val |= (1<<2);
+	switch(rate)
+	{
+		case 48000:
+			sample_rate = 48000;
+			break;
+		case 32000:
+			sample_rate = 32000;
+			val |= (2<<2);
+			break;
+		default:
+			val |= (1<<2);
+			sample_rate = 44100;
+	}
 
 	/* 500/600 test */
 	if ((aviarev == 0x00) && (silirev == 0x80))
@@ -685,8 +697,6 @@ void avia_av_audio_init(void)
 
 	/* SET SCMS */
 	avia_av_dram_write(IEC_958_CHANNEL_STATUS_BITS, avia_av_dram_read(IEC_958_CHANNEL_STATUS_BITS) | 5);
-
-	sample_rate = 44100;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1022,7 +1032,7 @@ static int avia_av_init(void)
 	avia_av_load_microcode(microcode);
 	avia_av_load_imem_image(microcode, UX_FIRST_SECTION_START + UX_SECTION_DATA_OFFSET);
 	avia_av_set_default();
-	avia_av_audio_init();
+	avia_av_audio_init(sample_rate);
 	/* init_audio_sequence(); */
 	avia_av_gbus_final(microcode);
 
@@ -1090,7 +1100,6 @@ static int avia_av_init(void)
 	/* initialize global state variables */
 	play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
 	play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
-	sample_rate = 44100;
 	stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
 	stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
 	sync_mode = AVIA_AV_SYNC_MODE_AV;
@@ -1103,6 +1112,21 @@ static int avia_av_init(void)
 u16 avia_av_get_sample_rate(void)
 {
 	return sample_rate;
+}
+
+int avia_av_set_sample_rate(u16 rate)
+{
+	if(rate != 48000 && rate !=44100 && rate!=32000)
+	{
+		return -EINVAL;
+	}
+	else if(sample_rate != rate)
+	{
+		sample_rate=rate;
+		avia_av_standby(1);
+		avia_av_standby(0);
+	}
+	return 0;
 }
 
 void avia_av_bypass_mode_set(const u8 enable)
@@ -1418,7 +1442,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.85 2003/12/24 14:42:47 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.86 2004/01/29 19:38:19 zwen Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
@@ -1427,6 +1451,7 @@ int __init avia_av_core_init(void)
 	if (!firmware)
 		return -EINVAL;
 
+	sample_rate = 44100;
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
 

@@ -332,6 +332,7 @@
 
 void avia_av_bypass_mode_set(const u8 enable);
 u16 avia_av_get_sample_rate(void);
+int avia_av_set_sample_rate(u16 rate);
 int avia_av_pid_set(const u8 type, const u16 pid);
 int avia_av_play_state_set_audio(const u8 new_play_state);
 int avia_av_play_state_set_video(const u8 new_play_state);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_ksyms.c,v 1.3 2003/12/19 21:30:29 obi Exp $
+ * $Id: avia_av_ksyms.c,v 1.4 2004/01/29 19:38:20 zwen Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -34,6 +34,7 @@ EXPORT_SYMBOL(avia_av_set_audio_attenuation);
 EXPORT_SYMBOL(avia_av_set_stc);
 EXPORT_SYMBOL(avia_av_standby);
 EXPORT_SYMBOL(avia_av_get_sample_rate);
+EXPORT_SYMBOL(avia_av_set_sample_rate);
 EXPORT_SYMBOL(avia_av_bypass_mode_set);
 EXPORT_SYMBOL(avia_av_pid_set);
 EXPORT_SYMBOL(avia_av_play_state_set_audio);
