@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.46 $
+ *   $Revision: 1.47 $
  *   $Log: gen-dmx.c,v $
+ *   Revision 1.47  2001/06/22 00:03:42  tmbinc
+ *   fixed aligning of queues, system queues
+ *
  *   Revision 1.46  2001/06/18 20:30:59  tmbinc
  *   decent buffersizes. change for your needs.
  *
@@ -240,10 +243,11 @@ struct tq_struct gtx_tasklet=
   data: 0
 };
 
-const int buffersize[32]=		// sizes are 1<<x*64bytes
+const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
+														// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
 	{10,	// video
-	8,	// audio
-	8,	// teletext
+	9,	// audio
+	9,	// teletext
 	10, 8, 8, 8, 8,		// user 3..7
 	8, 8, 8, 8, 8, 8, 8, 8,	// user 8..15
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
@@ -883,7 +887,18 @@ static void gtx_task(void *data)
           size_t b1l, b2l;
        
 					wptr = gtx_get_queue_wptr(queue);
-					rptr = gtx->feed[queue].readptr;
+					rptr = gtxfeed->readptr;
+					
+					if (wptr < gtxfeed->base)
+					{
+						printk("gtxdmx: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
+						break;
+					}
+					if (wptr >= (gtxfeed->base+gtxfeed->size))
+					{
+						printk("gtxdmx: wptr out of bounds! (is %x)\n", wptr);
+						break;
+					}
 
           b1=gtxmem+rptr;
 
@@ -1660,6 +1675,12 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	for (i=0; i<NUM_QUEUES; i++)
 	{
 		gtxdemux->feed[i].size=(1<<buffersize[i])*64;
+		if (ptr&(gtxdemux->feed[i].size-1))
+		{
+			printk("gtx-dmx: warning, misaligned queue %d (is %x, size %x), aligning...\n", i, ptr, gtxdemux->feed[i].size);
+			ptr+=gtxdemux->feed[i].size;
+			ptr&=~(gtxdemux->feed[i].size-1);
+		}
 		gtxdemux->feed[i].base=ptr;
 		ptr+=gtxdemux->feed[i].size;
 		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
@@ -1682,9 +1703,9 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
     gtxdemux->secfilter[i].state=DMX_STATE_FREE;
   }
 
-  gtx_set_queue_pointer(Q_VIDEO, gtxdemux->feed[VIDEO_QUEUE].base, gtxdemux->feed[VIDEO_QUEUE].base, 10, 0);        // set system queues
-  gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, 10, 0);
-  gtx_set_queue_pointer(Q_TELETEXT, gtxdemux->feed[TELETEXT_QUEUE].base, gtxdemux->feed[TELETEXT_QUEUE].base, 10, 0);
+  gtx_set_queue_pointer(Q_VIDEO, gtxdemux->feed[VIDEO_QUEUE].base, gtxdemux->feed[VIDEO_QUEUE].base, buffersize[VIDEO_QUEUE], 0);        // set system queues
+  gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, buffersize[AUDIO_QUEUE], 0);
+  gtx_set_queue_pointer(Q_TELETEXT, gtxdemux->feed[TELETEXT_QUEUE].base, gtxdemux->feed[TELETEXT_QUEUE].base, buffersize[TELETEXT_QUEUE], 0);
 
   dmx->id="demux0";
   dmx->vendor="C-Cube";
@@ -1740,7 +1761,7 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
-  dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.46 2001/06/18 20:30:59 tmbinc Exp $\n");
+  dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.47 2001/06/22 00:03:42 tmbinc Exp $\n");
   return gtx_dmx_init();
 }
 
