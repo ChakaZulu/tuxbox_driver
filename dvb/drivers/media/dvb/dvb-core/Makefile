@@ -8,8 +8,6 @@ export-objs	:= dvb_ksyms.o compat.o dvb_i2c_bridge.o
 DVB_CORE	:= dvbdev.o dmxdev.o dvb_demux.o dvb_filter.o \
 		   dvb_frontend.o dvb_i2c.o dvb_net.o dvb_ksyms.o compat.o
 
-EXTRA_CFLAGS	:= -Werror
-
 dvb-core.o: $(DVB_CORE)
 	$(LD) -r -o $@ $(DVB_CORE)
 

@@ -25,10 +25,9 @@ NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
-MODFLAGS	= -DMODULE
 
-CPPFLAGS	:= -D__KERNEL__ -I$(DRIVER_TOPDIR)/include -I$(DRIVER_TOPDIR)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
-CFLAGS		:= $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
+CPPFLAGS	:= -D__KERNEL__ -DMODULE -I$(DRIVER_TOPDIR)/include -I$(DRIVER_TOPDIR)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
+CFLAGS		:= $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -Werror -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
 AFLAGS		:= -D__ASSEMBLY__ $(CPPFLAGS)
 
 MODLIB		:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
