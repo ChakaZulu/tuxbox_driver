@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.7  2002/09/18 16:02:40  Jolt
+ *   Mostly rewritten dvr driver
+ *
  *   Revision 1.6  2002/08/22 14:18:58  Jolt
  *   DVR cleanups
  *
@@ -63,29 +66,23 @@
 #include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
 
-#include "dbox/avia.h"
-#include "dbox/avia_gt.h"
+#include <dbox/avia.h>
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_dmx.h>
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
-static unsigned int vpointer=0;
-static unsigned int apointer=0;
+static sAviaGtDmxQueue *video_queue;
+static sAviaGtDmxQueue *audio_queue;
 
-unsigned int oldQWPH[32];
-unsigned int oldQWPL[32];
+static u8 video_queue_nr;
+static u8 audio_queue_nr;
 
-int blax=0;
-int uga=0;
+DECLARE_WAIT_QUEUE_HEAD(audio_wait);
+DECLARE_WAIT_QUEUE_HEAD(video_wait);
 
-unsigned int oldvqrp=0;
-
-static int vqsize=1024*256; //256
-static int aqsize=1024*32; //16
-
-static wait_queue_head_t frame_wait;
-static wait_queue_head_t aframe_wait;
 static DECLARE_MUTEX_LOCKED(lock_open);
 static DECLARE_MUTEX_LOCKED(alock_open);
 
@@ -93,8 +90,6 @@ static int vstate=0;
 static int astate=0;
 
 static int start=1;
-
-static int ax=2,vx=30;
 
 static devfs_handle_t devfs_handle;
 static ssize_t iframe_write (struct file *file, const char *buf, size_t count,loff_t *offset);
@@ -109,178 +104,249 @@ static int aiframe_open (struct inode *inode, struct file *file);
 static int aiframe_release (struct inode *inode, struct file *file);
 
 static struct file_operations iframe_fops = {
+
     owner:	THIS_MODULE,
     write:	iframe_write,
     open:	iframe_open,
     release:	iframe_release,
+	
 };
 
 static struct file_operations aiframe_fops = {
+
     owner:	THIS_MODULE,
     write:	aiframe_write,
     open:	aiframe_open,
     release:	aiframe_release,
+	
 };
 
+void avia_gt_dvr_queue_irq_audio(u8 queue_nr, void *priv_data)
+{
+
+	if (astate)
+		wake_up_interruptible(&audio_wait);
+
+}
+
+void avia_gt_dvr_queue_irq_video(u8 queue_nr, void *priv_data)
+{
+
+	if (vstate)
+		wake_up_interruptible(&video_wait);
+
+}
+
 static int iframe_open (struct inode *inode, struct file *file){
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-	switch (minor)
-	{
+
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	s16 result;
+	
+	switch (minor) {
+	
 		case 0:
-			if (file->f_flags & O_NONBLOCK)
-			{
+		
+			if (file->f_flags & O_NONBLOCK)	{
+			
 				if (down_trylock(&lock_open))
 					return -EAGAIN;
-			}	else
-			{
-			if (down_interruptible(&lock_open))
+					
+			} else {
+			
+				if (down_interruptible(&lock_open))
 					return -ERESTARTSYS;
+					
 			}
+
+			result = avia_gt_dmx_alloc_queue_video(avia_gt_dvr_queue_irq_video, NULL, NULL);
+	
+			if (result < 0) {
+	
+		        printk("avia_gt_dvr: can not allocate video queue\n");
+					
+		        return result;
+	
+			}
+	
+			video_queue_nr = result;
+
+			video_queue = avia_gt_dmx_get_queue_info(video_queue_nr);
+			video_queue->write_pos = 0;
+			avia_gt_dmx_system_queue_set_pos(video_queue_nr, 0, 0);
+			avia_gt_dmx_queue_irq_enable(video_queue_nr);
+
+		    if (avia_gt_chip(ENX))
+				enx_reg_set(CFGR0, VCP, 1);
+			else if (avia_gt_chip(GTX))
+				gtx_reg_set(CR1, VCP, 1);
+			
 			printk("dvr-video: open\n");
+			
 			return 0;
-	default:
-		return -ENODEV;
+			
+		break;
+		
+		default:
+		
+			return -ENODEV;
+			
+		break;
+		
 	}
 
-  return 0;
+	return 0;
+	
 }
 
 static int iframe_release (struct inode *inode, struct file *file){
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
 		
-	switch (minor)
-	{
+	switch (minor) {
+	
 		case 0:
+
+			avia_gt_dmx_queue_irq_disable(video_queue_nr);
+			avia_gt_dmx_free_queue(video_queue_nr);
+
+		    if (avia_gt_chip(ENX))
+				enx_reg_set(CFGR0, VCP, 0);
+			else if (avia_gt_chip(GTX))
+				gtx_reg_set(CR1, VCP, 0);
+
 			up(&lock_open);
+
 			return 0;
+			
+		break;
+		
 	}
+	
 	return -EINVAL;
+
 }
+
 static int aiframe_open (struct inode *inode, struct file *file){
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-	switch (minor)
-	{
+
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	s16 result;
+
+	switch (minor) {
+	
 		case 0:
-			if (file->f_flags & O_NONBLOCK)
-			{
+
+			if (file->f_flags & O_NONBLOCK)	{
+			
 				if (down_trylock(&alock_open))
 					return -EAGAIN;
-			}	else
-			{
-			if (down_interruptible(&alock_open))
+					
+			} else {
+			
+				if (down_interruptible(&alock_open))
 					return -ERESTARTSYS;
+					
 			}
+
+			result = avia_gt_dmx_alloc_queue_audio(avia_gt_dvr_queue_irq_audio, NULL, NULL);
+	
+			if (result < 0) {
+	
+		        printk("avia_gt_dvr: can not allocate audio queue\n");
+		
+		        return result;
+	
+			}
+
+			audio_queue_nr = result;
+
+			audio_queue = avia_gt_dmx_get_queue_info(audio_queue_nr);
+			audio_queue->write_pos = 0;
+			avia_gt_dmx_system_queue_set_pos(audio_queue_nr, 0, 0);
+
+			avia_gt_dmx_queue_irq_enable(audio_queue_nr);
+
+			if (avia_gt_chip(ENX))
+				enx_reg_set(CFGR0, ACP, 1);
+			else if (avia_gt_chip(GTX))
+				gtx_reg_set(CR1, ACP, 1);
+
 			printk("dvr-audio: open\n");
 
-			start=1;
+			start = 1;
 			avia_flush_pcr();
 			wDR(AV_SYNC_MODE,0);
 			avia_command(NewChannel,0,0,0);
 			//wDR(0x468,0x1);
-			
+		
 			return 0;
-	default:
-		return -ENODEV;
+			
+		break;
+		
+		default:
+		
+			return -ENODEV;
+			
+		break;
+		
 	}
-  return 0;
+
 }
 
 static int aiframe_release (struct inode *inode, struct file *file)
 {
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
 		
-	switch (minor)
-	{
+	switch (minor) {
+	
 		case 0:
+
+			avia_gt_dmx_queue_irq_disable(audio_queue_nr);
+			avia_gt_dmx_free_queue(audio_queue_nr);
+
+			if (avia_gt_chip(ENX))
+				enx_reg_set(CFGR0, ACP, 0);
+			else if (avia_gt_chip(GTX))
+				gtx_reg_set(CR1, ACP, 0);
+	
 			up(&alock_open);
+			
 			return 0;
+			
+		break;
+		
 	}
+	
 	return -EINVAL;
-}
-
-static int getQ_Size(unsigned int Bytes)
-{
-	int i = (int)0;	
-	for(i=0;i<17;i++) if((Bytes/64 >> i)==1) break;
-	return i;
-}
-static void videoint(u16 irq)
-{
-//	unsigned int vqpoint;
-
-	if(vstate)
-		wake_up(&frame_wait);
-
-//	vqpoint=gtx_reg_16(VQRPH)<<16;
-//	vqpoint|=gtx_reg_16(VQRPL);
-		
-//	printk("VINT:%d\n",vqpoint);	
-
-		
-}
-
-static void audioint(u16 irq)
-{
-//	unsigned int vqpoint;
-	if(astate)
-		wake_up(&aframe_wait);
-		
-//	vqpoint=gtx_reg_16(AQRPH)<<16;
-//	vqpoint|=gtx_reg_16(AQRPL);
-		
-//	printk("AINT:%d\n",vqpoint);	
+	
 }
 
 static ssize_t iframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
-		int write=count;
-		DECLARE_WAITQUEUE(wait,current);
 
-		if((vpointer + count) >= vqsize)
-		{
-			write=((vqsize)-vpointer);
-			memcpy(gt_info->mem_addr+vpointer,buf,write);
-			vpointer=0;
-			memcpy(gt_info->mem_addr+vpointer,buf+write,count-write);
-			vpointer=count-write;
-		}	
-		else
-		{
-			memcpy(gt_info->mem_addr+vpointer,buf,count);
-			vpointer+=count;
-		}	
+	DECLARE_WAITQUEUE(wait,current);
 
-    if (avia_gt_chip(ENX)) {
+	video_queue->info.put_data(video_queue_nr, (void *)buf, count);
 	
-		enx_reg_16(VQWPL)=vpointer & 0xffff; 
-		enx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
-		
-    } else if (avia_gt_chip(GTX)) {
-	
-		gtx_reg_16(VQWPL)=vpointer & 0xffff;
-		gtx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
-		
-	}
-		
-		if(vpointer >= vqsize) vpointer=0;
-		
-#if 1		
-		add_wait_queue(&frame_wait,&wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-		vstate=1;
-		schedule();
-		current->state = TASK_RUNNING;
-		remove_wait_queue(&frame_wait,&wait);
-		vstate=0;
-		vx=10;
-#endif 
+	avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
 
-	  return count;
+	if (video_queue->write_pos >= video_queue->size)
+		video_queue->write_pos = 0;
+		
+	add_wait_queue(&video_wait,&wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+	vstate = 1;
+	schedule();
+	current->state = TASK_RUNNING;
+	remove_wait_queue(&video_wait,&wait);
+	vstate = 0;
+
+	return count;
+  
 }        
 
 static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
-		int						 write	= count;
 		int						 i			= (int)0;
 		u32						 ptc		= (u32)0;
 		unsigned char	*buffer = (unsigned char *)buf;
@@ -310,55 +376,29 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 				}
 		}			
 					
-		if((apointer + count) >= aqsize)
-		{
-			write=((aqsize)-apointer);
-			memcpy(gt_info->mem_addr+vqsize+apointer,buf,write);
-			apointer=0;
-			memcpy(gt_info->mem_addr+vqsize+apointer,buf+write,count-write);
-			apointer=count-write;
-		}	
-		else
-		{
-			memcpy(gt_info->mem_addr+vqsize+apointer,buf,count);
-			apointer+=count;
-		}	
-
-    if (avia_gt_chip(ENX)) {
+	audio_queue->info.put_data(audio_queue_nr, (void *)buf, count);
 	
-		enx_reg_16(AQWPL)= apointer & 0xffff; 
-		enx_reg_16(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
-
-    } else if (avia_gt_chip(GTX)) {
-
-		gtx_reg_16(AQWPL)= apointer & 0xffff; 
-		gtx_reg_16(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
-
-	}
+	avia_gt_dmx_system_queue_set_write_pos(audio_queue_nr, audio_queue->write_pos);
+	
+	if (audio_queue->write_pos >= audio_queue->size)
+		audio_queue->write_pos = 0;
 		
-		if(apointer >= aqsize) apointer=0;
-		
-#if 1		
-		add_wait_queue(&aframe_wait,&wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-		astate=1;
-		schedule();
-		current->state = TASK_RUNNING;
-		remove_wait_queue(&aframe_wait,&wait);
-		astate=0;
-		ax=2;
-#endif		
-	  return count;
+	add_wait_queue(&audio_wait,&wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+	astate=1;
+	schedule();
+	current->state = TASK_RUNNING;
+	remove_wait_queue(&audio_wait,&wait);
+	astate=0;
+
+	return count;
+	
 }        
-
-
 
 int __init avia_gt_dvr_init(void)
 {
 
-	int i = (int)0;
-	
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.6 2002/08/22 14:18:58 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.7 2002/09/18 16:02:40 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 		
@@ -373,203 +413,34 @@ int __init avia_gt_dvr_init(void)
     devfs_handle = devfs_register(NULL, "dvrv", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &iframe_fops, NULL);
     adevfs_handle = devfs_register(NULL, "dvra", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &aiframe_fops, NULL);
 										
-	memset(gt_info->mem_addr,0,1024*1024*2);
-		
-    if (avia_gt_chip(ENX)) {
-
-		enx_reg_set(CFGR0, VCP, 1);
-		enx_reg_set(CFGR0, ACP, 1);
-
-		enx_reg_32(CFGR0)&=~0x10; // Mhhhhhh ???
-		
-		for(i=0;i<16;i++)
-		{
-			oldQWPL[i]=enx_reg_16(QWPnL+(i*4));
-			oldQWPH[i]=enx_reg_16(QWPnH+(i*4));
-			enx_reg_16(QWPnL+(i*4))=0;
-			enx_reg_16(QWPnH+(i*4))=8;
-		}	
-		enx_reg_32(CFGR0)|=0x10;
-		for(i=0;i<16;i++)
-		{
-			oldQWPL[16+i]=enx_reg_16(QWPnL+(i*4));
-			oldQWPH[16+i]=enx_reg_16(QWPnH+(i*4));
-			enx_reg_16(QWPnL+(i*4))=0;
-			enx_reg_16(QWPnH+(i*4))=8;
-		}	
-		enx_reg_16(TQRPL)=0; 
-		enx_reg_16(TQRPH)=8; 
-		enx_reg_16(TQWPL)=0; 
-		enx_reg_16(TQWPH)=8; 
-		
-    } else if (avia_gt_chip(GTX)) {
-	
-		gtx_reg_16(CR1) |= 3;
-
-#if 1
-		gtx_reg_16(CR1)&=~(1<<4);
-		for(i=0;i<16;i++)
-		{
-			oldQWPL[i]=gtx_reg_16(QWPnL+(i*4));
-			oldQWPH[i]=gtx_reg_16(QWPnH+(i*4));
-			gtx_reg_16(QWPnL+(i*4))=0;
-		
-			gtx_reg_16(QWPnH+(i*4))=10;
-		}	
-		gtx_reg_32(CR1)|=(1<<4);
-		for(i=0;i<16;i++)
-		{
-			oldQWPL[16+i]=gtx_reg_16(QWPnL+(i*4));
-			oldQWPH[16+i]=gtx_reg_16(QWPnH+(i*4));
-			gtx_reg_16(QWPnL+(i*4))=0;
-			gtx_reg_16(QWPnH+(i*4))=10;
-		}
-		gtx_reg_16(TQRPL)=0; 
-		gtx_reg_16(TQRPH)=10; 
-		gtx_reg_16(TQWPL)=0; 
-		gtx_reg_16(TQWPH)=10; 
-#endif			
-
-	}
-		
-		memset(gt_info->mem_addr,0,vqsize+aqsize);
+	wDR(AV_SYNC_MODE,0);
+	wDR(VIDEO_PTS_DELAY,0);
+	wDR(AUDIO_PTS_DELAY,0);
+	avia_flush_pcr();
+	avia_command(SetStreamType,0xB);
+	avia_command(NewChannel,0,0,0);        
 
     if (avia_gt_chip(ENX)) {
 
-		enx_reg_16(VQRPL)=0; 
-		enx_reg_16(VQRPH)=0; 
-		enx_reg_16(VQWPL)=0; 
-		enx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
-
-		enx_reg_16(AQRPL)=0; 
-		enx_reg_16(AQRPH)=4; 
-		enx_reg_16(AQWPL)=0; 
-		enx_reg_16(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
-
     } else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_16(VQRPL)=0; 
-		gtx_reg_16(VQWPL)=0; 
-		gtx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
-		gtx_reg_16(VQRPH)=0; 
-
-		gtx_reg_16(AQRPL)=0; 
-		gtx_reg_16(AQWPL)=0; 
-		gtx_reg_16(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
-		gtx_reg_16(AQRPH)=4; 
-
-	}
-		
-		printk("AQRPL:%d\n",vqsize & 0xffff);
-		printk("AQRPH:%d\n",(vqsize & 0xff0000)>>16);
-		printk("AQWPL:%d\n",vqsize & 0xff);
-		printk("AQWPH:%d\n",(vqsize & 0xff0000)>>16);
-
-		printk("VQSIZE:%x\n",vqsize);
-		printk("AQSIZE:%x\n",aqsize);
-
-		printk("VQSIZE:%x\n",getQ_Size(vqsize));
-		printk("AQSIZE:%x\n",getQ_Size(aqsize));
-		
-		wDR(AV_SYNC_MODE,0);
-		wDR(VIDEO_PTS_DELAY,0);
-		wDR(AUDIO_PTS_DELAY,0);
-		avia_flush_pcr();
-		avia_command(SetStreamType,0xB);
-	  avia_command(NewChannel,0,0,0);        
-
-    if (avia_gt_chip(ENX)) {
-
-		enx_reg_32(CFGR0)&=~0x10;
-		enx_reg_16(QnINT) = (1<<15)|(1<<14); //14
-		enx_reg_16(QnINT+2) = (1<<15)|(1<<13);
-		enx_reg_16(QnINT+4) = (1<<15)|(1<<13);
-
-    } else if (avia_gt_chip(GTX)) {
-
-		gtx_reg_16(CR1)&=~(1<<4);
-		gtx_reg_16(QI0) = (1<<15)|(1<<14); //14
-		gtx_reg_16(QI0+2) = (1<<15)|(1<<14);
-		gtx_reg_16(QI0+4) = (1<<15)|(1<<14);
-
-		gtx_reg_16(CR1)&=~(1<<4);
-		gtx_reg_16(QI0) = (1<<14); //14
-		gtx_reg_16(QI0+2) = (1<<11);
-		gtx_reg_16(QI0+4) = (1<<10);
-		
 		gtx_reg_16(CR0) &= ~(1<<8);
 
 	}
 
-    if (avia_gt_chip(ENX)) {
-
-		avia_gt_free_irq(AVIA_GT_IRQ(5, 6));			
-		avia_gt_free_irq(AVIA_GT_IRQ(5, 7));			
-
-		avia_gt_alloc_irq(AVIA_GT_IRQ(5, 6), videoint);
-		avia_gt_alloc_irq(AVIA_GT_IRQ(5, 7), audioint);
-
-    } else if (avia_gt_chip(GTX)) {
-	
-		avia_gt_free_irq(AVIA_GT_IRQ(2, 0));			
-		avia_gt_free_irq(AVIA_GT_IRQ(2, 1));			
-
-		avia_gt_alloc_irq(AVIA_GT_IRQ(2, 0), videoint);
-		avia_gt_alloc_irq(AVIA_GT_IRQ(2, 1), audioint);
-
-	}
-		
-		init_waitqueue_head(&frame_wait);
-		init_waitqueue_head(&aframe_wait);
-		up(&lock_open);
-		up(&alock_open);
+	up(&lock_open);
+	up(&alock_open);
 
     return 0;
+	
 }
 
 void __exit avia_gt_dvr_exit(void)
 {
-//	int i;
-	
-    if (avia_gt_chip(ENX)) {
-	
-		enx_reg_set(CFGR0, ACP, 0);
-		enx_reg_set(CFGR0, VCP, 0);
 
-		avia_gt_free_irq(AVIA_GT_IRQ(5, 6));			
-		avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
-
-    } else if (avia_gt_chip(GTX)) {
-
-		avia_gt_free_irq(AVIA_GT_IRQ(2, 0));			
-		avia_gt_free_irq(AVIA_GT_IRQ(2, 1));
-		gtx_reg_32(CR1) &= ~3;
-
-	}
-
-#if 0
-	enx_reg_32(CFGR0)&=~0x10;
-
-	for(i=0;i<16;i++) {
-	
-		enx_reg_16(QWPnL+(i*4))=oldQWPL[i];
-		enx_reg_16(QWPnH+(i*4))=oldQWPH[i];
-		
-	}	
-
-	enx_reg_32(CFGR0)|=0x10;
-
-	for(i=0;i<16;i++) {
-	
-		enx_reg_16(QWPnL+(i*4))=oldQWPL[16+i];
-		enx_reg_16(QWPnH+(i*4))=oldQWPH[16+i];
-
-	}	
-#endif		
-			
 	devfs_unregister(devfs_handle);
  	devfs_unregister(adevfs_handle);
-	
+
 	down(&lock_open);
 	down(&alock_open);
 
