@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.69 2002/05/08 13:28:42 obi Exp $
+ * $Id: dvb.c,v 1.70 2002/05/25 16:27:23 obi Exp $
  */
 
 #include <linux/config.h>
@@ -58,7 +58,7 @@
 #include "dvb_net.h"
 #include <dbox/dvb_frontend.h>
 
-#define AUDIO_MIXER_MAX_VOLUME	64
+#define AUDIO_MIXER_MAX_VOLUME	255
 
 typedef struct dvb_struct
 {
@@ -667,17 +667,25 @@ int dvb_ioctl (struct dvb_device * dvbdev, int type, struct file * file, unsigne
 
 					if (dvb->audiostate.muteState)
 					{
-						/* mute spdif (2) and analog audio (4) */
+						/* mute av spdif (2) and analog audio (4) */
 						wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~6);
-						/* mute pcm */
+
+						/* mute gt mpeg */
+						avia_gt_pcm_set_mpeg_attenuation(0x00, 0x00);
+
+						/* mute gt pcm */
 						avia_gt_pcm_set_pcm_attenuation(0x00, 0x00);
 					}
 					else
 					{
-						/* unmute spdif (2) and analog audio (4) */
+						/* unmute av spdif (2) and analog audio (4) */
 						wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 6);
-						/* unmute pcm */
-						avia_gt_pcm_set_pcm_attenuation(dvb->audiomixer.volume_left, dvb->audiomixer.volume_right);
+
+						/* unmute gt mpeg */
+						avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 2, (dvb->audiomixer.volume_right + 1) >> 2);
+
+						/* unmute gt pcm */
+						avia_gt_pcm_set_pcm_attenuation((dvb->audiomixer.volume_left + 1) >> 2, (dvb->audiomixer.volume_right + 1) >> 2);
 					}
 
 					wDR(NEW_AUDIO_CONFIG, 1);
@@ -796,10 +804,10 @@ int dvb_ioctl (struct dvb_device * dvbdev, int type, struct file * file, unsigne
 					}
 
 					/* set mpeg volume */
-					avia_gt_pcm_set_mpeg_attenuation(dvb->audiomixer.volume_left, dvb->audiomixer.volume_right);
+					avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 2, (dvb->audiomixer.volume_right + 1) >> 2);
 
 					/* set pcm volume */
-					avia_gt_pcm_set_pcm_attenuation(dvb->audiomixer.volume_left, dvb->audiomixer.volume_right);
+					avia_gt_pcm_set_pcm_attenuation((dvb->audiomixer.volume_left + 1) >> 2, (dvb->audiomixer.volume_right + 1) >> 2);
 					break;
 
 				}
