@@ -94,7 +94,7 @@ void pcm_reset()
 	rh(PCMC) = 0;
 
 	/* enable PCM frequ. same MPEG */
-	rh(PCMC) |= (1<<14);
+	rh(PCMC) |= (3<<14);
 
 	/* 16 bit mode */
 	rh(PCMC) |= (1<<13);
@@ -191,7 +191,18 @@ static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
 		case SNDCTL_DSP_SPEED:
 											if (get_user(val,(int*)arg))
 												return -EFAULT;
-                      printk("SPEED: %d\n",val);
+
+											/* clear flags */
+											rh(PCMC) &= ~3;
+
+											/* set speed */
+											switch(val) {
+												case 44100: rh(PCMC) |= (3<<14);break;
+												case 22050: rh(PCMC) |= (2<<14);break;
+												case 11025: rh(PCMC) |= (1<<14);break;
+												default: printk("SPEED: %d not support\n",val);return -1;
+											}
+
 											return 0;
 											break;
 
@@ -225,8 +236,6 @@ static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
 												return -EFAULT;
 
                       printk("GETBLKSIZE: %d\n",val);
-
-											return put_user( 16384, (int*)arg );
 
 											break;
 //		case SNDCTL_DSP_SAMPLESIZE:break;
