@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.64  2002/03/02 18:33:14  tmbinc
+ *   changed VCR_ON/OFF to _CHANGED, added IOCTL to get status
+ *
  *   Revision 1.63  2002/03/02 17:10:16  waldi
  *   merge new_tuning_api
  *
@@ -203,7 +206,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.63 $
+ *   $Revision: 1.64 $
  *
  */
 
@@ -482,6 +485,10 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 						return -EFAULT;
 					return fp_set_wakeup_timer(val);
+				case FP_IOCTL_GET_VCR:
+					if (copy_to_user((void*)arg, defdata->fpVCR, sizeof(defdata->fpVCR)))
+						return -EFAULT;
+					return 0;
 				default:
 					return -EINVAL;
 			}
@@ -897,19 +904,8 @@ static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 	{
 		dev->fpVCR = fpVCR;
 
-		if (dev->fpVCR)
-		{
-			event.event = EVENT_VCR_ON;
-			event_write_message( &event, 1 );
-		}
-		else
-		{
-			event.event = EVENT_VCR_OFF;
-			event_write_message( &event, 1 );
-
-		}
-
-		/* todo: event erweitern !? evtl 0xFE<00/01> ??? */
+		event.event = EVENT_VCR_CHANGED;
+		event_write_message( &event, 1 );
 	}
 }
 
@@ -1438,16 +1434,8 @@ static void fp_check_queues(void)
  	dprintk("fp.o: checking queues.\n"); 
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
-	/* detect vcr */
-	if(defdata->fpVCR!=(status&1))
-	{
+	if(defdata->fpVCR!=status)
 		fp_handle_vcr(defdata,status&1);
-	}
-
-	if (status&(~1))
-	{
-		dprintk("fp.o: Oops, status is %x (dachte immer der wäre 0/1...)\n", status);
-	}
 
 	iwork=0;
 /*

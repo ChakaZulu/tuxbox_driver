@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.h,v $
+ *	Revision 1.5  2002/03/02 18:33:13  tmbinc
+ *	changed VCR_ON/OFF to _CHANGED, added IOCTL to get status
+ *	
  *	Revision 1.4  2002/02/28 20:41:46  gillem
  *	- add vcr/tv slow blanking event
  *	
@@ -34,7 +37,7 @@
  *	- initial release
  *	
  *
- *	$Revision: 1.4 $
+ *	$Revision: 1.5 $
  *
  */
 
@@ -44,8 +47,7 @@
 /* global event defines
  */
 #define EVENT_NOP		0
-#define EVENT_VCR_ON		1
-#define EVENT_VCR_OFF		2
+#define EVENT_VCR_CHANGED		1
 #define EVENT_VHSIZE_CHANGE	4
 #define EVENT_ARATIO_CHANGE	8
 #define EVENT_SBTV_CHANGE	16	/* avs event pin 8 tv */

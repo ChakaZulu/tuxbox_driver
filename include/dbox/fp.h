@@ -8,6 +8,7 @@
 #define FP_IOCTL_LED			4
 #define FP_IOCTL_GET_WAKEUP_TIMER		5
 #define FP_IOCTL_SET_WAKEUP_TIMER		6
+#define FP_IOCTL_GET_VCR		7
 
 #define RC_IOCTL_BCODES 	0	
 
