@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.16  2002/03/06 10:09:22  gillem
+ *   - clean module unload (set into standby(i hope))
+ *
  *   Revision 1.15  2001/12/01 06:52:16  gillem
  *   - malloc.h -> slab.h
  *
@@ -62,7 +65,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -588,6 +591,8 @@ int cam_init(void)
 void cam_fini(void)
 {
 	int res;
+	immap_t *immap=(immap_t *)IMAP_ADDR ;
+	volatile cpm8xx_t *cp=&immap->im_cpm;
 
 	free_irq(CAM_INTERRUPT, THIS_MODULE);
 	schedule(); // HACK: let all task queues run.
@@ -602,7 +607,13 @@ void cam_fini(void)
 		printk("cam: Driver deregistration failed, module not removed.\n");
 		return;
 	}
-  devfs_unregister ( devfs_handle[CAM_MINOR] );
+
+	devfs_unregister ( devfs_handle[CAM_MINOR] );
+
+	cp->cp_pbdat|=0xF;
+	cp->cp_pbdat&=~2;
+	udelay(100);
+	cp->cp_pbdat|=2;
 }
 
 /* ---------------------------------------------------------------------- */
