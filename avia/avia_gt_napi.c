@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.120 $
+ *   $Revision: 1.121 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.121  2002/09/14 14:43:21  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.120  2002/09/13 23:06:27  Jolt
  *   - Directly pass hw sections to napi
  *   - Enable hw crc for hw sections
@@ -847,6 +850,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	int ccn = (int)0;
 	gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
 	u8 section_header[3];
+	u32 padding;
 
 			if (gtxfeed->state!=DMX_STATE_GO)
 			{
@@ -904,20 +908,28 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							return;
 							
 						}
-
-						if (rlen <= b1l) {
 						
-							b1l = rlen;
-							b2l = 0;
-							queue->read_pos += b1l;
+						if (gtxfeed->type == DMX_TYPE_SEC) {
+						
+							padding = b1l + b2l - rlen;
 							
-							if (queue->read_pos == (queue->mem_addr + queue->size))
-								queue->read_pos = queue->mem_addr;
-								
 						} else {
+
+							if (rlen <= b1l) {
 						
-							b2l = rlen - b1l;
-							queue->read_pos = queue->mem_addr + b2l;
+								b1l = rlen;
+								b2l = 0;
+								queue->read_pos += b1l;
+							
+								if (queue->read_pos == (queue->mem_addr + queue->size))
+									queue->read_pos = queue->mem_addr;
+								
+							} else {
+						
+								b2l = rlen - b1l;
+								queue->read_pos = queue->mem_addr + b2l;
+							
+							}
 							
 						}
 						
@@ -1033,39 +1045,22 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							static __u8 tsbuf[188];
 
 							// let's rock
-							while (b1l || b2l)
+							while (queue_info->bytes_avail(queue_nr) - padding)
 							{
-								int tr=b1l, r=0, p=4;
+								int tr, r=0, p=4;
 
-								if (tr>188)
-									tr=188;
+								tr=188;
 
 								// check header & sync
-								if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
+								if (((queue_info->bytes_avail(queue_nr) - padding) % 188) || (((char*)b1)[0] != 0x47))
 								{
 									dprintk("gtx_dmx: there's a BIG out of sync problem\n");
 									return;
 								}
-
-								memcpy(tsbuf, b1, tr);
-
-								r+=tr;
-								b1l-=tr;
-								b1+=tr;
+								
+								queue_info->move_data(queue_nr, tsbuf, tr, 0);
 
 								// TODO: handle CC
-
-								tr=b2l;
-
-								if (tr>(188-r))
-									tr=(188-r);
-
-								memcpy(tsbuf+r, b2, tr);
-
-								b2l-=tr;
-								b2+=tr;
-
-								tr+=r;
 
 								// no payload
 								if (!(tsbuf[3]&0x10))							// adaption control field
@@ -1934,7 +1929,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.120 2002/09/13 23:06:27 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.121 2002/09/14 14:43:21 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
