@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.7  2001/07/23 19:57:49  gillem
+ *   - more fixes (thx to SQUelcher for testing)
+ *
  *   Revision 1.6  2001/07/23 15:43:32  gillem
  *   - add rgb control
  *
@@ -40,7 +43,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -127,7 +130,13 @@ static struct s_stv6412_data stv6412_data;
 
 int stv6412_set(struct i2c_client *client)
 {
-	if ( STV6412_DATA_SIZE != i2c_master_send(client, (char*)&stv6412_data, STV6412_DATA_SIZE))
+	char buffer[STV6412_DATA_SIZE+1];
+
+	buffer[0] = 0;
+
+	memcpy( buffer+1, &stv6412_data, STV6412_DATA_SIZE );
+
+	if ( (STV6412_DATA_SIZE+1) != i2c_master_send(client, buffer, STV6412_DATA_SIZE+1))
 	{
 		return -EFAULT;
     }
@@ -177,6 +186,8 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 
 inline int stv6412_set_vsw( struct i2c_client *client, int sw, int type )
 {
+	printk("SET VSW: %d %d\n",sw,type);
+
 	if (type<0 || type>4)
 	{
 		return -EINVAL;
@@ -229,6 +240,20 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
         default:
     		return -EINVAL;
     }
+
+	return stv6412_set(client);
+}
+
+/* ---------------------------------------------------------------------- */
+
+inline int stv6412_set_t_sb( struct i2c_client *client, int type )
+{
+	if (type<0 || type>3)
+	{
+		return -EINVAL;
+    }
+
+	stv6412_data.t_sb = type;
 
 	return stv6412_set(client);
 }
@@ -291,6 +316,13 @@ inline int stv6412_get_mute(void)
 inline int stv6412_get_fblk(void)
 {
     return stv6412_data.fblk;
+}
+
+/* ---------------------------------------------------------------------- */
+
+inline int stv6412_get_t_sb(void)
+{
+	return stv6412_data.t_sb;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -372,7 +404,9 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			/* set video fast blanking */
 			case AVSIOSFBLK:
 						return stv6412_set_fblk(client,val);
-
+			/* set slow blanking (tv) */
+			case AVSIOSFNC:
+						return stv6412_set_t_sb(client,val);
 			default:
 						return -EINVAL;
 		}
@@ -411,6 +445,10 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			case AVSIOGFBLK:
                                 val = stv6412_get_fblk();
                                 break;
+			/* get slow blanking (tv) */
+			case AVSIOSFNC:
+								val = stv6412_get_t_sb();
+								break;
 			/* get status */
             case AVSIOGSTATUS:
                                 // TODO: error handling
@@ -439,28 +477,26 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.v_asc = 1;
 	stv6412_data.c_ag   = 1;
 	/* Data 2 */
-	stv6412_data.t_cm   = 1;
+//	stv6412_data.t_cm   = 1;
 	stv6412_data.v_vsc  = 1;
-	stv6412_data.v_cm   = 1;
-	stv6412_data.t_vsc  = 1;
+//	stv6412_data.v_cm   = 1;
+	stv6412_data.t_vsc  = 0;
 	/* Data 3 */
 	stv6412_data.rgb_tri  = 1;
-	stv6412_data.rgb_gain = 3;
+	stv6412_data.rgb_gain = 2;
 	stv6412_data.rgb_vsc  = 1;
-	stv6412_data.fblk     = 0;
+	stv6412_data.fblk     = 1;
 	/* Data 4 */
-	stv6412_data.v_coc = 1;
-	stv6412_data.v_cgc = 1;
+//	stv6412_data.v_coc = 1;
+//	stv6412_data.v_cgc = 1;
 	/* Data 5 */
-	stv6412_data.e_aig = 1;
+//	stv6412_data.e_aig = 1;
 	stv6412_data.t_sb  = 3;
+	stv6412_data.v_sb  = 0;
 	/* Data 6 */
 	stv6412_data.a_in  = 1;
 	stv6412_data.r_out = 1;
 
-	for(i=0;i<7;i++)
-		printk("%02X ",((char*)(&stv6412_data))[i]&0xff);
-	printk("\n");
 	return stv6412_set(client);
 }
 
