@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.103  2002/09/03 20:24:29  obi
+ *   tp_pcr/stc/dir/diff: printk -> dprintk
+ *
  *   Revision 1.102  2002/09/03 15:37:50  wjoost
  *   Ein Bug weniger
  *
@@ -112,7 +115,7 @@
  *
  *
  *
- *   $Revision: 1.102 $
+ *   $Revision: 1.103 $
  *
  */
 
@@ -1344,7 +1347,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	
 	last_remote_diff = remote_diff;
 
-	printk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
+	dprintk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
 
 #if 0
 
@@ -1365,7 +1368,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.102 2002/09/03 15:37:50 wjoost Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.103 2002/09/03 20:24:29 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
