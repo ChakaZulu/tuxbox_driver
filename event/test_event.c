@@ -35,10 +35,20 @@ main(int argc, char **argv)
 
 	if ( ioctl(fd,EVENT_SET_FILTER,arg) < 0 )
 		perror("ioctl");
-	else if ( read(fd,&event,sizeof(event_t)) <= 0 )
-		perror("read");
 	else
-		printf("event: %d\n",event.event);
+	{
+		fd_set fdset;
+		FD_ZERO(&fdset);
+		FD_SET(fd, &fdset);
+		if (select(fd+1, &fdset, 0, 0, 0)<0)
+			perror("select");
+		if (FD_ISSET(fd, &fdset))
+			printf("select returned readable event\n");
+		if ( read(fd,&event,sizeof(event_t)) <= 0 )
+			perror("read");
+		else
+			printf("event: %d\n",event.event);
+	}
 
 	close(fd);
 	return 0;

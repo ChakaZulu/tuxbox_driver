@@ -20,6 +20,12 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.6  2002/03/02 17:03:58  waldi
+ *	merge new_tuning_api
+ *	
+ *	Revision 1.5.2.1  2002/03/02 16:53:03  tmbinc
+ *	added poll()-support to event device
+ *	
  *	Revision 1.5  2001/12/19 21:15:20  gillem
  *	- more work on event stuff ...
  *	
@@ -36,7 +42,7 @@
  *	- initial release (not ready today)
  *	
  *
- *	$Revision: 1.5 $
+ *	$Revision: 1.6 $
  *
  */
 
@@ -88,15 +94,17 @@ static int event_ioctl (struct inode *inode, struct file *file,
                          unsigned int cmd, unsigned long arg);
 static int event_open (struct inode *inode, struct file *file);
 static int event_release (struct inode *inode, struct file *file);
+static unsigned int event_poll(struct file *file, poll_table *wait);
 
 static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *offset);
 
 static struct file_operations event_fops = {
-	owner:		THIS_MODULE,
-        read:           event_read,
-	ioctl:		event_ioctl,
-	open:		event_open,
-	release:	event_release
+	owner:    THIS_MODULE,
+	read:     event_read,
+	ioctl:    event_ioctl,
+	open:     event_open,
+	release:  event_release,
+	poll:     event_poll
 };
 
 #define dprintk     if (debug) printk
@@ -263,6 +271,20 @@ static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *o
 
 	return retval;
 }
+
+unsigned int event_poll(struct file *file, poll_table *wait)
+{
+	struct event_private_t * event_priv;
+
+	event_priv = (struct event_private_t*)file->private_data;
+
+	poll_wait(file, &event_wait, wait);
+	if (EVENTBUFFERSIZE != event_priv->event_data.event_free)
+		return POLLIN|POLLRDNORM;
+	return 0;
+	return -EINVAL;
+}
+
 
 #ifdef MODULE
 int init_module(void)
