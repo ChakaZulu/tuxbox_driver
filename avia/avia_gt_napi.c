@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.115 $
+ *   $Revision: 1.116 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.116  2002/09/10 21:15:34  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.115  2002/09/10 16:31:38  Jolt
  *   SW sections fix
  *
@@ -753,6 +756,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 {
 
 	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
+	sAviaGtDmxQueueInfo *queue_info = &queue->info;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int ccn = (int)0;
 
@@ -844,103 +848,81 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						// handle prefiltered section
 						case DMX_TYPE_HW_SEC:
 						{
+						
 							unsigned len;
 							unsigned needed;
-//							dump(b1,b1l,b2,b2l);
-							while (b1l + b2l >= 3)
-							{
+							u8 section_header[3];
 
-								if (gtxfeed->sec_len == 0)
-								{
-									while ( (b1l > 0) && (*b1 == 0xFF) )
-									{
-										b1l--;
-										b1++;
-									}
-									if (b1l == 0)
-									{
-										while ( (b2l > 0) && (*b2 == 0xFF) )
-										{
-											b2l--;
-											b2++;
-										}
-									}
-									if (b1l + b2l < 3)
-									{
+							while (queue_info->bytes_avail(queue_nr) >= 3) {
+							
+								if (gtxfeed->sec_len == 0) {
+								
+									while ((queue_info->bytes_avail(queue_nr)) && (queue_info->get_data8(queue_nr, 1) == 0xFF))
+										queue_info->move_data(queue_nr, NULL, 1, 0);
+
+									if (queue_info->bytes_avail(queue_nr) < 3)
 										break;
-									}
-									if (b1l >= 2)
-										gtxfeed->sec_len = (b1[1] & 0x0F) << 8;
-									else
-										gtxfeed->sec_len = (b2[1-b1l] & 0x0F) << 8;
-									if (b1l >= 3)
-										gtxfeed->sec_len += b1[2] + 3;
-									else
-										gtxfeed->sec_len += b2[2-b1l] + 3;
+
+									queue_info->move_data(queue_nr, section_header, sizeof(section_header), 1);
+									
+									gtxfeed->sec_len = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
+
 								}
 
-								if (gtxfeed->sec_len > 4096)
-								{
-									printk(KERN_ERR "section length %d > 4096!\n",gtxfeed->sec_len);
-									b1l = 0;
-									b2l = 0;
+								if (gtxfeed->sec_len > 4096) {
+								
+									printk(KERN_ERR "avia_gt_napi: section length %d > 4096!\n", gtxfeed->sec_len);
+
 									gtxfeed->filter->invalid = 1;
 									dmx_set_filter(gtxfeed->filter);
 									gtxfeed->filter->invalid = 0;
 									avia_gt_dmx_queue_reset(queue_nr);
 									dmx_set_filter(gtxfeed->filter);
+									
 									break;
+									
 								}
+								
 								needed = gtxfeed->sec_len - gtxfeed->sec_recv;
-								if (b1l > 0)
-								{
-									len = (b1l > needed) ? needed : b1l;
-									memcpy(gtxfeed->sec_buffer + gtxfeed->sec_recv,b1,len);
-									b1l -= len;
-									b1 += len;
-									needed -= len;
-									gtxfeed->sec_recv += len;
-								}
-								if ( (b2l > 0) && (needed > 0) )
-								{
-									len = (b2l > needed) ? needed : b2l;
-									memcpy(gtxfeed->sec_buffer + gtxfeed->sec_recv,b2,len);
-									b2l -= len;
-									b2 += len;
-									needed -= len;
-									gtxfeed->sec_recv += len;
-								}
-								if (needed == 0)
-								{
-									if (gtx_handle_section(gtxfeed) == 0)
-									{
-										b1l = 0;
-										b2l = 0;
+								
+								len = (queue_info->bytes_avail(queue_nr) > needed) ? needed : queue_info->bytes_avail(queue_nr);
+								queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, len, 0);
+								needed -= len;
+								gtxfeed->sec_recv += len;
+
+								if (needed == 0) {
+								
+									if (gtx_handle_section(gtxfeed) == 0) {
+									
 										gtxfeed->filter->invalid = 1;
 										dmx_set_filter(gtxfeed->filter);
 										gtxfeed->filter->invalid = 0;
 										avia_gt_dmx_queue_reset(queue_nr);
 										dmx_set_filter(gtxfeed->filter);
+
 										break;
+										
 									}
+									
 								}
+								
 							}
-							if (b1l + b2l > 0)
-							{
-								if ( ((b1l == 0) || (b1[0] == 0xFF)) &&
-								     ((b1l < 2 ) || (b1[1] == 0xFF)) &&
-									 ((b2l == 0) || (b2[0] == 0xFF)) &&
-									 ((b2l < 2 ) || (b2[1] == 0xFF)) )
-								{
-									break;
+
+							while (queue_info->bytes_avail(queue_nr)) {
+							
+								if (queue_info->get_data8(queue_nr, 0) != 0xFF) {
+							
+									printk(KERN_CRIT "not enough data to extract section length, this is unhandled!\n");
+									gtxfeed->filter->invalid = 1;
+									dmx_set_filter(gtxfeed->filter);
+									gtxfeed->filter->invalid = 0;
+									avia_gt_dmx_queue_reset(queue_nr);
+									dmx_set_filter(gtxfeed->filter);
+									
 								}
-								printk(KERN_CRIT "not enough data to extract section length, this is unhandled!\n");
-								gtxfeed->filter->invalid = 1;
-								dmx_set_filter(gtxfeed->filter);
-								gtxfeed->filter->invalid = 0;
-								avia_gt_dmx_queue_reset(queue_nr);
-								dmx_set_filter(gtxfeed->filter);
+								
 							}
+							
 						}
 						break;
 
@@ -1848,7 +1830,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.115 2002/09/10 16:31:38 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.116 2002/09/10 21:15:34 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
