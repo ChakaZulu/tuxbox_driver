@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.59 2003/03/08 09:16:41 waldi Exp $
+ * $Id: avia_av_core.c,v 1.60 2003/03/13 21:04:21 wjoost Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1016,6 +1016,10 @@ static int init_avia(void)
 	*/
 
 	avia_command(Reset);
+	udelay(1000);
+	avia_command(SelectStream,0x00,0xFFFF);
+	avia_command(SelectStream,0x03,0xFFFF);
+	avia_command(Play,0x00,0xFFFF,0xFFFF);
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
@@ -1126,10 +1130,10 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 	case AVIA_AV_PLAY_STATE_PLAYING:
 		printk("avia_av: audio play (apid=0x%04X)\n", pid_audio);
 		avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
-		if ( (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) || (bypass_mode_changed && aviarev) )
+		if (aviarev && bypass_mode_changed)
 		{
-			avia_command(SelectStream,0x00,(play_state_video == AVIA_AV_PLAY_STATE_STOPPED) ? 0xFFFF : pid_video);
-			avia_command(Play,0x00,(play_state_video == AVIA_AV_PLAY_STATE_STOPPED) ? 0xFFFF : pid_video,pid_audio);
+			avia_command(SelectStream,0x00,(play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF);
+			avia_command(Play,0x00,(play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF,pid_audio);
 		}
 		bypass_mode_changed = 0;
 		break;
@@ -1143,7 +1147,17 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 		avia_command(SelectStream, 0x03 - bypass_mode, 0xFFFF);
 
 		if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
+		{
 			wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
+			if (aviarev)
+			{
+				avia_command(Play,0x00,0xFFFF,0xFFFF);
+			}
+			else
+			{
+				avia_command(NewChannel,0x00,0xFFFF,0xFFFF);
+			}
+		}
 		break;
 
 	default:
@@ -1172,10 +1186,6 @@ int avia_av_play_state_set_video(u8 new_play_state)
 		else {
 			printk("avia_av: video play (vpid=0x%04X)\n", pid_video);
 			avia_command(SelectStream, 0x00, pid_video);
-			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING) {
-				avia_command(SelectStream, 0x03 - bypass_mode, 0xFFFF);
-				avia_command(Play,0x00,pid_video, 0xFFFF);
-			}
 		}
 		break;
 
@@ -1188,7 +1198,17 @@ int avia_av_play_state_set_video(u8 new_play_state)
 		avia_command(SelectStream, 0x00, 0xFFFF);
 
 		if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
+		{
 			wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
+			if (aviarev)
+			{
+				avia_command(Play,0x00,0xFFFF,0xFFFF);
+			}
+			else
+			{
+				avia_command(NewChannel,0x00,0xFFFF,0xFFFF);
+			}
+		}
 		break;
 
 	default:
@@ -1316,7 +1336,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.59 2003/03/08 09:16:41 waldi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.60 2003/03/13 21:04:21 wjoost Exp $\n");
 
 	aviamem = 0;
 
