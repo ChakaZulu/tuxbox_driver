@@ -35,13 +35,31 @@
 #endif
 
 typedef struct {
+	/* id */
 	u8 chip_type;
+	/* memory */
 	u8 *mem_addr;
 	u32 mem_addr_phys;
 	u32 mem_size;
+	/* registers */
 	u8 *reg_addr;
 	u32 reg_addr_phys;
 	u32 reg_size;
+	/* interrupts */
+	int irq;
+	u16 irq_irrx;
+	u16 irq_irtx;
+	u16 irq_pcmad;
+	u16 irq_pcmpf;
+	u16 irq_pcr;
+	u16 irq_tt;
+	u16 irq_vl1;
+	/* infrared clock */
+	u32 ir_clk;
+	/* audio queue read pointer address */
+	u16 aq_rptr;
+	/* transport demux ram address */
+	u16 tdp_ram;
 } sAviaGtInfo;
 
 #define avia_gt_chip(CHIP) 		(gt_info->chip_type == AVIA_GT_CHIP_TYPE_## CHIP)
@@ -86,6 +104,12 @@ extern void avia_gt_exit(void);
 
 #define avia_gt_reg_o(offs)						\
 	((volatile void *)(&gt_info->reg_addr[offs]))
+
+#define avia_gt_reg_16n(offset)						\
+	(*((volatile u16 *)avia_gt_reg_o(offset)))
+
+#define avia_gt_reg_32n(offset)						\
+	(*((volatile u32 *)avia_gt_reg_o(offset)))
 
 #define avia_gt_reg_set(reg, field, val)				\
 do {									\
