@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.10  2001/05/16 22:12:48  gillem
+ *   - add encoder setting
+ *
  *   Revision 1.9  2001/05/07 02:17:52  DerSchrauber
  *   Parameter svideo für saa7126 hinzugefügt. S-Video Ausgang jetzt möglich.
  *
@@ -42,7 +45,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -209,6 +212,8 @@ static struct file_operations saa7126_fops = {
 	open:			saa7126_open,
 };
 
+static int saa7126_encoder( int inp );
+
 /* ------------------------------------------------------------------------- */
 
 static int debug =  0; /* insmod parameter */
@@ -320,11 +325,12 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 	i2c_attach_client(client);
 
 	if (config) {
-		if (svideo)
+		if (svideo) {
 			config[0x2d]= ( config[0x2d] & 0x0f ) | 0x50;
-		else
+		} else {
 			config[0x2d]= ( config[0x2d] & 0x0f );
-			
+		}
+
 		/* upload data */
 		for(i=0;i<0x80;i+=SAA_I2C_BLOCK_SIZE) {
 			buf[0] = i;
@@ -410,11 +416,11 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 			switch (*iarg) {
 
 			case VIDEO_MODE_NTSC:
-//				saa7185_write_block(encoder, init_ntsc, sizeof(init_ntsc));
+				saa7126_encoder(0);
 				break;
 
 			case VIDEO_MODE_PAL:
-//				saa7185_write_block(encoder, init_pal, sizeof(init_pal));
+				saa7126_encoder(1);
 				break;
 
 			default:

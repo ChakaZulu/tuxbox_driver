@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.6  2001/05/16 22:12:48  gillem
+ *   - add encoder setting
+ *
  *   Revision 1.5  2001/04/07 01:45:34  tmbinc
  *   added philips-support.
  *
@@ -37,7 +40,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -46,6 +49,7 @@
 #define SAAIOSOUT		3 /* output control 		*/
 #define SAAIOSENC		4 /* set encoder (pal/ntsc)	*/
 
+// TODO: fix this table
 
 typedef struct s_saa_data {
 	unsigned char version   : 3  __attribute__((packed));
