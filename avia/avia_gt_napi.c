@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.136 $
+ *   $Revision: 1.137 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.137  2002/10/06 22:05:13  Jolt
+ *   NAPI cleanups
+ *
  *   Revision 1.136  2002/10/06 21:43:54  Jolt
  *   NAPI cleanups
  *
@@ -994,18 +997,15 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
 	sAviaGtDmxQueueInfo *queue_info = &queue->info;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
-	int ccn = (int)0;
 	gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
 	u8 section_header[3];
 	u32 padding;
 	u8 ts_header[5];
-	u8 pes_header[6];
 	u8 next_sec_offs;
 	u32 buf_len;
 	u32 chunk1;
 	int i;
 	u32 need_payload;
-	u32 header_len;
 	u32 datlen;
 	u8 pusi;
 
@@ -1096,84 +1096,36 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				
 					while (buf_len >= 188) {
 					
-						queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 1);
+						datlen = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &pusi);
 						
-						ccn = ts_header[3] & 0x0F;
-						
-						if (ccn == gtxfeed->sec_ccn) {	// doppeltes Paket
-						
-							queue_info->get_data(queue_nr, NULL, 188, 0);
-							
-							buf_len -= 188;
-							
+						if (!datlen)
 							continue;
-							
-						}
-						
-						gtxfeed->sec_ccn = ccn;
-						
-						if (ts_header[3] & 0x10) {	// Payload im Paket ?
-						
-							if (ts_header[3] & 0x20)	// Adaption im Paket ?
-								header_len = 5 + ts_header[4];
-							else
-								header_len = 4;
-								
-							queue_info->get_data(queue_nr, NULL, header_len, 0);
-							
-							datlen = 188 - header_len;
-							
-							if (datlen > 0) {
-							
-								if (ts_header[1] & 0x40) {	// neues PES-Paket fängt an
-								
-									queue_info->get_data(queue_nr, pes_header, sizeof(pes_header), 1);
-									gtxfeed->sec_len = (pes_header[4] << 8) + pes_header[5] + 6;
-									
-									if (gtxfeed->sec_len == 6)
-										gtxfeed->sec_len = 0;	// Länge unbekannt
+					
+						for (i = USER_QUEUE_START - 1; i < LAST_USER_QUEUE; i++) {
+
+							if ((gtx->feed[i].state == DMX_STATE_GO) &&
+								(gtx->feed[i].pid == gtxfeed->pid) &&
+								(gtx->feed[i].output & TS_PACKET) &&
+								(gtx->feed[i].output & TS_PAYLOAD_ONLY)) {
+
+								if ((queue->read_pos + datlen) > queue->size) {
 										
+									chunk1 = queue->size - queue->read_pos;
+											
+									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, datlen - chunk1, &gtx->feed[i].feed.ts, 0);
+											
+								} else {
+										
+									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, datlen, NULL, 0, &gtx->feed[i].feed.ts, 0);
+											
 								}
-								
-								if ((datlen > gtxfeed->sec_len) && (gtxfeed->sec_len))
-									datlen = gtxfeed->sec_len;
-
-								for (i = USER_QUEUE_START - 1; i < LAST_USER_QUEUE; i++) {
-
-									if ((gtx->feed[i].state == DMX_STATE_GO) &&
-										(gtx->feed[i].pid == gtxfeed->pid) &&
-										(gtx->feed[i].output & TS_PACKET) &&
-										(gtx->feed[i].output & TS_PAYLOAD_ONLY)) {
-
-										if ((queue->read_pos + datlen) > queue->size) {
 										
-											chunk1 = queue->size - queue->read_pos;
-											
-											gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, datlen - chunk1, &gtx->feed[i].feed.ts, 0);
-											
-										} else {
-										
-											gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, datlen, NULL, 0, &gtx->feed[i].feed.ts, 0);
-											
-										}
-										
-									}
-									
-								}
-								
-								if (gtxfeed->sec_len != 0)
-									gtxfeed->sec_len -= datlen;
-									
 							}
-							
-							queue_info->get_data(queue_nr, NULL, 188 - header_len, 0);
-							
-						} else {
-						
-							queue_info->get_data(queue_nr, NULL, 188, 0);
-							
+									
 						}
-						
+								
+						queue_info->get_data(queue_nr, NULL, datlen, 0);
+							
 						buf_len -= 188;
 						
 					}
@@ -2156,7 +2108,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.136 2002/10/06 21:43:54 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.137 2002/10/06 22:05:13 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
