@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.97 2004/11/21 20:19:13 carjay Exp $
+ * $Id: avia_av_core.c,v 1.98 2004/11/21 20:33:38 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -977,8 +977,8 @@ static int avia_av_init(void)
 	/* init queue */
 	init_waitqueue_head(&avia_cmd_wait);
 
-	/* 	start avia_av_wdt_sleep kernel_thread if it's not already running,
-		but don't start watchdog for Avia 500 */
+	/* 	start avia_av_wdt_sleep kernel_thread if it's not already running
+		(and it is enabled) */
 	if (!kernel_thread_pid&&!no_watchdog){
 		/* init avia_av_wdt_sleep queue */
 		init_waitqueue_head(&avia_av_wdt_sleep);
@@ -1512,7 +1512,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.97 2004/11/21 20:19:13 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.98 2004/11/21 20:33:38 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
