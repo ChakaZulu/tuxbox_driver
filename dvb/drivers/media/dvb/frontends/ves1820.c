@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.18  2001/07/30 19:10:21  tmbinc
+    work-around for sync. (does not work properly in interrupt)
+
     Revision 1.17  2001/07/23 21:03:28  tmbinc
     fixed double-init, wrong sync at startup
 
@@ -49,7 +52,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.17 $
+    $Revision: 1.18 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -212,7 +215,7 @@ int init(struct i2c_client *client)
         ves->srate=0;
         ves->reg0=Init1820PTab[0];
 	ves->ber = 0xFFFFFFFF;
-	ves->sync=readreg(dclient, 0x33);
+	ves->sync=readreg(dclient, 0x11);
 	ves->uncp = 0;
 
 	/* enable interrupts: */
@@ -453,7 +456,7 @@ void ves_get_frontend(struct frontend *front)
 	front->agc=((255-readreg(dclient,0x17))<<8);
 	front->nest=0;
 
-	front->sync = ves->sync;
+	front->sync = readreg(dclient,0x11);
 	front->vber = ves->ber;
 } 
 
