@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.25  2001/03/15 15:56:26  gillem
+ *   - fix dprintk output
+ *
  *   Revision 1.24  2001/03/14 21:42:48  gillem
  *   - fix bugs in section parsing
  *   - add crc32 check in section parsing
@@ -73,7 +76,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -454,7 +457,7 @@ int gtx_dmx_init(void)
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
  
-  printk(KERN_DEBUG "AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
+  printk(KERN_DEBUG "gtx_dmx: AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
 
   return 0;
 }
@@ -477,7 +480,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
   if (gtxfeed->sec_recv != gtxfeed->sec_len)
   {
-    dprintk("have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+    dprintk("gtx_dmx: have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
   }
 
   if (!gtxfeed->sec_recv)
@@ -502,7 +505,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 			if ( crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0 )
 	      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
 			else
-				printk("CRC Problem !!!\n");
+				printk("gtx_dmx: CRC Problem !!!\n");
 		}
   }
 
@@ -614,7 +617,7 @@ static void gtx_task(void *data)
 									// go home paket !
 									if ( tsbuf[4] > 182 )
 									{
-										dprintk("warning afle=%d (ignore)\n",tsbuf[4]);
+										dprintk("gtx_dmx: warning afle=%d (ignore)\n",tsbuf[4]);
 	                	continue;
 									}
 
@@ -624,7 +627,7 @@ static void gtx_task(void *data)
 								{
   			  				if ( tsbuf[4] > 183 )
 						  		{
-										dprintk("warning plle=%d (ignore)\n",tsbuf[4]);
+										dprintk("gtx_dmx: warning plle=%d (ignore)\n",tsbuf[4]);
                 		continue;
 						  		}
 								}
@@ -653,7 +656,7 @@ static void gtx_task(void *data)
 
 									op = p;
 
-									dprintk("! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
+									dprintk("gtx_dmx: ! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
 
 									if (tsbuf[3]&0x20)
 									{
@@ -664,7 +667,7 @@ static void gtx_task(void *data)
 	                	p+=tsbuf[p]+1;
 									}
 
-                	dprintk("special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
+                	dprintk("gtx_dmx: special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
 
 									if (p>188)
 									{
