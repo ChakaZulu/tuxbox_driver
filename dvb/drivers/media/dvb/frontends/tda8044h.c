@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.24 2003/08/26 15:40:22 obi Exp $
+ * $Id: tda8044h.c,v 1.25 2003/10/08 23:22:45 obi Exp $
  *   
  * Philips TDA8044H QPSK Demodulator DVB API driver
  *
@@ -550,7 +550,7 @@ int tda8044_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 
 static
-int tda8044_attach (struct dvb_i2c_bus *i2c)
+int tda8044_attach (struct dvb_i2c_bus *i2c, void **data)
 {
 	if (tda8044_writereg(i2c, 0x89, 0x00) < 0)
 		return -ENODEV;
@@ -558,14 +558,12 @@ int tda8044_attach (struct dvb_i2c_bus *i2c)
 	if (tda8044_readreg(i2c, 0x00) != 0x04)
 		return -ENODEV;
 
-	dvb_register_frontend (tda8044_ioctl, i2c, NULL, &tda8044_info);
-
-	return 0;
+	return dvb_register_frontend (tda8044_ioctl, i2c, NULL, &tda8044_info);
 }
 
 
 static
-void tda8044_detach (struct dvb_i2c_bus *i2c)
+void tda8044_detach (struct dvb_i2c_bus *i2c, void *data)
 {
 	dvb_unregister_frontend (tda8044_ioctl, i2c);
 }

@@ -552,7 +552,7 @@ static int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 } 
 
 
-static int ves1x93_attach (struct dvb_i2c_bus *i2c)
+static int ves1x93_attach (struct dvb_i2c_bus *i2c, void **data)
 {
 	u8 identity = ves1x93_readreg(i2c, 0x1e);
 
@@ -575,7 +575,7 @@ static int ves1x93_attach (struct dvb_i2c_bus *i2c)
 }
 
 
-static void ves1x93_detach (struct dvb_i2c_bus *i2c)
+static void ves1x93_detach (struct dvb_i2c_bus *i2c, void *data)
 {
 	dvb_unregister_frontend (ves1x93_ioctl, i2c);
 }

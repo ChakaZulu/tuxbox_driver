@@ -1,5 +1,5 @@
 /*
- * $Id: sqc6100.c,v 1.1 2003/07/29 18:30:30 obi Exp $
+ * $Id: sqc6100.c,v 1.2 2003/10/08 23:22:45 obi Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
@@ -437,7 +437,7 @@ static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int sqc6100_attach(struct dvb_i2c_bus *i2c)
+static int sqc6100_attach(struct dvb_i2c_bus *i2c, void **data)
 {
 	int ret;
 	u8 gc_res_tserr;
@@ -451,7 +451,7 @@ static int sqc6100_attach(struct dvb_i2c_bus *i2c)
 	return dvb_register_frontend(sqc6100_ioctl, i2c, NULL, &sqc6100_info);
 }
 
-static void sqc6100_detach(struct dvb_i2c_bus *i2c)
+static void sqc6100_detach(struct dvb_i2c_bus *i2c, void *data)
 {
 	dvb_unregister_frontend(sqc6100_ioctl, i2c);
 }

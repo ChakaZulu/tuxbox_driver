@@ -506,9 +506,9 @@ static long probe_demod_addr (struct dvb_i2c_bus *i2c)
 }
 
 
-static int ves1820_attach (struct dvb_i2c_bus *i2c)
+static int ves1820_attach (struct dvb_i2c_bus *i2c, void **data)
 {
-	void *data = NULL;
+	void *priv = NULL;
 	long demod_addr;
 	long tuner_type;
 
@@ -517,18 +517,16 @@ static int ves1820_attach (struct dvb_i2c_bus *i2c)
 
 	tuner_type = probe_tuner(i2c);
 
-	SET_PWM(data, read_pwm(i2c));
-	SET_REG0(data, ves1820_inittab[0]);
-	SET_TUNER(data, tuner_type);
-	SET_DEMOD_ADDR(data, demod_addr);
+	SET_PWM(priv, read_pwm(i2c));
+	SET_REG0(priv, ves1820_inittab[0]);
+	SET_TUNER(priv, tuner_type);
+	SET_DEMOD_ADDR(priv, demod_addr);
 
-	dvb_register_frontend (ves1820_ioctl, i2c, data, &ves1820_info);
-
-        return 0;
+	return dvb_register_frontend (ves1820_ioctl, i2c, priv, &ves1820_info);
 }
 
 
-static void ves1820_detach (struct dvb_i2c_bus *i2c)
+static void ves1820_detach (struct dvb_i2c_bus *i2c, void *data)
 {
 	dvb_unregister_frontend (ves1820_ioctl, i2c);
 }

@@ -568,7 +568,7 @@ static void at76c651_deregister_proc(void)
 
 #endif
 
-static int at76c651_attach(struct dvb_i2c_bus *i2c)
+static int at76c651_attach(struct dvb_i2c_bus *i2c, void **data)
 {
 	if ( (at76c651_readreg(i2c, 0x0E) != 0x65) ||
 	     ( ( (at76c651_revision = at76c651_readreg(i2c, 0x0F)) & 0xFE) != 0x10) )
@@ -590,17 +590,15 @@ static int at76c651_attach(struct dvb_i2c_bus *i2c)
 
 	at76c651_set_defaults(i2c);
 
-	dvb_register_frontend(at76c651_ioctl, i2c, NULL, &at76c651_info);
-
 #ifdef AT76C651_PROC_INTERFACE
 	at76c651_register_proc(i2c);
 #endif
 
-	return 0;
+	return dvb_register_frontend(at76c651_ioctl, i2c, NULL, &at76c651_info);
 
 }
 
-static void at76c651_detach(struct dvb_i2c_bus *i2c)
+static void at76c651_detach(struct dvb_i2c_bus *i2c, void *data)
 {
 
 #ifdef AT76C651_PROC_INTERFACE
