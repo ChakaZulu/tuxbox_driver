@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.111  2002/09/05 10:00:47  Jolt
+ *   DMX bugfix
+ *
  *   Revision 1.110  2002/09/05 09:40:31  Jolt
  *   - DMX/NAPI cleanup
  *   - Bugfixes (Thanks obi)
@@ -137,7 +140,7 @@
  *
  *
  *
- *   $Revision: 1.110 $
+ *   $Revision: 1.111 $
  *
  */
 
@@ -884,7 +887,7 @@ void avia_gt_dmx_force_discontinuity(void)
 u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
 {
 
-	if (queue_list[queue_nr].read_pos > queue_list[queue_nr].write_pos)
+	if (queue_list[queue_nr].write_pos > queue_list[queue_nr].read_pos)
 		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
 	else
 		return ((queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos) + (queue_list[queue_nr].write_pos - queue_list[queue_nr].mem_addr));
@@ -1582,7 +1585,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.110 2002/09/05 09:40:31 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.111 2002/09/05 10:00:47 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
