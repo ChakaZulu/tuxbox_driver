@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.12  2002/11/18 00:53:35  obi
+ *   driver cleanup
+ *
  *   Revision 1.11  2002/08/12 17:08:44  wjoost
  *   SAA_WSS_OFF hinzugefügt
  *
@@ -58,39 +61,39 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
-#define SAAIOGREG		1	/* read registers				*/
-#define SAAIOSINP		2	/* input control				*/
-#define SAAIOSOUT		3	/* output control 			*/
-#define SAAIOSENC		4	/* set encoder (pal/ntsc)		*/
-#define SAAIOSMODE		5	/* set mode (rgb/fbas/svideo)	*/
+#define SAAIOGREG	1	/* read registers */
+#define SAAIOSINP	2	/* input control */
+#define SAAIOSOUT	3	/* output control */
+#define SAAIOSENC	4	/* set encoder (pal/ntsc) */
+#define SAAIOSMODE	5	/* set mode (rgb/fbas/svideo) */
 #define SAAIOSPOWERSAVE	6	/* set power save */
 #define SAAIOGPOWERSAVE	7	/* get power save */
-
 #define SAAIOSVPSDATA	8	/* set vps data */
 #define SAAIOGVPSDATA	9	/* get vps data */
-
-#define SAAIOSWSS		10	/* set wide screen signaling data */
-#define SAAIOGWSS		11	/* get wide screen signaling data */
+#define SAAIOSWSS	10	/* set wide screen signaling data */
+#define SAAIOGWSS	11	/* get wide screen signaling data */
+#define SAA_READREG	12	/* read single register */
+#define SAA_WRITEREG	13	/* write single register */
 
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1
 #define SAA_MODE_SVIDEO	2
 
-#define SAA_NTSC		0
-#define SAA_PAL			1
+#define SAA_NTSC	0
+#define SAA_PAL		1
 
-#define SAA_INP_MP1		1
-#define SAA_INP_MP2		2
+#define SAA_INP_MP1	1
+#define SAA_INP_MP2	2
 #define SAA_INP_CSYNC	4
 #define SAA_INP_DEMOFF	6
 #define SAA_INP_SYMP	8
 #define SAA_INP_CBENB	128
 
-#define SAA_WSS_43F		0	/* full format 4:3 */
+#define SAA_WSS_43F	0	/* full format 4:3 */
 #define SAA_WSS_149C	1	/* box 14:9 center */
 #define SAA_WSS_149T	2	/* box 14:9 top */
 #define SAA_WSS_169C	3	/* box 16:9 center */
@@ -98,7 +101,7 @@
 #define SAA_WSS_GT169C	5	/* box > 16:9 center */
 #define SAA_WSS_43_149C	6	/* full format 4:3 with 14:9 center letterbox content */
 #define SAA_WSS_169F	7	/* full format 16:9 (anamorphic) */
-#define SAA_WSS_OFF		8	/* no wide screen signaling */
+#define SAA_WSS_OFF	8	/* no wide screen signaling */
 
 // TODO: fix this table
 
