@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.19 2001/03/17 07:28:48 Hunz Exp $
+ * $Id: dvb.c,v 1.20 2001/03/17 16:23:48 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -412,13 +412,6 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       return -EPERM;
     switch (cmd)
     {
-	case VIDEO_NEW_CHANNEL:
-	  /* TODO: check values */
-	  avia_wait(avia_command(NewChannel,\
-		((struct videoNewChannel*)parg)->fadetime,
-		((struct videoNewChannel*)parg)->vPid,
-		((struct videoNewChannel*)parg)->aPid));
-	  break;
 	case VIDEO_DIGEST:
 	  /* TODO: check values */
 	  avia_wait(avia_command(Digest,\
@@ -431,10 +424,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	  break;
     case VIDEO_STOP:
       dvb->videostate.playState=VIDEO_STOPPED;
-      avia_wait(avia_command(Pause, 3, 3));
+//      avia_wait(avia_command(Pause, 3, 3));		// hierüber lässt sich noch diskutieren...
+			avia_wait(avia_command(Abort, 0));
+//			avia_wait(avia_command(SelectStream, 0, 0xFFFF));
+//			avia_wait(avia_command(SelectStream, 2, 0xFFFF));
+//			avia_wait(avia_command(SelectStream, 3, 0xFFFF));
       break;
     case VIDEO_PLAY:
-      avia_wait(avia_command(Play, 0, 0, 0));
+      avia_command(Play, 0, 0, 0);
       dvb->videostate.playState=VIDEO_PLAYING;
       break;
     case VIDEO_FREEZE:
@@ -456,10 +453,11 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
         if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
           return -EINVAL;
         avia_command(SetStreamType, 0xB);
-        avia_command(SelectStream, 0, 0);
-        avia_command(SelectStream, 2, 0);
-        avia_command(SelectStream, 3, 0);
-      } else
+        avia_command(SelectStream, 0, 0xFF);
+        avia_command(SelectStream, 2, 0x100);
+        avia_command(SelectStream, 3, 0x100);
+ 				wDR(0x468, 0xFFFF);
+			} else
         return -EINVAL;
       break;
     }
@@ -915,7 +913,7 @@ int __init dvb_init_module(void)
 }
 
 
-void __exit dvb_cleanup_module ()
+void __exit dvb_cleanup_module (void)
 {
   return dvb_unregister(&dvb);
 }
