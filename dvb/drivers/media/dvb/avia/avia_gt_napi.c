@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.151 $
+ *   $Revision: 1.152 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.152  2002/11/03 17:55:24  Jolt
+ *   Performance tweaks
+ *
  *   Revision 1.151  2002/11/03 14:14:50  Jolt
  *   Bugfix
  *
@@ -572,44 +575,56 @@ static void avia_gt_napi_queue_callback_generic(u8 queue_nr, void *data)
 	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
 	sAviaGtDmxQueueInfo *queue_info = &queue->info;
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
-	u32 chunkall;
+	u32 bytes_avail;
+	u32 chunk1;
 	u8 ts_buf[188];
 	
-	chunkall = queue_info->bytes_avail(queue_nr);
-	
-	if (chunkall < 188)
+	if ((bytes_avail = queue_info->bytes_avail(queue_nr)) < 188)
 		return;
 		
 	if (queue_info->get_data8(queue_nr, 1) != 0x47) {
 	
 		printk("avia_gt_napi: lost sync on queue %d\n", queue_nr);
 	
-		queue_info->get_data(queue_nr, NULL, chunkall, 0);
+		queue_info->get_data(queue_nr, NULL, bytes_avail, 0);
 		
 		return;
 		
 	}
 
-	chunkall -= chunkall % 188;
+	// Align size on ts paket size
+	bytes_avail -= bytes_avail % 188;
 	
-	while (chunkall) {
+	// Does the buffer wrap around?
+	if ((queue->read_pos + bytes_avail) > (queue->size)) {
 	
-		if ((queue->read_pos + 188) > (queue->size)) {
-				
-			queue_info->get_data(queue_nr, ts_buf, 188, 0);
-			dvb_dmx_swfilter_packet(dvbdmxfeed->demux, ts_buf);
-					
-		} else {
+		chunk1 = queue->size - queue->read_pos;
+		chunk1 -= chunk1 % 188;
+		
+		// Do we have at least one complete packet before buffer wraps?
+		if (chunk1) {
 
-			dvb_dmx_swfilter_packet(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos);
-			queue_info->get_data(queue_nr, NULL, 188, 0);
-				
+			dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1 / 188);
+			queue_info->get_data(queue_nr, NULL, chunk1, 0);
+			bytes_avail -= chunk1;
+			
 		}
-		
-		chunkall -= 188;
-		
-	}
+
+		// Handle the wrapped packet				
+		queue_info->get_data(queue_nr, ts_buf, 188, 0);
+		dvb_dmx_swfilter_packet(dvbdmxfeed->demux, ts_buf);
+		bytes_avail -= 188;
 					
+	}
+	
+	// Remaining packets after the buffer has wrapped
+	if (bytes_avail) {
+
+		dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos, bytes_avail / 188);
+		queue_info->get_data(queue_nr, NULL, bytes_avail, 0);
+				
+	}
+		
 	return;				
 
 }
@@ -772,7 +787,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.151 2002/11/03 14:14:50 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.152 2002/11/03 17:55:24 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
