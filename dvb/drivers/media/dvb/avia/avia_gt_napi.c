@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_napi.c,v 1.183 2003/07/24 01:59:21 homar Exp $
+ * $Id: avia_gt_napi.c,v 1.184 2003/08/01 17:31:22 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2000-2001 Felix "tmbinc" Domke <tmbinc@gmx.net>
  * Copyright (C) 2003 Andreas Oberritter <obi@tuxbox.org>
@@ -24,28 +24,12 @@
  *
  */
 
-#define __KERNEL_SYSCALLS__
-
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/unistd.h>
-#include <linux/fcntl.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/tqueue.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/vmalloc.h>
 #include <linux/dvb/ca.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
 
 #include "../dvb-core/compat.h"
 #include "../dvb-core/demux.h"
@@ -72,12 +56,18 @@ static struct dmxdev dmxdev;
 static dmx_frontend_t fe_hw;
 static dmx_frontend_t fe_mem;
 static int hw_crc = 1;
-static int hw_dmx_ts = 1;
-static int hw_dmx_pes = 1;
-static int hw_dmx_sec = 1;
+static int hw_dmx_pes = 0;
+static int hw_dmx_sec = 0;
+static int hw_dmx_ts = 0;
+static int mode = 0;
 
 /* only used for playback */
 static int need_audio_pts = 0;
+
+static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
+
+static u8 *section;
+static spinlock_t section_lock = SPIN_LOCK_UNLOCKED;
 
 static
 u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
@@ -92,12 +82,10 @@ static
 void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
 {
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
-
 		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
 			dvbdmxfeed->feed.sec.crc_val = avia_gt_accel_crc32(src - gt_info->mem_addr, len, dvbdmxfeed->feed.sec.crc_val);
 		else
 			dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len);
-
 	}
 
 	memcpy(dst, (void *)src, len);
@@ -130,11 +118,10 @@ struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmx
 	}
 }
 
+
 /*
  * Callback for hardware section filtering
  */
-
-
 static
 void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *data)
 {
@@ -149,77 +136,68 @@ void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *
 	u32 compare_len;
 	u8 copied;
 	u32 crc;
-	u8 section_header[4096];
+	u32 flags;
+
+	spin_lock_irqsave(&section_lock, flags);
 
 	bytes_avail = queue->bytes_avail(queue);
 
 	while (bytes_avail >= 3) {
-
-		/*
-		 * Remove padding bytes.
-		 */
-		while (bytes_avail && (queue->get_data8(queue,1) == 0xFF))
-		{
+		/* Remove padding bytes */
+		while (bytes_avail && (queue->get_data8(queue, 1) == 0xFF)) {
 			bytes_avail--;
-			queue->get_data8(queue,0);
+			queue->get_data8(queue, 0);
 		}
 
-		/*
-		 * We need the length bytes
-		 */
+		/* We need the length bytes */
 		if (bytes_avail < 3)
-		{
 			break;
-		}
 
-		queue->get_data(queue,section_header,3,1);
+		queue->get_data(queue, section, 3, 1);
 
-		section_length = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
+		section_length = (((section[1] & 0x0F) << 8) | section[2]) + 3;
 
 		/*
-		 * Sections > 4096 bytes don't exist. We are out of sync. Recover by restarting the feed.
+		 * Sections > 4096 bytes don't exist. We are out of sync.
+		 * Recover by restarting the feed.
 		 */
 		if (section_length > 4096) {
-			printk(KERN_ERR "avia_gt_napi: section_length %d > 4096.\n",section_length);
-			avia_gt_dmx_set_pid_table(queue->index,1,1,dvbdmxfeed->pid);
+			printk(KERN_ERR "avia_gt_napi: pid %04x section_length %d > 4096.\n",
+					dvbdmxfeed->pid, section_length);
+			avia_gt_dmx_set_pid_table(queue->index, 1, 1, dvbdmxfeed->pid);
 			avia_gt_dmx_queue_reset(queue->index);
-			avia_gt_dmx_set_pid_table(queue->index,1,0,dvbdmxfeed->pid);
+			avia_gt_dmx_set_pid_table(queue->index, 1, 0, dvbdmxfeed->pid);
 			break;
 		}
 
-		/*
-		 * Do we have the complete section?
-		 */
+		/* Do we have the complete section? */
 		if (section_length > bytes_avail)
 			break;
 
 		/*
 		 * Determine who is interested in the section.
 		 */
-
 		compare_len = (section_length < DVB_DEMUX_MASK_MAX) ? section_length : DVB_DEMUX_MASK_MAX;
-		dvbdmxfilter = dvbdmxfeed->filter;
-		crc = queue->crc32(queue,section_length, ~0);
+		crc = queue->crc32(queue, section_length, ~0);
 		chunk1 = queue->get_buf1_size(queue);
 
 		/*
 		 * If we have more than one potential client, copy section here to avoid reading dmx-memory
 		 * multiple times.
 		 */
-
-		if ((dvbdmxfilter->next) || (compare_len == section_length)) {
-			queue->get_data(queue, section_header, section_length, 0);
+		if ((dvbdmxfeed->filter->next) || (compare_len == section_length)) {
+			queue->get_data(queue, section, section_length, 0);
 			copied = 1;
 		}
 		else {
-			queue->get_data(queue, section_header, compare_len, 1);
+			queue->get_data(queue, section, compare_len, 1);
 			copied = 0;
 		}
 
-		while (dvbdmxfilter) {
+		for (dvbdmxfilter = dvbdmxfeed->filter; dvbdmxfilter != NULL; dvbdmxfilter = dvbdmxfilter->next) {
 			if ((dvbdmxfilter->feed->feed.sec.check_crc) && (crc)) {
 				dprintk(KERN_ERR "avia_gt_napi: crc invalid (0x%08X)\n", crc);
-				goto next_client;
+				continue;
 			}
 
 			/*
@@ -228,44 +206,39 @@ void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *
 			neq = 0;
 
 			for (i = 0; i < compare_len; i++) {
-				xor = dvbdmxfilter->filter.filter_value[i] ^ section_header[i];
+				xor = dvbdmxfilter->filter.filter_value[i] ^ section[i];
 				if (dvbdmxfilter->maskandmode[i] & xor)
-					goto next_client;
+					break;
 				neq |= dvbdmxfilter->maskandnotmode[i] & xor;
 			}
 
-			if (dvbdmxfilter->doneq && !neq)
-				goto next_client;
+			if ((dvbdmxfilter->maskandmode[i] & xor) ||
+				(dvbdmxfilter->doneq && !neq))
+					continue;
 
 			/*
 			 * Call section callback
 			 */
 			if (copied)
-				dvbdmxfilter->feed->cb.sec(section_header, section_length, NULL, 0,
+				dvbdmxfilter->feed->cb.sec(section, section_length, NULL, 0,
 						&dvbdmxfilter->filter, DMX_OK);
 			else if (section_length <= chunk1)
 				dvbdmxfilter->feed->cb.sec(gt_info->mem_addr + queue->get_buf1_ptr(queue),
-						section_length, NULL, 0, &dvbdmxfilter->filter,DMX_OK);
+						section_length, NULL, 0, &dvbdmxfilter->filter, DMX_OK);
 			else
 				dvbdmxfilter->feed->cb.sec(gt_info->mem_addr + queue->get_buf1_ptr(queue),
 						chunk1, gt_info->mem_addr + queue->get_buf2_ptr(queue),
 						section_length - chunk1, &dvbdmxfilter->filter, DMX_OK);
-
-			/*
-			 * Next section filter.
-			 */
-next_client:
-			dvbdmxfilter = dvbdmxfilter->next;
 		}
 
-		/*
-		 * Remove handled section from queue.
-		 */
+		/* Remove handled section from queue */
 		if (!copied)
 			queue->get_data(queue, NULL, section_length, 0);
 
 		bytes_avail -= section_length;
 	}
+
+	spin_unlock_irqrestore(&section_lock, flags);
 }
 
 static
@@ -288,9 +261,10 @@ void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue, void *
 	/* Align size on ts paket size */
 	bytes_avail -= bytes_avail % 188;
 
+	chunk1 = queue->get_buf1_size(queue);
+
 	/* Does the buffer wrap around? */
-	if (bytes_avail > queue->get_buf1_size(queue)) {
-		chunk1 = queue->get_buf1_size(queue);
+	if (bytes_avail > chunk1) {
 		chunk1 -= chunk1 % 188;
 
 		/* Do we have at least one complete packet before buffer wraps? */
@@ -339,7 +313,7 @@ int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) &&
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
-		avia_av_napi_decoder_start(dvbdmxfeed);
+			avia_av_napi_decoder_start(dvbdmxfeed);
 
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
 }
@@ -376,6 +350,8 @@ int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 			break;
 		}
 
+	ts_pid[queue->index] = dvbdmxfeed->pid;
+
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
 }
 
@@ -383,9 +359,15 @@ static
 int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct avia_gt_dmx_queue *queue;
+	int i;
 
 	if (!hw_dmx_pes)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
+
+	/* use software ts to pes demux if pid is already active in ts mode */
+	for (i = 0; i < AVIA_GT_DMX_QUEUE_COUNT; i++)
+		if (ts_pid[i] == dvbdmxfeed->pid)
+			return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
 		return -EBUSY;
@@ -394,7 +376,7 @@ int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) &&
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
-		avia_av_napi_decoder_start(dvbdmxfeed);
+			avia_av_napi_decoder_start(dvbdmxfeed);
 
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0, 0, 0);
 }
@@ -408,17 +390,13 @@ int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 	if (!hw_dmx_sec)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	/*
-	 * Try to allocate hardware section filters.
-	 */
+	/* Try to allocate hardware section filters */
 	filter_index = avia_gt_dmx_alloc_section_filter(dvbdmxfeed->filter);
-	
+
 	if (filter_index < 0)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	/*
-	 * Get a queue.
-	 */
+	/* Get a queue */
 	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_section))) {
 		avia_gt_dmx_free_section_filter(filter_index & 0xff);
 		return -EBUSY;
@@ -460,7 +438,7 @@ int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *b
 		if (ts->adaptation_field)
 			pes_offset += buf[4] + 1;
 
-		if (pes_offset > (184 - sizeof(struct pes_header)))
+		if (pes_offset > (188 - sizeof(struct ts_header) - sizeof(struct pes_header)))
 			return 0;
 
 		if (avia_av_audio_pts_to_stc((struct pes_header *) &buf[pes_offset]) == 0)
@@ -495,7 +473,14 @@ int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if ((dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) &&
 		(dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) &&
 		(dvbdmxfeed->ts_type & TS_DECODER))
-		need_audio_pts = 1;
+			need_audio_pts = 1;
+
+	if (mode == 0)	/* Dual PES mode */
+		if ((dvbdmx->dmx.frontend->source != DMX_MEMORY_FE) &&
+			((dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO) ||
+			 (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)) &&
+			(dvbdmxfeed->ts_type & TS_DECODER))
+				dvbdmxfeed->ts_type |= TS_PAYLOAD_ONLY;
 
 	if ((dvbdmxfeed->type == DMX_TYPE_TS) || (dvbdmxfeed->type == DMX_TYPE_PES)) {
 		if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (dvbdmxfeed->ts_type & TS_DECODER)) {
@@ -519,9 +504,7 @@ int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (result)
 		return result;
 
-	if ((dvbdmxfeed->type == DMX_TYPE_SEC) ||
-		(dvbdmxfeed->ts_type & TS_PACKET) ||
-		(dvbdmx->dmx.frontend->source == DMX_MEMORY_FE))
+	if ((dvbdmxfeed->type == DMX_TYPE_SEC) || (dvbdmxfeed->ts_type & TS_PACKET))
 		return avia_gt_dmx_queue_irq_enable(((struct avia_gt_dmx_queue *)(dvbdmxfeed->priv))->index);
 
 	return 0;
@@ -569,6 +552,8 @@ int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (queue->hw_sec_index >= 0)
 		avia_gt_dmx_free_section_filter(queue->hw_sec_index);
+
+	ts_pid[queue->index] = 0xffff;
 
 	return avia_gt_dmx_free_queue(queue->index);
 }
@@ -709,20 +694,28 @@ static struct dvb_device avia_gt_napi_ecd_dev = {
 int __init avia_gt_napi_init(void)
 {
 	int result;
+	u32 ucode_caps;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.183 2003/07/24 01:59:21 homar Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.184 2003/08/01 17:31:22 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
-	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
-		printk(KERN_ERR "avia_gt_napi: Unsupported chip type\n");
-		return -EIO;
-	}
+	if (!avia_gt_supported_chipset(gt_info))
+		return -ENODEV;
 
 	adapter = avia_napi_get_adapter();
 
 	if (!adapter)
 		return -EINVAL;
+
+	ucode_caps = avia_gt_dmx_ucode_capabilities();
+
+	memset(ts_pid, 0xff, sizeof(ts_pid));
+
+	if ((section = kmalloc(4096, GFP_KERNEL)) == NULL) {
+		printk("avia_gt_napi: out of memory\n");
+		return -ENOMEM;
+	}
 
 	memset(&demux, 0, sizeof(demux));
 
@@ -742,12 +735,9 @@ int __init avia_gt_napi_init(void)
 		demux.memcopy = avia_gt_napi_memcpy;
 	}
 
-	if ((hw_dmx_sec) && ((hw_dmx_sec = avia_gt_dmx_get_hw_sec_filt_avail())))
-		printk(KERN_INFO "avia_gt_napi: hw section filtering enabled.\n");
-
-	if (dvb_dmx_init(&demux)) {
+	if ((result = dvb_dmx_init(&demux))) {
 		printk(KERN_ERR "avia_gt_napi: dvb_dmx_init failed\n");
-		return -EFAULT;
+		goto init_failed_free_section;
 	}
 
 	demux.dmx.connect_frontend = avia_gt_napi_connect_frontend;
@@ -786,17 +776,36 @@ int __init avia_gt_napi_init(void)
 		goto init_failed_disconnect_frontend;
 	}
 
-	if (avia_gt_dmx_ecd_ucode_present()) {
+	net.card_num = adapter->num;
+
+	if ((result = dvb_net_init(adapter, &net, &demux.dmx)) < 0) {
+		printk(KERN_ERR "avia_gt_napi: dvb_net_init failed (errno=%d)\n", result);
+		goto init_failed_remove_frontend_notifier;
+	}
+
+	if (ucode_caps & AVIA_GT_UCODE_CAP_ECD) {
 		if ((result = dvb_register_device(adapter, &ca_dev, &avia_gt_napi_ecd_dev, NULL, DVB_DEVICE_CA)) < 0) {
 			printk(KERN_ERR "avia_gt_napi: dvb_register_device failed (errno=%d)\n", result);
-			goto init_failed_remove_frontend_notifier;
+			goto init_failed_release_net;
 		}
 	}
 
-	net.card_num = adapter->num;
-	dvb_net_init(adapter, &net, &demux.dmx);
+	if (ucode_caps & AVIA_GT_UCODE_CAP_PES)
+		hw_dmx_pes = 1;
+
+	if (ucode_caps & AVIA_GT_UCODE_CAP_SEC)
+		hw_dmx_sec = 1;
+
+	if (ucode_caps & AVIA_GT_UCODE_CAP_TS)
+		hw_dmx_ts = 1;
+
+	if (hw_dmx_sec)
+		printk(KERN_INFO "avia_gt_napi: hw section filtering enabled.\n");
+
 	return 0;
 
+init_failed_release_net:
+	dvb_net_release(&net);
 init_failed_remove_frontend_notifier:
 	dvb_remove_frontend_notifier(adapter, avia_gt_napi_before_after_tune);
 init_failed_disconnect_frontend:
@@ -809,12 +818,15 @@ init_failed_dmxdev_release:
 	dvb_dmxdev_release(&dmxdev);
 init_failed_dmx_release:
 	dvb_dmx_release(&demux);
+init_failed_free_section:
+	kfree(section);
 
 	return result;
 }
 
 void __exit avia_gt_napi_exit(void)
 {
+	dvb_unregister_device(ca_dev);
 	dvb_net_release(&net);
 	dvb_remove_frontend_notifier(adapter, avia_gt_napi_before_after_tune);
 	demux.dmx.close(&demux.dmx);
@@ -823,6 +835,7 @@ void __exit avia_gt_napi_exit(void)
 	demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 	dvb_dmxdev_release(&dmxdev);
 	dvb_dmx_release(&demux);
+	kfree(section);
 }
 
 module_init(avia_gt_napi_init);
@@ -831,3 +844,5 @@ module_exit(avia_gt_napi_exit);
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
 MODULE_LICENSE("GPL");
+MODULE_PARM(mode, "i");
+MODULE_PARM_DESC(mode, "playback mode: 0 = Dual PES (default), 1 = SPTS");

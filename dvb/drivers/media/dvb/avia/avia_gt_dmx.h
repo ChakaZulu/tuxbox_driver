@@ -1,7 +1,7 @@
 /*
  *   avia_gt_dmx.h - dmx driver for AViA (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -41,8 +41,12 @@
 #define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
 #define AVIA_GT_DMX_QUEUE_MODE_SEC16		5
 
-struct avia_gt_dmx_queue {
+#define AVIA_GT_UCODE_CAP_ECD			0x0001
+#define AVIA_GT_UCODE_CAP_PES			0x0002
+#define AVIA_GT_UCODE_CAP_SEC			0x0004
+#define AVIA_GT_UCODE_CAP_TS			0x0008
 
+struct avia_gt_dmx_queue {
 	u8 index;
 	s8 hw_sec_index;
 
@@ -60,13 +64,11 @@ struct avia_gt_dmx_queue {
 	u32	(*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
 	void	(*flush)(struct avia_gt_dmx_queue *queue);
 	u32	(*put_data)(struct avia_gt_dmx_queue *queue, const void *src, u32 count, u8 src_is_user_space);
-
 };
 
 typedef void (AviaGtDmxQueueProc)(struct avia_gt_dmx_queue *queue, void *priv_data);
 
 typedef struct {
-
 	u8 busy;
 	AviaGtDmxQueueProc *cb_proc;
 	u32 hw_read_pos;
@@ -87,84 +89,70 @@ typedef struct {
 	u8 mode;
 	u8 running;
 	struct tq_struct task_struct;
-
 } sAviaGtDmxQueue;
 
 #pragma pack(1)
 
 typedef struct {
-
-    u32 wait_pusi: 1;
-    u32 VALID: 1;
-    u32 Reserved1: 1;
-    u32 PID: 13;
-
+	unsigned wait_pusi		: 1;
+	unsigned VALID			: 1;
+	unsigned Reserved1		: 1;
+	unsigned PID			: 13;
 } sPID_Entry;
 
 typedef struct {
-
-	u32 type: 3;
-	u32 QID: 5;
-	u32 fork: 1;
-	u32 CW_offset: 3;
-	u32 CC: 4;
-	u32 _PSH: 1;
-	u32 start_up: 1;
-	u32 PEC: 1;
-	u32 filt_tab_idx: 5;
-	u32 State: 3;
-	u32 Reserved1: 1;
-	u32 no_of_filter: 4;
-
+	unsigned type			: 3;
+	unsigned QID			: 5;
+	unsigned fork			: 1;
+	unsigned CW_offset		: 3;
+	unsigned CC			: 4;
+	unsigned _PSH			: 1;
+	unsigned start_up		: 1;
+	unsigned PEC			: 1;
+	unsigned filt_tab_idx		: 5;
+	unsigned State			: 3;
+	unsigned Reserved1		: 1;
+	unsigned no_of_filter		: 4;
 } sPID_Parsing_Control_Entry;
 
 typedef struct {
-
-	u8 and_or_flag: 1;
-	u8 filter_param_id: 5;
-	u8 Reserved: 2;
-
+	unsigned and_or_flag		: 1;
+	unsigned filter_param_id	: 5;
+	unsigned Reserved		: 2;
 } sFilter_Definition_Entry;
 
 typedef struct {
-
-	u8 mask_0;
-	u8 param_0;
-	u8 mask_1;
-	u8 param_1;
-	u8 mask_2;
-	u8 param_2;
-
+	unsigned mask_0			: 8;
+	unsigned param_0		: 8;
+	unsigned mask_1			: 8;
+	unsigned param_1		: 8;
+	unsigned mask_2			: 8;
+	unsigned param_2		: 8;
 } sFilter_Parameter_Entry1;
 
 typedef struct {
-
-	u8 mask_3;
-	u8 param_3;
-	u8 mask_4;
-	u8 param_4;
-	u8 mask_5;
-	u8 param_5;
-
+	unsigned mask_3			: 8;
+	unsigned param_3		: 8;
+	unsigned mask_4			: 8;
+	unsigned param_4		: 8;
+	unsigned mask_5			: 8;
+	unsigned param_5		: 8;
 } sFilter_Parameter_Entry2;
 
 typedef struct {
-
-	u8 mask_6;
-	u8 param_6;
-	u8 mask_7;
-	u8 param_7;
-	u32 Reserved1: 3;
-	u32 not_flag: 1;
-	u32 Reserved2: 2;
-	u32 not_flag_ver_id_byte: 1;
-	u32 Reserved3: 1;
-	u8 Reserved4;
-
+	unsigned mask_6			: 8;
+	unsigned param_6		: 8;
+	unsigned mask_7			: 8;
+	unsigned param_7		: 8;
+	unsigned Reserved1		: 3;
+	unsigned not_flag		: 1;
+	unsigned Reserved2		: 2;
+	unsigned not_flag_ver_id_byte	: 1;
+	unsigned Reserved3		: 1;
+	unsigned Reserved4		: 8;
 } sFilter_Parameter_Entry3;
 
 typedef struct {
-
     u8 Microcode[1024];
     sFilter_Parameter_Entry1 Filter_Parameter_Table1[32];
     u8 Reserved1[16];
@@ -180,33 +168,26 @@ typedef struct {
     sFilter_Definition_Entry Filter_Definition_Table[32];
     u8 Reserved4[30];
     u16 Version_no;
-
 } sRISC_MEM_MAP;
 
 typedef struct {
-
-	u8 type;
-	u8 expected_cc;
-	u8 detected_cc;
-	u16 pid;
-
+	unsigned type			: 8;
+	unsigned expected_cc		: 8;
+	unsigned detected_cc		: 8;
+	unsigned pid			: 16;
 } sCC_ERROR_MESSAGE;
 
 typedef struct {
-
-	u8 type;
-	u8 filter_index;
-	u16 pid;
-
+	unsigned type			: 8;
+	unsigned filter_index		: 8;
+	unsigned pid			: 16;
 } sSECTION_COMPLETED_MESSAGE;
 
 typedef struct {
-
-	u8 type;
-	u16 pid;
-	u8 cc;
-	u8 length;
-	
+	unsigned type			: 8;
+	unsigned pid			: 16;
+	unsigned cc			: 8;
+	unsigned length			: 8;
 } sPRIVATE_ADAPTION_MESSAGE;
 
 #pragma pack()
@@ -235,25 +216,19 @@ struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *ir
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
+int avia_gt_dmx_free_queue(u8 queue_nr);
+sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
 void avia_gt_dmx_fake_queue_irq(u8 queue_nr);
-s32 avia_gt_dmx_free_queue(u8 queue_nr);
-void avia_gt_dmx_force_discontinuity(void);
+u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
+void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
+int avia_gt_dmx_queue_irq_enable(u8 queue_nr);
+int avia_gt_dmx_queue_reset(u8 queue_nr);
+void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos);
+int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter);
+int avia_gt_dmx_queue_stop(u8 queue_nr);
 void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid);
 int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter);
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
-sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
-u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
-u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
-void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
-s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
-s32 avia_gt_dmx_queue_reset(u8 queue_nr);
-int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter);
-int avia_gt_dmx_queue_stop(u8 queue_nr);
-void avia_gt_dmx_queue_set_write_pos(unsigned char queue_nr, unsigned int write_pointer);
-void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block);
-void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
-void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt);
-
 u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr);
 void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos);
 void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos);
@@ -262,20 +237,23 @@ void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos);
 void avia_gt_dmx_free_section_filter(u8 index);
 int avia_gt_dmx_alloc_section_filter(void *f);
 
+void avia_gt_dmx_force_discontinuity(void);
 void avia_gt_dmx_enable_framer(void);
 void avia_gt_dmx_disable_framer(void);
+
 int avia_gt_dmx_enable_clip_mode(u8 queue_nr);
 int avia_gt_dmx_disable_clip_mode(u8 queue_nr);
+
 int avia_gt_dmx_queue_write(u8 queue_nr, const u8 *buf, size_t count, u32 nonblock);
 int avia_gt_dmx_queue_nr_get_bytes_free(u8 queue_nr);
 
 void avia_gt_dmx_ecd_reset(void);
 int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *key);
 int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid);
-int avia_gt_dmx_ecd_ucode_present(void);
 
-u8 avia_gt_dmx_get_hw_sec_filt_avail(void);
+u32 avia_gt_dmx_ucode_capabilities(void);
+
 int avia_gt_dmx_init(void);
 void avia_gt_dmx_exit(void);
 
-#endif
+#endif /* AVIA_GT_DMX_H */

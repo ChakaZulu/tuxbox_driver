@@ -24,7 +24,6 @@
 #ifndef AVIA_GT_H
 #define AVIA_GT_H
 
-#include <asm/io.h>
 #include "avia_gt_enx.h"
 #include "avia_gt_gtx.h"
 
@@ -102,6 +101,42 @@ extern sAviaGtInfo *avia_gt_get_info(void);
 extern int avia_gt_init(void);
 extern void avia_gt_exit(void);
 
+#define avia_gt_readw(reg)						\
+({									\
+ 	u16 __w;							\
+	if (avia_gt_chip(GTX))						\
+		__w = gtx_reg_16(reg);					\
+	else								\
+		__w = enx_reg_16(reg);					\
+	__w;								\
+})
+
+#define avia_gt_readl(reg)						\
+({									\
+ 	u32 __l;							\
+	if (avia_gt_chip(GTX))						\
+		__l = gtx_reg_32(reg);					\
+	else								\
+		__l = enx_reg_32(reg);					\
+	__l;								\
+})
+
+#define avia_gt_writew(reg, val)					\
+do {									\
+ 	if (avia_gt_chip(GTX))						\
+		gtx_reg_16(reg) = (val);				\
+	else								\
+		enx_reg_16(reg) = (val);				\
+} while (0)
+
+#define avia_gt_writel(reg, val)					\
+do {									\
+ 	if (avia_gt_chip(GTX))						\
+		gtx_reg_32(reg) = (val);				\
+	else								\
+		enx_reg_32(reg) = (val);				\
+} while (0)
+
 #define avia_gt_reg_o(offs)						\
 	((volatile void *)(&gt_info->reg_addr[offs]))
 
@@ -118,5 +153,15 @@ do {									\
 	else								\
 		enx_reg_set(reg, field, val);				\
 } while (0)
+
+extern inline int avia_gt_supported_chipset(sAviaGtInfo *gt_info)
+{
+	if ((!gt_info) || ((!avia_gt_chip(GTX)) && (!avia_gt_chip(ENX)))) {
+		printk(KERN_ERR "%s: unsupported chipset\n", __FILE__);
+		return 0;
+	}
+
+	return 1;
+}
 
 #endif

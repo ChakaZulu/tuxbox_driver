@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_vbi.c,v 1.25 2003/07/24 01:59:22 homar Exp $
+ * $Id: avia_gt_vbi.c,v 1.26 2003/08/01 17:31:22 obi Exp $
  *
  * vbi driver for AViA eNX/GTX (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2001-2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -23,10 +23,10 @@
  *
  */
 
-#include <asm/errno.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "avia_gt.h"
 #include "avia_gt_vbi.h"
@@ -36,43 +36,24 @@
 static sAviaGtInfo *gt_info;
 
 static
-void avia_gt_vbi_reset(const u8 reenable)
+void avia_gt_vbi_reset(int reenable)
 {
-	dprintk("avia_gt_vbi_reset(%d)\n", reenable);
+	avia_gt_reg_set(RSTR0, TTX, 1);
 
-	if (avia_gt_chip(ENX))
-		enx_reg_set(RSTR0, TTX, 1);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(RR1, TTX, 1);
-
-	if (reenable) {
-		if (avia_gt_chip(ENX))
-			enx_reg_set(RSTR0, TTX, 0);
-		else if (avia_gt_chip(GTX))
-			gtx_reg_set(RR1, TTX, 0);
-	}
+	if (reenable)
+		avia_gt_reg_set(RSTR0, TTX, 0);
 }
 
 void avia_gt_vbi_start(void)
 {
-	dprintk("avia_gt_vbi: starting vbi reinsertion\n");
-
 	avia_gt_vbi_reset(1);
 
-	if (avia_gt_chip(ENX))
-		enx_reg_set(TCNTL, GO, 1);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(TTCR, GO, 1);
+	avia_gt_reg_set(TCNTL, GO, 1);
 }
 
 void avia_gt_vbi_stop(void)
 {
-	if (avia_gt_chip(ENX))
-		enx_reg_set(TCNTL, GO, 0);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(TTCR, GO, 0);
-
-	dprintk("avia_gt_vbi: stopped vbi reinsertion\n");
+	avia_gt_reg_set(TCNTL, GO, 0);
 }
 
 #ifdef VBI_IRQ
@@ -85,59 +66,43 @@ void avia_gt_vbi_irq(u16 irq)
 	if (avia_gt_chip(ENX)) {
 		tt_error = enx_reg_s(TSTATUS)->E;
 		tt_pts = enx_reg_s(TSTATUS)->R;
-
-		enx_reg_set(TSTATUS, E, 0);
-		enx_reg_set(TSTATUS, R, 0);
 	}
 	else if (avia_gt_chip(GTX)) {
-		tt_error = gtx_reg_s(TSR)->E;
-		tt_pts = gtx_reg_s(TSR)->R;
-
-		gtx_reg_set(TSR, E, 0);
-		gtx_reg_set(TSR, R, 0);
+		tt_error = gtx_reg_s(TSTATUS)->E;
+		tt_pts = gtx_reg_s(TSTATUS)->R;
 	}
-	
+
+	avia_gt_reg_set(TSTATUS, E, 0);
+	avia_gt_reg_set(TSTATUS, R, 0);
+
 	if (tt_error) {
-		printk("avia_gt_vbi: error in TS stream\n");
+		printk(KERN_INFO "avia_gt_vbi: error in TS stream\n");
 		avia_gt_vbi_stop();
 		avia_gt_vbi_start();
 	}
 
 	if (tt_pts)
-		printk("avia_gt_vbi: got pts\n");
+		printk(KERN_INFO "avia_gt_vbi: got pts\n");
 }
 #endif
 
 int __init avia_gt_vbi_init(void)
 {
-#ifdef VBI_IRQ
-	u16 irq_nr = 0;
-#endif
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.25 2003/07/24 01:59:22 homar Exp $\n");
+	printk(KERN_INFO "avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.26 2003/08/01 17:31:22 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
-	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
-		printk("avia_gt_vbi: Unsupported chip type\n");
-		return -EIO;
-	}
+	if (!avia_gt_supported_chipset(gt_info))
+		return -ENODEV;
 
 #ifdef VBI_IRQ
-	if (avia_gt_chip(ENX))
-		irq_nr = ENX_IRQ_TT;
-	else if (avia_gt_chip(GTX))
-		irq_nr = GTX_IRQ_TT;
-
-	if (avia_gt_alloc_irq(irq_nr, avia_gt_vbi_irq)) {
+	if (avia_gt_alloc_irq(gt_info->irq_tt, avia_gt_vbi_irq)) {
 		printk("avia_gt_vbi: unable to get vbi interrupt\n");
 		return -EIO;
 	}
 #endif
 
-	if (avia_gt_chip(ENX))
-		enx_reg_set(CFGR0, TCP, 0);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(CR1, TCP, 0);
+	avia_gt_reg_set(CFGR0, TCP, 0);
 
 	avia_gt_vbi_reset(0);
 
@@ -148,12 +113,8 @@ void __exit avia_gt_vbi_exit(void)
 {
 	avia_gt_vbi_stop();
 	avia_gt_vbi_reset(0);
-
 #ifdef VBI_IRQ
-	if (avia_gt_chip(ENX))
-		avia_gt_free_irq(ENX_IRQ_TT);
-	else if (avia_gt_chip(GTX))
-		avia_gt_free_irq(GTX_IRQ_TT);
+	avia_gt_free_irq(gt_info->irq_tt);
 #endif
 }
 
@@ -168,4 +129,3 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(avia_gt_vbi_start);
 EXPORT_SYMBOL(avia_gt_vbi_stop);
-

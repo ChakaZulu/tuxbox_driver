@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.12 2003/07/24 01:59:21 homar Exp $
+ * $Id: avia_gt_lirc.c,v 1.13 2003/08/01 17:31:22 obi Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -23,24 +23,12 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/list.h>
-#include <linux/poll.h>
-#include <linux/random.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/poll.h>
+#include <linux/wait.h>
 
 #include "avia_gt_ir.h"
 #include <dbox/lirc.h>
@@ -254,7 +242,7 @@ static struct file_operations avia_gt_lirc_fops = {
 
 static int __init avia_gt_lirc_init(void)
 {
-	printk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.12 2003/07/24 01:59:21 homar Exp $\n");
+	printk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.13 2003/08/01 17:31:22 obi Exp $\n");
 
 	if (avia_gt_ir_init() < 0)
 		return -EIO;

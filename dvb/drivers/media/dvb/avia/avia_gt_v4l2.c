@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_v4l2.c,v 1.10 2003/07/24 01:59:22 homar Exp $
+ * $Id: avia_gt_v4l2.c,v 1.11 2003/08/01 17:31:22 obi Exp $
  *
  * AViA eNX/GTX v4l2 driver (dbox-II-project)
  *
@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 #include "avia_gt.h"
 #include "avia_gt_pig.h"
@@ -221,7 +222,7 @@ static struct video_device device_info = {
 static int __init avia_gt_v4l2_init(void)
 {
 
-	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.10 2003/07/24 01:59:22 homar Exp $\n");
+	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.11 2003/08/01 17:31:22 obi Exp $\n");
 	
 	return video_register_device(&device_info, VFL_TYPE_GRABBER, -1);
 
