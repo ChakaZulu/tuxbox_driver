@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.22 2003/07/24 01:59:21 homar Exp $
+ * $Id: avia_av_napi.c,v 1.23 2003/09/11 22:46:33 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -152,7 +152,10 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 	unsigned long arg = (unsigned long) parg;
 	int err;
 
-	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != VIDEO_GET_STATUS))
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
+		(cmd != VIDEO_GET_STATUS) &&
+		(cmd != VIDEO_GET_EVENT) &&
+		(cmd != VIDEO_GET_SIZE))
 		return -EPERM;
 
 	switch (cmd) {
@@ -275,6 +278,9 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 		case VIDEO_FORMAT_16_9:
 			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 3);
 			break;
+		case VIDEO_FORMAT_221_1:
+			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 4);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -301,6 +307,33 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 	case VIDEO_SET_ATTRIBUTES:
 		return -EOPNOTSUPP;
 
+	case VIDEO_GET_SIZE:
+	{
+		video_size_t *s = parg;
+
+		s->w = avia_av_dram_read(H_SIZE) & 0xffff;
+		s->h = avia_av_dram_read(V_SIZE) & 0xffff;
+
+		switch (avia_av_dram_read(ASPECT_RATIO) & 0xffff) {
+		case 2:
+			s->aspect_ratio = VIDEO_FORMAT_4_3;
+			break;
+		case 3:
+			s->aspect_ratio = VIDEO_FORMAT_16_9;
+			break;
+		case 4:
+			s->aspect_ratio = VIDEO_FORMAT_221_1;
+			break;
+		default:
+			s->aspect_ratio = VIDEO_FORMAT_4_3;
+			printk(KERN_INFO "avia_av_napi: unknown aspect ratio: %x\n",
+					avia_av_dram_read(ASPECT_RATIO) & 0xffff);
+			break;
+		}
+
+		break;
+	}
+
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -314,7 +347,8 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 	unsigned long arg = (unsigned long) parg;
 	int err;
 
-	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != AUDIO_GET_STATUS))
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
+		(cmd != AUDIO_GET_STATUS))
 		return -EPERM;
 
 	switch (cmd) {
@@ -604,7 +638,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.22 2003/07/24 01:59:21 homar Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.23 2003/09/11 22:46:33 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
