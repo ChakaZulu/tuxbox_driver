@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.148  2002/11/17 22:37:52  Jolt
+ *   PCR fixes / changes
+ *
  *   Revision 1.147  2002/11/10 21:34:50  Jolt
  *   Fixes
  *
@@ -251,7 +254,7 @@
  *
  *
  *
- *   $Revision: 1.147 $
+ *   $Revision: 1.148 $
  *
  */
 
@@ -354,7 +357,9 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	queue_list[queue_nr].priv_data = priv_data;
 	queue_list[queue_nr].read_pos = 0;
 	queue_list[queue_nr].write_pos = 0;
-	
+
+	avia_gt_dmx_queue_reset(queue_nr);
+
 	return &queue_list[queue_nr].info;
 
 }
@@ -1512,8 +1517,11 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr)
 	queue_list[queue_nr].hw_write_pos = 0;
 	queue_list[queue_nr].read_pos = 0;
 	queue_list[queue_nr].write_pos = 0;
-	
+
 	avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
+
+	if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
+		avia_gt_dmx_system_queue_set_pos(queue_nr, 0, 0);
 
 	return 0;
 
@@ -1581,23 +1589,20 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 }
 
-void avia_gt_dmx_set_pcr_pid(u16 pid)
+void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
 {
 
 	if (avia_gt_chip(ENX)) {
 
-		//enx_reg_set(PCR_PID, E, 0);
-		//enx_reg_set(PCR_PID, PID, pid);
-		//enx_reg_set(PCR_PID, E, 1);
-
-		enx_reg_16(PCR_PID) = (1 << 13) | pid;
+		enx_reg_16(PCR_PID) = ((!!enable) << 13) | pid;
 
 		avia_gt_free_irq(ENX_IRQ_PCR);
 		avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_16(PCRPID) = (1 << 13) | pid;
+		gtx_reg_16(PCRPID) = ((!!enable) << 13) | pid;
+
 		avia_gt_free_irq(GTX_IRQ_PCR);
 		avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
@@ -1795,7 +1800,7 @@ void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos)
 void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos)
 {
 
-	int	base;
+	int base;
 
 	if ((queue_nr != AVIA_GT_DMX_QUEUE_VIDEO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
@@ -1828,7 +1833,7 @@ void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos)
 void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 {
 
-	int	base;
+	int base;
 
 	if ((queue_nr != AVIA_GT_DMX_QUEUE_VIDEO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
@@ -2126,7 +2131,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.147 2002/11/10 21:34:50 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.148 2002/11/17 22:37:52 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

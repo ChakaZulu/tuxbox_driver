@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.163 $
+ *   $Revision: 1.164 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.164  2002/11/17 22:37:52  Jolt
+ *   PCR fixes / changes
+ *
  *   Revision 1.163  2002/11/11 18:15:51  Jolt
  *   CRC fixes
  *
@@ -809,7 +812,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR)) {
 
-		avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
+		avia_gt_dmx_set_pcr_pid(1, dvbdmxfeed->pid);
 
 		if (!(dvbdmxfeed->ts_type & TS_PACKET))
 			return 0;
@@ -896,8 +899,7 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR)) {
 
-		//FIXME: disable pcr_pid
-		//avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
+		avia_gt_dmx_set_pcr_pid(0, 0x0000);
 	
 		if (!(dvbdmxfeed->ts_type & TS_PACKET))
 			return 0;
@@ -948,7 +950,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.163 2002/11/11 18:15:51 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.164 2002/11/17 22:37:52 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
