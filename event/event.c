@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.4  2001/12/19 19:47:01  gillem
+ *	- some work on event-filter
+ *	
  *	Revision 1.3  2001/12/08 15:20:58  gillem
  *	- remove debug stuff ;-)
  *	
@@ -30,7 +33,7 @@
  *	- initial release (not ready today)
  *	
  *
- *	$Revision: 1.3 $
+ *	$Revision: 1.4 $
  *
  */
 
@@ -62,6 +65,15 @@ struct event_data_t {
 	u16 event_read_ptr;
 };
 
+struct event_private_t {
+	u32 event_filter;
+};
+
+#define MAX_EVENT_OPEN 5
+
+static int open_handle;
+static struct event_private_t * event_private[5];
+
 static struct event_data_t event_data;
 
 static DECLARE_WAIT_QUEUE_HEAD(event_wait);
@@ -73,6 +85,7 @@ static devfs_handle_t devfs_handle;
 static int event_ioctl (struct inode *inode, struct file *file,
                          unsigned int cmd, unsigned long arg);
 static int event_open (struct inode *inode, struct file *file);
+static int event_release (struct inode *inode, struct file *file);
 
 static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *offset);
 
@@ -80,7 +93,8 @@ static struct file_operations event_fops = {
 	owner:		THIS_MODULE,
         read:           event_read,
 	ioctl:		event_ioctl,
-	open:		event_open
+	open:		event_open,
+	release:	event_release
 };
 
 #define dprintk     if (debug) printk
@@ -117,11 +131,51 @@ int event_write_message( struct event_t * event, size_t count )
 static int event_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
+	switch(cmd)
+	{
+		case EVENT_SET_FILTER:
+			break;
+		default:
+			break;
+	}
+
 	return 0;
 }
 
 static int event_open (struct inode *inode, struct file *file)
 {
+	int i;
+
+	if(open_handle==MAX_EVENT_OPEN)
+		return -1; //???
+
+	open_handle++;
+	file->private_data = kmalloc( sizeof(struct event_private_t), GFP_KERNEL );
+
+	for(i=0;i<MAX_EVENT_OPEN;i++)
+		if(event_private[i]==0) {
+			event_private[i]=file->private_data;
+			break;
+		}
+
+	return 0;
+}
+
+static int event_release (struct inode *inode, struct file *file)
+{
+	int i;
+	open_handle--;
+
+	if(file->private_data)
+	{
+		for(i=0;i<MAX_EVENT_OPEN;i++)
+			if(event_private[i]==file->private_data) {
+				event_private[i]=0;
+				break;
+			}
+		kfree(file->private_data);
+		file->private_data = (void*) 0;
+	}
 	return 0;
 }
 
@@ -196,6 +250,10 @@ int event_init(void)
 	event_data.event_ptr = 0;
 	event_data.event_read_ptr = 0;
 	event_data.event_free = EVENTBUFFERSIZE;
+
+	open_handle = 0;
+
+	memset(event_private,0,sizeof(event_private));
 
 	devfs_handle = devfs_register ( NULL, "dbox/event0", DEVFS_FL_DEFAULT,
 		0, 0,

@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.h,v $
+ *	Revision 1.3  2001/12/19 19:46:47  gillem
+ *	- some work on event-filter
+ *	
  *	Revision 1.2  2001/12/18 17:58:52  gillem
  *	- add events
  *	- TODO: filter events
@@ -28,7 +31,7 @@
  *	- initial release
  *	
  *
- *	$Revision: 1.2 $
+ *	$Revision: 1.3 $
  *
  */
 
@@ -40,8 +43,10 @@
 #define EVENT_NOP		0
 #define EVENT_VCR_ON		1
 #define EVENT_VCR_OFF		2
-#define EVENT_VHSIZE_CHANGE	3
-#define EVENT_ARATIO_CHANGE	4
+#define EVENT_VHSIZE_CHANGE	4
+#define EVENT_ARATIO_CHANGE	8
+
+#define EVENT_SET_FILTER	1
 
 /* other data
  */
