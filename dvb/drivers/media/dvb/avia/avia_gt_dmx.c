@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.170 2003/05/02 15:21:12 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.171 2003/05/02 20:19:40 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1527,11 +1527,11 @@ void enx_tdp_stop(void)
 
 }
 
-static s64 avia_gt_dmx_get_pcr_base(void)
+static u64 avia_gt_dmx_get_pcr_base(void)
 {
-	u16 pcr0 = 0;
-	u16 pcr1 = 0;
-	u16 pcr2 = 0;
+	u64 pcr0 = 0;
+	u64 pcr1 = 0;
+	u64 pcr2 = 0;
 
 	if (avia_gt_chip(ENX))
 	{
@@ -1549,11 +1549,11 @@ static s64 avia_gt_dmx_get_pcr_base(void)
 	return (pcr2 << 17) | (pcr1 << 1) | (pcr0 >> 15);
 }
 
-static s64 avia_gt_dmx_get_latched_stc_base(void)
+static u64 avia_gt_dmx_get_latched_stc_base(void)
 {
-	u16 l_stc0 = 0;
-	u16 l_stc1 = 0;
-	u16 l_stc2 = 0;
+	u64 l_stc0 = 0;
+	u64 l_stc1 = 0;
+	u64 l_stc2 = 0;
 
 	if (avia_gt_chip(ENX))
 	{
@@ -1572,11 +1572,11 @@ static s64 avia_gt_dmx_get_latched_stc_base(void)
 
 }
 
-static s64 avia_gt_dmx_get_stc_base(void)
+static u64 avia_gt_dmx_get_stc_base(void)
 {
-	u16 stc0 = 0;
-	u16 stc1 = 0;
-	u16 stc2 = 0;
+	u64 stc0 = 0;
+	u64 stc1 = 0;
+	u64 stc2 = 0;
 
 	if (avia_gt_chip(ENX))
 	{
@@ -1592,7 +1592,6 @@ static s64 avia_gt_dmx_get_stc_base(void)
 	}
 
 	return (stc2 << 17) | (stc1 << 1) | (stc0 >> 15);
-
 }
 
 static void avia_gt_dmx_set_dac(s16 pulse_count)
@@ -1617,9 +1616,9 @@ static void avia_gt_dmx_set_dac(s16 pulse_count)
 
 static void gtx_pcr_interrupt(unsigned short irq)
 {
-	s64 pcr;
-	s64 lstc;
-	s64 stc;
+	u64 pcr;
+	u64 lstc;
+	u64 stc;
 	s32 pcr_lstc_diff;
 	s32 diff_diff;
 	s64 pcr_diff;
@@ -1628,8 +1627,8 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	}  direction;
 	u8 gain_changed = 0;
 
-	static s64 last_pcr = 0;
-	static s64 last_lstc = 0;
+	static u64 last_pcr = 0;
+	static u64 last_lstc = 0;
 	static s32 last_pcr_lstc_diff = 0;
 	static s16 gain = 0;
 
@@ -2321,7 +2320,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.170 2003/05/02 15:21:12 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.171 2003/05/02 20:19:40 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
