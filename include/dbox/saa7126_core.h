@@ -21,6 +21,10 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.9  2001/11/22 17:26:12  gillem
+ *   - add power save mode (experimental)
+ *   - start vps
+ *
  *   Revision 1.8  2001/07/03 20:23:22  gillem
  *   - add defines
  *
@@ -48,15 +52,20 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
-#define SAAIOGREG		1 /* read registers				*/
-#define SAAIOSINP		2 /* input control				*/
-#define SAAIOSOUT		3 /* output control 			*/
-#define SAAIOSENC		4 /* set encoder (pal/ntsc)		*/
-#define SAAIOSMODE		5 /* set mode (rgb/fbas/svideo)	*/
+#define SAAIOGREG		1	/* read registers				*/
+#define SAAIOSINP		2	/* input control				*/
+#define SAAIOSOUT		3	/* output control 			*/
+#define SAAIOSENC		4	/* set encoder (pal/ntsc)		*/
+#define SAAIOSMODE		5	/* set mode (rgb/fbas/svideo)	*/
+#define SAAIOSPOWERSAVE	6	/* set power save */
+#define SAAIOGPOWERSAVE	7	/* get power save */
+
+#define SAAIOSVPSDATA	8	/* set vps data */
+#define SAAIOGVPSDATA	9	/* get vps data */
 
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1

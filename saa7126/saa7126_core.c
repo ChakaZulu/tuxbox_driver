@@ -21,6 +21,10 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.15  2001/11/22 17:26:12  gillem
+ *   - add power save mode (experimental)
+ *   - start vps
+ *
  *   Revision 1.14  2001/07/03 20:23:11  gillem
  *   - some changes
  *
@@ -59,7 +63,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -196,7 +200,7 @@ static unsigned char PAL_SAA_SAGEM[] =
 /* ------------------------------------------------------------------------- */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] 				= {I2C_CLIENT_END};
+static unsigned short normal_i2c[] 			= {I2C_CLIENT_END};
 static unsigned short normal_i2c_range[] 	= { 0x88>>1,0x88>>1,I2C_CLIENT_END};
 static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
@@ -225,7 +229,7 @@ static int saa7126_mode( int inp );
 static struct file_operations saa7126_fops = {
 	owner:		THIS_MODULE,
 	ioctl:		saa7126_ioctl,
-	open:			saa7126_open,
+	open:		saa7126_open,
 };
 
 static int saa7126_encoder( int inp );
@@ -236,6 +240,10 @@ static int debug =  0; /* insmod parameter */
 static int addr  =  0;
 static int board = 	0;
 static int mode  = 	0;
+
+static int saa_power_mode;
+static u8 saa_power_reg_2d;
+static u8 saa_power_reg_61;
 
 #if LINUX_VERSION_CODE > 0x020100
 MODULE_PARM(debug,"i");
@@ -253,6 +261,8 @@ static int this_adap;
 #define I2C_DRIVERID_SAA7126	1
 #define SAA7126_MAJOR 			240
 #define SAA_I2C_BLOCK_SIZE		0x40
+
+#define SAA_DEVICE	"dbox/saa0"
 
 /* ------------------------------------------------------------------------- */
 
@@ -416,8 +426,8 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 	dprintk("[saa7126]: command\n");
 
-	switch (cmd) {
-
+	switch (cmd)
+	{
 		case ENCODER_GET_CAPABILITIES:
 		{
 			struct video_encoder_capability *cap = arg;
@@ -435,20 +445,20 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 		{
 			int *iarg = arg;
 
-			switch (*iarg) {
+			switch (*iarg)
+			{
+				case VIDEO_MODE_NTSC:
+					saa7126_encoder(0);
+					break;
 
-			case VIDEO_MODE_NTSC:
-				saa7126_encoder(0);
-				break;
+				case VIDEO_MODE_PAL:
+					saa7126_encoder(1);
+					break;
 
-			case VIDEO_MODE_PAL:
-				saa7126_encoder(1);
-				break;
-
-			default:
-				return -EINVAL;
-
+				default:
+					return -EINVAL;
 			}
+
 			encoder->norm = *iarg;
 		}
 		break;
@@ -457,32 +467,15 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 		{
 			int *iarg = arg;
 
-#if 0
-			/* not much choice of inputs */
+			/* not much choice of outputs */
 			if (*iarg != 0) {
 				return -EINVAL;
 			}
-#else
+
 			/* RJ: *iarg = 0: input is from SA7111
 			   *iarg = 1: input is from ZR36060 */
 
-			switch (*iarg) {
-
-			case 0:
-				/* Switch RTCE to 1 */
-	//			saa7185_write(encoder, 0x61, (encoder->reg[0x61] & 0xf7) | 0x08);
-				break;
-
-			case 1:
-				/* Switch RTCE to 0 */
-//				saa7185_write(encoder, 0x61, (encoder->reg[0x61] & 0xf7) | 0x00);
-				break;
-
-			default:
-				return -EINVAL;
-
-			}
-#endif
+			/* Switch RTCE to 0/1 ... */
 		}
 		break;
 
@@ -502,12 +495,13 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 			int *iarg = arg;
 
 			encoder->enable = !!*iarg;
+
 //			saa7185_write(encoder, 0x61, (encoder->reg[0x61] & 0xbf) | (encoder->enable ? 0x00 : 0x40));
 		}
 		break;
 
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 
 	return 0;
@@ -630,6 +624,95 @@ static int saa7126_mode( int inp )
 
 /* ------------------------------------------------------------------------- */
 
+static int saa7126_power_save( int inp )
+{
+	if ( (inp) && (!saa_power_mode) ) // go power save
+	{
+		/* read 2dh */
+		saa7126_cmd( &client_template, 0x2d, &saa_power_reg_2d, 1 );
+		/* read 61h */
+		saa7126_cmd( &client_template, 0x61, &saa_power_reg_61, 1 );
+
+		/* write 2dh */
+		saa7126_sendcmd( &client_template, 0x2d, (saa_power_reg_2d&0xf0) );
+		/* write 61h */
+		saa7126_sendcmd( &client_template, 0x61, (saa_power_reg_61|0xc0) );
+
+		saa_power_mode = 1;
+	}
+	else if ( (!inp) && (saa_power_mode) ) // go out power save
+	{
+		/* write 2dh */
+		saa7126_sendcmd( &client_template, 0x2d, saa_power_reg_2d );
+		/* write 61h */
+		saa7126_sendcmd( &client_template, 0x61, saa_power_reg_61 );
+
+		saa_power_mode = 0;
+	}
+	else // wrong
+	{
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static int saa7126_vps_set_data( char * buf )
+{
+	u8 b;
+
+	/* read vps status */
+	saa7126_cmd(&client_template,0x54,&b,1);
+
+	if (buf[0]==1)
+	{
+		b |= 0x80;
+
+		i2c_master_send( &client_template, buf, 5 );
+	}
+	else if (buf[1]==0)
+	{
+		b &= ~0x80;
+	}
+	else
+	{
+		return -EINVAL;
+	}
+
+	/* write vps status */
+	saa7126_sendcmd( &client_template, 0x54, b );
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static int saa7126_vps_get_data( char * buf )
+{
+	u8 b;
+
+	/* read vps status */
+	saa7126_cmd(&client_template,0x54,&b,1);
+
+	if (b&0x80)
+	{
+		buf[0] = 1;
+	}
+	else
+	{
+		buf[0] = 0;
+	}
+
+	/* read vps date */
+	saa7126_cmd(&client_template,0x54,buf+1,5);
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
@@ -637,7 +720,13 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
     int val;
 
 	dprintk("[SAA7126]: IOCTL\n");
-	
+
+	/* no ioctl in power save mode */
+	if ( (saa_power_mode) && (cmd!=SAAIOSPOWERSAVE) && (cmd!=SAAIOGPOWERSAVE) )
+	{
+		return -EINVAL;
+	}
+
 	switch (cmd)
 	{
    		case SAAIOGREG:
@@ -683,6 +772,38 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 
 				break;
 
+		case SAAIOSPOWERSAVE:
+				if ( copy_from_user( &val, (void*)arg, sizeof(val) ) ) {
+					return -EFAULT;
+				}
+
+				saa7126_power_save(val);
+
+				break;
+
+		case SAAIOGPOWERSAVE:
+				val = saa_power_mode;
+
+				return copy_to_user( (void*)arg, &val, sizeof(val) );
+
+				break;
+
+		case SAAIOSVPSDATA:
+				if ( copy_from_user( saa_data, (void*)arg, 6 ) ) {
+					return -EFAULT;
+				}
+
+				saa_7126_vps_set_data(saa_data);
+
+				break;
+
+		case SAAIOGVPSDATA:
+				saa_7126_vps_get_data(saa_data);
+
+				return copy_to_user( (void*)arg, saa_data, 6 );
+
+				break;
+
 		default:
 				return -EINVAL;
 	}
@@ -716,24 +837,24 @@ void dec_use (struct i2c_client *client)
 /* ------------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-        "i2c saa7126 driver",
-        I2C_DRIVERID_SAA7126,
-        I2C_DF_NOTIFY,
-        saa7126_probe,
-        saa7126_detach,
-        saa7126_command,
-        inc_use,
-        dec_use,
+	"i2c saa7126 driver",
+	I2C_DRIVERID_SAA7126,
+	I2C_DF_NOTIFY,
+	saa7126_probe,
+	saa7126_detach,
+	saa7126_command,
+	inc_use,
+	dec_use,
 };
 
 static struct i2c_client client_template =
 {
-		"i2c saa7126 chip",		/* name       				*/
-        I2C_DRIVERID_SAA7126,   /* ID         				*/
-        0,
-		0, 						/* interpret as 7Bit-Adr 	*/
-        NULL,
-        &driver
+	"i2c saa7126 chip",		/* name       				*/
+	I2C_DRIVERID_SAA7126,	/* ID         				*/
+	0,
+	0,										/* interpret as 7Bit-Adr 	*/
+	NULL,
+	&driver
 };
 
 /* ------------------------------------------------------------------------- */
@@ -746,6 +867,11 @@ int init_module(void)
 int saa7126_init(void)
 #endif
 {
+	/* power mode vars */
+	saa_power_mode   = 0;
+	saa_power_reg_2d = 0;
+	saa_power_reg_61 = 0;
+
 	if (!board)
 	{
 		struct dbox_info_struct dbox;
@@ -759,7 +885,7 @@ int saa7126_init(void)
 		return -EIO;
 	}
 
-	devfs_handle = devfs_register ( NULL, "dbox/saa0", DEVFS_FL_DEFAULT, 0, 0,
+	devfs_handle = devfs_register ( NULL, SAA_DEVICE, DEVFS_FL_DEFAULT, 0, 0,
                      S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                      &saa7126_fops, NULL );
 
