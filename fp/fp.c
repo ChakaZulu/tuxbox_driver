@@ -67,7 +67,7 @@ struct fp_data
   struct i2c_client *client;
 };
 
-struct fp_data *defdata;
+struct fp_data *defdata=0;
 
 static spinlock_t rc_lock=SPIN_LOCK_UNLOCKED;
 static u16 rcbuffer[RCBUFFERSIZE];
@@ -390,11 +390,17 @@ static int fp_init(void)
 {
   int res;
   printk("DBox2 FP driver v0.1\n");
-                                                          
+
   if ((res=i2c_add_driver(&fp_driver)))
   {
     printk("fp: Driver registration failed, module not inserted.\n");
     return res;
+  }
+  if (!defdata)
+  {
+    i2c_del_driver(&fp_driver);
+    printk("Couldn't find FP.\n");
+    return -EBUSY;
   }
   init_waitqueue_head(&rcwait);
   if (register_chrdev(FP_MAJOR, "fp", &fp_fops))
