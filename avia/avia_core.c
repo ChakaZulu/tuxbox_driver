@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.22  2001/12/19 21:26:05  gillem
+ *   - work on timer stuff
+ *   - remove some logs
+ *
  *   Revision 1.21  2001/12/18 19:39:21  TheDOC
  *   Changed event-delay to 30, which works well.
  *
@@ -115,7 +119,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -221,7 +225,7 @@ static int avia_proc_initialized = 0;
 #endif /* CONFIG_PROC_FS */
 
 /* timer & event stuff */
-#define AVIA_EVENT_TIMER 1000	/* 1 KHz */
+#define AVIA_EVENT_TIMER 100	/* max. ~100Hz (not realtime...) */
 
 struct avia_event_reg {
 	u16 hsize;
@@ -450,14 +454,14 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                         wake_up_interruptible (&avia_cmd_wait);
                 }
                 else {
-                        printk (KERN_DEBUG "%s: %s: "
+                        dprintk (KERN_DEBUG "%s: %s: "
                                 "CMD UNKN %.8x %.8x %.8x %.8x "
                                          "%.8x %.8x %.8x %.8x\n",
                                 __FILE__, __FUNCTION__,
                                 rDR (0x40), rDR (0x44), rDR (0x48),
                                 rDR (0x4c), rDR (0x50), rDR (0x54),
                                 rDR (0x58), rDR (0x5c));
-                        printk (KERN_DEBUG "%s: %s: "
+                        dprintk (KERN_DEBUG "%s: %s: "
                                 "PROC %.8x %.8x %.8x\n",
                                 __FILE__, __FUNCTION__,
                                 rDR (0x2a0), rDR (0x2a4), rDR (0x2a8));
@@ -495,7 +499,7 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                                 break;
                         }
 
-                        printk (KERN_INFO "%s: %s: New sample freq: %d.\n",
+                        dprintk (KERN_INFO "%s: %s: New sample freq: %d.\n",
                                 __FILE__, __FUNCTION__, sem & 7);
                 }
 
@@ -507,10 +511,10 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                 /* new audio emphasis */
                 if (sem & (3 << 6))
                         switch ((sem >> 6) & 3) {
-                        case 1: printk (KERN_INFO "%s: %s: "
+                        case 1: dprintk (KERN_INFO "%s: %s: "
                                         "New audio emphasis is off.\n",
                                         __FILE__, __FUNCTION__); break;
-                        case 2: printk (KERN_INFO "%s: %s: "
+                        case 2: dprintk (KERN_INFO "%s: %s: "
                                         "New audio emphasis is on.\n",
                                         __FILE__, __FUNCTION__); break;
                         }
@@ -589,7 +593,7 @@ avia_wait_command( u32 tries )
 	if (cmd_state==1)
 	{
 	    //error !
-	    printk("state allready 1\n");
+	    dprintk("state allready 1\n");
 	}
 
 	cmd_state = 1;
@@ -600,7 +604,7 @@ avia_wait_command( u32 tries )
         i = interruptible_sleep_on_timeout(&avia_cmd_state_wait, AVIA_CMD_TIMEOUT);
 
 	if(i==0)
-	    printk("sorry timeout in cmd_state ...\n");
+	    dprintk("sorry timeout in cmd_state ...\n");
 	    
 	spin_lock_irq(&avia_cmd_state_lock);
 	cmd_state=0;
@@ -996,7 +1000,7 @@ static int init_avia(void)
 
         if (!aviamem)
         {
-                dprintk(KERN_ERR "AVIA: Failed to remap memory.\n");
+                printk(KERN_ERR "AVIA: Failed to remap memory.\n");
                 return -ENOMEM;
         }
 
@@ -1031,7 +1035,7 @@ static int init_avia(void)
         /* request avia interrupt */
         if (request_8xxirq(AVIA_INTERRUPT, avia_interrupt, 0, "avia", &dev) != 0)
         {
-                dprintk(KERN_ERR "AVIA: Failed to get interrupt.\n");
+                printk(KERN_ERR "AVIA: Failed to get interrupt.\n");
                 vfree(microcode);
                 iounmap((void*)aviamem);
                 return -EIO;
@@ -1414,7 +1418,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_core.c,v 1.21 2001/12/18 19:39:21 TheDOC Exp $\n");
+        dprintk ("AVIA: $Id: avia_core.c,v 1.22 2001/12/19 21:26:05 gillem Exp $\n");
         return init_avia ();
 }
 
