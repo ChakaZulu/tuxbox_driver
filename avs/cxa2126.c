@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.6  2001/03/12 01:15:28  kwon
+ *   cosmetics
+ *
  *   Revision 1.5  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -37,7 +40,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -346,7 +349,7 @@ static int cxa2126_getstatus(struct i2c_client *client)
 	return byte;
 }
 
-static int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg )
+int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	int val;
 	dprintk("[AVS]: IOCTL\n");

@@ -29,40 +29,40 @@
 #define false 0
 
 typedef enum {
-	VIDEO_FORMAT_4_3, /* Select 4:3 format */ 
-    VIDEO_FORMAT_16_9, /* Select 16:9 format. */
-    VIDEO_FORMAT_20_9 /* Select 20:9 format. */
+        VIDEO_FORMAT_4_3,  /* Select 4:3 format */ 
+        VIDEO_FORMAT_16_9, /* Select 16:9 format. */
+        VIDEO_FORMAT_20_9  /* Select 20:9 format. */
 } videoFormat_t;
 
 
 typedef enum {
         VIDEO_PAN_SCAN, 
-	VIDEO_LETTER_BOX, 
-	VIDEO_CENTER_CUT_OUT 
+        VIDEO_LETTER_BOX, 
+        VIDEO_CENTER_CUT_OUT 
 } videoDisplayFormat_t;
 
 
 typedef enum {
         VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */ 
-	VIDEO_SOURCE_MEMORY /* If this source is selected, the stream 
+        VIDEO_SOURCE_MEMORY /* If this source is selected, the stream 
 			       comes from the user through the write 
 			       system call */ 
 } videoStreamSource_t;
 
 typedef enum {
-	VIDEO_STOPPED, /* Video is stopped */ 
+        VIDEO_STOPPED, /* Video is stopped */ 
         VIDEO_PLAYING, /* Video is currently playing */ 
-	VIDEO_FREEZED  /* Video is freezed */ 
+        VIDEO_FREEZED  /* Video is freezed */ 
 } videoPlayState_t; 
 
 
 struct videoEvent { 
         int32_t type; 
         time_t timestamp;
- 
+
         union { 
-	        videoFormat_t videoFormat;
-	} u; 
+                videoFormat_t videoFormat;
+        } u; 
 };
 
 
@@ -90,9 +90,9 @@ struct videoDigest {
 };
 
 struct videoNewChannel {
-		int16_t fadetime;
-		int16_t vPid;
-		int16_t aPid;
+        int16_t fadetime;
+        int16_t vPid;
+        int16_t aPid;
 };
 
 #define VIDEO_STOP                 _IOW('o', 21, boolean)
