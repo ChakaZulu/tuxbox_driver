@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.100  2002/09/03 13:17:34  Jolt
+ *   - DMX/NAPI cleanup
+ *   - HW sections workaround
+ *
  *   Revision 1.99  2002/09/02 19:25:37  Jolt
  *   - DMX/NAPI cleanup
  *   - Compile fix
@@ -102,7 +106,7 @@
  *
  *
  *
- *   $Revision: 1.99 $
+ *   $Revision: 1.100 $
  *
  */
 
@@ -148,6 +152,7 @@ static sRISC_MEM_MAP *risc_mem_map				= (sRISC_MEM_MAP *)NULL;
 static char *ucode							= (char *)NULL;
 static u8 hw_sections = 1;
 static u8 force_stc_reload = 0;
+static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
 
@@ -169,14 +174,102 @@ static void avia_gt_dmx_dump(void) {
 }
 #endif
 
-int avia_gt_dmx_get_hw_sec_filt_avail(void)
+s32 avia_gt_dmx_alloc_queue(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
+		
+		return -EINVAL;
+
+	}
+
+	if (queue_list[queue_nr].busy) {
+
+		printk("avia_gt_dmx: alloc_queue: queue %d busy\n", queue_nr);
+		
+		return -EBUSY;
+
+	}
+
+	queue_list[queue_nr].busy = 1;
+
+	return 0;
+
+}
+
+s32 avia_gt_dmx_alloc_queue_audio(void)
+{
+
+    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO);
+
+}
+
+s32 avia_gt_dmx_alloc_queue_teletext(void)
+{
+
+    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT);
+
+}
+
+s32 avia_gt_dmx_alloc_queue_user(void)
+{
+
+    u8 queue_nr;
+
+    for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr < AVIA_GT_DMX_QUEUE_USER_END; queue_nr++) {
+
+		if (!queue_list[queue_nr].busy)
+			return avia_gt_dmx_alloc_queue(queue_nr);
+		
+	}
+    
+	return -EBUSY;
+
+}
+
+s32 avia_gt_dmx_alloc_queue_video(void)
+{
+
+	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_VIDEO);
+
+}
+
+s32 avia_gt_dmx_free_queue(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+    
+		printk("avia_gt_dmx:  free_queue: queue %d out of bounce\n", queue_nr);
+	
+		return -EINVAL;
+    
+	}
+
+	if (!queue_list[queue_nr].busy) {
+    
+		printk("avia_gt_dmx: free_queue: queue %d not busy\n", queue_nr);
+	
+		return -EFAULT;
+    
+	}
+    
+	queue_list[queue_nr].busy = 0;
+	queue_list[queue_nr].irq_count = 0;
+    
+	return 0;
+
+}
+
+u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
 
 	if (hw_sections && (risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14))
 		return 1;
 	else
 		return 0;
-		
+
 }
 
 void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry)
@@ -205,6 +298,7 @@ void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry)
 
 int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what)
 {
+
 	sPID_Entry e;
 	int rc;
 
@@ -213,18 +307,22 @@ int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what)
 
 	dprintk("avia_gt_dmx_start_stop_feed, entry %d, what %d, old %d\n",entry,what,rc);
 
-	if (what != e.VALID)
-	{
+	if (what != e.VALID) {
+	
 		e.VALID = what;
 		e.wait_pusi = 1;
 		*((u16 *) &risc_mem_map->PID_Search_Table[entry]) = *((u16 *) &e);
+		
 	}
+
 	return rc;
+
 }
 
 
 int avia_gt_dmx_compress_filter_parameter_table(gtx_demux_t *gtx)
 {
+
 	unsigned char valid[32];
 	unsigned i;
 	unsigned j;
@@ -1214,7 +1312,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.99 2002/09/02 19:25:37 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.100 2002/09/03 13:17:34 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1310,6 +1408,11 @@ MODULE_LICENSE("GPL");
 #endif
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_audio);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_teletext);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_user);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_video);
+EXPORT_SYMBOL(avia_gt_dmx_free_queue);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);

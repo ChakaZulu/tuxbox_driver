@@ -20,8 +20,12 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.97 $
+ *   $Revision: 1.98 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.98  2002/09/03 13:17:34  Jolt
+ *   - DMX/NAPI cleanup
+ *   - HW sections workaround
+ *
  *   Revision 1.97  2002/09/03 05:17:38  Jolt
  *   HW sections workaround
  *
@@ -883,7 +887,9 @@ static void gtx_task(void *data)
 								}
 								else
 								{
+#if 0
 									printk("bad message, type-value %02X, len = %d\n",type,b1l+b2l);
+#endif
 //									dump(b1,b1l,b2,b2l);
 									break;
 								}
@@ -1179,39 +1185,71 @@ static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 
 static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 {
-	int i = 0;
 
-	switch (type)
-	{
-/*	case DMX_TS_PES_USER:
-		return 0; */
-	case DMX_TS_PES_VIDEO:
-		i=VIDEO_QUEUE;
+	s32 queue_nr = -EINVAL;
+
+	switch (type) {
+
+/*
+
+		case DMX_TS_PES_USER:
+			
+			return NULL;
+			
 		break;
-	case DMX_TS_PES_AUDIO:
-		i=AUDIO_QUEUE;
+		
+*/
+	
+		case DMX_TS_PES_VIDEO:
+	
+			queue_nr = avia_gt_dmx_alloc_queue_video();
+
 		break;
-	case DMX_TS_PES_TELETEXT:
-		i=TELETEXT_QUEUE;
+	
+		case DMX_TS_PES_AUDIO:
+
+			queue_nr = avia_gt_dmx_alloc_queue_audio();
+
 		break;
-	case DMX_TS_PES_PCR:
-	case DMX_TS_PES_SUBTITLE:
-		return 0;
-	case DMX_TS_PES_OTHER:
-		for (i=USER_QUEUE_START; i<LAST_USER_QUEUE; i++)
-			if (gtx->feed[i].state==DMX_STATE_FREE)
-				break;
-								// TODO: evtl. system-queue nehmen wenn nix anderes mehr da ist..
-		if (i==LAST_USER_QUEUE)
-			return 0;
+	
+		case DMX_TS_PES_TELETEXT:
+
+			queue_nr = avia_gt_dmx_alloc_queue_teletext();
+
 		break;
+	
+		case DMX_TS_PES_PCR:
+		case DMX_TS_PES_SUBTITLE:
+		
+			return NULL;
+			
+		break;
+	
+		case DMX_TS_PES_OTHER:
+	
+			queue_nr = avia_gt_dmx_alloc_queue_user();
+
+		break;
+
+	}
+	
+	if (queue_nr < 0) {
+	
+		printk("avia_gt_napi: failed to allocate queue (error=%d)\n", queue_nr);
+	
+		return NULL;
+	
 	}
 
-	if (gtx->feed[i].state!=DMX_STATE_FREE)
-		return 0;
-	gtx->feed[i].state=DMX_STATE_ALLOCATED;
-	dprintk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", i, type);
-	return &gtx->feed[i];
+	if (gtx->feed[queue_nr].state != DMX_STATE_FREE)
+		return NULL;
+		
+	gtx->feed[queue_nr].state = DMX_STATE_ALLOCATED;
+	
+	dprintk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", queue_nr, type);
+	
+	return &gtx->feed[queue_nr];
+	
 }
 
 static int dmx_open(struct dmx_demux_s* demux)
@@ -1479,6 +1517,7 @@ static int dmx_release_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t* feed)
 	if (gtxfeed->state==DMX_STATE_FREE)
 		return -EINVAL;
 	// buffer.. ne, eher nicht.
+	avia_gt_dmx_free_queue(gtxfeed->index);
 	gtxfeed->state=DMX_STATE_FREE;
 	gtxfeed->filter->state=DMX_STATE_FREE;
 	// pid austragen
@@ -1863,24 +1902,24 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, buffersize[AUDIO_QUEUE], 0);
 	gtx_set_queue_pointer(Q_TELETEXT, gtxdemux->feed[TELETEXT_QUEUE].base, gtxdemux->feed[TELETEXT_QUEUE].base, buffersize[TELETEXT_QUEUE], 0);
 
-	dmx->id="demux0";
-	dmx->vendor="C-Cube";
-	dmx->model="AViA eNX/GTX";
-	dmx->frontend=0;
-	dmx->reg_list.next=dmx->reg_list.prev=&dmx->reg_list;
-	dmx->priv=(void *) gtxdemux;
-	dmx->open=dmx_open;
-	dmx->close=dmx_close;
-	dmx->write=dmx_write;
-	dmx->allocate_ts_feed=dmx_allocate_ts_feed;
-	dmx->release_ts_feed=dmx_release_ts_feed;
-	dmx->allocate_pes_feed=dmx_allocate_pes_feed;
-	dmx->release_pes_feed=dmx_release_pes_feed;
-	dmx->allocate_section_feed=dmx_allocate_section_feed;
-	dmx->release_section_feed=dmx_release_section_feed;
+	dmx->id = "demux0";
+	dmx->vendor = "C-Cube";
+	dmx->model = "AViA eNX/GTX";
+	dmx->frontend = 0;
+	dmx->reg_list.next = dmx->reg_list.prev = &dmx->reg_list;
+	dmx->priv = (void *)gtxdemux;
+	dmx->open = dmx_open;
+	dmx->close = dmx_close;
+	dmx->write = dmx_write;
+	dmx->allocate_ts_feed = dmx_allocate_ts_feed;
+	dmx->release_ts_feed = dmx_release_ts_feed;
+	dmx->allocate_pes_feed = dmx_allocate_pes_feed;
+	dmx->release_pes_feed = dmx_release_pes_feed;
+	dmx->allocate_section_feed = dmx_allocate_section_feed;
+	dmx->release_section_feed = dmx_release_section_feed;
 
-	dmx->descramble_mac_address=0;
-	dmx->descramble_section_payload=0;
+	dmx->descramble_mac_address = 0;
+	dmx->descramble_section_payload = 0;
 
 	dmx->add_frontend = dmx_add_frontend;
 	dmx->remove_frontend = dmx_remove_frontend;
@@ -1890,7 +1929,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
 	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
 
-	gtx_tasklet.data=gtxdemux;
+	gtx_tasklet.data = gtxdemux;
 
 	if (dmx_register_demux(dmx)<0)
 		return -1;
@@ -1901,14 +1940,14 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 #ifdef GTX_SECTIONS
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
-		gtx_reset_queue(gtxdemux->feed + MESSAGE_QUEUE);
+		gtx_reset_queue(&gtxdemux->feed[MESSAGE_QUEUE]);
 
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
 		gtxdemux->feed[MESSAGE_QUEUE].pid = 0x2000;
 		gtxdemux->feed[MESSAGE_QUEUE].output = TS_PAYLOAD_ONLY;
 		gtxdemux->feed[MESSAGE_QUEUE].state = DMX_STATE_GO;
 
-		dmx_enable_tap(gtxdemux->feed + MESSAGE_QUEUE);
+		dmx_enable_tap(&gtxdemux->feed[MESSAGE_QUEUE]);
 		
 	}
 #endif
@@ -1919,27 +1958,29 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 {
-	dmx_demux_t *dmx=&gtxdemux->dmx;
+
+	dmx_demux_t *dmx = &gtxdemux->dmx;
 
 #ifdef GTX_SECTIONS
-	if ( (gtxdemux->feed[MESSAGE_QUEUE].type == DMX_TYPE_MESSAGE) &&
-	     (gtxdemux->feed[MESSAGE_QUEUE].state == DMX_STATE_GO) )
-	{
-		dmx_disable_tap(gtxdemux->feed+MESSAGE_QUEUE);
+	if ((gtxdemux->feed[MESSAGE_QUEUE].type == DMX_TYPE_MESSAGE) && (gtxdemux->feed[MESSAGE_QUEUE].state == DMX_STATE_GO)) {
+	
+		dmx_disable_tap(&gtxdemux->feed[MESSAGE_QUEUE]);
 		gtxdemux->feed[MESSAGE_QUEUE].state = DMX_STATE_FREE;
+		
 	}
 #endif
 
-	if (dmx_unregister_demux(dmx)<0)
+	if (dmx_unregister_demux(dmx) < 0)
 		return -1;
 
 	return 0;
+	
 }
 
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.97 2002/09/03 05:17:38 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.98 2002/09/03 13:17:34 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
