@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.12  2001/02/17 01:19:19  tmbinc
+ *   fixed DPCR
+ *
  *   Revision 1.11  2001/02/11 16:01:06  tmbinc
  *   *** empty log message ***
  *
@@ -33,7 +36,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -84,9 +87,11 @@ static Pcr_t gtx_read_transport_pcr(void);
 static Pcr_t gtx_read_latched_clk(void);
 static Pcr_t gtx_read_current_clk(void);
 static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2);
-static s32 gtx_bound_delta(u32 bound, s32 delta);
+static s32 gtx_bound_delta(s32 bound, s32 delta);
 
 static void gtx_task(void *);
+
+static int wantirq;
 
 struct tq_struct gtx_tasklet=
 {
@@ -215,6 +220,7 @@ static void gtx_queue_interrupt(int nr, int bit)
 {
   int queue=(nr-2)*16+bit;
   datamask|=1<<queue;
+  wantirq++;
   if (gtx_tasklet.data)
     schedule_task(&gtx_tasklet);
 }
@@ -267,7 +273,7 @@ static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
   return delta;
 }
 
-static s32 gtx_bound_delta(u32 bound, s32 delta)
+static s32 gtx_bound_delta(s32 bound, s32 delta)
 {
   if (delta>bound)
     delta=bound;
@@ -284,7 +290,6 @@ extern void avia_set_pcr(u32 hi, u32 lo);
 
 static void gtx_pcr_interrupt(int b, int r)
 {
-/*      ------> das muss noch rewritten werden. */
   Pcr_t TPpcr;
   Pcr_t latchedClk;
   Pcr_t currentClk;
@@ -301,8 +306,10 @@ static void gtx_pcr_interrupt(int b, int r)
     oldClk=currentClk;
     discont=0;
     large_delta_count=0;
-    printk(KERN_DEBUG "we have a discont:\n");
+    printk(/* KERN_DEBUG*/  "we have a discont:\n");
     printk(KERN_DEBUG "new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
+    deltaPCR_AVERAGE=0;
+    rh(FCR)|=0x100;               // force discontinuity
     gtx_set_pcr(TPpcr);
     avia_set_pcr(TPpcr.hi, TPpcr.lo);
     return;
@@ -329,6 +336,12 @@ static void gtx_pcr_interrupt(int b, int r)
   deltaPCR_AVERAGE+=deltaClk*10;
   deltaPCR_AVERAGE/=100;
   
+  if ((deltaPCR_AVERAGE < -0x20000) || (deltaPCR_AVERAGE > 0x20000))
+  {
+    printk("tmb pcr\n");
+    goto WE_HAVE_DISCONTINUITY;
+  }
+  
   delta_PCR_AV=deltaClk-deltaPCR_AVERAGE/10;
   if (delta_PCR_AV > deltaClk_max)
     deltaClk_max=delta_PCR_AV;
@@ -339,15 +352,20 @@ static void gtx_pcr_interrupt(int b, int r)
   if (elapsedTime > TIME_THRESHOLD)
     goto WE_HAVE_DISCONTINUITY;
 
-  deltaClk=gtx_bound_delta(MAX_DAC, deltaClk);
-  rh(DPCR)=deltaClk;
-  
+//  printk("elapsed %08x, delta %c%08x\n", elapsedTime, deltaClk<0?'-':'+', deltaClk<0?-deltaClk:deltaClk);
+//  printk("%x (%x)\n", deltaClk, gtx_bound_delta(MAX_DAC, deltaClk));
+/*  deltaClk=gtx_bound_delta(MAX_DAC, deltaClk);
+  rw(DPCR)=((-deltaClk)<<16)|0x0009; */
+  if (deltaClk<0)                       // TODO: not THAT nice...
+    rw(DPCR)=0x70000009;
+  else
+    rw(DPCR)=0x90000009;
+
   oldClk=latchedClk;
   return;
 WE_HAVE_DISCONTINUITY:
   printk("WE_HAVE_DISCONTINUITY\n");
   discont=1;
-  
 }
 
 static void gtx_dmx_set_pcr_source(int pid)
@@ -366,6 +384,8 @@ int gtx_dmx_init(void)
   gtxreg=gtx_get_reg();
 
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
+  rh(RR1)|=1<<6;
+  rh(RR1)&=~(1<<6);
   rh(RR0)=0;            // autsch, das muss so. kann das mal wer überprüfen?
   rh(RR1)=0;
   rh(RISCCON)=0;
@@ -397,6 +417,7 @@ static void gtx_task(void *data)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)data;
   int queue;
+  static int c;
   for (queue=0; datamask && queue<32; queue++)
     if (datamask&(1<<queue))
     {
@@ -408,6 +429,7 @@ static void gtx_task(void *data)
         {
           int wptr=gtx_get_queue_wptr(queue);
           int rptr=gtx->feed[queue].readptr;
+          static int lastw, lastr;
         
           void *b1, *b2;
           size_t b1l, b2l;
@@ -425,6 +447,12 @@ static void gtx_task(void *data)
             b2=gtxmem+gtx->feed[queue].base;
             b2l=wptr-gtx->feed[queue].base;
           }
+          
+          if ((b1l+b2l) % 188)
+          { 
+            printk("wantirq: %d\n", wantirq);
+            printk("%x %d %x %d w %x r %x lw %x lr %x\n", b1, b1l, b2, b2l, wptr, rptr, lastw, lastr);
+          }
         
           switch (gtx->feed[queue].type)
           {
@@ -439,10 +467,19 @@ static void gtx_task(void *data)
   //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, &gtx->feed[queue].feed.pes, 0); break;
           }
           gtx->feed[queue].readptr=wptr;
+          lastw=wptr;
+          lastr=rptr;
         }
       }
       datamask&=~(1<<queue);
     }
+  
+  if (c++ > 100)
+  {
+    // display wantirq stat
+    c=0;
+  }
+  wantirq=0;
 }
 
 static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_t *gtx)
