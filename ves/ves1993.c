@@ -19,15 +19,15 @@
 
 */    
 
+
 #include <linux/module.h>
-#include <linux/delay.h>
+//#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <asm/io.h>
 
 #include <linux/i2c.h>
 #include <dbox/dvb.h>
-
 #include <dbox/ves.h>
 
 #ifdef MODULE
@@ -42,19 +42,184 @@ static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int mitel_set_freq(int freq);
 
-struct demod_function_struct ves1993={
-		write_reg:			ves_write_reg, 
-		init:						ves_init,
-		set_frontend: 	ves_set_frontend,
-		get_frontend:		ves_get_frontend,
-		get_unc_packet: ves_get_unc_packet,
-		set_frequency:	mitel_set_freq,
-		set_sec:				fp_set_sec,								// das hier stimmt nicht, oder?
-		send_diseqc:		fp_send_diseqc,
-		sec_status:			fp_sec_status};
+static int ves_get_unc_packet(u32 *uncp);
+static int fp_set_sec(void);
+static int fp_send_diseqc(void);
+static int fp_sec_status(void);
 
-static int debug = 9;
+
+struct demod_function_struct ves1993={
+		write_reg:		ves_write_reg, 
+		init:			ves_init,
+		set_frontend:	 	ves_set_frontend,
+		get_frontend:		ves_get_frontend,
+		get_unc_packet:		ves_get_unc_packet,
+		set_frequency:		mitel_set_freq,
+		set_sec:		fp_set_sec,								// das hier stimmt nicht, oder?
+		send_diseqc:		fp_send_diseqc,
+		sec_status:		fp_sec_status};
+
+static int debug = 0;
 #define dprintk	if (debug) printk
+#define TUNER_I2C_DRIVERID  0xF0C2
+//Tuner ----------------------------------------------------------------------
+static int tuner_detach_client(struct i2c_client *tuner_client);
+static int tuner_detect_client(struct i2c_adapter *adapter, int address, unsigned short flags,int kind);
+static int tuner_attach_adapter(struct i2c_adapter *adapter);
+int set_tuner_dword(u32 tw);
+
+static unsigned short normal_i2c[] = { 0xc2>>1,I2C_CLIENT_END };
+static unsigned short normal_i2c_range[] = { 0xc2>>1, 0xc2>>1, I2C_CLIENT_END };
+I2C_CLIENT_INSMOD;
+
+struct tuner_data
+{
+	struct i2c_client *tuner_client;
+};	
+struct tuner_data *defdata=0;
+
+static struct i2c_driver tuner_driver = {
+        "Mitel tuner driver",
+        TUNER_I2C_DRIVERID,
+        I2C_DF_NOTIFY,
+        &tuner_attach_adapter,
+        &tuner_detach_client,
+        0,
+        0,
+        0,
+};
+static struct i2c_client tuner_client =  {
+        "MITEL",
+        TUNER_I2C_DRIVERID,
+        0,
+        0xC2,
+        NULL,
+        &tuner_driver,
+        NULL
+};
+
+
+static int tuner_detach_client(struct i2c_client *tuner_client)
+{
+	int err;
+	
+	if ((err=i2c_detach_client(tuner_client)))
+	{
+		dprintk("VES1993: couldn't detach tuner client driver.\n");
+		return err;
+	}
+	
+	kfree(tuner_client);
+	return 0;
+}
+static int tuner_detect_client(struct i2c_adapter *adapter, int address, unsigned short flags,int kind)
+{
+	int err = 0;
+	struct i2c_client *new_client;
+	struct tuner_data *data;
+	const char *client_name="DBox2 Tuner Driver";
+	
+	if (!(new_client=kmalloc(sizeof(struct i2c_client)+sizeof(struct tuner_data), GFP_KERNEL)))
+	{
+		return -ENOMEM;
+	}
+	
+	new_client->data=new_client+1;
+	defdata=data=(struct tuner_data*)(new_client->data);
+	new_client->addr=address;
+	data->tuner_client=new_client;
+	new_client->data=data;
+	new_client->adapter=adapter;
+	new_client->driver=&tuner_driver;
+	new_client->flags=0;
+	
+	strcpy(new_client->name, client_name);
+	
+	if ((err=i2c_attach_client(new_client)))
+	{
+		kfree(new_client);
+		return err;
+	}
+	
+	dprintk("VES1993: mitel tuner attached @%02x\n", address>>1);
+	
+	return 0;
+}
+static int tuner_attach_adapter(struct i2c_adapter *adapter)
+{
+	return i2c_probe(adapter, &addr_data, &tuner_detect_client);
+}
+
+static int tuner_init(void)
+{
+	int res;
+	
+	ves_write_reg(0x00,0x11);  //enable tuner access on ves1993
+	printk("VES1993: DBox2 mitel tuner driver\n");
+	if ((res=i2c_add_driver(&tuner_driver)))
+	{
+		printk("VES1993: mitel tuner driver registration failed!!!\n");
+		return res;
+	}
+		
+	if (!defdata)
+	{
+		i2c_del_driver(&tuner_driver);
+		printk("VES1993: Couldn't find tuner.\n");
+		return -EBUSY;
+	}
+	ves_write_reg(0x00,0x01);  //disable tuner access on ves1993
+	mitel_set_freq(1198000000);
+	
+	return 0;
+}
+
+static int tuner_close(void)
+{
+	int res;
+	
+	if ((res=i2c_del_driver(&tuner_driver)))
+	{
+		dprintk("VES1993: tuner driver unregistration failed.\n");
+		return res;
+	}
+	
+	return 0;
+}
+		
+int set_tuner_dword(u32 tw)
+{
+	char msg[4];
+	int len=4;
+	*((u32*)(msg))=tw;
+	
+	dprintk("VES1993: set_tuner_dword (QPSK): %08x\n",tw);
+	
+	ves_write_reg(0x00,0x11);
+	if (i2c_master_send(defdata->tuner_client, msg, len)!=len)
+	{
+		return -1;
+	}
+//	ves_write_reg(0x00,0x01);
+	return -1;
+
+}
+
+static int mitel_set_freq(int freq)		/* NOT SURE */
+{
+	u8 buffer[4]={0x25,0x70,0x95,0x00};
+
+	printk("SET:%x\n",freq);
+	freq/=125000;
+	
+	buffer[0]=freq>>8;
+	buffer[1]=freq;
+	printk("SET:%x\n",*((u32*)buffer));
+	set_tuner_dword(*((u32*)buffer));
+	return 0;
+}
+
+//----------------------------------------------------------------------------
 
 static struct i2c_driver dvbt_driver;
 static struct i2c_client client_template, *dclient;
@@ -93,11 +258,17 @@ static int writereg(struct i2c_client *client, int reg, int data)
         
         msg[1]=reg; msg[2]=data;
         ret=i2c_master_send(client, msg, 3);
-        printk("VES_writereg\n");
+        dprintk("VES_writereg\n");
 	if (ret!=3) 
                 printk("writereg error\n");
         return ret;
 }
+
+static int ves_get_unc_packet(u32 *uncp)
+{
+ return 0;
+}
+
 
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
@@ -147,59 +318,6 @@ static int init(struct i2c_client *client)
 		
 	//Init fuer VES1993
 	writereg(client,0x3a, 0x0c);	
-/*	writereg(client,0x01, 0x9c);	
-	writereg(client,0x02, 0x35);		
-	writereg(client,0x03, 0x80);
-	writereg(client,0x04, 0x6a);
-	writereg(client,0x05, 0x2b);
-	writereg(client,0x06, 0xab);
-	writereg(client,0x07, 0xaa);
-	writereg(client,0x08, 0x0e);
-	writereg(client,0x09, 0x45);
-	writereg(client,0x0c, 0x4c);
-	writereg(client,0x0d, 0x0a);
-	writereg(client,0x11, 0x81);
-	writereg(client,0x18, 0x80);
-	writereg(client,0x19, 0x40);
-	writereg(client,0x1a, 0x21);
-	writereg(client,0x1b, 0xb0);
-	writereg(client,0x1f, 0x10);
-	writereg(client,0x20, 0x89);
-	writereg(client,0x21, 0x81);
-	writereg(client,0x22, 0x00);
-	writereg(client,0x2a, 0x00);
-	writereg(client,0x2b, 0x00);
-	writereg(client,0x30, 0x02);
-	writereg(client,0x31, 0x55);
-	writereg(client,0x32, 0x03);
-	writereg(client,0x34, 0x00);
-	writereg(client,0x35, 0x00);
-	writereg(client,0x36, 0x00);
-	writereg(client,0x37, 0x03);
-	writereg(client,0x38, 0x00);
-	writereg(client,0x39, 0x00);
-	writereg(client,0x3a, 0x0c);
-	writereg(client,0x3b, 0x80);
-	writereg(client,0x3c, 0x00);
-	writereg(client,0x00, 0x01);
-	writereg(client,0x00, 0x11);
-//	sagem_set_tuner_dword(msg);
-	writereg(client,0x00, 0x01);
-	
-	
-	writereg(client,0x3a, 0x0e);
-	writereg(client,0x21, 0x81);
-	writereg(client,0x00, 0x00);
-	writereg(client,0x06, 0x72);
-	writereg(client,0x07, 0x8c);
-	writereg(client,0x08, 0x09);
-	writereg(client,0x09, 0x6b);
-	writereg(client,0x20, 0x81);
-	writereg(client,0x21, 0x80);
-	writereg(client,0x00, 0x01);
-	writereg(client,0x0d, 0x0a);
-
-*/
 
         for (i=0; i<0x3d; i++)
                 if (Init1993WTab[i])
@@ -223,7 +341,7 @@ static int init(struct i2c_client *client)
         ves->srate=0;
         ves->fec=9;
         ves->inv=0;
-
+	
         return 0;
 }
 
@@ -379,8 +497,8 @@ static int attach_adapter(struct i2c_adapter *adap)
        
         i2c_attach_client(client);
         init(client);
-				if (register_demod(&ves1993))
-					printk("ves1993.o: can't register demod.\n");
+	if (register_demod(&ves1993))
+		printk("ves1993.o: can't register demod.\n");
               
         return 0;
 }
@@ -424,8 +542,8 @@ void ves_set_frontend(struct frontend *front)
     writereg(dclient, 0x0c, Init1993Tab[0x0c] ^ (ves->inv ? 0x40 : 0x00));
     ClrBit1893(dclient);
   }
-  SetFEC(dclient, front->fec);
-  SetSymbolrate(dclient, front->srate, 1);
+//  SetFEC(dclient, front->fec);               //3des dont work up to now..
+//  SetSymbolrate(dclient, front->srate, 1);
   printk("sync: %x\n", readreg(dclient, 0x0E));
 }
 
@@ -483,25 +601,8 @@ static struct i2c_client client_template = {
         NULL
 };
 
+
 /* ---------------------------------------------------------------------- */
-
-int sagem_set_tuner_dword(u32 tw);
-
-static int mitel_set_freq(int freq)		/* NOT SURE */
-{
-	u8 buffer[4];
-	freq+=36125000;
-	freq/=62500;
-		
-	buffer[0]=(freq>>8)&0x7F;
-	buffer[1]=freq&0xFF;
-	buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
-	buffer[3]=1;
-		
-	sagem_set_tuner_dword(*((u32*)buffer));
-	return 0;
-}
-
 
 #ifdef MODULE
 int init_module(void) {
@@ -523,9 +624,6 @@ int init_module(void) {
         
         dprintk("ves1993: init_module\n");
 		
-	sync=readreg(dclient,0x0e);
-	printk("VES_Sync:%x\n",sync);
-	sync=dump(&client_template);
 	
 	ves_write_reg(0x3A,0x0E);
 	ves_write_reg(0x21,0x00);
@@ -542,13 +640,7 @@ int init_module(void) {
 	ves_write_reg(0x00,0x00);
 	ves_write_reg(0x00,0x01);
 
-	
-
-	for(i=1;i<50;i++){ 
-	    sync=readreg(dclient,0x0e);	
-	    printk("VES_Sync:%x\n",sync);
-	}    
-	sync=dump(&client_template);
+	tuner_init();	
 	
         return 0;
 }
@@ -563,5 +655,9 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
         dprintk("ves1993: cleanup\n");
+	
+	tuner_close();
+	
+	
 }
 #endif
