@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.103 $
+ *   $Revision: 1.104 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.104  2002/09/04 21:12:52  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.103  2002/09/04 13:25:01  Jolt
  *   DMX/NAPI cleanup
  *
@@ -379,17 +382,6 @@ static int GtxDmxInit(gtx_demux_t *gtxdemux);
 static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
 static void dmx_set_filter(gtx_demux_filter_t *filter);
 
-const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
-														// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
-	{10,	// video
-	9,	// audio
-	9,	// teletext
-	10, 10, 10, 10, 10,		// user 3..7
-	8, 8, 8, 8, 8, 8, 8, 8,	// user 8..15
-	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
-	7, 7, 7, 7, 7, 7, 7, 7	// user 24..31
-	};		// 512kb total + (a little bit more ;)
-
 #if 0
 static unsigned short rb[4096], rrb[32];
 #endif
@@ -437,17 +429,10 @@ void enx_tdp_trace(void)
 }
 #endif
 
-#define Q_VIDEO				 2
-#define Q_AUDIO				 0
-#define Q_TELETEXT			1
-
 void gtx_reset_queue(gtx_demux_feed_t *feed)
 {
 
 	feed->readptr = avia_gt_dmx_get_queue_write_pointer(feed->index);
-
-	avia_gt_dmx_set_queue_write_pointer(feed->index, feed->readptr);
-	//avia_gt_dmx_set_queue_read_pointer(feed->index, feed->readptr);
 
 }
 
@@ -571,20 +556,20 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
-void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data)
+void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data, void *qdata)
 {
 
+	sAviaGtDmxQueue *queue = (sAviaGtDmxQueue *)qdata;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
-	int queue = queue_nr;
 	int ccn = (int)0;
 	static char sync_lost = 0;
 
 		{
-			gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
+			gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
 
 			if (gtxfeed->state!=DMX_STATE_GO)
 			{
-				dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed, queue %d\n!",queue);
+				dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed, queue %d\n!",queue_nr);
 			}
 			else
 			{
@@ -597,7 +582,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
 					size_t b1l = (size_t)0, b2l = (size_t)0;
 
-					wptr = avia_gt_dmx_get_queue_write_pointer(queue);
+					wptr = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 					rptr = gtxfeed->readptr;
 
 					// can happen if a queue has been reset but an interrupt is pending
@@ -606,12 +591,12 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						return;
 					}
 
-					if (wptr < gtxfeed->base)
+					if (wptr < queue->mem_addr)
 					{
-						printk("avia_gt_napi: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
+						printk("avia_gt_napi: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, queue->mem_addr, queue_nr);
 						return;
 					}
-					if (wptr >= (gtxfeed->base+gtxfeed->size))
+					if (wptr >= (queue->mem_addr + queue->size))
 					{
 						printk("avia_gt_napi: wptr out of bounds! (is %x)\n", wptr);
 						return;
@@ -626,9 +611,9 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						b2l=0;
 					} else
 					{
-						b1l=gtx->feed[queue].end-rptr;
-						b2=gt_info->mem_addr+gtx->feed[queue].base;
-						b2l=wptr-gtx->feed[queue].base;
+						b1l = (u32)(gt_info->mem_addr + queue->size - rptr);
+						b2 = gt_info->mem_addr + queue->size;
+						b2l = wptr - queue->size;
 					}
 
 					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
@@ -637,7 +622,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						if (*b1 != 0x47)
 						{
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
-							gtx->feed[queue].readptr=wptr;
+							gtx->feed[queue_nr].readptr = wptr;
 							return;
 						}
 						rlen-=rlen%188;
@@ -650,16 +635,16 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						{
 							b1l=rlen;
 							b2l=0;
-							gtxfeed->readptr=rptr+b1l;
-							if (gtxfeed->readptr==gtxfeed->end)
-								gtxfeed->readptr=gtxfeed->base;
+							gtxfeed->readptr = rptr + b1l;
+							if (gtxfeed->readptr == (queue->mem_addr + queue->size))
+								gtxfeed->readptr = queue->mem_addr;
 						} else
 						{
 							b2l=rlen-b1l;
-							gtxfeed->readptr=gtxfeed->base+b2l;
+							gtxfeed->readptr = queue->mem_addr+b2l;
 						}
 					} else
-						gtx->feed[queue].readptr=wptr;
+						gtx->feed[queue_nr].readptr = wptr;
 
 					switch (gtxfeed->type)
 					{
@@ -1104,7 +1089,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						}
 						break;
 						case DMX_TYPE_PES:
-	//					gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0);
+	//					gtx->feed[queue_nr].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0);
 							break;
 
 					} // switch end
@@ -1329,7 +1314,6 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 		return -EINVAL;
 	}
 
-//	gtxfeed->readptr=avia_gt_dmx_get_queue_write_pointer(gtxfeed->index);
 	gtx_reset_queue(gtxfeed);
 
 	filter->start_up=1;
@@ -1371,8 +1355,6 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
 
 	avia_gt_dmx_queue_irq_disable(gtxfeed->index);
-
-	gtxfeed->readptr = avia_gt_dmx_get_queue_write_pointer(gtxfeed->index);
 
 	gtx_reset_queue(gtxfeed);
 
@@ -1737,7 +1719,7 @@ static void gtx_dmx_set_pcr_pid(int pid)
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
 	dmx_demux_t *dmx=&gtxdemux->dmx;
-	int i =(int)0, ptr =(int)0;
+	int i =(int)0;
 	u8 nullmask[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	gtxdemux->users=0;
@@ -1749,24 +1731,11 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	for (i=0; i<NUM_PID_FILTER; i++)			// disable all pid filters
 		avia_gt_dmx_set_pid_table(i, 0, 1, 0);
 
-	ptr=AVIA_GT_MEM_DMX_OFFS;
-
 	for (i=0; i<NUM_QUEUES; i++)
 	{
-		gtxdemux->feed[i].size=(1<<buffersize[i])*64;
-		if (ptr&(gtxdemux->feed[i].size-1))
-		{
-			printk("avia_gt_napi: warning, misaligned queue %d (is %x, size %x), aligning...\n", i, ptr, gtxdemux->feed[i].size);
-			ptr+=gtxdemux->feed[i].size;
-			ptr&=~(gtxdemux->feed[i].size-1);
-		}
-		gtxdemux->feed[i].base=ptr;
-		ptr+=gtxdemux->feed[i].size;
-		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
 		gtxdemux->feed[i].index=i;
 		gtxdemux->feed[i].state=DMX_STATE_FREE;
 	}
-	dprintk("%dkb ram used for queues\n", ptr/1024);
 
 	for (i=0; i<32; i++)
 	{
@@ -1794,10 +1763,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		printk(KERN_INFO "avia_gt_napi: hardware section filtering disabled.\n");
 		
 	}
-
-	gtx_set_queue_pointer(Q_VIDEO, gtxdemux->feed[VIDEO_QUEUE].base, gtxdemux->feed[VIDEO_QUEUE].base, buffersize[VIDEO_QUEUE], 0);				// set system queues
-	gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, buffersize[AUDIO_QUEUE], 0);
-	gtx_set_queue_pointer(Q_TELETEXT, gtxdemux->feed[TELETEXT_QUEUE].base, gtxdemux->feed[TELETEXT_QUEUE].base, buffersize[TELETEXT_QUEUE], 0);
 
 	dmx->id = "demux0";
 	dmx->vendor = "C-Cube";
@@ -1873,7 +1838,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.103 2002/09/04 13:25:01 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.104 2002/09/04 21:12:52 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
