@@ -27,8 +27,8 @@
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
-#include <stdint.h>
-#include <time.h>
+//#include <stdint.h>
+//#include <time.h>
 #endif
 
 /* pid_t conflicts with linux/include/linux/types.h !!!*/
