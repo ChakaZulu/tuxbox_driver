@@ -21,6 +21,10 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.24  2001/03/14 21:42:48  gillem
+ *   - fix bugs in section parsing
+ *   - add crc32 check in section parsing
+ *
  *   Revision 1.23  2001/03/12 22:32:01  gillem
  *   - test only ... sections not work
  *
@@ -69,7 +73,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -106,6 +110,7 @@
 #include "dbox/gtx.h"
 #include "dbox/gtx-dmx.h"
 #include "dbox/avia.h"
+#include "crc32.h"
 
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
@@ -494,7 +499,10 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
     if (ok)
 		{
-      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
+			if ( crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0 )
+	      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
+			else
+				printk("CRC Problem !!!\n");
 		}
   }
 
@@ -505,6 +513,7 @@ static void gtx_task(void *data)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)data;
   int queue;
+	int cc=-1,ccn;
   static int c;
 
   for (queue=0; datamask && queue<32; queue++)
@@ -557,13 +566,6 @@ static void gtx_task(void *data)
 	          {
 	            static __u8 tsbuf[188];
 
-							// check header & sync
-	            if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
-	            {
-	              dprintk("gtx_dmx: there's a BIG out of sync problem\n");
-	              break;
-	            }
-
 							// let's rock
 	            while (b1l || b2l)
 	            {
@@ -572,11 +574,22 @@ static void gtx_task(void *data)
 	              if (tr>188)
 	                tr=188;
 
+								// check header & sync
+		            if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
+		            {
+		              dprintk("gtx_dmx: there's a BIG out of sync problem\n");
+		              break;
+		            }
+
               	memcpy(tsbuf, b1, tr);
 
               	r+=tr;
               	b1l-=tr;
-              
+								ccn=b1[3]&0x0f;
+								b1+=tr;
+
+								// TODO: handle CC
+
              		tr=b2l;
 
              		if (tr>(188-r))
@@ -585,6 +598,7 @@ static void gtx_task(void *data)
              		memcpy(tsbuf+r, b2, tr);
 
              		b2l-=tr;
+                b2+=tr;
 
               	tr=184;
               
@@ -606,13 +620,6 @@ static void gtx_task(void *data)
 
                 	tr-=tsbuf[4]+1;
                 	p+=tsbuf[4]+1;
-
-									// go home paket !
-									if ( (tsbuf[p]+tsbuf[4]) > 182 )
-									{
-										dprintk("warning afle=%d plle=%d (ignore)\n",tsbuf[4],tsbuf[p]);
-	                	continue;
-									}
 								} else
 								{
   			  				if ( tsbuf[4] > 183 )
@@ -627,19 +634,49 @@ static void gtx_task(void *data)
 									int op;
 
 	               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
-									printk("!!! COPY 0x40 !!! %d\n",r);
 
                 	// rest kopieren
                 	if (r>tsbuf[p])
-                  	r=tsbuf[p];
+									{
+										if (tsbuf[3]&0x20)
+										{
+											r = 188-4-tsbuf[4]-1;
+										}
+										else
+										{
+	                  	r=tsbuf[p];
+										}
+									}
 
                 	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
 //                	gtxfeed->sec_recv+=r;
 
 									op = p;
-                	p+=tsbuf[p]+1;
+
+									dprintk("! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
+
+									if (tsbuf[3]&0x20)
+									{
+                    p+=tsbuf[4]+1+r;
+                  }
+									else
+									{
+	                	p+=tsbuf[p]+1;
+									}
 
                 	dprintk("special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
+
+									if (p>188)
+									{
+/*										dprintk("HEXDUMP START:\n");
+										for(op=0;op<188;op++)
+										{
+												dprintk("%02X ",tsbuf[op]);
+										}
+										dprintk("\nHEXDUMP END\n");
+*/
+										break;
+									}
 
                 	gtx_handle_section(gtxfeed);
 
@@ -649,7 +686,6 @@ static void gtx_task(void *data)
               	}
 
                	r=gtxfeed->sec_len-gtxfeed->sec_recv;
-								printk("!!! COPY NORMAL !!! %d %d\n",r,tr);
 
               	if (r>tr)
                 	r=tr;
