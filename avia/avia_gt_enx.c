@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.4  2002/04/10 21:59:59  Jolt
+ *   Cleanups
+ *
  *   Revision 1.3  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
@@ -88,7 +91,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -133,7 +136,6 @@ static char *ucode = 0;
 
 MODULE_PARM(debug, "i");
 MODULE_PARM(ucode, "s");
-
 #endif
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
@@ -144,17 +146,25 @@ static int imr[6]={0x0110,0x0112,0x0114,0x0116,0x0118,0x011A};
 
 int enx_allocate_irq(int reg, int bit, void (*isro)(int, int))
 {
-	int nr=reg*16+bit;
+
+	int nr = reg * 16 + bit;
+	
 	dprintk("enx_core: allocate_irq reg %d bit %d\n", reg, bit);
-	if (enx_irq[nr])
-	{
+	
+	if (enx_irq[nr]) {
+	
 		printk("enx_core: irq already used\n");
-		return -1;
+		
+		return -EBUSY;
+		
 	}
-	enx_irq[nr]=isro;
-	enx_reg_16n(imr[reg])=(1<<bit)|1;
-	enx_reg_16n(isr[reg])=(1<<bit);		// clear isr status
+	
+	enx_irq[nr] = isro;
+	enx_reg_16n(imr[reg]) = (1 << bit) | 1;
+	enx_reg_16n(isr[reg]) = (1 << bit);		// clear isr status
+	
 	return 0;
+	
 }
 
 void enx_free_irq(int reg, int bit)
@@ -183,29 +193,37 @@ void enx_dac_init(void)
 
 static void enx_irq_handler(int irq, void *dev, struct pt_regs *regs)
 {
+
   int i, j;
   
-  for (i=0; i<6; i++)
-  {
+  for (i=0; i<6; i++) {
+  
     int rn=enx_reg_16n(isr[i]);
-    for (j=1; j<16; j++)
-    {
-      if (rn&(1<<j))
-      {
+    
+    for (j=1; j<16; j++) {
+    
+      if (rn&(1<<j)) {
+      
         int nr=i*16+j;
 //				printk("enx interrupt %d:%d\n", i, j);
-        if (enx_irq[nr])
-					enx_irq[nr](i, j);
-        else
-        {
-          if (enx_reg_16n(imr[i])&(1<<j))
-          {
+        if (enx_irq[nr]) {
+	
+	    enx_irq[nr](i, j);
+	    
+        } else {
+	
+          if (enx_reg_16n(imr[i]) & (1 << j)) {
+	  
             printk("enx_core: masking unhandled enx irq %d/%d\n", i, j);
-            enx_reg_16n(imr[i]) = 1<<j;                 // disable IMR bit
+            enx_reg_16n(imr[i]) = 1 << j;                 // disable IMR bit
+	    
           }
+	  
         }
+	
 //	printk("enx_core: clear status register:%x , %x \n",isr[i],j);
-        enx_reg_16n(isr[i]) = 1<<j;            // clear ISR bits
+        enx_reg_16n(isr[i]) = 1 << j;            // clear ISR bits
+	
       }
     }
   }
@@ -213,9 +231,9 @@ static void enx_irq_handler(int irq, void *dev, struct pt_regs *regs)
 
 int enx_irq_enable(void)
 {
-  enx_reg_w(EHIDR)=0;					// IRQs an Hostprozessor weiterreichen
-  enx_reg_w(IPR4)=0x55555555; // alles auf HIRQ0
-  enx_reg_w(IPR5)=0x55555555; // das auch noch
+  enx_reg_w(EHIDR) = 0;					// IRQs an Hostprozessor weiterreichen
+  enx_reg_w(IPR4) = 0x55555555; // alles auf HIRQ0
+  enx_reg_w(IPR5) = 0x55555555; // das auch noch
 
   enx_reg_h(ISR0) = 0xFFFE;		// Clear all irq states
   enx_reg_h(ISR1) = 0xFFFE;		// Clear all irq states
@@ -230,14 +248,12 @@ int enx_irq_enable(void)
   enx_reg_h(IMR3) = 0x0001;
   enx_reg_h(IMR4) = 0x0001;
   enx_reg_h(IMR5) = 0x0001;
-  enx_reg_w(IDR)=0;
+  enx_reg_w(IDR) = 0;
 
   if (request_8xxirq(ENX_INTERRUPT, enx_irq_handler, 0, "enx", 0) != 0) {
-
     printk(KERN_ERR "enx-core: Could not allocate IRQ!\n");
 
     return -1;
-
   }
 
   return 0;
@@ -261,39 +277,54 @@ void enx_irq_disable(void) {
   enx_reg_h(IMR5) = 0x0001;		// Mask all IRQ's
 
   free_irq(ENX_INTERRUPT, 0);
+  
 }
 
 void enx_reset(void) {
+
   enx_reg_w(RSTR0) = 0xFCF6BEFF;	// Reset all modules
+  
 }
 
 void enx_sdram_ctrl_init(void) {
+
   enx_reg_w(SCSC) = 0x00000000;		// Set sd-ram start address
   enx_reg_w(RSTR0) &= ~(1 << 12);	// Get sd-ram controller out of reset state
   enx_reg_w(MC) = 0x00001011;		// Write memory configuration
-  enx_reg_32n(0x88)|=0x3E<<4;
+  enx_reg_32n(0x88) |= 0x3E << 4;
+  
 }
 
-void enx_tdp_start(void) {
+void enx_tdp_start(void) 
+{
+
   enx_reg_w(RSTR0) &= ~(1 << 22);	// Clear TDP reset bit
   enx_reg_w(EC) = 0x00;			// Start TDP
+  
 }
 
-void enx_tdp_stop(void) {
+void enx_tdp_stop(void) 
+{
+
   enx_reg_w(EC) = 0x02;			// Stop TDP
+  
 }
 
 
 void enx_tdp_init(u8 *microcode)
 {
+
   unsigned short *instr_ram = (unsigned short*)enx_reg_o(TDP_INSTR_RAM);
   unsigned short *src = (unsigned short*)microcode;
   int     words=0x800/2;
 
   while (words--) {
+  
     udelay(100);
     *instr_ram++ = *src++;
+    
   }
+  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -375,10 +406,12 @@ static int enx_init(void)
   memset(enx_irq, 0, sizeof(enx_irq));
 
   if (enx_irq_enable()) {
+  
     iounmap(enx_mem_addr);
     iounmap(enx_reg_addr);
 
     return -1;
+    
   }
   
   memset(enx_mem_addr, 0xF, 1024*1024 /*ENX_MEM_SIZE*/);
@@ -400,7 +433,7 @@ static int enx_init(void)
   enx_reg_w(CFGR0) &= ~(1 << 0);   // disable clip mode video
 
 		// initialize sound
-	enx_reg_w(PCMN)=0x80808080;
+	enx_reg_w(PCMN) = 0x80808080;
 	enx_reg_h(PCMC) = 0;
 	enx_reg_h(PCMC) |= (3<<14);
 	enx_reg_h(PCMC) |= (1<<13);
