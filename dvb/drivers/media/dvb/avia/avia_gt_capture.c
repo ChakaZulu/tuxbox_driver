@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_capture.c,v 1.30 2003/08/01 17:31:21 obi Exp $
+ * $Id: avia_gt_capture.c,v 1.31 2003/09/19 15:58:55 alexw Exp $
  * 
  * capture driver for eNX/GTX (dbox-II-project)
  *
@@ -32,6 +32,7 @@
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/devfs_fs_kernel.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
@@ -43,8 +44,17 @@
 #include "avia_gt.h"
 #include "avia_gt_capture.h"
 
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
 static int capt_buf_addr = AVIA_GT_MEM_CAPTURE_OFFS;
 static sAviaGtInfo *gt_info;
+
+static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset);
+static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+static int capture_open(struct inode *inode, struct file *file);
+static int capture_release(struct inode *inode, struct file *file);
 
 static unsigned char capture_busy = 0;
 static unsigned int captured_frames = 0;
@@ -57,6 +67,83 @@ static unsigned short output_height = 288;
 static unsigned short output_width = 360;
 
 DECLARE_WAIT_QUEUE_HEAD(capture_wait);
+
+static devfs_handle_t devfs_handle;
+
+static struct file_operations capture_fops = {
+	owner:	 THIS_MODULE,
+	read:	 capture_read,
+	ioctl:	 capture_ioctl,
+	open:	 capture_open,
+	release: capture_release
+};
+
+static int capture_open(struct inode *inode, struct file *file)
+{
+	if ( capture_busy )
+		return -EBUSY;
+
+	MOD_INC_USE_COUNT;
+
+	return 0;
+}
+
+static int capture_release(struct inode *inode, struct file *file)
+{
+	avia_gt_capture_stop();
+	MOD_DEC_USE_COUNT;
+
+	return 0;
+}
+
+static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
+{
+	unsigned max_count = (unsigned)0;
+
+	if (!capture_busy)
+		avia_gt_capture_start(NULL, NULL);
+
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
+
+	captured_frames = 0;
+    
+	if (count > (max_count = line_stride * output_height) )
+		count = max_count;
+
+	wait_event_interruptible(capture_wait, captured_frames);
+
+	if (copy_to_user(buf, gt_info->mem_addr + capt_buf_addr, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	unsigned short stride = (unsigned short)0;
+	int result = 0;
+
+	switch(cmd) {
+	case AVIA_GT_CAPTURE_START:
+		result = avia_gt_capture_start(NULL, &stride);
+		if (result < 0)
+			return result;
+		else
+			return stride;
+	case AVIA_GT_CAPTURE_STOP:
+		avia_gt_capture_stop();
+		return 0;
+	case AVIA_GT_CAPTURE_SET_INPUT_POS:
+		return avia_gt_capture_set_input_pos(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+	case AVIA_GT_CAPTURE_SET_INPUT_SIZE:
+		return avia_gt_capture_set_input_size(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+	case AVIA_GT_CAPTURE_SET_OUTPUT_SIZE:
+		return avia_gt_capture_set_output_size(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+	}	
+ 
+	return -EINVAL;
+}
 
 void avia_gt_capture_interrupt(unsigned short irq)
 {
@@ -199,7 +286,7 @@ void avia_gt_capture_reset(int reenable)
 
 int __init avia_gt_capture_init(void)
 {
-	printk(KERN_INFO "avia_gt_capture: $Id: avia_gt_capture.c,v 1.30 2003/08/01 17:31:21 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_capture: $Id: avia_gt_capture.c,v 1.31 2003/09/19 15:58:55 alexw Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -208,6 +295,13 @@ int __init avia_gt_capture_init(void)
 		return -EIO;
 	}
  
+	devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
+					S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+					&capture_fops, NULL);
+
+	if (!devfs_handle)
+		return -EIO;
+
 	avia_gt_capture_reset(1);
 
 	if (avia_gt_chip(ENX)) {
@@ -232,6 +326,7 @@ int __init avia_gt_capture_init(void)
 
 void __exit avia_gt_capture_exit(void)
 {
+	devfs_unregister(devfs_handle);
 	avia_gt_capture_stop();
 	avia_gt_capture_reset(0);
 }
