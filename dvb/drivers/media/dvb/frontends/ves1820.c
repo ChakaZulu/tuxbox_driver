@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.29 2002/08/12 16:56:42 obi Exp $
+   $Id: ves1820.c,v 1.30 2002/08/14 05:05:57 obi Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,10 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.30  2002/08/14 05:05:57  obi
+    disabled unused FE_GET_FRONTEND command which uses obolete struct from
+    <dbox/dvb.h>
+
     Revision 1.29  2002/08/12 16:56:42  obi
     removed compiler warnings
 
@@ -468,7 +472,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.29 2002/08/12 16:56:42 obi Exp $\n");
+        printk("$Id: ves1820.c,v 1.30 2002/08/14 05:05:57 obi Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -499,6 +503,12 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	int temp;
 	switch (cmd)
 	{
+#if 0
+#define DVB_SYNC_SIGNAL        1
+#define DVB_SYNC_CARRIER       2
+#define DVB_SYNC_VITERBI       4
+#define DVB_SYNC_FSYNC         8
+#define DVB_SYNC_FRONT        16
 
         case FE_GET_FRONTEND:
         {
@@ -533,13 +543,6 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		        {
 					printk ("FE_SYNC_FRONT\n");
 				}
-/*
-#define DVB_SYNC_SIGNAL        1
-#define DVB_SYNC_CARRIER       2
-#define DVB_SYNC_VITERBI       4
-#define DVB_SYNC_FSYNC         8
-#define DVB_SYNC_FRONT        16
-*/
 				printk ("FRONTEND STATUS: %u\n",sync);
                 front->nest=0;
 				front->vber = readreg(client,0x14);
@@ -547,6 +550,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
                 front->vber|=(readreg(client,0x16)<<16);
                 break;
         }
+#endif
 
         case FE_READ_STATUS:
 		{
