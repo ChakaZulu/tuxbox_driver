@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.1 2002/12/25 12:44:23 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.2 2002/12/25 21:25:17 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -190,26 +190,19 @@ static ssize_t rc_read (struct file *file, char *buf, size_t count, loff_t *offs
 	unsigned int read = 0;
 	DECLARE_WAITQUEUE(wait, current);
 
-	for (;;) {
+	while (rcbeg == rcend) {
 
-		if (rcbeg == rcend) {
+		if (file->f_flags & O_NONBLOCK)
+			return read;
 
-			if (file->f_flags & O_NONBLOCK)
-				return read;
+		add_wait_queue(&rcwait, &wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		current->state = TASK_RUNNING;
+		remove_wait_queue(&rcwait, &wait);
 
-			add_wait_queue(&rcwait, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-			current->state = TASK_RUNNING;
-			remove_wait_queue(&rcwait, &wait);
-
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			continue;
-		}
-
-		break;
+		if (signal_pending(current))
+			return -ERESTARTSYS;
 	}
 
 	count &= ~1;
