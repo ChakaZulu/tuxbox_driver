@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.38 2001/06/25 20:31:34 gillem Exp $
+ * $Id: dvb.c,v 1.39 2001/06/25 20:49:27 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -299,6 +299,116 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 		dvb->front.ttk=old_tone;
 	}
 	return ret;
+}
+
+/* osd stuff */
+static int
+OSD_DrawCommand(struct dvb_struct *dvb, osd_cmd_t *dc)
+{
+/*	switch (dc->cmd)
+	{
+		case OSD_Close:
+				//DestroyOSDWindow(dvb, dvb->osdwin);
+                return 0;
+		case OSD_Open:
+				dvb->osdbpp[dvb->osdwin]=(dc->color-1)&7;
+				CreateOSDWindow(dvb, dvb->osdwin, bpp2bit[dvb->osdbpp[dvb->osdwin]],
+								dc->x1-dc->x0+1, dc->y1-dc->y0+1);
+				MoveWindowAbs(dvb, dvb->osdwin, dc->x0, dc->y0);
+				SetColorBlend(dvb, dvb->osdwin);
+				return 0;
+		case OSD_Show:
+				MoveWindowRel(dvb, dvb->osdwin, 0, 0);
+				return 0;
+		case OSD_Hide:
+				HideWindow(dvb, dvb->osdwin);
+				return 0;
+		case OSD_Clear:
+				DrawBlock(dvb, dvb->osdwin, 0, 0, 720, 576, 0);
+				return 0;
+		case OSD_Fill:
+				DrawBlock(dvb, dvb->osdwin, 0, 0, 720, 576, dc->color);
+				return 0;
+		case OSD_SetColor:
+				OSDSetColor(dvb, dc->color, dc->x0, dc->y0, dc->x1, dc->y1);
+				return 0;
+		case OSD_SetPalette:
+		{
+				int i, len=dc->x0-dc->color+1;
+				u8 colors[len*4];
+
+				if (copy_from_user(colors, dc->data, sizeof(colors)))
+						return -EFAULT;
+				for (i=0; i<len; i++)
+					OSDSetColor(dvb, dc->color+i,
+								colors[i*4]  , colors[i*4+1],
+								colors[i*4+2], colors[i*4+3]);
+				return 0;
+		}
+		case OSD_SetTrans:
+				return 0;
+		case OSD_SetPixel:
+				DrawLine(dvb, dvb->osdwin,
+						dc->x0, dc->y0, 0, 0,
+						dc->color);
+				return 0;
+		case OSD_GetPixel:
+				return 0;
+
+		case OSD_SetRow:
+				dc->y1=dc->y0;
+				return 0;
+		case OSD_SetBlock:
+				OSDSetBlock(dvb, dc->x0, dc->y0, dc->x1, dc->y1, dc->color, dc->data);
+				return 0;
+
+		case OSD_FillRow:
+				DrawBlock(dvb, dvb->osdwin, dc->x0, dc->y0,
+						dc->x1-dc->x0+1, dc->y1,
+						dc->color);
+				return 0;
+		case OSD_FillBlock:
+				DrawBlock(dvb, dvb->osdwin, dc->x0, dc->y0,
+						dc->x1-dc->x0+1, dc->y1-dc->y0+1,
+						dc->color);
+				return 0;
+		case OSD_Line:
+				DrawLine(dvb, dvb->osdwin,
+						dc->x0, dc->y0, dc->x1-dc->x0, dc->y1-dc->y0,
+						dc->color);
+				return 0;
+		case OSD_Query:
+				return 0;
+		case OSD_Test:
+				return 0;
+		case OSD_Text:
+		{
+				char textbuf[240];
+
+				if (strncpy_from_user(textbuf, dc->data, 240)<0)
+						return -EFAULT;
+				textbuf[239]=0;
+				if (dc->x1>3)
+						dc->x1=3;
+				SetFont(dvb, dvb->osdwin, dc->x1,
+						(u16) (dc->color&0xffff), (u16) (dc->color>>16));
+				FlushText(dvb);
+				WriteText(dvb, dvb->osdwin, dc->x0, dc->y0, textbuf);
+				return 0;
+		}
+		case OSD_SetWindow:
+				if (dc->x0<1 || dc->x0>7)
+					return -EINVAL;
+				dvb->osdwin=dc->x0;
+				return 0;
+		case OSD_MoveWindow:
+				MoveWindowAbs(dvb, dvb->osdwin, dc->x0, dc->y0);
+				SetColorBlend(dvb, dvb->osdwin);
+				return 0;
+		default:
+				return -EINVAL;
+	}*/
+	return 0;
 }
 
 int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct file *file)
@@ -1385,8 +1495,20 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 			switch (cmd)
 			{
 				case OSD_SEND_CMD:
-				default:
-					return -EOPNOTSUPP;
+				{
+					osd_cmd_t doc;
+
+					if(copy_from_user(&doc, parg, sizeof(osd_cmd_t)))
+					{
+						return -EFAULT;
+					}
+
+					return OSD_DrawCommand(dvb, &doc);
+                }
+                default:
+				{
+                        return -EINVAL;
+                }
 			}
 
 			return 0;
