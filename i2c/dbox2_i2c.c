@@ -69,6 +69,7 @@ static wait_queue_head_t i2c_wait;
 #define I2C_PPC_MASTER	 1
 #define I2C_PPC_SLAVE		 0
 
+#define MAXBD 4
 
 typedef volatile struct I2C_BD
 {
@@ -77,12 +78,16 @@ typedef volatile struct I2C_BD
   unsigned char  *addr;
 } I2C_BD;
 
-/*
 typedef volatile struct RX_TX_BD {
- I2C_BD rxbd;
- I2C_BD txbd[2];
-} RXTXBD;
-*/
+	I2C_BD *rxbd;
+	I2C_BD *txbd;
+	unsigned char *rxbuf[MAXBD];
+	unsigned char *txbuf[MAXBD];
+	int rxnum;
+	int txnum;
+} RX_TX_BD;
+
+static struct RX_TX_BD I2CBD;
 
 static I2C_BD *rxbd, *txbd;
 
@@ -167,6 +172,7 @@ static int i2c_setrate (int hz, int speed)
 int i2c_init(int speed)
 {
 	cpic8xx_t *cpic;
+	int i;
 	int ret = 0;
 
 	/* get immap addr */
@@ -205,16 +211,54 @@ int i2c_init(int speed)
   // Set SDMA bus arbitration level to 5 (SDCR)
   immap->im_siu_conf.sc_sdcr = 0x0001 ;
 
-  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc(3*8);
-  iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + sizeof(I2C_BD);
-  
-  rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
-  txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
+  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc (MAXBD*sizeof(I2C_BD)*2);
+  iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + (MAXBD*sizeof(I2C_BD));
+
+  I2CBD.rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
+  I2CBD.txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
 
   dprintk("RBASE = %04x\n", iip->iic_rbase);
   dprintk("TBASE = %04x\n", iip->iic_tbase);
-  dprintk("RXBD1 = %08x\n", (int)rxbd);
-  dprintk("TXBD1 = %08x\n", (int)txbd);
+  dprintk("RXBD1 = %08x\n", (int)I2CBD.rxbd);
+  dprintk("TXBD1 = %08x\n", (int)I2CBD.txbd);
+
+	for(i=0;i<MAXBD;i++)
+	{
+	  I2CBD.rxbuf[i] = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
+	  I2CBD.txbuf[i] = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
+	  I2CBD.rxbd[i].addr = (unsigned char*)__pa(I2CBD.rxbuf[i]);
+	  I2CBD.txbd[i].addr = (unsigned char*)__pa(I2CBD.txbuf[i]);
+
+	  I2CBD.rxbd[i].status = RXBD_E;
+	  I2CBD.txbd[i].status = 0;
+	  I2CBD.rxbd[i].length = 0;
+	  I2CBD.txbd[i].length = 0;
+
+	  dprintk("RXBD%d->ADDR = %08X\n",i,(uint)I2CBD.rxbd[i].addr);
+	  dprintk("TXBD%d->ADDR = %08X\n",i,(uint)I2CBD.txbd[i].addr);
+	}
+
+  I2CBD.rxbd[i-1].status |= RXBD_W;
+  I2CBD.txbd[i-1].status |= TXBD_W;
+
+/*
+	if (rxbuf==0)
+	{
+		dprintk("INIT ERROR: no RXBUF mem available\n");
+		return -1;
+	}
+
+  dprintk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
+
+	if (txbuf==0)
+	{
+		dprintk("INIT ERROR: no TXBUF mem available\n");
+		return -1;
+	}
+
+  dprintk("TXBD1->ADDR = %08X\n",(uint)txbd[0].addr);
+  dprintk("TXBD2->ADDR = %08X\n",(uint)txbd[1].addr);
+*/
 
   /* Set big endian byte order */
   iip->iic_tfcr = 0x15;
@@ -225,36 +269,6 @@ int i2c_init(int speed)
 
 // i2c->i2c_i2mod |= ((bestspeed_modval & 3) << 1) | (bestspeed_filter << 3);
   i2c->i2c_i2brg = 7;
-
-  // Rx: Wrap, no interrupt, empty
-  rxbuf = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
-
-	if (rxbuf==0)
-	{
-		dprintk("INIT ERROR: no RXBUF mem available\n");
-		return -1;
-	}
-
-  rxbd->addr = (unsigned char*)__pa(rxbuf);
-  dprintk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
-
-  txbuf = (unsigned char*)m8xx_cpm_hostalloc(2*I2C_BUF_LEN);
-
-	if (txbuf==0)
-	{
-		dprintk("INIT ERROR: no TXBUF mem available\n");
-		return -1;
-	}
-
-  txbd[0].addr = (unsigned char*)__pa(txbuf);
-  txbd[1].addr = (unsigned char*)__pa(txbuf+I2C_BUF_LEN);
-
-  dprintk("TXBD1->ADDR = %08X\n",(uint)txbd[0].addr);
-  dprintk("TXBD2->ADDR = %08X\n",(uint)txbd[1].addr);
-
-	txbd[0].status = TXBD_I | TXBD_W;
-	txbd[1].status = TXBD_I | TXBD_W;
-	rxbd->status   = RXBD_E | RXBD_I | RXBD_W;
 
 	// Initialize the BD's
   while (cp->cp_cpcr & CPM_CR_FLG);
@@ -511,41 +525,215 @@ static void i2c_interrupt( void * dev_id )
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static int parse_send_msg( unsigned char address, unsigned short size,
+													 unsigned char *dataout, int last )
+{
+	int i,j;
+
+  if( size > I2C_BUF_LEN )  /* Trying to send message larger than BD */
+    return -1;
+
+  if(size==0)
+	{
+		dprintk("ZERO BYTE WRITE (SEND)\n");
+   	size++;
+	}
+
+  I2CBD.txbd[I2CBD.txnum].length = size + 1;  /* Length of message plus dest address */
+
+  I2CBD.txbuf[I2CBD.txnum][0] = (address&(~1));  /* Write destination address to BD */
+  i = 1;
+
+  for(j=0; j<size; i++,j++)
+    I2CBD.txbuf[I2CBD.txnum][i]=dataout[j];
+
+	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S /*| TXBD_I*/ /*| TXBD_W*/;
+
+	if(last)
+	{
+		dprintk("LAST SEND\n");
+		I2CBD.txbd[I2CBD.txnum].status |= TXBD_L | TXBD_I | TXBD_W;
+	}
+
+	I2CBD.txnum++;
+
+	dprintk("PARSE SEND MSG OK\n");
+
+	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static int parse_recv_msg( unsigned char address, unsigned short size,
+													 unsigned char *datain, int last )
+{
+  if( size > I2C_BUF_LEN )  /* Trying to send message larger than BD */
+    return -1;
+
+  if(size==0)
+	{
+		dprintk("ZERO BYTE WRITE (RECV)\n");
+   	size++;
+	}
+
+  I2CBD.txbuf[I2CBD.txnum][0] = (address | 0x01);
+  I2CBD.txbuf[I2CBD.txnum][1] = 0;
+
+  I2CBD.txbd[I2CBD.txnum].length = 1 + size;
+  I2CBD.rxbd[I2CBD.rxnum].length = 0;
+
+	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S /*| TXBD_W*/ /*| TXBD_I*/;
+	I2CBD.rxbd[I2CBD.txnum].status = RXBD_E | RXBD_I | RXBD_W;
+
+	if (last)
+	{
+		dprintk("LAST RECV\n");
+//		I2CBD.rxbd[I2CBD.rxnum].status |= RXBD_I | RXBD_W;
+		I2CBD.txbd[I2CBD.txnum].status |= TXBD_L | TXBD_W;
+	}
+
+	I2CBD.rxnum++;
+	I2CBD.txnum++;
+
+	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		    struct i2c_msg msgs[], int num)
 {
+	unsigned long flags;
   struct i2c_msg *pmsg;
-  int i;
+  int i,last,ret;
 
-  /* Enable I2C */
-  i2c->i2c_i2mod |= 1;
+	ret = num;
 
+	if ( num > (MAXBD*2) )
+	  return -EREMOTEIO;
+
+	for(i=0;i<MAXBD;i++)
+	{
+	  I2CBD.rxbd[i].status = RXBD_E;
+	  I2CBD.txbd[i].status = 0;
+	  I2CBD.rxbd[i].length = 0;
+	  I2CBD.txbd[i].length = 0;
+	}
+
+  I2CBD.rxbd[i-1].status |= RXBD_W;
+  I2CBD.txbd[i-1].status |= TXBD_W;
+
+	/* reset buffer pointer */
+	I2CBD.rxnum = 0;
+	I2CBD.txnum = 0;
+
+  iip->iic_rstate=0;
+  iip->iic_tstate=0;
+
+	last = 0;
+
+	/* parse msg's */
   for (i=0; i<num; i++)
   {
     pmsg = &msgs[i];
+
+		if(i==(num-1))
+			last++;
+
     dprintk("i2c: addr:=%x, flags:=%x, len:=%x num:=%d\n", pmsg->addr, pmsg->flags, pmsg->len, num);
+
+	  I2CBD.rxbd[I2CBD.rxnum].length = 0;
+	  I2CBD.txbd[I2CBD.txnum].length = 0;
 
     if (pmsg->flags & I2C_M_RD )
     {
-      if (i2c_receive(pmsg->addr<<1, pmsg->len, pmsg->buf )<0)
+      if (parse_recv_msg( pmsg->addr<<1, pmsg->len, pmsg->buf, last )<0)
 			{
-			  i2c->i2c_i2mod&=(~1);
         return -EREMOTEIO;
 			}
     } else
     {
-      if (i2c_send(pmsg->addr<<1, pmsg->len, pmsg->buf )<0)
+      if (parse_send_msg(pmsg->addr<<1, pmsg->len, pmsg->buf, last )<0)
 			{
-			  i2c->i2c_i2mod&=(~1);
         return -EREMOTEIO;
 			}
     }
   }
 
+	save_flags(flags);cli();
+
+  i2c->i2c_i2cer = 0xff;
+
+  /* Enable I2C */
+  i2c->i2c_i2mod |= 1;
+
+  /* Transmit */
+  i2c->i2c_i2com |= 0x80;
+
+	interruptible_sleep_on_timeout(&i2c_wait,100);
+
+	restore_flags(flags);
+
+	/* copy rx-buffer */
+
+	I2CBD.rxnum = 0;
+	I2CBD.txnum = 0;
+
+	for (i=0; i<num; i++)
+  {
+    pmsg = &msgs[i];
+
+    if ( pmsg->flags & I2C_M_RD )
+    {
+			if ( (I2CBD.rxbd[I2CBD.rxnum].status & RXBD_E) )
+			{
+		    dprintk("RXBD: RX DATA IS EMPTY\n");
+				ret = -EREMOTEIO;
+			}
+			else if ( I2CBD.rxbd[I2CBD.rxnum].length == 0  )
+			{
+				dprintk("RXBD: NO DATA\n");
+				ret = -EREMOTEIO;
+			}
+			if ( I2CBD.rxbd[I2CBD.rxnum].status & RXBD_OV )
+			{
+				dprintk("RXBD: OVERRUN\n");
+			 	rxbd->status &= (~RXBD_OV);
+				ret = -EREMOTEIO;
+			}
+
+			memcpy( pmsg->buf, I2CBD.rxbuf[I2CBD.rxnum], I2CBD.rxbd[I2CBD.rxnum].length );
+			I2CBD.rxnum++;
+		}
+		else
+		{
+			if ( I2CBD.txbd[I2CBD.txnum].status & TXBD_NAK )
+			{
+				dprintk("TXBD: NAK\n");
+				ret = -EREMOTEIO;
+			}
+			if ( I2CBD.txbd[I2CBD.txnum].status & TXBD_UN )
+			{
+				dprintk("TXBD: UNDERRUN\n");
+				ret = -EREMOTEIO;
+			}
+			if ( I2CBD.txbd[I2CBD.txnum].status & TXBD_CO )
+			{
+				dprintk("TXBD: COLLISION\n");
+				ret = -EREMOTEIO;
+			}
+
+			/* clear flags */
+			I2CBD.txbd[I2CBD.rxnum].status &= (~(TXBD_NAK|TXBD_UN|TXBD_CO));
+
+			I2CBD.txnum++;
+		}
+	}
+
   /* Turn off I2C */
   i2c->i2c_i2mod&=(~1);
 
-  return num;
+  return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
