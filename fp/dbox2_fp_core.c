@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.49  2002/01/19 08:40:25  Hunz
+ *   last commit so far...
+ *
  *   Revision 1.48  2002/01/19 08:20:02  Hunz
  *   F(i)n(al) fix?
  *
@@ -158,7 +161,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.48 $
+ *   $Revision: 1.49 $
  *
  */
 
@@ -1147,15 +1150,15 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
-	if(scancode==0x49) {
+	if((scancode&0xff)==0x49) {
 	  irkbd_flags|=IRKBD_FN;
 	}
-	else if (scancode==0xC9) {
+	else if ((scancode&0xff)==0xC9) {
 	  irkbd_flags&=~IRKBD_FN;
 	}
 	 /* mouse button changed */
 	else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
-	  irkbd_mousebutton(scancode);
+	  irkbd_mousebutton(scancode&0xff);
 }
 
 
