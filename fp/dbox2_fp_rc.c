@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.21 2004/02/07 15:00:16 carjay Exp $
+ * $Id: dbox2_fp_rc.c,v 1.22 2004/03/26 09:50:04 carjay Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -35,7 +35,6 @@ enum {
 #define UP_TIMEOUT (HZ / 4)
 
 static struct input_dev *rc_input_dev;
-static u8 toggle_bits;
 static int disable_old_rc;
 static int disable_new_rc;
 
@@ -80,14 +79,22 @@ static struct rc_key {
 
 #define RC_KEY_COUNT	ARRAY_SIZE(rc_key_map)
 
+struct fp_up {
+	struct rc_key *last_key;
+	u8 toggle_bits;			// only RC_NEW
+};
+
 static void dbox2_fp_rc_keyup(unsigned long data)
 {
-	if ((!data) || (!test_bit(data, rc_input_dev->key)))
+	struct fp_up *fups=(struct fp_up*)data;
+
+	if ((!fups) || (!fups->last_key) || (!test_bit(fups->last_key->code, rc_input_dev->key)))
 		return;
 
 	/* "key released" event after timeout */
-	toggle_bits=0xff;
-	input_event(rc_input_dev, EV_KEY, data, KEY_RELEASED);
+	fups->toggle_bits=0xff;
+	input_event(rc_input_dev, EV_KEY, fups->last_key->code, KEY_RELEASED);
+	if (fups->last_key) fups->last_key=NULL;
 }
 
 static struct timer_list keyup_timer = { 
@@ -96,8 +103,8 @@ static struct timer_list keyup_timer = {
 
 static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 {
-	static struct rc_key *last_key = NULL;
 	struct rc_key *key;
+	static struct fp_up fupsold;
 	u16 rc_code;
 
 	fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
@@ -105,25 +112,29 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 	if (disable_old_rc)
 		return;
 
-	if (rc_code == 0x5cfe) {
-		if (last_key) {
-			input_event(rc_input_dev, EV_KEY, last_key->code, KEY_RELEASED);
-			last_key = NULL;
+	if (rc_code == 0x5cfe) {	// break code
+		if (fupsold.last_key) {
+			if (timer_pending(&keyup_timer)) del_timer_sync(&keyup_timer);
+			if (fupsold.last_key) input_event(rc_input_dev, EV_KEY, fupsold.last_key->code, KEY_RELEASED);
+			fupsold.last_key = NULL;
 		}
 		return;
 	}
 
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++) {
 		if (key->value_old == (rc_code & 0xff)) {
-			if ((last_key) && (last_key->code == key->code)) {
+			if ((fupsold.last_key) && (fupsold.last_key->code == key->code)) {
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_AUTOREPEAT);
 				break;
 			}
 			else {
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_PRESSED);
-				last_key = key;
+				fupsold.last_key = key;
 				break;
 			}
+			keyup_timer.expires = jiffies + (UP_TIMEOUT<<1);	// just in case the break code gets lost
+			keyup_timer.data = (unsigned long)&fupsold;
+			add_timer(&keyup_timer);
 		}
 	}
 }
@@ -131,6 +142,9 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 {
 	struct rc_key *key;
+	static struct fp_up fupsnew={
+		.toggle_bits=0xff
+	};
 	u16 rc_code;
 	u8 cmd;
 
@@ -153,23 +167,22 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 		if (key->value_new == (rc_code & 0x1f)) {
 			if (timer_pending(&keyup_timer)) {
 				del_timer_sync(&keyup_timer);
-				if ((keyup_timer.data != key->code) || (toggle_bits != ((rc_code >> 6) & 0x03)))
-					if (toggle_bits!=0xff) {
-						input_event(rc_input_dev, EV_KEY, keyup_timer.data, KEY_RELEASED);
-						toggle_bits=0xff;
+				if ((fupsnew.last_key->code != key->code) || (fupsnew.toggle_bits != ((rc_code >> 6) & 0x03)))
+					if (fupsnew.toggle_bits!=0xff) {
+						input_event(rc_input_dev, EV_KEY, fupsnew.last_key->code, KEY_RELEASED);
+						fupsnew.toggle_bits=0xff;
 					}
 			}
-			if ((toggle_bits!=0xff)&&(toggle_bits == ((rc_code >> 6) & 0x03)))
+			if ((fupsnew.toggle_bits!=0xff)&&(fupsnew.toggle_bits == ((rc_code >> 6) & 0x03)))
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_AUTOREPEAT);
 			else
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_PRESSED);
-
 			keyup_timer.expires = jiffies + UP_TIMEOUT;
-			keyup_timer.data = key->code;
+			keyup_timer.data = (unsigned long)&fupsnew;
+			fupsnew.last_key=key;
+			fupsnew.toggle_bits = (rc_code >> 6) & 0x03;
 
 			add_timer(&keyup_timer);
-
-			toggle_bits = (rc_code >> 6) & 0x03;
 		}
 	}
 }
@@ -177,7 +190,6 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 {
 	struct rc_key *key;
-	toggle_bits=0xff;
 
 	rc_input_dev = input_dev;
 
