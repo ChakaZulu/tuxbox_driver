@@ -8,6 +8,9 @@
 #define ENX_MEM_SIZE	0x00200000
 
 
+#define ENX_FB_OFFSET	0x00100000
+
+
 #define ENX_INTERRUPT	SIU_IRQ1
 
 

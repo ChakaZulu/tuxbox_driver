@@ -2,6 +2,7 @@
 #define __GTX_H
 
 #define GTX_PHYSBASE    0x8000000
+#define GTX_FB_OFFSET	0x0100000
                     
 #undef CR0
 #define gRR0            0x100
