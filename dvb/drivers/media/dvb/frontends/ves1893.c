@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.18 2002/02/24 15:32:07 woglinde Exp $
+   $Id: ves1893.c,v 1.19 2002/04/04 06:00:29 obi Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.19  2002/04/04 06:00:29  obi
+    partially implemented FE_SEC_GET_STATUS
+
     Revision 1.18  2002/02/24 15:32:07  woglinde
     new tuner-api now in HEAD, not only in branch,
     to check out the old tuner-api should be easy using
@@ -535,8 +538,40 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case FE_SEC_GET_STATUS:
 	{
-		struct secStatus *status=(struct secStatus*)arg;
-		
+		struct secStatus status;
+
+		/* todo: implement */
+		status.busMode=SEC_BUS_IDLE;
+
+		switch(ves->power)
+		{
+		case -2:
+			status.selVolt=SEC_VOLTAGE_LT;
+			break;
+		case 0:
+			status.selVolt=SEC_VOLTAGE_OFF;
+			break;
+		case 1:
+			status.selVolt=SEC_VOLTAGE_13;
+			break;
+		case 2:
+			status.selVolt=SEC_VOLTAGE_13_5;
+			break;
+		case 3:
+			status.selVolt=SEC_VOLTAGE_18;
+			break;
+		case 4:
+			status.selVolt=SEC_VOLTAGE_18_5;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		status.contTone=(ves->tone ? SEC_TONE_ON : SEC_TONE_OFF);
+
+		if (copy_to_user(arg, &status, sizeof(status)))
+			return -EFAULT;
+
 		break;
 	}
 	case FE_SETFREQ:
