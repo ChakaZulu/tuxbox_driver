@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.75 2002/09/01 19:52:37 obi Exp $
+ * $Id: dvb.c,v 1.76 2002/09/01 21:13:54 obi Exp $
  */
 
 #include <linux/config.h>
@@ -57,6 +57,7 @@
 #include <dbox/dvb_frontend.h>
 
 #define AUDIO_MIXER_MAX_VOLUME	255
+#define AVIA_GT_DMX_FILTER_NUM	32
 
 typedef struct dvb_struct
 {
@@ -70,6 +71,7 @@ typedef struct dvb_struct
 	struct secStatus	sec;
 	int			num;
 	dvb_net_t *		dvb_net;
+	dmxdev_state_t		dmxstate[AVIA_GT_DMX_FILTER_NUM];
 
 } dvb_struct_t;
 
@@ -163,8 +165,12 @@ static int secSendSequence (struct dvb_struct * dvb, struct secCmdSequence * seq
 
 void tuning_complete_cb (void * priv)
 {
-	// FIXME
-	// struct dvb_struct * dvb = (struct dvb_struct *) priv;
+	int i;
+	struct dvb_struct * dvb = (struct dvb_struct *) priv;
+
+	for (i=0; i<dvb->dmxdev.filternum; i++)
+		if (dvb->dmxstate[i]==DMXDEV_STATE_GO)
+			DmxDevFilterStart(&dvb->dmxdev.filter[i]);
 }
 
 void tuning_start_cb (void * priv)
@@ -172,9 +178,11 @@ void tuning_start_cb (void * priv)
 	int i;
 	struct dvb_struct * dvb = (struct dvb_struct *) priv;
 
-	for (i=0; i<dvb->dmxdev.filternum; i++)
-		if (dvb->dmxdev.filter[i].state>=DMXDEV_STATE_GO)
+	for (i=0; i<dvb->dmxdev.filternum; i++) {
+		dvb->dmxstate[i]=dvb->dmxdev.filter[i].state;
+		if (dvb->dmxdev.filter[i].state==DMXDEV_STATE_GO)
 			DmxDevFilterStop(&dvb->dmxdev.filter[i]);
+	}
 }
 
 static int frontend_init (dvb_struct_t * dvb)
@@ -1467,7 +1475,7 @@ int register_demux (dmx_demux_t *demux)
 {
 	if (!dvb.dmxdev.demux)
 	{
-		dvb.dmxdev.filternum = 32;
+		dvb.dmxdev.filternum = AVIA_GT_DMX_FILTER_NUM;
 		dvb.dmxdev.demux = demux;
 		dvb.dmxdev.capabilities = 0;
 #ifdef MODULE

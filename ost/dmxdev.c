@@ -341,7 +341,7 @@ DmxDevFilterTimer(dmxdev_filter_t *dmxdevfilter)
 	}
 }
 
-static int
+int
 DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 {
 	if (dmxdevfilter->state<DMXDEV_STATE_SET)
@@ -1155,6 +1155,7 @@ EXPORT_SYMBOL(DmxDevDVRWrite);
 
 EXPORT_SYMBOL(DmxDevFilterAlloc);
 EXPORT_SYMBOL(DmxDevFilterFree);
+EXPORT_SYMBOL(DmxDevFilterStart);
 EXPORT_SYMBOL(DmxDevFilterStop);
 EXPORT_SYMBOL(DmxDevRead);
 EXPORT_SYMBOL(DmxDevIoctl);
