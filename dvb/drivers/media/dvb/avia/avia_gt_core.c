@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.46 2004/05/19 21:32:20 derget Exp $
+ * $Id: avia_gt_core.c,v 1.47 2004/05/23 10:52:31 derget Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -129,7 +129,7 @@ int avia_gt_wdt_thread(void)
 		interruptible_sleep_on_timeout(&avia_gt_wdt_sleep, 200);
 
 		if((enx_reg_16(FIFO_PDCT)&0x7F) == 0x00) {
-		printk("avia_gt_wdt_thread: FIFO_PDCT = 0 ==> framer crashed .. restarting\n");
+		dprintk("avia_gt_wdt_thread: FIFO_PDCT = 0 ==> framer crashed .. restarting\n");
         		avia_gt_dmx_risc_reset(1);
 		}
 		if((enx_reg_16(FIFO_PDCT)&0x7F) == 0x7F) {
@@ -146,7 +146,7 @@ int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.46 2004/05/19 21:32:20 derget Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.47 2004/05/23 10:52:31 derget Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
