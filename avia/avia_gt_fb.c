@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_fb.c,v $
+ *   Revision 1.6  2001/05/27 20:47:51  TripleDES
+ *
+ *   fixed the transparency for fb-console but this works not very fine with other modes (no black) :(  ...only that the fb-console runs, again ;)
+ *   -
+ *
  *   Revision 1.5  2001/05/26 22:22:24  TripleDES
  *
  *   fixed the grey-backgrund
@@ -52,7 +57,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -330,7 +335,7 @@ static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
   struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-  int val;
+  int val,i;
 	int div,rem;
 
 #ifdef GTX
@@ -430,7 +435,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 #define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
 
 
-#define ENX_GVS_SET_IPS(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&0xFC000000) | ((X&0x3f)<<26))
+#define ENX_GVS_SET_IPS(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&0xFC000000) | ((X&0x3f)<<27))
 #define ENX_GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define ENX_GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
@@ -469,7 +474,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   val|=par->stride;
 
-  enx_reg_w(TCR1)=0x1FF007F;
+  enx_reg_w(TCR1)=0x1000000;
   enx_reg_w(TCR2)=0x1FF007F;
 
 	enx_reg_h(P1VPSA)=0;
@@ -482,7 +487,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
 	enx_reg_w(GMR1)=val;
 	enx_reg_w(GMR2)=0;
-  enx_reg_h(GBLEV1)=0x80;
+  enx_reg_h(GBLEV1)=20;
   enx_reg_h(GBLEV2)=0;
 //JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
 	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
@@ -498,7 +503,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   else
     ENX_GVS_SET_XSZ(xres*2);*/
 
-//  ENX_GVS_SET_IPS(32);
+  ENX_GVS_SET_IPS(32);
   ENX_GVS_SET_XSZ(RES_X);
   ENX_GVS_SET_YSZ(RES_Y);
 
@@ -740,7 +745,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.5 2001/05/26 22:22:24 TripleDES Exp $\n");
+  dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.6 2001/05/27 20:47:51 TripleDES Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
