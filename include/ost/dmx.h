@@ -174,7 +174,7 @@ struct dmxEvent
 #define DMX_IOCTL3       44
 #define DMX_IOCTL4       45
 #define DMX_IOCTL5       46
-#define DMX_IOCTL5       47
+#define DMX_IOCTL6       47
 #endif
 
 /** Start filtering */
