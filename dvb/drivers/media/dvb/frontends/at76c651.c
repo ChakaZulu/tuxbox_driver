@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.8 2001/03/22 11:27:18 fnbrd Exp $
+    $Id: at76c651.c,v 1.9 2001/03/22 18:00:08 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,8 +33,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
-    Revision 1.8  2001/03/22 11:27:18  fnbrd
-    IRQ aktiviert, Tuner fest eingeblendet (zum testen).
+    Revision 1.9  2001/03/22 18:00:08  fnbrd
+    Kleinigkeiten.
 
     Revision 1.5  2001/03/16 13:04:16  fnbrd
     Alle Interrupt-Routinen auskommentiert (task), da sie auch beim alten Treiber
@@ -142,7 +142,7 @@ int writereg(struct i2c_client *client, u8 reg, u8 data)
         ret=i2c_master_send(client, msg, 2);
         if (ret!=2)
                 printk("writereg error\n");
-    /*    printk("writereg: [%02x]=%02x\n", reg, data); */
+    /*    printk("writereg: [%02x]=0x%02x\n", reg, data); */
         mdelay(10);
         return ret;
 }
@@ -204,20 +204,22 @@ int init(struct i2c_client *client)
 	writereg(client, 0x35, 0x2a); // nur bei 32-QAM
 	writereg(client, 0x37, 0x13); // nur bei 32-QAM
 
+        // Noch mehr noetig?
+        // BBFREQ (0x04, 0x05) ?
+        // OUTPUTCFG (0x08) ? z.B. Pin TUNCLK
+
 //        ves->inversion=0;
         ves->srate=0;
 //        ves->reg0=Init1820PTab[0];
         // PWM setzen
         writereg(client, 0x17, ves->pwm);
+
         // Und ein Reset
 	writereg(client, 0x07, 0x01);
 
         // Wir enablen mal den Tuner (staendig, zum testen) (addr c2)
         ves_tuner_i2c(1);
 
-        // Noch mehr noetig?
-        // BBFREQ (0x04, 0x05) ?
-        // OUTPUTCFG (0x08) ? z.B. Pin TUNCLK
 
 	return 0;
 
@@ -288,7 +290,6 @@ void SetPWM(struct i2c_client* client)
 }
 
 // Meine Box hat einen Quartz mit 28.9 -> fref = 2*28.9 = 57.8 (gleich dem Eval-Board zum AT)
-// muss ich noch aendern
 /*
 // Tabelle zum Berechnen des Exponenten zur gegebenen Symbolrate (fref=57.8 MHz)
 u32 expTab[] = {
@@ -307,10 +308,10 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 //	int i;
         u32 tmp;
 	u32 fref;
-        if (Symbolrate > FREF/2)
-                Symbolrate=FREF/2;
-        if (Symbolrate < 500000)
-                Symbolrate=500000;
+        if(Symbolrate > FREF/2)
+          Symbolrate=FREF/2;
+        if(Symbolrate < 500000)
+          Symbolrate=500000;
         ves->srate=Symbolrate;
 	dprintk("AT76C651: SetSymbolrate %u\n", Symbolrate);
         // Ich Kernel-Dummy, Kernel nix float -> haendisch div.
@@ -333,7 +334,9 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 */
 	if(Symbolrate<722500) {
           exp=5;
-          mantisse<<=1;
+//          mantisse<<=1; // unschoen, evtl. nochmal teilen
+          tmp=(tmp%fref)<<8;
+          mantisse=(mantisse<<1)+((tmp/fref)>>7);
  	}
  	else
           exp=6;
@@ -450,9 +453,12 @@ dprintk("AT76C651: set QAM\n");
 // Was ist DoCLB?
 
 	// Read QAMSEL
-	qamsel=readreg(client, 0x03); 	// Nur weil ich keine Ahnung
-	qamsel &= 0xf0;			// von der Bedeutung der 4 anderen Bits habe
-        qamsel |= QAM_Mode+4; // 4 = QAM-16
+//	qamsel=readreg(client, 0x03); 	// Nur weil ich keine Ahnung
+//	qamsel &= 0xf0;			// von der Bedeutung der 4 anderen Bits habe
+//        qamsel |= QAM_Mode+4; // 4 = QAM-16
+        qamsel=QAM_Mode+4; // 4 = QAM-16
+        qamsel|=1; // IF
+        // coherent modulation und Maptyp DVB
         writereg(client, 0x03, qamsel);
 	// Und ein reset um das Dingens richtig einzustellen
   	writereg(client, 0x07, 0x01);
@@ -580,7 +586,7 @@ void ves_get_frontend(struct frontend *front)
 //  if(!ves)
 //    return; // Kann eigentlich nicht vorkommen
   front->type=FRONT_DVBC;
-  front->vber=ves->ber;
+  front->vber=ves->ber; // Wird allerdings nur gesetzt, wenn IRQ kam, d.h. immer vom letzten signal lost
   front->nest=0;
 /*
   front->vber=readreg(dclient, 0x83);
@@ -627,7 +633,6 @@ void dec_use (struct i2c_client *client)
 
 static struct i2c_driver dvbt_driver = {
         "AT76C651 DVB DECODER",
-//        33,
         I2C_DRIVERID_EXP2, // experimental use id
 //        I2C_DRIVERID_VES1820,
         I2C_DF_NOTIFY,
@@ -640,12 +645,10 @@ static struct i2c_driver dvbt_driver = {
 
 static struct i2c_client client_template = {
         "AT76C651",
-//        33,
         I2C_DRIVERID_EXP2, // experimental use id
 //        I2C_DRIVERID_VES1820,
         0,
         0x0d,
-//        (0x10 >> 1),
         NULL,
         &dvbt_driver,
         NULL
