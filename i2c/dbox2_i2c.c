@@ -1,3 +1,11 @@
+/*
+		XX.XX.2000	tmbinc	-	initial release
+		XX.XX.2000	gillem	- some changes
+		18.12.2000	gillem	- add some interrupt stuff
+
+*/
+
+
 /* modified for kernel */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -70,6 +78,10 @@ static	volatile cpm8xx_t	*cp;
 
 volatile cbd_t		*tbdf, *rbdf;
 
+static void i2c_interrupt( void * );
+//static struct wait_queue *i2c_wait;
+static wait_queue_head_t i2c_wait;
+
 static inline int i2c_roundrate (int hz, int speed, int filter, int modval,
 				    int *brgval, int *totspeed)
 {
@@ -140,6 +152,7 @@ static int i2c_setrate (int hz, int speed)
 
 int i2c_init(int speed)
 {
+	cpic8xx_t *cpic;
 	int ret = 0;
 
 	/* get immap addr */
@@ -151,6 +164,8 @@ int i2c_init(int speed)
   iip = (iic_t *)&cp->cp_dparam[PROFF_IIC];
 	/* get i2c ppc */
   i2c = (i2c8xx_t *)&(immap->im_i2c);
+
+  cpic = (cpic8xx_t *)&(immap->im_cpic);
 
   /* disable relocation */
   iip->iic_rbase = 0 ;
@@ -235,7 +250,18 @@ int i2c_init(int speed)
 
 	// Clear events and interrupts
   i2c->i2c_i2cer = 0xff ;
-  i2c->i2c_i2cmr = 0 ;
+
+  i2c->i2c_i2cmr = 0x17;
+
+	init_waitqueue_head(&i2c_wait);
+
+	// Install Interrupt handler
+	cpm_install_handler( CPMVEC_I2C, i2c_interrupt, (void*)iip );
+
+	printk("1. CIMR: %08X CICR: %08X\n",cpic->cpic_cimr,cpic->cpic_cicr);
+	cpic->cpic_cimr |= 0x10000;
+//	cpic->cpic_cicr |= 0x8080;
+	printk("2. CIMR: %08X CICR: %08X\n",cpic->cpic_cimr,cpic->cpic_cicr);
 
 	return ret;
 }
@@ -244,6 +270,7 @@ int i2c_init(int speed)
 
 int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataout )
 {
+	unsigned long flags;
   int i,j,ret;
 
   if( size > I2C_TX_LEN )  /* Trying to send message larger than BD */
@@ -276,7 +303,9 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
     txbuf[i]=dataout[j];
 
   /* Ready to Transmit, wrap, last */
-  txbd->status |= TXBD_R | TXBD_W;
+  txbd->status |= TXBD_R | TXBD_W | TXBD_I;
+
+	save_flags(flags);cli();
 
   /* Enable I2C */
   i2c->i2c_i2mod |= 1;
@@ -284,7 +313,15 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
   /* Transmit */
   i2c->i2c_i2com |= 0x80;
 
-  while( txbd->status & TXBD_R );               // todo: sleep with irq
+//  printk("TXBD: WAIT INT\n");
+
+	interruptible_sleep_on(&i2c_wait);
+
+	restore_flags(flags);
+
+//  while( txbd->status & TXBD_R );               // todo: sleep with irq
+
+//  printk("TXBD: READY INT\n");
 
 	/* some error msg */
 	if ( txbd->status & TXBD_NAK )
@@ -323,6 +360,7 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 int i2c_receive(unsigned char address,
                 unsigned short size_to_expect, unsigned char *datain )
 {
+	unsigned long flags;
   int i,ret;
 
   if( size_to_expect > I2C_RX_LEN )
@@ -346,24 +384,33 @@ int i2c_receive(unsigned char address,
 		txbuf[1] = 0;
 	}
 
-  txbd->status |= TXBD_R | TXBD_W | TXBD_S | TXBD_L;
+  txbd->status |= TXBD_R | TXBD_W | TXBD_S | TXBD_L | TXBD_I;
 
   /* Reset the rxbd */
-  rxbd->status |= RXBD_E | RXBD_W;
+  rxbd->status |= RXBD_E | RXBD_W | RXBD_I;
 
-  /* Turn on I2C */
-  i2c->i2c_i2mod |= 0x01;
+	save_flags(flags);cli();
 
-  /* Begin transmission */
+  /* Enable I2C */
+  i2c->i2c_i2mod |= 1;
+
+  /* Transmit */
   i2c->i2c_i2com |= 0x80;
 
+//  printk("TXBD: WAIT INT\n");
+
+	interruptible_sleep_on(&i2c_wait);
+
+	restore_flags(flags);
+
+/*
   i=0;
   while( (txbd->status & TXBD_R) && (i<1000))
   {
     i++;
     udelay(1000);
   }
-
+*/
 	/* some error msg */
 	if ( txbd->status & TXBD_NAK )
 	{
@@ -391,17 +438,9 @@ int i2c_receive(unsigned char address,
 
 	if ( ret != -1 )
 	{
-		i=0;
-		while( (rxbd->status & RXBD_E) && (i<1000) )  /* Wait until receive is finished */
+		if ( (rxbd->status & RXBD_E) )
 		{
-			i++;
-			udelay(1000);
-		}
-
-		/* some error msg */
-	  if ( i==1000 )
-		{
-	    printk("RXBD: TIMEOUT\n");
+	    printk("RXBD: RX DATA IS EMPTY\n");
 			ret = -1;
 		}
 		if ( rxbd->length == 0  )
@@ -430,6 +469,32 @@ int i2c_receive(unsigned char address,
   iip->iic_tstate=0;
 
   return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static void i2c_interrupt( void * dev_id )
+{
+        volatile iic_t *iip;
+        volatile i2c8xx_t *i2c;
+
+        i2c = (i2c8xx_t *)&(((immap_t *)IMAP_ADDR)->im_i2c);
+
+        iip = (iic_t *)dev_id;
+
+//			  printk("[I2C INT]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
+
+        /* Chip errata, clear enable.
+        */
+			  i2c->i2c_i2mod &= (~1);
+
+        /* Clear interrupt.
+        */
+        i2c->i2c_i2cer = 0xff;
+
+        /* Get 'me going again.
+        */
+        wake_up_interruptible( &i2c_wait );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
