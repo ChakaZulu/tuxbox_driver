@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <dbox/dvb.h>
 #include <dbox/ves.h>
+#include <dbox/fp.h>
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -41,11 +42,11 @@ static void ves_get_frontend(struct frontend *front);
 static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int mitel_set_freq(int freq);
-
+static int ves_set_sec(int power,int tone);
 static int ves_get_unc_packet(u32 *uncp);
-static int fp_set_sec(void);
-static int fp_send_diseqc(void);
-static int fp_sec_status(void);
+//static int fp_set_sec(void);
+//static int fp_send_diseqc(void);
+//static int fp_sec_status(void);
 
 
 struct demod_function_struct ves1993={
@@ -55,7 +56,7 @@ struct demod_function_struct ves1993={
 		get_frontend:		ves_get_frontend,
 		get_unc_packet:		ves_get_unc_packet,
 		set_frequency:		mitel_set_freq,
-		set_sec:		fp_set_sec,								// das hier stimmt nicht, oder?
+		set_sec:		ves_set_sec,								// das hier stimmt nicht, oder?
 		send_diseqc:		fp_send_diseqc,
 		sec_status:		fp_sec_status};
 
@@ -308,7 +309,8 @@ static int dump(struct i2c_client *client)
 static int ves_set_sec(int power, int tone){
      
      dprintk("VES1993: Set SEC\n"); 
-
+     
+     fp_sagem_set_SECpower(power);
 
      return 0;
 }
@@ -645,8 +647,10 @@ int init_module(void) {
 	ves_write_reg(0x00,0x01);
 
 	tuner_init();
+	
+	ves_set_sec(3,0);                    //switch to highband
 
-        mitel_set_freq(1198000000);
+        mitel_set_freq(1198000000);          
 		
         SetSymbolrate(dclient, 27500000 , 1);
 	SetFEC(dclient,2);
