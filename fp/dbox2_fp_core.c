@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.13  2001/03/06 18:49:20  Hunz
+ *   fix for sat-boxes (fp_set_pol... -> fp_set_sec)
+ *
  *   Revision 1.12  2001/03/04 18:48:07  gillem
  *   - fix for sagem box
  *
@@ -39,7 +42,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -91,10 +94,7 @@ static int debug=0;
       int fp_set_tuner_dword(int type, u32 tw);
         T_QAM
         T_QPSK
-      int fp_set_polarisation(int pol);
-        P_HOR
-        P_VERT
-
+      int fp_set_sec(int power,int tone);
 */
 
 /*
@@ -853,26 +853,37 @@ int fp_send_diseqc(u32 dw)
 
 /* ------------------------------------------------------------------------- */
 
-int fp_set_polarisation(int pol)
+int fp_set_sec(int power,int tone)
 {
-	char msg[2]={0x21, 0};
+  char msg[2]={0x21, 0};
 
-	msg[1]=(pol==P_HOR)?0x51:0x71;
+  if (power > 0) // bus power off/on
+    msg[1]|=0x40;
+  if (power == 1) // 13V
+    msg[1]|=0x30;
+  if (power == 2) // 18V
+    msg[1]|=0x10;
+  if (power == 3) // 14V
+    msg[1]|=0x20;
+  // otherwise 19V
 
-	dprintk("fp.o: fp_set_polarisation: %s\n", (pol==P_HOR)?"horizontal":"vertical");
+  if(tone >0)
+    msg[1]|=0x01;
 
-	if (i2c_master_send(defdata->client, msg, 2)!=2)
-	{
-		return -1;
-	}
-  
-	return 0;
+  dprintk("fp.o: fp_set_sec: %02X\n", msg[1]);
+
+  if (i2c_master_send(defdata->client, msg, 2)!=2)
+    {
+      return -1;
+    }
+
+  return 0;
 }
 
 /* ------------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(fp_set_tuner_dword);
-EXPORT_SYMBOL(fp_set_polarisation);
+EXPORT_SYMBOL(fp_set_sec);
 EXPORT_SYMBOL(fp_do_reset);
 EXPORT_SYMBOL(fp_send_diseqc);
 

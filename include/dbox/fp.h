@@ -21,7 +21,7 @@
 #define RC_MINOR        1
 
 int fp_set_tuner_dword(int type, u32 tw);
-int fp_set_polarisation(int pol);
+int fp_set_sec(int power,int tone);
 int fp_do_reset(int type);
 int fp_send_diseqc(u32 dw);
 
