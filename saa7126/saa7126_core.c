@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.21  2002/06/11 15:31:49  Jolt
+ *   VBI stuff
+ *
  *   Revision 1.20  2002/05/06 02:18:19  obi
  *   cleanup for new kernel
  *
@@ -78,7 +81,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -575,6 +578,15 @@ static int saa7126_read_register( char * buf )
 
 /* ------------------------------------------------------------------------- */
 
+int saa7126_write_register(u8 reg, u8 val)
+{
+
+	return saa7126_sendcmd(&client_template, reg, val);
+	
+}
+
+/* ------------------------------------------------------------------------- */
+
 static int saa7126_input_control( int inp )
 {
 	saa7126_sendcmd( &client_template, 0x3a, (inp&0x9f) );
@@ -878,7 +890,7 @@ static struct i2c_client client_template =
 
 /* ------------------------------------------------------------------------- */
 
-EXPORT_NO_SYMBOLS;
+EXPORT_SYMBOL(saa7126_write_register);
 
 #ifdef MODULE
 int init_module(void)
