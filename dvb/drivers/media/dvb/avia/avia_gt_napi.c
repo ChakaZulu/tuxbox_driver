@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.144 $
+ *   $Revision: 1.145 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.145  2002/10/30 20:12:34  Jolt
+ *   Cleanups / Merging
+ *
  *   Revision 1.144  2002/10/30 19:46:54  Jolt
  *   Cleanups / Porting
  *
@@ -1419,59 +1422,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 }
 
-static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
-{
-
-	gtx_demux_t *gtx = gtxfeed->demux;
-	
-	if (gtx->filter[gtxfeed->index].state != DMX_STATE_FREE)
-		printk("ASSERTION FAILED: feed is not free but should be\n");
-		
-	gtx->filter[gtxfeed->index].state = DMX_STATE_ALLOCATED;
-	
-	return &gtx->filter[gtxfeed->index];
-	
-}
-
-static int dmx_open(struct dmx_demux_s *demux)
-{
-
-	gtx_demux_t *gtx = (gtx_demux_t *)demux;
-	
-	gtx->users++;
-	
-	return 0;
-	
-}
-
-static int dmx_close (struct dmx_demux_s* demux)
-{
-	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	if (!gtx->users)
-		return -ENODEV;
-	gtx->users--;
-	dprintk(KERN_DEBUG "gtx_dmx: close.\n");
-	if (!gtx->users)
-	{
-		int i;
-		// clear resources
-		//gtx_tasklet.data=0;
-		for (i=0; i<32; i++)
-			if (gtx->feed[i].state!=DMX_STATE_FREE)
-				dprintk(KERN_ERR "gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
-	}
-	return 0;
-}
-
-static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
-{
-
-	dprintk(KERN_ERR "gtx-dmx: dmx_write not yet implemented!\n");
-
-	return 0;
-	
-}
-
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
 
@@ -1620,44 +1570,10 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 static int dmx_allocate_ts_feed(struct dmx_demux_s* demux, dmx_ts_feed_t** feed, dmx_ts_cb callback)
 {
 
-	gtx_demux_t *gtx = (gtx_demux_t *)demux;
-	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)NULL;
-
-//FIXME	if (type & TS_PAYLOAD_ONLY)
-//FIXME		gtxfeed->type = DMX_TYPE_PES;
-//FIXME	else
-//FIXME		gtxfeed->type = DMX_TYPE_TS;
-		
-	gtxfeed->cb.ts = callback;
-	gtxfeed->demux = gtx;
-	gtxfeed->pid = 0xFFFF;
-	gtxfeed->sec_ccn = 16;
-	gtxfeed->sec_len = 0;
-//FIXME	gtxfeed->pes_type = pes_type;
-//FIXME	gtxfeed->output = type;
-
-	*feed = &gtxfeed->feed.ts;
-	
-	(*feed)->is_filtering = 0;
-	(*feed)->parent = demux;
-	(*feed)->priv = 0;
 	(*feed)->set = dmx_ts_feed_set;
 	(*feed)->start_filtering = dmx_ts_feed_start_filtering;
 	(*feed)->stop_filtering = dmx_ts_feed_stop_filtering;
 
-	if (!(gtxfeed->filter = GtxDmxFilterAlloc(gtxfeed))) {
-	
-		dprintk(KERN_ERR "gtx_dmx: couldn't get gtx filter\n");
-		
-		gtxfeed->state = DMX_STATE_FREE;
-		
-		return -EBUSY;
-		
-	}
-
-	gtxfeed->filter->feed = gtxfeed;
-	gtxfeed->filter->state = DMX_STATE_READY;
-	
 	return 0;
 }
 
@@ -1855,20 +1771,6 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 
 	}
 
-	gtxfeed->state=DMX_STATE_READY;
-
-	if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtxfeed)))
-	{
-		dprintk("gtx_dmx: couldn't get gtx filter\n");
-		gtxfeed->state=DMX_STATE_FREE;
-		return -EBUSY;
-	}
-
-	dprintk("gtx_dmx: allocating section feed, filter %d.\n", gtxfeed->filter->index);
-
-	gtxfeed->filter->feed=gtxfeed;
-	gtxfeed->filter->state=DMX_STATE_READY;
-	gtxfeed->filter->no_of_filters = 0;
 	return 0;
 }
 
@@ -1903,35 +1805,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 return 0;
 
-	gtxdemux->users=0;
-
-	gtxdemux->frontend_list.next=
-		gtxdemux->frontend_list.prev=
-			&gtxdemux->frontend_list;
-
 	for (i=0; i<NUM_PID_FILTER; i++)			// disable all pid filters
 		avia_gt_dmx_set_pid_table(i, 0, 1, 0);
-
-	for (i=0; i<NUM_QUEUES; i++)
-	{
-		gtxdemux->feed[i].index=i;
-		gtxdemux->feed[i].state=DMX_STATE_FREE;
-	}
-
-	for (i=0; i<32; i++)
-	{
-		gtxdemux->filter[i].index=i;
-		gtxdemux->filter[i].state=DMX_STATE_FREE;
-	}
-
-	for (i=0; i<32; i++)
-	{
-		gtxdemux->secfilter[i].index=i;
-		gtxdemux->secfilter[i].state=DMX_STATE_FREE;
-	}
-
-	for (i=0; i<32; i++)
-		gtxdemux->filter_definition_table_entry_user[i] = -1;
 
 	if ((gtxdemux->hw_sec_filt_enabled = avia_gt_dmx_get_hw_sec_filt_avail())) {
 	
@@ -1945,9 +1820,6 @@ return 0;
 		
 	}
 
-	dmx->open = dmx_open;
-	dmx->close = dmx_close;
-	dmx->write = dmx_write;
 	dmx->allocate_ts_feed = dmx_allocate_ts_feed;
 	dmx->release_ts_feed = dmx_release_ts_feed;
 	dmx->allocate_section_feed = dmx_allocate_section_feed;
@@ -1995,7 +1867,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 	
 }
 
-static int avia_gt_napi_feed_alloc(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	int queue_nr;
@@ -2130,7 +2002,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	
 	}
 	
-	if ((queue_nr = avia_gt_napi_feed_alloc(dvbdmxfeed)) < 0)
+	if ((queue_nr = avia_gt_napi_queue_alloc(dvbdmxfeed)) < 0)
 		return queue_nr;
 	
 	// TODO
@@ -2158,7 +2030,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.144 2002/10/30 19:46:54 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.145 2002/10/30 20:12:34 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
