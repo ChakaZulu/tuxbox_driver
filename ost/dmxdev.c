@@ -299,7 +299,6 @@ DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 static int
 DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 {
-	printk("dmxdev: set buffer size %x -> %x\n", dmxdevfilter->buffer.size , (uint32_t)size );
 
 	if (dmxdevfilter->buffer.size==size)
 		return 0;
@@ -313,7 +312,8 @@ DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 	dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread=0;
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 
-	if (dmxdevfilter->state==DMXDEV_STATE_READY) {
+	if (dmxdevfilter->state==DMXDEV_STATE_READY)
+	{
 		void *mem=vmalloc(dmxdevfilter->buffer.size);
 
 		if (!mem)
@@ -321,6 +321,7 @@ DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 		spin_lock_irq(&dmxdevfilter->dev->lock);
 		dmxdevfilter->buffer.data=mem;
 		spin_unlock_irq(&dmxdevfilter->dev->lock);
+		printk("dmxdev: set buffer size %x -> %x\n", dmxdevfilter->buffer.size , (uint32_t)size );
 	}
 
 	return 0;
