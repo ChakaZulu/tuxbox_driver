@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.38 2004/01/10 16:36:34 alexw Exp $
+ * $Id: saa7126_core.c,v 1.39 2004/02/09 16:27:09 derget Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -329,11 +329,11 @@ saa7126_set_mode(struct i2c_client *client, int inp)
 		encoder->reg_2d = 0xff; // 11111111  croma -> R, luma -> CVBS + G + B
 		break;
 	case SAA_MODE_YUV_V:
-		encoder->reg_2d = 0x4f; // reg 2D = 01001111, all DAC's on, RGB + VBS
+		encoder->reg_2d = 0xcf; // reg 2D = 11001111, all DAC's on, RGB + VBS
 		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
 		break;
 	case SAA_MODE_YUV_C:
-		encoder->reg_2d = 0x0f; // reg 2D = 00001111, all DAC's on, RGB + CVBS
+		encoder->reg_2d = 0x8f; // reg 2D = 10001111, all DAC's on, RGB + CVBS
 		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
 		break;
 	default:
