@@ -1,7 +1,7 @@
 /*
- * $Id: avia_napi.c,v 1.11 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_napi.c,v 1.12 2003/01/18 00:52:35 obi Exp $
  *
- * AViA GTX/eNX NAPI driver
+ * AViA GTX/eNX dvb api driver
  *
  * Homepage: http://dbox2.elxsi.de
  *
@@ -46,7 +46,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.11 2003/01/11 22:45:16 obi Exp $\n");
+	printk("$Id: avia_napi.c,v 1.12 2003/01/18 00:52:35 obi Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
@@ -66,16 +66,12 @@ static int __init avia_napi_init(void)
 		
 	}
 
-//FIXME	dvb_net_register();
-
 	return 0;
 
 }
 
 static void __exit avia_napi_exit(void)
 {
-
-//FIXME	dvb_net_release(&net);
 
 	dvb_i2c_bridge_unregister(adap);
 	dvb_unregister_adapter(adap);

@@ -1,7 +1,7 @@
 /*
- * $Id: avia_gt_napi.c,v 1.173 2003/01/14 23:59:32 jolt Exp $
+ * $Id: avia_gt_napi.c,v 1.174 2003/01/18 00:52:35 obi Exp $
  * 
- * AViA GTX demux driver (dbox-II-project)
+ * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
  * Homepage: http://dbox2.elxsi.de
  *
@@ -49,6 +49,7 @@
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvb_frontend.h"
+#include "../dvb-core/dvb_net.h"
 #include "../dvb-core/dmxdev.h"
 
 #include "avia_napi.h"
@@ -58,9 +59,10 @@
 #include "avia_gt_accel.h"
 #include "avia_av_napi.h"
 
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
-static struct dvb_adapter *adapter;
+static sAviaGtInfo *gt_info = NULL;
+static struct dvb_adapter *adapter = NULL;
 static struct dvb_demux demux;
+static struct dvb_net net;
 static dmxdev_t dmxdev;
 static dmx_frontend_t fe_hw;
 static dmx_frontend_t fe_mem;
@@ -613,7 +615,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.173 2003/01/14 23:59:32 jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.174 2003/01/18 00:52:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -623,7 +625,7 @@ int __init avia_gt_napi_init(void)
 
 		return -EIO;
 
-    }
+	}
 
 	adapter = avia_napi_get_adapter();
 
@@ -677,7 +679,12 @@ int __init avia_gt_napi_init(void)
 	}
 
 	fe_hw.id = "hw_frontend";
-	fe_hw.vendor = "Dummy Vendor";
+
+	if (avia_gt_chip(GTX))
+		fe_hw.vendor = "Nokia";
+	else
+		fe_hw.vendor = "Philips or Sagem";
+
 	fe_hw.model = "hw";
 	fe_hw.source = DMX_FRONTEND_0;
 
@@ -737,6 +744,9 @@ int __init avia_gt_napi_init(void)
 		
 	}
 
+	net.card_num = adapter->num;
+	dvb_net_init(adapter, &net, &demux.dmx);
+
 	return 0;
 
 }
@@ -744,6 +754,7 @@ int __init avia_gt_napi_init(void)
 void __exit avia_gt_napi_exit(void)
 {
 
+	dvb_net_release(&net);
 	dvb_remove_frontend_notifier(adapter, avia_gt_napi_before_after_tune);
 	demux.dmx.close(&demux.dmx);
 	demux.dmx.disconnect_frontend(&demux.dmx);
