@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.5  2002/09/13 22:53:55  Jolt
+ *   HW CRC support
+ *
  *   Revision 1.4  2002/09/13 21:37:30  Jolt
  *   Fixed GTX HW-CRC
  *
@@ -35,7 +38,7 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -144,10 +147,10 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 
 }
 
-static int __init avia_gt_accel_init(void)
+int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.4 2002/09/13 21:37:30 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.5 2002/09/13 22:53:55 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
@@ -177,7 +180,7 @@ static int __init avia_gt_accel_init(void)
     
 }
 
-static void __exit avia_gt_accel_exit(void)
+void __exit avia_gt_accel_exit(void)
 {
 
 	if (avia_gt_chip(ENX))
@@ -194,8 +197,7 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(avia_gt_accel_crc32);
 #endif
 
-#if defined(MODULE) 
-//&& defined(STANDALONE)
+#if defined(MODULE) && defined(STANDALONE)
 module_init(avia_gt_accel_init);
 module_exit(avia_gt_accel_exit);
 #endif

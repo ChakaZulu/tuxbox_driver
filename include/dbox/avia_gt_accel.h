@@ -25,5 +25,8 @@
 #define AVIA_GT_ACCEL_H
 
 extern u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed);
+
+extern int avia_gt_accel_init(void);
+extern void avia_gt_accel_exit(void);
 	    
 #endif

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.125  2002/09/13 22:53:55  Jolt
+ *   HW CRC support
+ *
  *   Revision 1.124  2002/09/13 19:00:49  Jolt
  *   Changed queue handling
  *
@@ -182,7 +185,7 @@
  *
  *
  *
- *   $Revision: 1.124 $
+ *   $Revision: 1.125 $
  *
  */
 
@@ -218,6 +221,7 @@
 #include <ost/demux.h>
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
+#include <dbox/avia_gt_accel.h>
 #include <dbox/avia_gt_napi.h>
 
 //#define dprintk printk
@@ -1095,6 +1099,40 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 	
 }
 
+u32 avia_gt_dmx_queue_crc32(u8 queue_nr, u32 count, u32 seed)
+{
+
+	u32 chunk1_size;
+	u32 crc;
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: crc32: queue %d out of bounce\n", queue_nr);
+
+		return 0;
+
+	}
+
+	if ((queue_list[queue_nr].read_pos + count) > (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
+	
+		chunk1_size = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
+		
+		// FIXME
+		if ((avia_gt_chip(GTX)) && (chunk1_size <= 4))
+			return 0; 
+		
+		crc = avia_gt_accel_crc32(queue_list[queue_nr].read_pos, chunk1_size, seed);
+		
+		return avia_gt_accel_crc32(queue_list[queue_nr].mem_addr, count - chunk1_size, crc);
+	
+	} else {
+	
+		return avia_gt_accel_crc32(queue_list[queue_nr].read_pos, count, seed);
+	
+	}
+	
+}
+
 u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count, u8 peek)
 {
 
@@ -1683,7 +1721,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.124 2002/09/13 19:00:49 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.125 2002/09/13 22:53:55 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1781,6 +1819,7 @@ int __init avia_gt_dmx_init(void)
 		queue_addr += queue_list[queue_nr].size;
 		
 		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_get_queue_bytes_avail;
+		queue_list[queue_nr].info.crc32 = avia_gt_dmx_queue_crc32;
 		queue_list[queue_nr].info.get_data8 = avia_gt_dmx_queue_data_get8;
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;

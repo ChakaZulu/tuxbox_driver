@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.22  2002/09/13 22:53:55  Jolt
+ *   HW CRC support
+ *
  *   Revision 1.21  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -90,7 +93,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -119,6 +122,7 @@
 
 #include "dbox/info.h"
 #include "dbox/avia_gt.h"
+#include "dbox/avia_gt_accel.h"
 #include "dbox/avia_gt_dmx.h"
 #include "dbox/avia_gt_gv.h"
 #include "dbox/avia_gt_pcm.h"
@@ -281,7 +285,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.21 2002/08/22 13:39:33 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.22 2002/09/13 22:53:55 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -392,7 +396,7 @@ int __init avia_gt_init(void)
 	init_state = 5;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-	if (avia_gt_dmx_init()) {
+	if (avia_gt_accel_init()) {
 
 		avia_gt_exit();
 
@@ -402,7 +406,7 @@ int __init avia_gt_init(void)
 
 	init_state = 6;
 
-	if (avia_gt_gv_init()) {
+	if (avia_gt_dmx_init()) {
 
 		avia_gt_exit();
 
@@ -412,7 +416,7 @@ int __init avia_gt_init(void)
 
 	init_state = 7;
 
-	if (avia_gt_pcm_init()) {
+	if (avia_gt_gv_init()) {
 
 		avia_gt_exit();
 
@@ -422,7 +426,7 @@ int __init avia_gt_init(void)
 
 	init_state = 8;
 
-	if (avia_gt_capture_init()) {
+	if (avia_gt_pcm_init()) {
 
 		avia_gt_exit();
 
@@ -432,7 +436,7 @@ int __init avia_gt_init(void)
 
 	init_state = 9;
 
-	if (avia_gt_pig_init()) {
+	if (avia_gt_capture_init()) {
 
 		avia_gt_exit();
 
@@ -442,7 +446,7 @@ int __init avia_gt_init(void)
 
 	init_state = 10;
 
-	if (avia_gt_ir_init()) {
+	if (avia_gt_pig_init()) {
 
 		avia_gt_exit();
 
@@ -451,6 +455,16 @@ int __init avia_gt_init(void)
 	}
 
 	init_state = 11;
+
+	if (avia_gt_ir_init()) {
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 12;
 
 #endif
 
@@ -464,23 +478,26 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-	if (init_state >= 11)
+	if (init_state >= 12)
 		avia_gt_ir_exit();
 
-	if (init_state >= 10)
+	if (init_state >= 11)
 		avia_gt_pig_exit();
 
-	if (init_state >= 9)
+	if (init_state >= 10)
 		avia_gt_capture_exit();
 
-	if (init_state >= 8)
+	if (init_state >= 9)
 		avia_gt_pcm_exit();
 
-	if (init_state >= 7)
+	if (init_state >= 8)
 		avia_gt_gv_exit();
 
-	if (init_state >= 6)
+	if (init_state >= 7)
 		avia_gt_dmx_exit();
+
+	if (init_state >= 6)
+		avia_gt_accel_exit();
 #endif
 
 	if (init_state >= 5) {
