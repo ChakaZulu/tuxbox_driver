@@ -98,8 +98,9 @@ static struct file_operations ost_frontend_fops =
 	poll:		ost_frontend_poll,
 };
 
-
-
+#ifdef CONFIG_DEVFS_FS
+static devfs_handle_t devfs_handle;
+#endif
 
 int __init dvbdev_frontend_init(void)
 {
@@ -113,6 +114,13 @@ int __init dvbdev_frontend_init(void)
 		printk("frontend: unable to get major %d\n", OST_FRONTEND_MAJOR);
 		return -EIO;
 	}
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_handle = devfs_register (NULL, "ost/frontend0", DEVFS_FL_DEFAULT,
+                                       OST_FRONTEND_MAJOR, 0,
+                                       S_IFCHR | S_IRUSR | S_IWUSR,
+                                       &ost_frontend_fops, NULL);
+#endif
 
 	return 0;
 }
@@ -141,6 +149,10 @@ cleanup_module(void)
 	unregister_chrdev(OST_FRONTEND_MAJOR, "ost/frontend");
 #else
 	devfs_unregister_chrdev(OST_FRONTEND_MAJOR, "ost/frontend");
+#endif
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_unregister (devfs_handle);
 #endif
 }
 

@@ -92,6 +92,10 @@ static struct file_operations ost_audio_fops =
 	poll:		ost_audio_poll,
 };
 
+#ifdef CONFIG_DEVFS_FS
+static devfs_handle_t devfs_handle;
+#endif
+
 #if LINUX_VERSION_CODE >= 0x020300
 int __init audio_init_module(void)
 #else
@@ -108,6 +112,13 @@ int init_module(void)
 		return -EIO;
 	}
 
+#ifdef CONFIG_DEVFS_FS
+	devfs_handle = devfs_register (NULL, "ost/audio0", DEVFS_FL_DEFAULT,
+                                       OST_AUDIO_MAJOR, 0,
+                                       S_IFCHR | S_IRUSR | S_IWUSR,
+                                       &ost_audio_fops, NULL);
+#endif
+
 	return 0;
 }
 
@@ -122,6 +133,10 @@ void cleanup_module(void)
 	unregister_chrdev(OST_AUDIO_MAJOR, "ost/audio");
 #else
 	devfs_unregister_chrdev(OST_AUDIO_MAJOR, "ost/audio");
+#endif
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_unregister (devfs_handle);
 #endif
 }
 

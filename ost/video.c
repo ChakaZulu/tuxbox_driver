@@ -95,8 +95,9 @@ static struct file_operations ost_video_fops =
 	poll:		ost_video_poll,
 };
 
-
-
+#ifdef CONFIG_DEVFS_FS
+static devfs_handle_t devfs_handle;
+#endif
 
 int __init dvbdev_video_init(void)
 {
@@ -110,6 +111,13 @@ int __init dvbdev_video_init(void)
 		printk("video: unable to get major %d\n", OST_VIDEO_MAJOR);
 		return -EIO;
 	}
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_handle = devfs_register (NULL, "ost/video0", DEVFS_FL_DEFAULT,
+                                       OST_VIDEO_MAJOR, 0,
+                                       S_IFCHR | S_IRUSR | S_IWUSR,
+                                       &ost_video_fops, NULL);
+#endif
 
 	return 0;
 }
@@ -136,6 +144,10 @@ cleanup_module(void)
 	unregister_chrdev(OST_VIDEO_MAJOR, "ost/video");
 #else
 	devfs_unregister_chrdev(OST_VIDEO_MAJOR, "ost/video");
+#endif
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_unregister (devfs_handle);
 #endif
 }
 

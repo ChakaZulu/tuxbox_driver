@@ -105,6 +105,9 @@ static struct file_operations ost_demux_fops =
 	poll:		ost_demux_poll,
 };
 
+#ifdef CONFIG_DEVFS_FS
+static devfs_handle_t devfs_handle;
+#endif
 
 #if LINUX_VERSION_CODE >= 0x020300
 int __init dmx_init_module(void)
@@ -123,6 +126,13 @@ int init_module(void)
 		return -EIO;
 	}
 
+#ifdef CONFIG_DEVFS_FS
+	devfs_handle = devfs_register (NULL, "ost/demux0", DEVFS_FL_DEFAULT,
+                                       OST_DEMUX_MAJOR, 0,
+                                       S_IFCHR | S_IRUSR | S_IWUSR,
+                                       &ost_demux_fops, NULL);
+#endif
+
 	return 0;
 }
 
@@ -137,6 +147,10 @@ void cleanup_module(void)
 	unregister_chrdev(OST_DEMUX_MAJOR, "ost/demux");
 #else
 	devfs_unregister_chrdev(OST_DEMUX_MAJOR, "ost/demux");
+#endif
+
+#ifdef CONFIG_DEVFS_FS
+	devfs_unregister (devfs_handle);
 #endif
 }
 
