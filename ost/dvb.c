@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.60 2002/02/01 08:18:43 gillem Exp $
+ * $Id: dvb.c,v 1.61 2002/02/01 08:27:15 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -1304,7 +1304,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 			switch (cmd)
 			{
-				case OST_SELFTEST:
+				case FE_SELFTEST:
 				{
 					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 						return -EPERM;
@@ -1314,7 +1314,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						return -ENOSYS;
 					break;
 				}
-				case OST_SET_POWER_STATE:
+				case FE_SET_POWER_STATE:
 				{
 					uint32_t pwr,old;
 					int res;
@@ -1346,7 +1346,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					}
 					break;
 				}
-				case OST_GET_POWER_STATE:
+				case FE_GET_POWER_STATE:
 				{
 					uint32_t pwr;
 	
@@ -1458,6 +1458,69 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						return -EFAULT;
 					break;
 				}
+/*
+				case FE_GET_FRONTEND:
+                		{
+                        		if(copy_to_user(parg, &dvb->frontend.param,
+			               		sizeof(FrontendParameters)))
+                                	return -EFAULT;
+                        		break;
+                		}
+                		case FE_SET_FRONTEND:
+                		{
+                        		FrontendParameters para;
+
+                        		if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+                                		return -EPERM;
+                        		if(copy_from_user(&para, parg, sizeof(para)))
+                                		return -EFAULT;
+                        		return tune(dvb, &para);
+                		}
+                		case FE_GET_EVENT:
+                		{
+                        		FrontendEvent event;
+                        		int ret;
+
+                        		ret=dvb_frontend_get_event(&dvb->frontend, &event,
+                                                   file->f_flags&O_NONBLOCK);
+                        		if (ret<0)
+                                		return ret;
+                        		if(copy_to_user(parg, &event, sizeof(event)))
+                                		return -EFAULT;
+                        		break;
+                		}
+                		case FE_GET_INFO:
+                		{
+                        		FrontendInfo feinfo;
+
+                        		switch (dvb->frontend.type) {
+                        			case DVB_S:
+                                			feinfo.type=FE_QPSK;
+                                			feinfo.minFrequency=500;  //KHz?
+                                			feinfo.maxFrequency=2700000;
+                                			break;
+                        			case DVB_C:
+							feinfo.type=FE_QAM;
+                                			feinfo.minFrequency=40000000;
+                                			feinfo.maxFrequency=870000000;
+                                			break;
+                        			case DVB_T:
+                                			feinfo.type=FE_OFDM;
+                                			feinfo.minFrequency=470000000;
+                                			feinfo.maxFrequency=860000000;
+                                			break;
+                        		}
+
+                        		feinfo.minSymbolRate=500000;
+                        		feinfo.maxSymbolRate=30000000;
+                        		feinfo.hwType=0;    //??
+                        		feinfo.hwVersion=0;
+
+                        		if(copy_to_user(parg, &feinfo, sizeof(feinfo)))
+                                		return -EFAULT;
+                        		break;
+                		}
+*/
 				/* QPSK-Stuff */
 				case QPSK_TUNE:
 				{
@@ -1515,31 +1578,6 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					return -ENOTSUPP;
 				}
 				case QPSK_GET_STATUS:
-				{
-					return -ENOTSUPP;
-				}
-				/* QAM-Stuff */
-				case QAM_TUNE:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_GET_EVENT:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_FE_INFO:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_WRITE_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_READ_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_GET_STATUS:
 				{
 					return -ENOTSUPP;
 				}
