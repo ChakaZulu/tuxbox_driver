@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.96  2002/08/25 20:33:19  Jolt
+ *   Enabled basic sync mode
+ *
  *   Revision 1.95  2002/08/25 10:19:33  Jolt
  *   HW sections can be disabled
  *
@@ -89,7 +92,7 @@
  *
  *
  *
- *   $Revision: 1.95 $
+ *   $Revision: 1.96 $
  *
  */
 
@@ -1117,18 +1120,36 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	local_diff = (s64)PCR_VALUE(stc) - (s64)PCR_VALUE(l_stc);
 	remote_diff = (s64)PCR_VALUE(tp_pcr) - (s64)PCR_VALUE(stc);
 
-#if 0
+#if 1
 
 	if (PCR_VALUE(tp_pcr) > PCR_VALUE(stc)) {
 
 //#define GAIN 0x7FFF
-#define GAIN 0x2000
+#define GAIN 0x5000
 
-		gtx_reg_32(DPCR) = (-GAIN << 16) | 9;
+		if (avia_gt_chip(ENX)) {
+
+			enx_reg_16(DAC_PC) = -GAIN;
+			enx_reg_16(DAC_CP) = 9;
+
+		} else if (avia_gt_chip(GTX)) {
+
+			gtx_reg_32(DPCR) = (-GAIN << 16) | 9;
+		
+		}
 
 	} else if (PCR_VALUE(stc) > PCR_VALUE(tp_pcr)) {
 
-		gtx_reg_32(DPCR) = (GAIN << 16) | 9;
+		if (avia_gt_chip(ENX)) {
+
+			enx_reg_16(DAC_PC) = GAIN;
+			enx_reg_16(DAC_CP) = 9;
+
+		} else if (avia_gt_chip(GTX)) {
+
+			gtx_reg_32(DPCR) = (GAIN << 16) | 9;
+		
+		}
 
 	}
 
@@ -1151,7 +1172,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.95 2002/08/25 10:19:33 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.96 2002/08/25 20:33:19 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
