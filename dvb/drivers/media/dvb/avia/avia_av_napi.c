@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.6  2002/11/06 05:26:08  obi
+ *   some fixes
+ *
  *   Revision 1.5  2002/11/05 22:03:25  Jolt
  *   Decoder work
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -78,7 +81,8 @@ static u16 video_pid;
 
 static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
-
+	
+	unsigned long arg = (unsigned long) parg;
 	int ret = 0;
 //FIXME	u32 new_mode;
 
@@ -143,7 +147,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 						avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
 						avia_command(Play, 0x00, video_pid, audio_pid);
 
-						break;
+//FIXME						break;
 
 //FIXME					case VIDEO_SOURCE_MEMORY:
 
@@ -182,51 +186,53 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case VIDEO_SELECT_SOURCE:
+			{
+				video_stream_source_t source = (video_stream_source_t) parg;
 
-			if ((audiostate.play_state == AUDIO_STOPPED) && (videostate.play_state == VIDEO_STOPPED)) {
+				if (videostate.play_state == VIDEO_STOPPED) {
 
-				switch ((video_stream_source_t)parg) {
+					switch (source) {
 
-					case VIDEO_SOURCE_DEMUX:
+						case VIDEO_SOURCE_DEMUX:
 
-//FIXME						if (videostate.stream_source != VIDEO_SOURCE_DEMUX)
-//FIXME							dvb_select_source(dvb, 0);
+//FIXME							if (videostate.stream_source != VIDEO_SOURCE_DEMUX)
+//FIXME								dvb_select_source(dvb, 0);
 
-						break;
+							break;
 
-					case VIDEO_SOURCE_MEMORY:
+						case VIDEO_SOURCE_MEMORY:
 
-//FIXME						if (videostate.stream_source != VIDEO_SOURCE_MEMORY)
-//FIXME							dvb_select_source(dvb, 1);
+//FIXME							if (videostate.stream_source != VIDEO_SOURCE_MEMORY)
+//FIXME								dvb_select_source(dvb, 1);
 
-						break;
+							break;
 
-					default:
+						default:
 
-						ret = -EINVAL;
+							return -EINVAL;
 
-						break;
+					}
+
+					videostate.stream_source = source;
+
+				} else {
+
+					ret = -EINVAL;
 
 				}
-
-			} else {
-
-				ret = -EINVAL;
-
 			}
 
 			break;
 
 		case VIDEO_SET_BLANK:
 
-			videostate.video_blank = (int)parg;
+			videostate.video_blank = (arg != 0);
 
 			break;
 
 		case VIDEO_GET_STATUS:
 
-			if (copy_to_user(parg, &videostate, sizeof(struct video_status)))
-				ret = -EFAULT;
+			memcpy(parg, &videostate, sizeof(struct video_status));
 
 			break;
 
@@ -239,7 +245,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 		case VIDEO_SET_DISPLAY_FORMAT:
 			{
 
-				video_displayformat_t format = (video_displayformat_t)parg;
+				video_displayformat_t format = (video_displayformat_t) parg;
 
 				u16 val = 0;
 
@@ -265,13 +271,8 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 					default:
 
-						ret = -EINVAL;
-
-						break;
+						return -EINVAL;
 				}
-
-				if (ret < 0)
-					break;
 
 				videostate.display_format = format;
 				wDR(ASPECT_RATIO_MODE, val);
@@ -281,44 +282,45 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 			}
 
 		case VIDEO_SET_FORMAT:
+			{
+				video_format_t format = (video_format_t) parg;
 
-			videostate.video_format = (video_format_t)parg;
+				switch (format) {
 
-			switch (videostate.video_format) {
-
-//FIXME				case VIDEO_FORMAT_AUTO:
+//FIXME					case VIDEO_FORMAT_AUTO:
 //FIXME
-//FIXME					wDR(FORCE_CODED_ASPECT_RATIO, 0);
+//FIXME						wDR(FORCE_CODED_ASPECT_RATIO, 0);
 //FIXME
-//FIXME					break;
+//FIXME						break;
 
-				case VIDEO_FORMAT_4_3:
+					case VIDEO_FORMAT_4_3:
 
-					wDR(FORCE_CODED_ASPECT_RATIO, 2);
+						wDR(FORCE_CODED_ASPECT_RATIO, 2);
 
-					break;
+						break;
 
-				case VIDEO_FORMAT_16_9:
+					case VIDEO_FORMAT_16_9:
 
-					wDR(FORCE_CODED_ASPECT_RATIO, 3);
+						wDR(FORCE_CODED_ASPECT_RATIO, 3);
 
-					break;
+						break;
 
-//FIXME				case VIDEO_FORMAT_20_9:
+//FIXME					case VIDEO_FORMAT_20_9:
 //FIXME
-//FIXME					wDR(FORCE_CODED_ASPECT_RATIO, 4);
+//FIXME						wDR(FORCE_CODED_ASPECT_RATIO, 4);
 //FIXME
-//FIXME					break;
+//FIXME						break;
 
-				default:
+					default:
 
-					ret = -EINVAL;
+						return -EINVAL;
 
-					break;
+				}
 
+				videostate.video_format = format;
+
+				break;
 			}
-
-			break;
 
 		case VIDEO_STILLPICTURE:
 
@@ -342,16 +344,10 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case VIDEO_GET_CAPABILITIES:
-			{
 
-				int cap = VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2 | VIDEO_CAP_SYS | VIDEO_CAP_PROG;
+			*(int *) parg = VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2 | VIDEO_CAP_SYS | VIDEO_CAP_PROG;
 
-				if (copy_to_user(parg, &cap, sizeof(cap)))
-					ret = -EFAULT;
-
-				break;
-
-			}
+			break;
 
 		case VIDEO_CLEAR_BUFFER:
 			break;
@@ -427,12 +423,10 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 
-#if 0
-
-	struct dvb_struct *dvb = (struct dvb_struct *)dvbdev->priv;
-	void *parg = (void *)arg;
+	unsigned long arg = (unsigned long) parg;
 	int ret = 0;
-	u32 new_mode;
+
+//	FIXME: u32 new_mode;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != AUDIO_GET_STATUS))
 		return -EPERM;
@@ -444,6 +438,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_PLAY:
+#if 0
 			if ((audiostate.play_state != AUDIO_PLAYING) || (audio_stream_type == STREAM_TYPE_SPTS_ES)) {
 				switch (audiostate.stream_source) {
 					case AUDIO_SOURCE_DEMUX:
@@ -487,17 +482,15 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 					default:
 						return -EINVAL;
 				}
-				audiostate.play_state = AUDIO_PLAYING;
 			}
+#endif
+			audiostate.play_state = AUDIO_PLAYING;
 			break;
 
 		case AUDIO_PAUSE:
 			if (audiostate.play_state == AUDIO_PLAYING) {
-				//avia_command(Pause, 1, 1); // freeze video, pause audio
 				avia_command(Pause, 1, 2);	// pause audio (v2.0 silicon only)
 				audiostate.play_state = AUDIO_PAUSED;
-			} else {
-				ret = -EINVAL;
 			}
 			break;
 
@@ -509,22 +502,27 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_SELECT_SOURCE:
-			if ((audiostate.play_state == AUDIO_STOPPED) && (videostate.play_state == VIDEO_STOPPED)) {
-				switch ((audiostream_source_t) arg) {
+			if (audiostate.play_state == AUDIO_STOPPED) {
+
+				audio_stream_source_t source = (audio_stream_source_t) parg;
+				
+				switch (source) {
 					case AUDIO_SOURCE_DEMUX:
-						if (audiostate.stream_source != AUDIO_SOURCE_DEMUX)
-							ret = dvb_select_source(dvb, 0);
+//FIXME						if (audiostate.stream_source != AUDIO_SOURCE_DEMUX)
+//FIXME							ret = dvb_select_source(dvb, 0);
 						break;
 
 					case AUDIO_SOURCE_MEMORY:
-						if (audiostate.stream_source != AUDIO_SOURCE_MEMORY)
-							ret = dvb_select_source(dvb, 1);
+//FIXME						if (audiostate.stream_source != AUDIO_SOURCE_MEMORY)
+//FIXME							ret = dvb_select_source(dvb, 1);
 						break;
 
 					default:
-						ret = -EINVAL;
-						break;
+						return -EINVAL;
 				}
+				
+				audiostate.stream_source = source;
+
 			} else {
 				ret = -EINVAL;
 			}
@@ -539,7 +537,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				/*
 				 * mute gt mpeg 
 				 */
-				avia_gt_pcm_set_mpeg_attenuation(0x00, 0x00);
+//FIXME				avia_gt_pcm_set_mpeg_attenuation(0x00, 0x00);
 			} else {
 				/*
 				 * unmute av spdif (2) and analog audio (4) 
@@ -548,16 +546,16 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				/*
 				 * unmute gt mpeg 
 				 */
-				avia_gt_pcm_set_mpeg_attenuation((audiomixer.volume_left + 1) >> 1,
-												 (audiomixer.volume_right + 1) >> 1);
+//FIXME				avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1,
+//FIXME								(audiostate.mixer_state.volume_right + 1) >> 1);
 			}
 			wDR(NEW_AUDIO_CONFIG, 1);
-			audiostate.muteState = (boolean) arg;
+			audiostate.mute_state = (arg != 0);
 			break;
 
 		case AUDIO_SET_AV_SYNC:
-			audiostate.AVSyncState = (boolean) arg;
 			wDR(AV_SYNC_MODE, arg ? 0x06 : 0x00);
+			audiostate.AV_sync_state = (arg != 0);
 			break;
 
 		case AUDIO_SET_BYPASS_MODE:
@@ -571,47 +569,45 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
 			}
 			wDR(NEW_AUDIO_CONFIG, 1);
-			audiostate.bypass_mode = (boolean) arg;
+			audiostate.bypass_mode = (arg != 0);
 			break;
 
 		case AUDIO_CHANNEL_SELECT:
-			audiostate.channelSelect = (audioChannelSelect_t) arg;
+			{
+				audio_channel_select_t select = (audio_channel_select_t) parg;
 
-			switch (audiostate.channelSelect) {
-				case AUDIO_STEREO:
-					wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
-					wDR(NEW_AUDIO_CONFIG, 1);
-					break;
+				switch (select) {
+					case AUDIO_STEREO:
+						wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
+						wDR(NEW_AUDIO_CONFIG, 1);
+						break;
 
-				case AUDIO_MONO_LEFT:
-					wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x10);
-					wDR(NEW_AUDIO_CONFIG, 1);
-					break;
+					case AUDIO_MONO_LEFT:
+						wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x10);
+						wDR(NEW_AUDIO_CONFIG, 1);
+						break;
 
-				case AUDIO_MONO_RIGHT:
-					wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x20);
-					wDR(NEW_AUDIO_CONFIG, 1);
-					break;
+					case AUDIO_MONO_RIGHT:
+						wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x20);
+						wDR(NEW_AUDIO_CONFIG, 1);
+						break;
 
-				default:
-					ret = -EINVAL;
-					break;
+					default:
+						return -EINVAL;
+				}
+				
+				audiostate.channel_select = select;
+				
+				break;
 			}
-			break;
 
 		case AUDIO_GET_STATUS:
-			if (copy_to_user(parg, &audiostate, sizeof(struct audioStatus)))
-				ret = -EFAULT;
+			memcpy(parg, &audiostate, sizeof(struct audio_status));
 			break;
 
 		case AUDIO_GET_CAPABILITIES:
-			{
-				int cap = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3;
-
-				if (copy_to_user(parg, &cap, sizeof(cap)))
-					ret = -EFAULT;
-				break;
-			}
+			*(int *) parg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3;
+			break;
 
 		case AUDIO_CLEAR_BUFFER:
 			break;
@@ -620,19 +616,19 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_SET_MIXER:
-			memcpy(&audiomixer, parg, sizeof(struct audioMixer));
+			memcpy(&audiostate.mixer_state, parg, sizeof(struct audio_mixer));
 
-			if (audiomixer.volume_left > AUDIO_MIXER_MAX_VOLUME)
-				audiomixer.volume_left = AUDIO_MIXER_MAX_VOLUME;
-
-			if (audiomixer.volume_right > AUDIO_MIXER_MAX_VOLUME)
-				audiomixer.volume_right = AUDIO_MIXER_MAX_VOLUME;
-
-			avia_gt_pcm_set_mpeg_attenuation((audiomixer.volume_left + 1) >> 1,
-											 (audiomixer.volume_right + 1) >> 1);
+			if (audiostate.mixer_state.volume_left > 255)
+				audiostate.mixer_state.volume_left = 255;
+			if (audiostate.mixer_state.volume_right > 255)
+				audiostate.mixer_state.volume_right = 255;
+			
+//FIXME			avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1,
+//FIXME							(audiostate.mixer_state.volume_right + 1) >> 1);
 			break;
 
 		case AUDIO_SET_STREAMTYPE:
+#if 0
 			if ((streamType_t) arg > STREAM_TYPE_DPES_PES) {
 				ret = -EINVAL;
 				break;
@@ -673,9 +669,10 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			avia_command(SetStreamType, new_mode, 0x0000);
 
 			audio_stream_type = (streamType_t)arg;
-
+#endif
 			break;
 
+#if 0
 		case AUDIO_SET_SPDIF_COPIES:
 			switch ((audioSpdifCopyState_t) arg) {
 				case SCMS_COPIES_NONE:
@@ -696,16 +693,13 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 			wDR(NEW_AUDIO_CONFIG, 1);
 			break;
-
+#endif
 		default:
 			ret = -ENOIOCTLCMD;
 			break;
 	}
+
 	return ret;
-
-#endif
-
-	return 0;
 
 }
 
@@ -803,7 +797,22 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.5 2002/11/05 22:03:25 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.6 2002/11/06 05:26:08 obi Exp $\n");
+
+	audiostate.AV_sync_state = 0;
+	audiostate.mute_state = 0;
+	audiostate.play_state = AUDIO_STOPPED;
+	audiostate.stream_source = AUDIO_SOURCE_DEMUX;
+	audiostate.channel_select = AUDIO_STEREO;
+	audiostate.bypass_mode = 0;
+	audiostate.mixer_state.volume_left = 0;
+	audiostate.mixer_state.volume_right = 0;
+
+	videostate.video_blank = 0;
+	videostate.play_state = VIDEO_STOPPED;
+	videostate.stream_source = VIDEO_SOURCE_DEMUX;
+	videostate.video_format = VIDEO_FORMAT_4_3;
+	videostate.display_format = VIDEO_CENTER_CUT_OUT;
 
 	return 0;
 
