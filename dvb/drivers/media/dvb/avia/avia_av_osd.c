@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.10  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.9  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
@@ -49,7 +52,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -178,9 +181,9 @@ u32 osds,osde;
 
 /* ---------------------------------------------------------------------- */
 
-static void osd_set_font( unsigned char * font, int width, int height )
+/*static void osd_set_font( unsigned char * font, int width, int height )
 {
-}
+}*/
 
 /* ---------------------------------------------------------------------- */
 
@@ -240,7 +243,7 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 
 /* ---------------------------------------------------------------------- */
 
-static void osd_read_frame( struct osd_frame * frame )
+/*static void osd_read_frame( struct osd_frame * frame )
 {
 	u32 *odd,*even;
 	u32 osdsp;
@@ -250,7 +253,7 @@ static void osd_read_frame( struct osd_frame * frame )
 
 	printk("OSD FP: %08X\n",osdsp);
 
-	/* copy header */
+	// copy header 
 	even = (u32*)&frame->even;
 	odd  = (u32*)&frame->odd;
 
@@ -259,7 +262,7 @@ static void osd_read_frame( struct osd_frame * frame )
 		*even = rDR(osdsp);
 		*odd  = rDR(osdsp+OSDH_SIZE);
 	}
-}
+}*/
 
 /* ---------------------------------------------------------------------- */
 
@@ -366,9 +369,8 @@ int osd_open (struct inode *inode, struct file *file)
 static int init_avia_osd(void)
 {
 	u32 i;
-	u32 palette[16];
-	static u32 bitmap[0x1000];
-	u32 pale;
+//	u32 palette[16];
+//	static u32 bitmap[0x1000];
 
 	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.18  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.17  2002/05/01 21:51:35  Jolt
  *   Merge
  *
@@ -53,7 +56,7 @@
  *
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 	
@@ -94,7 +97,6 @@ static unsigned char pig_busy[MAX_PIG_COUNT] = {0, 0};
 static unsigned char *pig_buffer[MAX_PIG_COUNT] = {NULL, NULL};
 static unsigned char pig_count;
 static unsigned short pig_stride[MAX_PIG_COUNT] = {0, 0};
-static unsigned int pig_offset[MAX_PIG_COUNT] = {0, 0};
 
 static int avia_gt_pig_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -102,7 +104,7 @@ static int avia_gt_pig_ioctl (struct inode *inode, struct file *file, unsigned i
     unsigned char pig_nr = (unsigned char)MINOR(file->f_dentry->d_inode->i_rdev);
     
     if (pig_nr >= pig_count)
-	return -ENODEV;
+		return -ENODEV;
 
     switch(cmd) {
     
@@ -316,7 +318,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.17 2002/05/01 21:51:35 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.18 2002/05/07 16:59:19 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.3  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.2  2002/05/07 16:40:32  Jolt
  *   IR stuff
  *
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -113,14 +116,14 @@ void avia_gt_ir_reset(unsigned char reenable)
 	if (avia_gt_chip(ENX))
         enx_reg_s(RSTR0)->IR = 1;
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(RR1)->IR = 1;
+		gtx_reg_s(RR0)->IR = 1;
 						
     if (reenable) {
 
 		if (avia_gt_chip(ENX))
 	        enx_reg_s(RSTR0)->IR = 0;
 		else if (avia_gt_chip(GTX))
-			gtx_reg_s(RR1)->IR = 0;
+			gtx_reg_s(RR0)->IR = 0;
 
 	}
 
@@ -129,7 +132,7 @@ void avia_gt_ir_reset(unsigned char reenable)
 int __init avia_gt_ir_init(void)
 {
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.2 2002/05/07 16:40:32 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.3 2002/05/07 16:59:19 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		

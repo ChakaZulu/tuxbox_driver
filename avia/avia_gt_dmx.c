@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.84  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.83  2002/05/03 22:09:58  Jolt
  *   Do not require ucodes for framebuffer mode
  *
@@ -49,7 +52,7 @@
  *
  *
  *
- *   $Revision: 1.83 $
+ *   $Revision: 1.84 $
  *
  */
 
@@ -83,6 +86,7 @@
 #include <ost/demux.h>
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
+#include <dbox/avia_gt_napi.h>
 
 static int errno;
 static sAviaGtInfo *gt_info;
@@ -656,7 +660,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.83 2002/05/03 22:09:58 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.84 2002/05/07 16:59:19 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

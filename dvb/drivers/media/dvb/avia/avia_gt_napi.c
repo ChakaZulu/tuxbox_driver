@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.87 $
+ *   $Revision: 1.88 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.88  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.87  2002/05/06 12:58:37  Jolt
  *   obi[TM] fix 8-)
  *
@@ -303,6 +306,7 @@
 
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
+#include <dbox/avia_gt_napi.h>
 #include "crc32.c"
 
 static sAviaGtInfo *gt_info;
@@ -1612,7 +1616,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.87 2002/05/06 12:58:37 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.88 2002/05/07 16:59:19 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.17  2002/05/07 16:59:19  Jolt
+ *   Misc stuff and cleanups
+ *
  *   Revision 1.16  2002/05/07 16:40:32  Jolt
  *   IR stuff
  *
@@ -71,7 +74,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -100,10 +103,12 @@
 
 #include "dbox/info.h"
 #include "dbox/avia_gt.h"
+#include "dbox/avia_gt_dmx.h"
 #include "dbox/avia_gt_gv.h"
 #include "dbox/avia_gt_pcm.h"
 #include "dbox/avia_gt_capture.h"
 #include "dbox/avia_gt_pig.h"
+#include "dbox/avia_gt_ir.h"
 
 #ifdef MODULE
 MODULE_PARM(chip_type, "i");
@@ -260,7 +265,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct *dbox_info;
 	int result;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.16 2002/05/07 16:40:32 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.17 2002/05/07 16:59:19 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 
