@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.5  2001/05/26 09:20:36  gillem
+ *   - add stv6412
+ *
  *   Revision 1.4  2001/04/16 21:39:20  Jolt
  *   Autodetect
  *
@@ -34,15 +37,20 @@
  *   - initial release
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
 #define CXAAUTO		-1
 #define CXA2092 	0
 #define CXA2126		1
+#define STV6412		2
 
-#define AVS_COUNT 		2
+#define VENDOR_UNKNOWN				0
+#define VENDOR_SONY					1
+#define VENDOR_STMICROELECTRONICS	2
+
+#define AVS_COUNT 		3
 #define AVS_MAJOR 		40
 #define I2C_DRIVERID_AVS	1
 
@@ -179,5 +187,7 @@
 
 extern int type;
 extern int debug;
+
+int scart_command( unsigned int cmd, void *arg );
 
 #endif

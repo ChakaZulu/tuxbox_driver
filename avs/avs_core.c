@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.12  2001/05/26 09:20:09  gillem
+ *   - add stv6412
+ *
  *   Revision 1.11  2001/04/18 09:06:28  Jolt
  *   Small fixes
  *
@@ -55,7 +58,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -77,9 +80,11 @@
 
 #include "dbox/avs_core.h"
 #include "dbox/info.h"
+#include "mtdriver/scartApi.h"
 
 #include "cxa2092.h"
 #include "cxa2126.h"
+#include "stv6412.h"
 
 #include <linux/devfs_fs_kernel.h>
 
@@ -122,14 +127,20 @@ struct avs_type
 };
 
 static struct avs_type avs_types[] = {
-	{"CXA2092", 0, CXA2092 },
-	{"CXA2126", 0, CXA2126 }
+	{"CXA2092", VENDOR_SONY, 				CXA2092 },
+	{"CXA2126", VENDOR_SONY, 				CXA2126 },
+	{"STV6412", VENDOR_STMICROELECTRONICS, 	STV6412 }
 };
 
-struct avs
+struct s_avs
 {
-	int type;           		/* chip type */
+	int type;		         	/* chip type */
+	scartVolume volume;			/* nokia api controls */
+	scartRGBLevel rgblevel;		/* nokia api controls */
+	scartBypass bypass;			/* nokia api controls */
 };
+
+struct s_avs * avs_data;
 
 /* ---------------------------------------------------------------------- */
 
@@ -308,7 +319,6 @@ static struct file_operations avs_mixer_fops = {
 static int avs_attach(struct i2c_adapter *adap, int addr,
 			unsigned short flags, int kind)
 {
-    struct avs *t;
     struct i2c_client *client;
 
     dprintk("[AVS]: attach\n");
@@ -331,21 +341,21 @@ static int avs_attach(struct i2c_adapter *adap, int addr,
     }
 
     memcpy(client,&client_template,sizeof(struct i2c_client));
-    client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
+    client->data = avs_data = kmalloc(sizeof(struct s_avs),GFP_KERNEL);
 
-    if (NULL == t)
+    if (NULL == avs_data)
 	{
         kfree(client);
         return -ENOMEM;
     }
 
-    memset(t,0,sizeof(struct avs));
+    memset(avs_data,0,sizeof(struct s_avs));
 
     if (type >= 0 && type < AVS_COUNT) {
-	    t->type = type;
-	    strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
+	    avs_data->type = type;
+	    strncpy(client->name, avs_types[avs_data->type].name, sizeof(client->name));
     } else {
-	    t->type = -1;
+	    avs_data->type = -1;
     }
 
     i2c_attach_client(client);
@@ -395,6 +405,40 @@ static int avs_detach(struct i2c_client *client)
 static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	dprintk("[AVS]: command\n");
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int scart_command( unsigned int cmd, void *arg )
+{
+	dprintk("[SCART]: nokia command\n");
+
+	switch (cmd)
+	{
+		case SCART_VOLUME_SET:
+		case SCART_VOLUME_GET:
+		case SCART_MUTE_SET:
+		case SCART_MUTE_GET:
+		case SCART_AUD_FORMAT_SET:
+		case SCART_AUD_FORMAT_GET:
+		case SCART_VID_FORMAT_SET:
+		case SCART_VID_FORMAT_GET:
+		case SCART_VID_FORMAT_INPUT_GET:
+		case SCART_SLOW_SWITCH_SET:
+		case SCART_SLOW_SWITCH_GET:
+		case SCART_RGB_LEVEL_SET:
+		case SCART_RGB_LEVEL_GET:
+		case SCART_RGB_SWITCH_SET:
+		case SCART_RGB_SWITCH_GET:
+		case SCART_BYPASS_SET:
+		case SCART_BYPASS_GET:
+			return -EOPNOTSUPP;
+
+		default:
+			return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -473,7 +517,9 @@ static struct i2c_client client_template =
         &driver
 };
 
-EXPORT_NO_SYMBOLS;
+/* ------------------------------------------------------------------------- */
+
+EXPORT_SYMBOL(scart_command);
 
 /* ---------------------------------------------------------------------- */
 
@@ -490,11 +536,18 @@ int i2c_avs_init(void)
 	
 	    dbox_get_info(&dinfo);
 	    
-	    if (dinfo.mID == DBOX_MID_NOKIA)
-		type = CXA2092;
-	    else 
-		type = CXA2126;
-		
+		switch(dinfo.mID)
+		{
+			case DBOX_MID_SAGEM:
+				type = CXA2126;
+				break;
+			case DBOX_MID_PHILIPS:
+				type = STV6412;
+				break;
+			default: // DBOX_MID_NOKIA
+				type = CXA2092;
+				break;
+		}
 	}
 	
 	i2c_add_driver(&driver);
@@ -506,6 +559,9 @@ int i2c_avs_init(void)
 			break;
 		case CXA2126:
 			cxa2126_init(&client_template);
+			break;
+		case STV6412:
+			stv6412_init(&client_template);
 			break;
 		default:
 			printk("[AVS]: wrong type %d\n", type);

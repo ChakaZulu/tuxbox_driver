@@ -3,7 +3,7 @@
 # when compiling module(s)
 
 M_OBJS       = avs.o
-AVS_OBJS     = cxa2092.o cxa2126.o avs_core.o
+AVS_OBJS     = stv6412.o cxa2092.o cxa2126.o avs_core.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
