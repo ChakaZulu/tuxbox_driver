@@ -21,10 +21,13 @@
  *
  *
  *   $Log: lcd-font.c,v $
+ *   Revision 1.3  2001/06/03 20:45:50  kwon
+ *   indent
+ *
  *   Revision 1.2  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -37,39 +40,41 @@ unsigned char *lcd_font;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void lcd_init_font( unsigned char *fontdata )
+void
+lcd_init_font (unsigned char *fontdata)
 {
-  int i, x, y;
+        int i, x, y;
 
-	if (fontdata==0)
+	if (fontdata == 0)
 	{
-		fontdata = fontdata_pearl8x8;
+/*                fontdata = fontdata_pearl8x8;
+                fontdata = fontdata_8x8;*/
+                fontdata = acorndata_8x8;
 
-	  for (i=0; i<256; i++)
-	  {
-	    char r[8];
-	    memcpy(r, fontdata+i*8, 8);
-	    memset(fontdata+i*8, 0, 8);
-	    for (x=0; x<8; x++)
-  	    for (y=0; y<8; y++)
-    	    if (r[x]&(1<<(7-y)))
-      	    fontdata[i*8+y]|=1<<x;
-	  }
-	}
+                for (i = 0; i < 256; i++)
+                {
+                        char r[8];
+                        memcpy (r, fontdata+i*8, 8);
+                        memset (fontdata+i*8, 0, 8);
+                        for (x = 0; x < 8; x++)
+                                for (y = 0; y < 8; y++)
+                                        if (r[x] & (1 << (7 - y)))
+                                                fontdata[i*8+y] |= 1 << x;
+                }
+        }
 
 	lcd_font = fontdata;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void lcd_convert_to_font( unsigned char *dest, unsigned char *source, int slen )
+void
+lcd_convert_to_font (unsigned char *dest, unsigned char *source, int slen)
 {
 	int i;
 
-	for(i=0;i<slen;i++)
-	{
-		memcpy(dest+(i*8),lcd_font+(source[i]*8),8);
-	}
+	for (i = 0;i < slen; i++)
+		memcpy (dest + (i*8), lcd_font + (source[i]*8), 8);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

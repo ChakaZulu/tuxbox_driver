@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.11  2001/06/03 20:45:50  kwon
+ *   indent
+ *
  *   Revision 1.10  2001/03/03 18:00:28  waldi
  *   complete change to devfs; doesn't compile without devfs
  *
@@ -42,7 +45,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -887,8 +890,6 @@ int __init lcd_init(void)
 
 int lcd_cleanup(void)
 {
-	int res;
-
 //	if (lcd_initialized >= 1) {
 //		if ((res = unregister_chrdev(LCD_MAJOR,"lcd"))) {
 //			printk("lcd.o: unable to release major %d\n", LCD_MAJOR );

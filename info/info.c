@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.5  2001/06/03 20:41:55  kwon
+ *   indent
+ *
  *   Revision 1.4  2001/04/23 00:24:45  fnbrd
  *   /proc/bus/dbox.sh an die sh der BusyBox angepasst.
  *
@@ -34,7 +37,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -170,7 +173,7 @@ int info_proc_init(void)
 	if (! proc_bus) {
 		printk("info.o: /proc/bus/ does not exist");
  		return -ENOENT;
-  }
+        }
 
 	proc_bus_info = create_proc_entry("dbox", 0, proc_bus);
 
