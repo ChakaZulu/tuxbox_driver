@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.189 2003/11/20 00:25:15 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.190 2003/11/20 01:45:38 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -32,11 +32,11 @@
 #include <linux/vmalloc.h>
 #include <linux/dvb/ca.h>
 
-#include "../dvb-core/demux.h"
-#include "../dvb-core/dmxdev.h"
-#include "../dvb-core/dvb_demux.h"
-#include "../dvb-core/dvb_frontend.h"
-#include "../dvb-core/dvb_net.h"
+#include "demux.h"
+#include "dmxdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
 
 #include "avia_av.h"
 #include "avia_av_napi.h"
@@ -63,8 +63,7 @@ static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
 static u8 *section;
 static spinlock_t section_lock = SPIN_LOCK_UNLOCKED;
 
-static
-u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
+static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc))
 		return dvbdmxfeed->feed.sec.crc_val;
@@ -72,8 +71,7 @@ u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t 
 		return (dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len));
 }
 
-static
-void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
+static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
 {
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
 		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
@@ -82,11 +80,10 @@ void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *s
 			dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len);
 	}
 
-	memcpy(dst, (void *)src, len);
+	memcpy(dst, src, len);
 }
 
-static
-struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
+static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
 {
 	if (dvbdmxfeed->type == DMX_TYPE_SEC)
 		return avia_gt_dmx_alloc_queue_user(NULL, cb_proc, dvbdmxfeed);
@@ -116,10 +113,9 @@ struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmx
 /*
  * Callback for hardware section filtering
  */
-static
-void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *data)
+static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *data)
 {
-	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) data;
+	struct dvb_demux_feed *dvbdmxfeed = data;
 	struct dvb_demux_filter *dvbdmxfilter;
 	u32 bytes_avail;
 	u32 section_length;
@@ -235,10 +231,9 @@ void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *
 	spin_unlock_irqrestore(&section_lock, flags);
 }
 
-static
-void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue, void *data)
+static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue, void *data)
 {
-	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
+	struct dvb_demux_feed *dvbdmxfeed = data;
 	u32 bytes_avail;
 	u32 chunk1;
 	u8 ts_buf[188];
@@ -281,8 +276,7 @@ void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue, void *
 	}
 }
 
-static
-void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, void *data)
+static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, void *data)
 {
 	struct dvb_demux_feed *dvbdmxfeed = data;
 
@@ -295,8 +289,7 @@ void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, void *d
 	queue->flush(queue);
 }
 
-static
-int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_generic);
 
@@ -312,12 +305,11 @@ int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
 }
 
-static
-int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct avia_gt_dmx_queue *queue;
 	struct avia_gt_ucode_info *ucode_info;
+	struct avia_gt_dmx_queue *queue;
 
 	ucode_info = avia_gt_dmx_get_ucode_info();
 
@@ -352,8 +344,7 @@ int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
 }
 
-static
-int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct avia_gt_ucode_info *ucode_info;
 	struct avia_gt_dmx_queue *queue;
@@ -381,12 +372,11 @@ int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 	return avia_gt_dmx_queue_start(queue->index, ucode_info->queue_mode_pes, dvbdmxfeed->pid, 0, 0, 0);
 }
 
-static
-int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 {
-	int filter_index;
-	struct avia_gt_dmx_queue *queue;
 	struct avia_gt_ucode_info *ucode_info;
+	struct avia_gt_dmx_queue *queue;
+	int filter_index;
 
 	ucode_info = avia_gt_dmx_get_ucode_info();
 
@@ -411,8 +401,7 @@ int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_SEC8, dvbdmxfeed->pid, 1, filter_index & 0xff, filter_index >> 8);
 }
 
-static
-int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf, size_t count)
+static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf, size_t count)
 {
 	/*
 	 * count is always 188 with current dvb-core,
@@ -451,8 +440,7 @@ int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *b
 	return -EINVAL;
 }
 
-static
-int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	int result;
@@ -506,8 +494,7 @@ int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
-static
-int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct avia_gt_dmx_queue *queue = dvbdmxfeed->priv;
@@ -554,8 +541,7 @@ int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return avia_gt_dmx_free_queue(queue->index);
 }
 
-static
-void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
+static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 {
 	if (fe_status & FE_HAS_LOCK)
 		avia_gt_dmx_enable_framer();
@@ -563,8 +549,7 @@ void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 		avia_gt_dmx_disable_framer();
 }
 
-static
-int avia_gt_napi_connect_frontend(struct dmx_demux *demux, struct dmx_frontend *frontend)
+static int avia_gt_napi_connect_frontend(struct dmx_demux *demux, struct dmx_frontend *frontend)
 {
 	int err;
 
@@ -578,8 +563,7 @@ int avia_gt_napi_connect_frontend(struct dmx_demux *demux, struct dmx_frontend *
 	return 0;
 }
 
-static
-int avia_gt_napi_disconnect_frontend(struct dmx_demux *demux)
+static int avia_gt_napi_disconnect_frontend(struct dmx_demux *demux)
 {
 	int err;
 
@@ -608,8 +592,7 @@ static const struct ca_caps avia_gt_napi_ecd_caps = {
 	.descr_type = CA_ECD,
 };
 
-static
-int avia_gt_napi_ecd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static int avia_gt_napi_ecd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
 		(cmd != CA_GET_CAP) &&
@@ -688,12 +671,12 @@ static struct dvb_device avia_gt_napi_ecd_dev = {
 	.kernel_ioctl = avia_gt_napi_ecd_ioctl,
 };
 
-int __init avia_gt_napi_init(void)
+static int __init avia_gt_napi_init(void)
 {
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.189 2003/11/20 00:25:15 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.190 2003/11/20 01:45:38 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -815,7 +798,7 @@ init_failed_free_section:
 	return result;
 }
 
-void __exit avia_gt_napi_exit(void)
+static void __exit avia_gt_napi_exit(void)
 {
 	dvb_unregister_device(ca_dev);
 	dvb_net_release(&net);
