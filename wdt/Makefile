@@ -6,7 +6,7 @@ M_OBJS       = mpc8xx_wdt.o
 
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I$(KERNEL_LOCATION)/arch/ppc -I../include -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
