@@ -877,6 +877,9 @@ DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 	if (!dmxdevfilter)
 		return -EINVAL;
 
+	if (dmxdevfilter->state==DMXDEV_STATE_TIMEDOUT)
+		return (POLLHUP);
+
 	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
 		return 0;
 
@@ -887,12 +890,13 @@ DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 		return 0;
 
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
-		
+
 	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
 		return 0;
-
+		
 	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
 		return (POLLIN | POLLRDNORM | POLLPRI);
+
 
 	return 0;
 }
