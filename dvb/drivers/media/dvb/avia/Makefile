@@ -2,10 +2,11 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
+DEBUG = 0
 STANDALONE = 0
 
-M_OBJS   = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_pig.o
-obj-m    = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_pig.o
+M_OBJS   = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o enx_dmx.o avia.o osd.o gtx_fb.o gtx_pig.o
+obj-m    = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o enx_dmx.o avia.o osd.o gtx_fb.o gtx_pig.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
@@ -20,6 +21,10 @@ GTX_FB    = gtx-fb.o fbgen.o
 ENX_DMX   = enx-dmx.o crc32.o
 
 EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+
+ifeq ($(DEBUG), 1)
+EXTRA_CFLAGS += -DDEBUG
+endif
 
 ifeq ($(STANDALONE), 1)
 M_OBJS       += $(AVIA_GT_MODS)

@@ -234,6 +234,20 @@ typedef struct {
 
 typedef struct {
 
+    unsigned char Reserved1: 8;
+    unsigned char TTX: 1;
+    unsigned char DAC: 1;
+    unsigned char RISC: 1;
+    unsigned char FRMR: 1;
+    unsigned char CHAN: 1;
+    unsigned char AVD: 1;
+    unsigned char IDC: 1;
+    unsigned char DESC: 1;
+
+} sGTX_REG_RR1;
+
+typedef struct {
+
     unsigned short Reserved1: 10;
     unsigned int Addr: 21;
     unsigned char E: 1;

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.5  2002/04/19 08:54:48  Jolt
+ *   Merged vbi driver
+ *
  *   Revision 1.4  2002/04/10 21:53:31  Jolt
  *   Further cleanups/bugfixes
  *   More OSS API stuff
@@ -36,7 +39,7 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -57,9 +60,6 @@
 #include <linux/soundcard.h>
 
 #include <dbox/avia_gt_pcm.h>
-
-#define dprintk(...)
-//#define dprintk printk
 
 int dsp_dev;
 int mixer_dev;
@@ -324,7 +324,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.4 2002/04/10 21:53:31 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.5 2002/04/19 08:54:48 Jolt Exp $\n");
     
     avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 
@@ -344,8 +344,6 @@ static int __init avia_oss_init(void)
 static void __exit avia_oss_cleanup(void)
 {
 
-    printk("avia_oss: cleanup\n");
-    
     unregister_sound_mixer(mixer_dev);
     unregister_sound_dsp(dsp_dev);
 

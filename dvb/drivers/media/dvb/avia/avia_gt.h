@@ -27,7 +27,11 @@
 #include "enx.h"
 #include "gtx.h"
 
-#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
+#ifdef DEBUG
+#define dprintk(fmt,args...) printk( fmt,## args)
+#else
+#define dprintk(...)
+#endif
 
 #define AVIA_GT_CHIP_TYPE_ENX 0
 #define AVIA_GT_CHIP_TYPE_GTX 1

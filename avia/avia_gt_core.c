@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.10  2002/04/19 08:54:48  Jolt
+ *   Merged vbi driver
+ *
  *   Revision 1.9  2002/04/17 05:56:17  Jolt
  *   Capture driver fixes
  *
@@ -49,7 +52,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -84,10 +87,8 @@
 
 #ifdef MODULE
 int chip_type = -1;
-static int debug = 0;
 unsigned char init_state = 0;
 
-MODULE_PARM(debug, "i");
 MODULE_PARM(chip_type, "i");
 #endif
 
@@ -254,7 +255,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.9 2002/04/17 05:56:17 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.10 2002/04/19 08:54:48 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     

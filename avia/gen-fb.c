@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.21  2002/04/19 08:54:48  Jolt
+ *   Merged vbi driver
+ *
  *   Revision 1.20  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -105,7 +108,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -148,14 +151,6 @@
 
 #define RES_X           720
 #define RES_Y           576
-
-static int debug=0;
-
-#ifdef MODULE
-MODULE_PARM(debug,"i");
-#endif
-
-#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
@@ -935,7 +930,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: gen-fb.c,v 1.20 2002/04/14 18:06:19 Jolt Exp $\n");
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.21 2002/04/19 08:54:48 Jolt Exp $\n");
 	
 	return gtxfb_init();
 }
