@@ -20,7 +20,7 @@
 
 #define TDP_INSTR_RAM		0x2000
 #define TDP_DATA_RAM		0x2800
-#define CAM_RAM			0x3000
+#define CAM_RAM				0x3000
 
 
 #define ENX_REG_PFCR		0x0780			// Parallel FIFO Control Register
@@ -238,16 +238,16 @@
 #define ENX_REG_STC_COUNTER_2	0x0B0E			// STC Counter 2 Register
 #define ENX_REG_STC_COUNTER_1	0x0B20			// STC Counter 1 Register
 #define ENX_REG_STC_COUNTER_0	0x0B22			// STC Counter 0 Register
-#define ENX_REG_EPC		0x0B60			// Transport Demux Processor PC Register
-#define ENX_REG_EC		0x0B68			// Transport Demux Processor Control Register
-#define ENX_REG_SPPCR1		0x3200			// Section Filter Configuration Register 1
-#define ENX_REG_SPPCR2		0x3202			// Section Filter Configuration Register 2
-#define ENX_REG_SPPCR3		0x3204			// Section Filter Configuration Register 3
-#define ENX_REG_SPPCR4		0x3206			// Section Filter Configuration Register 4
-#define ENX_REG_AQRPL		0x08E0			// Audio Queue Read Pointer, Lower Word Register
-#define ENX_REG_AQRPH		0x08E2			// Audio Queue Read Pointer, Upper Word Register
-#define ENX_REG_AQWPL		0x08E4			// Audio Queue Write Pointer, Lower Word Register
-#define ENX_REG_AQWPH		0x08E6			// Audio Queue Write Pointer, Upper Word Register
+#define ENX_REG_EPC				0x0B60			// Transport Demux Processor PC Register
+#define ENX_REG_EC				0x0B68			// Transport Demux Processor Control Register
+#define ENX_REG_SPPCR1			0x3200			// Section Filter Configuration Register 1
+#define ENX_REG_SPPCR2			0x3202			// Section Filter Configuration Register 2
+#define ENX_REG_SPPCR3			0x3204			// Section Filter Configuration Register 3
+#define ENX_REG_SPPCR4			0x3206			// Section Filter Configuration Register 4
+#define ENX_REG_AQRPL			0x08E0			// Audio Queue Read Pointer, Lower Word Register
+#define ENX_REG_AQRPH			0x08E2			// Audio Queue Read Pointer, Upper Word Register
+#define ENX_REG_AQWPL			0x08E4			// Audio Queue Write Pointer, Lower Word Register
+#define ENX_REG_AQWPH			0x08E6			// Audio Queue Write Pointer, Upper Word Register
 #define ENX_REG_TQRPL		0x08E8			// Teletext Queue Read Pointer, Lower Word Register
 #define ENX_REG_TQRPH		0x08EA			// Teletext Queue Read Pointer, Upper Word Register
 #define ENX_REG_TQWPL		0x08EC			// Teletext Queue Write Pointer - Lower Word Register
@@ -280,8 +280,8 @@
 #define ENX_REG_MSR_2		0x0758			// Modem Status Register
 #define ENX_REG_SPR_1		0x071C			// Scratch Pad Register
 #define ENX_REG_SPR_2		0x075C			// Scratch Pad Register
-#define ENX_REG_QWPnL           0x0880
-#define ENX_REG_QWPnH           0x0882
+#define ENX_REG_QWPnL		0x0880
+#define ENX_REG_QWPnH		0x0882
 
 #define ENX_IRQ_REG_ISR0	0
 #define ENX_IRQ_REG_ISR1	1
@@ -294,10 +294,12 @@
 #define ENX_IRQ_IR_RX		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 2)
 #define ENX_IRQ_PCM_PF		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 3)
 #define ENX_IRQ_PCM_AD		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 4)
-#define ENX_IRQ_VL1		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 5)
-#define ENX_IRQ_VL2		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 6)
+#define ENX_IRQ_VL1			AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 5)
+#define ENX_IRQ_VL2			AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 6)
 #define ENX_IRQ_CAPTURE		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 7)
-#define ENX_IRQ_PCR		AVIA_GT_IRQ(ENX_IRQ_REG_ISR1, 5)
+#define ENX_IRQ_PCR			AVIA_GT_IRQ(ENX_IRQ_REG_ISR1, 5)
+
+#pragma pack(1)
 
 typedef struct {
 
@@ -528,6 +530,21 @@ typedef struct {
   unsigned short NSAMP: 12;
   
 } sENX_REG_PCMS;
+
+typedef struct {
+
+  unsigned char Reserved1: 6;
+  unsigned char Q_Size: 4;
+  unsigned char Queue_n_Write_Pointer: 6;
+
+//} sENX_REG_QWPnH __attribute__ ((packed));
+} sENX_REG_QWPnH;
+
+typedef struct {
+
+  unsigned short Queue_n_Write_Pointer: 16;
+
+} sENX_REG_QWPnL __attribute__ ((packed));
 
 typedef struct {
 
@@ -787,6 +804,8 @@ typedef struct {
 
 } sENX_REG_VQWPH;
 
+#pragma pack()
+
 extern void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
 extern unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg);
 extern unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg);
@@ -798,9 +817,12 @@ extern void avia_gt_enx_exit(void);
 #define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + ENX_REG_ ## register))))
 #define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
 #define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + ENX_REG_ ## register))))
+#define enx_reg_32o(register, offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + ENX_REG_ ## register + offset))))
 #define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
 #define enx_reg_o(offset) (gt_info->reg_addr + offset)
 #define enx_reg_s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
+#define enx_reg_sn(register, offset) ((sENX_REG_##register *)(enx_reg_o(offset)))
+#define enx_reg_so(register, offset) ((sENX_REG_##register *)(&enx_reg_32o(register, offset)))
 #define enx_reg_32s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
 #define enx_reg_16s(register) ((sENX_REG_##register *)(&enx_reg_16(register)))
 

@@ -261,6 +261,8 @@
 #define GTX_REG_RISCCON	0x178
 
 /* Queue Write Pointer */
+#define GTX_REG_QWPnL	0x180
+#define GTX_REG_QWPnH	0x182
 #define GTX_REG_QWP0L	0x180
 #define GTX_REG_QWP0H	0x182
 #define GTX_REG_QWP1L	0x184
@@ -295,6 +297,7 @@
 #define GTX_REG_QWP15H	0x1BE
 
 /* Queue Interrupt */
+#define GTX_REG_QIn	0x1C0
 #define GTX_REG_QI0	0x1C0
 #define GTX_REG_QI1	0x1C2
 #define GTX_REG_QI2	0x1C4
@@ -392,8 +395,7 @@
 #define GTX_IRQ_PCM_AD		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 12)
 #define GTX_IRQ_VL1		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 13)
 
-
-
+#pragma pack(1)
 
 typedef struct {
 
@@ -593,10 +595,24 @@ typedef struct {
 typedef struct {
 
     unsigned char Reserved1: 6;
-    unsigned char Q_SIZE: 4;
+    unsigned char Q_Size: 4;
     unsigned char Video_Write: 6;
 
 } sGTX_REG_VQWPH;
+
+typedef struct {
+
+    unsigned char Reserved1: 6;
+    unsigned char Q_Size: 4;
+    unsigned char Upper_WD_n: 6;
+
+} sGTX_REG_QWPnH;
+
+typedef struct {
+
+    unsigned short Queue_n_Write_Pointer: 16;
+
+} sGTX_REG_QWPnL;
 
 typedef struct {
 
@@ -669,6 +685,7 @@ typedef struct {
 
 } sGTX_REG_VCS;
 
+#pragma pack()
 
 extern void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
 extern unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg);
@@ -684,6 +701,8 @@ extern void avia_gt_gtx_exit(void);
 #define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
 #define gtx_reg_o(offset) (gt_info->reg_addr + offset)
 #define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_sn(register, offset) ((sGTX_REG_##register *)(gtx_reg_o(offset)))
+#define gtx_reg_so(register, offset) ((sGTX_REG_##register *)(&gtx_reg_32(register + (offset))))
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
 
