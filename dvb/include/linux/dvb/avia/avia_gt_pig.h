@@ -21,8 +21,9 @@
  *
  */
 
-#define AVIA_PIG_DISABLE 	1
-#define AVIA_PIG_ENABLE 	2
+#define AVIA_PIG_HIDE	 	1
+#define AVIA_PIG_SHOW	 	2
 #define AVIA_PIG_SET_POS 	3
-#define AVIA_PIG_SET_SIZE 	4
-#define AVIA_PIG_SET_STACK 	5
+#define AVIA_PIG_SET_SOURCE 	4
+#define AVIA_PIG_SET_SIZE 	5
+#define AVIA_PIG_SET_STACK 	6
