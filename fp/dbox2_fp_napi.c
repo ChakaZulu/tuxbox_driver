@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.9 2003/05/25 23:42:20 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.10 2003/05/26 03:21:03 obi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -46,7 +46,6 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 			demod = 3;
 		else
 			demod = -1;
-		printk (KERN_DEBUG "dbox2_fp_napi_before_ioctl: find frontend: %d\n", demod);
 	}
 
 	if (demod == -1)
@@ -136,7 +135,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				 * http://assets.zarlink.com/products/datasheets/zarlink_SP5668_JAN_01.pdf
 				 * 
 				 * [31:27] (= 0)
-				 * [26:24] port control bits (= 0)
+				 * [26:24] port control bits (= 1)
 				 * [23:23] test mode enable (= 0)
 				 * [22:22] drive output disable switch (= 0)
 				 * [21:21] charge pump current select (= 1)
@@ -164,7 +163,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				printk("freq: %u, ratio: %u, div: %x, pe: %hu\n", freq, ratio[sel], div, pe);
 
 				/* port control */
-				buf[0] = 0x00;
+				buf[0] = 0x01;
 				/* charge pump, ref div ratio, prescaler, div[16] */
 				buf[1] = 0x20 | ((sel + pe) << 2) | (pe << 1) | ((div >> 16) & 0x01);
 				/* div[15:8] */
