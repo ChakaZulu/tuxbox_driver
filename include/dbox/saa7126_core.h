@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.8  2001/07/03 20:23:22  gillem
+ *   - add defines
+ *
  *   Revision 1.7  2001/07/03 19:55:05  gillem
  *   - add ioctl to set rgb/fbas/svideo
  *   - remove module option svideo
@@ -45,7 +48,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -58,6 +61,16 @@
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1
 #define SAA_MODE_SVIDEO	2
+
+#define SAA_NTSC		0
+#define SAA_PAL			1
+
+#define SAA_INP_MP1		1
+#define SAA_INP_MP2		2
+#define SAA_INP_CSYNC	4
+#define SAA_INP_DEMOFF	6
+#define SAA_INP_SYMP	8
+#define SAA_INP_CBENB	128
 
 // TODO: fix this table
 
