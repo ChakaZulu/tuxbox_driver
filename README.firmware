@@ -71,6 +71,12 @@ Extraction:
    http://www.micronik.de/software/v12-111.zip
    http://www.micronik.de/software/v13-111.zip
    (avia500v093, avia600vb022, ucode_001A)
+
+   http://eubnet.de/sat/firmware/Radix/3ci17b.zip
+   (avia500v083, ucode_0014)
+
+   http://eubnet.de/sat/firmware/Radix/fta2ad38.zip
+   (avia500v083, ucode_0013)
    
    http://www.freesat.co.kr/service/service.html#direct
    (There are some receivers which also use the AViA mpeg chipset. I do not
