@@ -960,6 +960,17 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 		dmxdev->demux->get_pes_pids(dmxdev->demux, (uint16_t *)parg);
 		break;
 
+	case DMX_GET_STC:
+		if (!dmxdev->demux->get_stc) {
+		        ret=-EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->get_stc(dmxdev->demux,
+				((struct dmx_stc *)parg)->num,
+				&((struct dmx_stc *)parg)->stc,
+				&((struct dmx_stc *)parg)->base);
+		break;
+
 	default:
 		ret=-EINVAL;
 	}
@@ -983,15 +994,10 @@ unsigned int dvb_demux_poll (struct file *file, poll_table *wait)
 	if (!dmxdevfilter)
 		return -EINVAL;
 
-	if (dmxdevfilter->buffer.pread != dmxdevfilter->buffer.pwrite)
-		return (POLLIN | POLLRDNORM | POLLPRI);
-
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
-	if (dmxdevfilter->state != DMXDEV_STATE_GO)
-		return 0;
-
-	if (dmxdevfilter->state == DMXDEV_STATE_FREE)
+	if (dmxdevfilter->state != DMXDEV_STATE_GO &&
+	    dmxdevfilter->state != DMXDEV_STATE_DONE)
 		return 0;
 
 	if (dmxdevfilter->buffer.error)

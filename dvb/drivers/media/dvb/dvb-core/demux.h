@@ -286,6 +286,9 @@ struct dmx_demux_s {
         int (*disconnect_frontend) (struct dmx_demux_s* demux); 
 
         int (*get_pes_pids) (struct dmx_demux_s* demux, __u16 *pids);
+
+        int (*get_stc) (struct dmx_demux_s* demux, unsigned int num,
+			uint64_t *stc, unsigned int *base);
 }; 
 typedef struct dmx_demux_s dmx_demux_t; 
 

@@ -435,7 +435,11 @@ int dvb_frontend_thread (void *data)
 	dprintk ("%s\n", __FUNCTION__);
 
 	lock_kernel ();
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,61))
 	daemonize ();
+#else
+	daemonize ("dvb fe");
+#endif
 /*	not needed anymore in 2.5.x, done in daemonize() */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	reparent_to_init ();

@@ -280,48 +280,63 @@ dvb_net_feed_stop(struct net_device *dev)
 }
 
 static int
-dvb_set_mc_filter(struct net_device *dev, struct dev_mc_list *mc)
+dvb_add_mc_filter(struct net_device *dev, struct dev_mc_list *mc)
 {
 	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	int ret;
 
-	if (priv->multi_num==DVB_NET_MULTICAST_MAX)
+	if (priv->multi_num >= DVB_NET_MULTICAST_MAX)
 		return -ENOMEM;
 
+	ret = memcmp(priv->multi_macs[priv->multi_num], mc->dmi_addr, 6);
 	memcpy(priv->multi_macs[priv->multi_num], mc->dmi_addr, 6);
-	
+
 	priv->multi_num++;
-	return 0;
+
+	return ret;
 }
 
 static void
 dvb_net_set_multi(struct net_device *dev)
 {
 	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
-
-	dvb_net_feed_stop(dev);
-
-	priv->mode=0;
-	if (dev->flags&IFF_PROMISC) {
-		printk("%s: promiscuous mode\n", dev->name);
-		priv->mode=3;
-	} else if((dev->flags&IFF_ALLMULTI)) {
-		printk("%s: allmulti mode\n", dev->name);
-		priv->mode=2;
-	} else if(dev->mc_count) {
-                int mci;
-                struct dev_mc_list *mc;
-		
-		printk("%s: set_mc_list, %d entries\n", 
-		       dev->name, dev->mc_count);
-		priv->mode=1;
-		priv->multi_num=0;
-                for (mci=0, mc=dev->mc_list; 
-		     mci<dev->mc_count;
-		     mc=mc->next, mci++) {
-			dvb_set_mc_filter(dev, mc);
-                } 
+	struct dev_mc_list *mc;
+	int mci;
+	int update = 0;
+	
+	if(dev->flags & IFF_PROMISC) {
+//	printk("%s: promiscuous mode\n", dev->name);
+		if(priv->mode != 3)
+			update = 1;
+		priv->mode = 3;
+	} else if(dev->flags & IFF_ALLMULTI) {
+//	printk("%s: allmulti mode\n", dev->name);
+		if(priv->mode != 2)
+			update = 1;
+		priv->mode = 2;
+	} else if(dev->mc_count > 0) {
+//	printk("%s: set_mc_list, %d entries\n", 
+//	       dev->name, dev->mc_count);
+		if(priv->mode != 1)
+			update = 1;
+		priv->mode = 1;
+		priv->multi_num = 0;
+		for (mci = 0, mc=dev->mc_list; 
+		     mci < dev->mc_count;
+		     mc=mc->next, mci++)
+			if(dvb_add_mc_filter(dev, mc) != 0)
+				update = 1;
+	} else {
+		if(priv->mode != 0)
+			update = 1;
+		priv->mode = 0;
 	}
-	dvb_net_feed_start(dev);
+
+	if(netif_running(dev) != 0 && update > 0)
+	{
+		dvb_net_feed_stop(dev);
+		dvb_net_feed_start(dev);
+	}
 }
 
 static int
@@ -336,13 +351,15 @@ static int
 dvb_net_set_mac(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr=p;
+	int update;
 
+	update = memcmp(dev->dev_addr, addr->sa_data, dev->addr_len);
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	if (netif_running(dev)) {
-	        dvb_net_feed_stop(dev);
+	if (netif_running(dev) != 0 && update > 0) {
+		dvb_net_feed_stop(dev);
 		dvb_net_feed_start(dev);
 	}
-        return 0;
+	return 0;
 }
 
 
