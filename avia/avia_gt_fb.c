@@ -1,5 +1,5 @@
 /*
- *   gen-fb.c - AViA GTX framebuffer driver (dbox-II-project)
+ *   avia_gt_fb.c - AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb.c,v $
+ *   Revision 1.21  2002/04/15 12:04:53  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.20  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -105,7 +108,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -151,12 +154,6 @@
 
 static int debug=0;
 
-#ifdef MODULE
-MODULE_PARM(debug,"i");
-#endif
-
-#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
-
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
 static struct fb_var_screeninfo default_var = {
@@ -179,21 +176,25 @@ static struct fb_var_screeninfo default_var = {
 
 struct gtxfb_info
 {
+
   struct fb_info_gen gen;
 
   void *videobase;
   int offset;
   u32 videosize, pvideobase;
+  
 };
 
 struct gtxfb_par
 {
+
   int pal;              // 1 - PAL, 0 - NTSC
   int bpp;              // 4, 8, 16
   int lowres;           // 0: 720 or 640 pixels per line 1: 360 or 320 pixels per line
   int interlaced;       // 0: 480 or 576 lines interlaced 1: 240 or 288 lines non-interlaced
   int xres, yres;       // calculated of the above stuff
   int stride;
+  
 };
 
 static struct gtxfb_info fb_info;
@@ -213,7 +214,6 @@ static u16 fbcon_cfb8_cmap[16];
 static u16 fbcon_cfb16_cmap[16];
 #endif
 
-static void gtx_detect(void);
 static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
                         struct fb_info_gen *info);
 static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
@@ -230,19 +230,18 @@ static int gtx_blank(int blank, struct fb_info_gen *info);
 static void gtx_set_disp(const void *fb_par, struct display *disp,
                 struct fb_info_gen *info);
 
-int gtx_setup(char*);
-int gtx_init(void);
-void gtx_cleanup(struct fb_info *info);
-
 static void gtx_detect(void)
 {
+
   return;
+  
 }
 
-static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
-                          struct fb_info_gen *info)
+static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+
+  struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
+  
   strcpy(fix->id, "AViA eNX/GTX Framebuffer improved version");
   fix->type=FB_TYPE_PACKED_PIXELS;
   fix->type_aux=0;
@@ -265,12 +264,13 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
   fix->accel=0;
 
   return 0;
+  
 }
 
-static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
-                          struct fb_info_gen *info)
+static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+
+  struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
   int yres;
   
   if ((var->bits_per_pixel != 4) && (var->bits_per_pixel != 8) && (var->bits_per_pixel != 16))
@@ -326,12 +326,14 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
     par->stride=var->xres*2;
               
   return 0;
+  
 }
 
-static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
-                           struct fb_info_gen *info)
+static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+
+  struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
+
   var->xres=par->xres;
   var->yres=par->yres;
   var->bits_per_pixel=par->bpp;
@@ -744,16 +746,6 @@ struct fbgen_hwswitch gtx_switch = {
     gtx_set_disp,
 };
 
-static struct fb_ops gtxfb_ops = {
-        owner:          THIS_MODULE,
-        fb_get_fix:     fbgen_get_fix,
-        fb_get_var:     fbgen_get_var,
-        fb_set_var:     fbgen_set_var,
-        fb_get_cmap:    fbgen_get_cmap,
-        fb_set_cmap:    fbgen_set_cmap,
-	fb_ioctl:	fb_ioctl,
-};
-
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 #ifdef GTX
@@ -867,86 +859,79 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 #endif /* ENX */
 
 	return 0;
+	
 }
 
+static struct fb_ops avia_gt_fb_ops = {
 
-/*
- *  Initialization
- */
-int __init gtxfb_init(void)
+        owner:          THIS_MODULE,
+        fb_get_fix:     fbgen_get_fix,
+        fb_get_var:     fbgen_get_var,
+        fb_set_var:     fbgen_set_var,
+        fb_get_cmap:    fbgen_get_cmap,
+        fb_set_cmap:    fbgen_set_cmap,
+	fb_ioctl:	fb_ioctl,
+	
+};
+
+int __init avia_gt_fb_init(void)
 {
 
-	fb_info.videosize = 1*1024*1024;                // TODO: moduleparm?
-	fb_info.offset = AVIA_GT_MEM_GV_OFFS;
-	//fb_info.offset = 1*1024*1024;
-	//fb_info.offset = ENX_FB_OFFSET;
-	
-#ifdef GTX
-	fb_info.pvideobase=GTX_MEM_BASE+fb_info.offset;
-#endif
+    unsigned char *gv_mem_lin;
+    unsigned char *gv_mem_phys;
+    unsigned int gv_mem_size;
 
-#ifdef ENX
-	fb_info.pvideobase=ENX_MEM_BASE+fb_info.offset;
-#endif
+    printk("avia_gt_fb: $Id: avia_gt_fb.c,v 1.21 2002/04/15 12:04:53 Jolt Exp $\n");
+	    
+    avia_gt_gv_get_info(&gv_mem_phys, &gv_mem_lin, &gv_mem_size);
+		
+    fb_info.offset = AVIA_GT_MEM_GV_OFFS;
+    fb_info.pvideobase = (int)gv_mem_phys;
+    fb_info.videobase = gv_mem_lin;
+    fb_info.videosize = gv_mem_size;
 
-	fb_info.videobase = avia_gt_get_mem_addr() + fb_info.offset;
+    fb_info.gen.info.node = -1;
+    fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
+    fb_info.gen.info.fbops = &avia_gt_fb_ops;
+    fb_info.gen.info.disp = &disp;
+    fb_info.gen.info.changevar = NULL;
+    fb_info.gen.info.switch_con = &fbgen_switch;
+    fb_info.gen.info.updatevar = &fbgen_update_var;
+    fb_info.gen.info.blank = &fbgen_blank;
+    strcpy(fb_info.gen.info.fontname, default_fontname);
+    fb_info.gen.parsize = sizeof(struct gtxfb_par);
+    fb_info.gen.fbhw = &gtx_switch;
+    fb_info.gen.fbhw->detect();
 
-	fb_info.gen.info.node = -1;
-	fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
-	fb_info.gen.info.fbops = &gtxfb_ops;
-	fb_info.gen.info.disp = &disp;
-	fb_info.gen.info.changevar = NULL;
-	fb_info.gen.info.switch_con = &fbgen_switch;
-	fb_info.gen.info.updatevar = &fbgen_update_var;
-	fb_info.gen.info.blank = &fbgen_blank;
-	strcpy(fb_info.gen.info.fontname, default_fontname);
-	fb_info.gen.parsize=sizeof(struct gtxfb_par);
-	fb_info.gen.fbhw=&gtx_switch;
-	fb_info.gen.fbhw->detect();
+    strcpy(fb_info.gen.info.modename, "AViA eNX/GTX Framebuffer");
 
-	strcpy(fb_info.gen.info.modename, "AViA eNX/GTX Framebuffer");
+    fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
+    disp.var.activate = FB_ACTIVATE_NOW;
+    fbgen_do_set_var(&disp.var, 1, &fb_info.gen);
+    fbgen_set_disp(-1, &fb_info.gen);
+    fbgen_install_cmap(0, &fb_info.gen);
 
-	fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
-	disp.var.activate = FB_ACTIVATE_NOW;
-	fbgen_do_set_var(&disp.var, 1, &fb_info.gen);
-	fbgen_set_disp(-1, &fb_info.gen);
-	fbgen_install_cmap(0, &fb_info.gen);
+    if (register_framebuffer(&fb_info.gen.info) < 0)
+	return -EINVAL;
 
-	if (register_framebuffer(&fb_info.gen.info) < 0)
-	{
-		return -EINVAL;
-	}
-
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
+    printk(KERN_INFO "avia_gt_fb: fb%d: %s frame buffer device\n", GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
 #ifdef MODULE
-	atomic_set(&THIS_MODULE->uc.usecount, 1);
+    atomic_set(&THIS_MODULE->uc.usecount, 1);
 #endif
-	return 0;
+
+    return 0;
+
 }
 
-void gtxfb_close(void)
+void __exit avia_gt_fb_exit(void)
 {
-	printk(KERN_INFO "Framebuffer: cleanup frame buffer device\n" );
 
-	unregister_framebuffer((struct fb_info*)&fb_info);
-}
+    unregister_framebuffer((struct fb_info *)&fb_info);
 
-int __init fb_init(void)
-{
-	dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.20 2002/04/14 18:06:19 Jolt Exp $\n");
-	
-	return gtxfb_init();
-}
-
-static void __exit fb_cleanup(void)
-{
-	gtxfb_close();
 }
 
 #ifdef MODULE
-module_init(fb_init);
-//EXPORT_SYMBOL(cleanup_module);
+module_init(avia_gt_fb_init);
+module_exit(avia_gt_fb_exit);
 #endif
-module_exit(fb_cleanup);
