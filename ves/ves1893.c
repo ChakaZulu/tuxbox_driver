@@ -220,8 +220,10 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
        tmp=srate<<6;
 	ratio=tmp/FIN;
 
+/*
 	tmp=(tmp%FIN)<<8;
 	ratio=(ratio<<8)+tmp/FIN;
+*/
 
 	tmp=(tmp%FIN)<<8;
 	ratio=(ratio<<8)+tmp/FIN;
