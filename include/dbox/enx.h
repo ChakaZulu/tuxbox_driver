@@ -386,6 +386,20 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char Reserved1: 4;
+  unsigned short CarrierWavePeriod: 12;
+		
+} sENX_REG_CWP;
+		
+typedef struct {
+		
+  unsigned char Reserved1: 5;
+  unsigned short WavePulseHigh: 11;
+				
+} sENX_REG_CWPH;
+				
+typedef struct {
+
   unsigned char Reserved1: 6;
   unsigned short PC: 10;
 

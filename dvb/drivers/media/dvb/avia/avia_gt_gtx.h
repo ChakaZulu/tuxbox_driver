@@ -1795,7 +1795,7 @@ typedef struct {
 typedef struct {
 
 	unsigned short Reserved1: 9;
-	unsigned char Offst: 7;
+	unsigned char Offset: 7;
 
 } sGTX_REG_IRTO;
 
