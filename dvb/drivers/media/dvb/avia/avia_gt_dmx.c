@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.98  2002/08/27 21:53:09  Jolt
+ *   New sync logic
+ *
  *   Revision 1.97  2002/08/25 22:14:54  Jolt
  *   Sync logic is broken :(
  *
@@ -95,7 +98,7 @@
  *
  *
  *
- *   $Revision: 1.97 $
+ *   $Revision: 1.98 $
  *
  */
 
@@ -1096,6 +1099,24 @@ u64 avia_gt_dmx_get_stc(void)
 
 }
 
+static void avia_gt_dmx_set_dac(s16 pulse_count)
+{
+
+	if (avia_gt_chip(ENX)) {
+
+		enx_reg_16(DAC_PC) = pulse_count;
+		enx_reg_16(DAC_CP) = 9;
+
+	} else if (avia_gt_chip(GTX)) {
+
+		gtx_reg_32(DPCR) = (pulse_count << 16) | 9;
+		
+	}
+
+}
+
+static s16 gain = 0;
+static s64 last_remote_diff = 0;
 
 static void gtx_pcr_interrupt(unsigned short irq)
 {
@@ -1123,49 +1144,41 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	local_diff = (s64)PCR_VALUE(stc) - (s64)PCR_VALUE(l_stc);
 	remote_diff = (s64)PCR_VALUE(tp_pcr) - (s64)PCR_VALUE(stc);
 
-#if 0
+#define GAIN 25
 
-	if (PCR_VALUE(tp_pcr) > PCR_VALUE(stc)) {
+	if (remote_diff > 0) {
 
-//#define GAIN 0x7FFF
-#define GAIN 0x5000
+		if (remote_diff > last_remote_diff)
+			gain -= 2*GAIN;
+		else
+			gain += GAIN;
 
-		if (avia_gt_chip(ENX)) {
+	} else if (remote_diff < 0) {
 
-			enx_reg_16(DAC_PC) = -GAIN;
-			enx_reg_16(DAC_CP) = 9;
+		if (remote_diff < last_remote_diff) 
+			gain += 2*GAIN;
+		else
+			gain -= GAIN;
 
-		} else if (avia_gt_chip(GTX)) {
-
-			gtx_reg_32(DPCR) = (-GAIN << 16) | 9;
-		
-		}
-
-	} else if (PCR_VALUE(stc) > PCR_VALUE(tp_pcr)) {
-
-		if (avia_gt_chip(ENX)) {
-
-			enx_reg_16(DAC_PC) = GAIN;
-			enx_reg_16(DAC_CP) = 9;
-
-		} else if (avia_gt_chip(GTX)) {
-
-			gtx_reg_32(DPCR) = (GAIN << 16) | 9;
-		
-		}
 
 	}
 
+	avia_gt_dmx_set_dac(gain);
+	
+	last_remote_diff = remote_diff;
+
 	printk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
 
-#endif
+#if 0
 
-/*	if ((remote_diff > TIME_THRESHOLD) || (remote_diff < -TIME_THRESHOLD)) {
+	if ((remote_diff > TIME_THRESHOLD) || (remote_diff < -TIME_THRESHOLD)) {
 
 		printk("avia_gt_dmx: stc out of sync!\n");
 		avia_gt_dmx_force_discontinuity();
 
-}*/
+	}
+
+#endif
 
 }
 
@@ -1175,7 +1188,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.97 2002/08/25 22:14:54 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.98 2002/08/27 21:53:09 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
