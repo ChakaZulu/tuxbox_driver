@@ -18,8 +18,8 @@ BUILD_DATE=$(shell date)
 # when compiling module(s)
 
 M_OBJS       = cxa2092.o
-APPZ	     = avs
-APPZ_SOURCE  = cxa2092_test.c
+APPZ	     = switch
+APPZ_SOURCE  = switch.c
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
