@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.3 2004/04/07 23:17:45 carjay Exp $
+ * $Id: avia_gt_ucode.c,v 1.4 2004/04/18 02:49:49 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -237,10 +237,12 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 		}
 
 		/*
-		 * Mixed mode.
+		 * Mixed mode (both pos. and neg. filter).
 		 */
 		else if ((anz_not > 0) && (anz_normal > 0)) {
 			anz_filters = 2;
+			ver_not[1]=0;
+			unchanged[1]=1;
 			for (i = 0; i < 8; i++) {
 				value[1][i] = value[0][i] & ~mode[0][i];
 				mask[1][i] = ~mode[0][i];
