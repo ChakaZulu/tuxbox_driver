@@ -1,15 +1,6 @@
+DRIVER_TOPDIR = ../../..
 
-mod-subdirs := dvb
+SUBDIRS		:= dvb
+subdir-m	:= $(SUBDIRS)
 
-subdir-y := $(mod-subdirs)
-
-subdir-m := $(subdir-y)
-
-include $(KERNEL_LOCATION)/Rules.make
-
-clean:
-	@for dir in $(mod-subdirs) ; do $(MAKE) -C $$dir clean || exit 1 ; done
-
-install:
-	@mkdir -p $(MODULE_DEST)
-	@for dir in $(mod-subdirs) ; do $(MAKE) -C $$dir install || exit 1 ; done
+include $(DRIVER_TOPDIR)/Rules.make

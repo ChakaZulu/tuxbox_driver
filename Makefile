@@ -1,26 +1,83 @@
-KERNELRELEASE = \
+CROSS_COMPILE =
+
+AS		= $(CROSS_COMPILE)as
+LD		= $(CROSS_COMPILE)ld
+CC		= $(CROSS_COMPILE)gcc
+CPP		= $(CC) -E
+AR		= $(CROSS_COMPILE)ar
+NM		= $(CROSS_COMPILE)nm
+STRIP		= $(CROSS_COMPILE)strip
+OBJCOPY		= $(CROSS_COMPILE)objcopy
+OBJDUMP		= $(CROSS_COMPILE)objdump
+MODFLAGS	= -DMODULE
+
+CPPFLAGS := -D__KERNEL__ -I$(shell pwd)/include -I$(shell pwd)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
+CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
+AFLAGS := -D__ASSEMBLY__ $(CPPFLAGS)
+
+HPATH = $(shell pwd)/include
+
+KERNELRELEASE := \
 	$(shell \
 	for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION FLAVOUR ; do \
 		eval `sed -ne "/^$$TAG/s/[   ]//gp" $(KERNEL_LOCATION)/Makefile` ; \
 	done ; \
 	echo $$VERSION.$$PATCHLEVEL.$$SUBLEVEL$$EXTRAVERSION$${FLAVOUR:+-$$FLAVOUR})
 
-INSTALL_MOD_PATH =
-MODULE_DEST := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/misc
+TOPDIR := $(KERNEL_LOCATION)
 
-export KERNELRELEASE KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST
+MODLIB := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 
-mod-subdirs := avs cam dvb event fp i2c info lcd saa7126 wdt
+CONFIG_MODULES	:= y
 
-subdir-y := $(mod-subdirs)
+export AS LD CC CPP AR NM CFLAGS AFLAGS HPATH KERNELRELEASE TOPDIR MODLIB CONFIG_MODULES
 
-subdir-m := $(subdir-y)
+SUBDIRS		:= avs cam dvb event fp i2c info lcd saa7126 wdt
 
-include $(KERNEL_LOCATION)/Rules.make
+all: do-it-all
+
+ifeq (.depend,$(wildcard .depend))
+include .depend
+do-it-all: modules
+else
+do-it-all: depend
+endif
+
+.PHONY: modules
+modules: $(patsubst %, _mod_%, $(SUBDIRS))
+
+.PHONY: $(patsubst %, _mod_%, $(SUBDIRS))
+$(patsubst %, _mod_%, $(SUBDIRS)):
+	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
+
+depend dep: dep-files
+
+dep-files: $(KERNEL_LOCATION)/scripts/mkdep
+	touch .depend
+	$(KERNEL_LOCATION)/scripts/mkdep -- `find . \( -name CVS -o -name .svn \) -prune -o -follow -name \*.h -print` > .hdepend
+	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)" TOPDIR=$(KERNEL_LOCATION)
 
 clean:
-	@for dir in $(mod-subdirs) ; do $(MAKE) -C $$dir clean || exit 1 ; done
+	find . \( -name '*.[oas]' -o -name core -o -name '.*.flags' \) -type f -print | xargs rm -f
 
-install:
-	@mkdir -p $(MODULE_DEST)
-	@for dir in $(mod-subdirs) ; do $(MAKE) -C $$dir install || exit 1 ; done
+mrproper: clean
+	find . \( -size 0 -o -name .depend \) -type f -print | xargs rm -f
+
+distclean: mrproper
+	rm -f core `find . \( -not -type d \) -and \
+		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
+		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
+		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print`
+
+.PHONY: modules_install
+modules_install: _modinst_ $(patsubst %, _modinst_%, $(SUBDIRS))
+
+.PHONY: _modinst_
+_modinst_:
+	@mkdir -p $(MODLIB)/misc
+
+.PHONY: $(patsubst %, _modinst_%, $(SUBDIRS))
+$(patsubst %, _modinst_%, $(SUBDIRS)):
+	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install_misc
+
+include Rules.make

@@ -1,22 +1,6 @@
-#################################################
-# some magic for using linux kernel settings
-# when compiling module(s)
+DRIVER_TOPDIR = ..
 
-M_OBJS       = event.o
+obj-m		:= event.o
 
-# 2.4.x Kernel Option
-obj-m        = $(M_OBJS)
-
-EXTRA_CFLAGS=-I../include -I$(KERNEL_LOCATION)/arch/ppc/8xx_io -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc -DEXPORT_SYMTAB
-
-here:
-	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-
-install:
-	cp -v $(M_OBJS) $(MODULE_DEST)
-
-clean:
-	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
-
-include $(KERNEL_LOCATION)/Rules.make
+include $(DRIVER_TOPDIR)/Rules.make
 
