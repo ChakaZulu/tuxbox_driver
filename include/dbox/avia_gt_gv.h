@@ -21,16 +21,19 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.2  2002/04/15 04:44:24  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.1  2001/11/01 18:19:09  Jolt
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
-#ifndef ENX_GV_H
-#define ENX_GV_H
+#ifndef AVIA_GT_GV_H
+#define AVIA_GT_GV_H
 
 extern void enx_gv_cursor_hide(void);
 extern void enx_gv_cursor_show(void);
