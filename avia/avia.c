@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia.c,v $
+ *   Revision 1.11  2001/02/03 14:48:16  gillem
+ *   - more audio fixes :-/
+ *
  *   Revision 1.10  2001/02/03 11:29:54  gillem
  *   - fix audio
  *
@@ -30,7 +33,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -408,8 +411,6 @@ int init_module(void)
     return 0;
   }
   
-  avia_audio_init();
-  
   wDR(0x468, 0xFFFF);           // NEW_AUDIO_CONFIG (br)
 
   tries=20;
@@ -424,6 +425,8 @@ int init_module(void)
 
   if (!tries)
     printk("new_audio_config timeout\n");
+
+  avia_audio_init();
 
   if (avia_wait(avia_command(SetStreamType, 0xB))==-1)             // BR
     return 0;
@@ -463,7 +466,7 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
   val |= (0<<9);        // input is I2S
   val |= (0<<8);        // output constan low (no clock)
   // ??? change tv-audio !
-  val |= (0<<3);        // 0: normal 1:I2S output
+  val |= (1<<3);        // 0: normal 1:I2S output
   // on/off
   val |= (1<<2);        // 0:off 1:on channels
   val |= (0<<1);        // 0:off 1:on IEC-958
@@ -477,7 +480,7 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
   val |= (0<<6);
   val |= (0<<4);
   val |= (0<<3);        // 0:high 1:low DA-LRCK polarity
-  val |= (0<<2);        // 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
+  val |= (1<<2);        // 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
   val |= (0<<1);        // 0:msb 1:lsb first
   wDR(0xE8, val);
 
@@ -491,7 +494,7 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
 
   wDR(0xEC, val);
 
-  val = 20;
+  val = 0;
 
   // AUDIO_ATTENUATION
   wDR(0xF4, val);
