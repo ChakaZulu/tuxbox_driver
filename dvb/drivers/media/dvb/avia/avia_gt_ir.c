@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.10  2002/05/11 20:23:22  Jolt
+ *   DMA IR mode added
+ *
  *   Revision 1.9  2002/05/11 15:28:00  Jolt
  *   IR improvements
  *
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -72,14 +75,18 @@
 #include <linux/init.h>
 
 #include <dbox/avia_gt.h>
+#include <dbox/avia_gt_ir.h>
 
 DECLARE_WAIT_QUEUE_HEAD(tx_wait);
 
 static sAviaGtInfo *gt_info;
 u32 duty_cycle = 33;
+u16 first_period_low;
+u16 first_period_high;
 u32 frequency = 38000;
-u32 rx_buf_offs;
-u32 tx_buf_offs;
+sAviaGtIrPulse *rx_buffer;
+sAviaGtIrPulse *tx_buffer;
+u8 tx_buffer_pulse_count = 0;
 u8 tx_unit_busy = 0;
 
 static void avia_gt_ir_tx_irq(unsigned short irq)
@@ -100,6 +107,70 @@ static void avia_gt_ir_rx_irq(unsigned short irq)
 
 }
 
+void avia_gt_ir_enable_rx_dma(unsigned char enable, unsigned char offset)
+{
+
+	if (avia_gt_chip(ENX)) {
+	
+    	enx_reg_s(IRRE)->Offset = offset;
+	    enx_reg_s(IRRE)->E = enable;
+		
+	} else if (avia_gt_chip(GTX)) {
+	
+	}
+
+}
+
+void avia_gt_ir_enable_tx_dma(unsigned char enable, unsigned char length)
+{
+
+	if (avia_gt_chip(ENX)) {
+	
+		enx_reg_16(IRTO) = 0;
+	
+		enx_reg_s(IRTE)->Offset = length - 1;
+		enx_reg_s(IRTE)->C = 0;
+		enx_reg_s(IRTE)->E = enable;
+		
+	} else if (avia_gt_chip(GTX)) {
+	
+	}
+
+}
+
+int avia_gt_ir_queue_pulse(unsigned short period_high, unsigned short period_low, u8 block)
+{
+
+	WAIT_IR_UNIT_READY(tx);
+	
+	if (tx_buffer_pulse_count >= AVIA_GT_IR_MAX_PULSE_COUNT)
+		return -EBUSY;
+		
+	if (tx_buffer_pulse_count == 0) {
+	
+		first_period_high = period_high;
+		first_period_low = period_low;
+	
+	} else {
+	
+		tx_buffer[tx_buffer_pulse_count - 1].MSPR = USEC_TO_CWP(period_high + period_low) - 1;
+
+		if (period_low != 0)
+			tx_buffer[tx_buffer_pulse_count - 1].MSPL = USEC_TO_CWP(period_low);
+		else
+			tx_buffer[tx_buffer_pulse_count - 1].MSPL = 0;
+
+        //tx_buffer[tx_buffer_pulse_count - 1].MSPL = period_low * frequency / 1000000;
+        //tx_buffer[tx_buffer_pulse_count - 1].MSPR = (((period_high + period_low) * frequency / 1000000) - 1) & 0x03FF;
+	
+	}
+	
+	tx_buffer_pulse_count++;
+	
+	return 0;
+	
+}
+
 void avia_gt_ir_reset(unsigned char reenable)
 {
 
@@ -116,6 +187,52 @@ void avia_gt_ir_reset(unsigned char reenable)
 			gtx_reg_s(RR0)->IR = 0;
 
 	}
+
+}
+
+int avia_gt_ir_send_buffer(u8 block)
+{
+
+	WAIT_IR_UNIT_READY(tx);
+
+	if (tx_buffer_pulse_count == 0)
+		return 0;
+	
+	if (tx_buffer_pulse_count >= 2)
+		avia_gt_ir_enable_tx_dma(1, tx_buffer_pulse_count);
+
+	avia_gt_ir_send_pulse(first_period_high, first_period_low, block);
+	
+	tx_buffer_pulse_count = 0;
+	
+	return 0;
+	
+}
+
+int avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low, u8 block)
+{
+
+	WAIT_IR_UNIT_READY(tx);
+
+	tx_unit_busy = 1;
+					
+	if (avia_gt_chip(ENX)) {
+	
+		if (period_low != 0)
+			enx_reg_16(MSPL) = USEC_TO_CWP(period_low) - 1;
+		else
+			enx_reg_16(MSPL) = USEC_TO_CWP(period_high) - 1;
+			
+		enx_reg_16(MSPR) = (1 << 10) | (USEC_TO_CWP(period_high + period_low) - 1);
+
+//        enx_reg_16(MSPL) = period_low * frequency / 1000000;
+//	      enx_reg_16(MSPR) = (1 << 10) | ((((period_high + period_low) * frequency / 1000000) - 1) & 0x03FF);
+
+	} else if (avia_gt_chip(GTX)) {
+	
+	}
+	
+	return 0;
 
 }
 
@@ -145,14 +262,6 @@ void avia_gt_ir_set_frequency(u32 new_frequency)
 
 }
 
-void avia_gt_ir_set_dma(unsigned char enable, unsigned char offset)
-{
-
-    enx_reg_s(IRRE)->Offset = offset;
-    enx_reg_s(IRRE)->E = enable;
-
-}
-
 void avia_gt_ir_set_filter(unsigned char enable, unsigned char polarity, unsigned char low, unsigned char high)
 {
 
@@ -174,46 +283,19 @@ void avia_gt_ir_set_tick_period(unsigned short tick_period)
 void avia_gt_ir_set_queue(unsigned int addr)
 {
 
-    enx_reg_s(IRQA)->Addr = addr >> 9;
-    enx_reg_s(IRRO)->Offset = 0 >> 1;
-    enx_reg_s(IRTO)->Offset = 0 >> 1;
-    
-    rx_buf_offs = 0;
-    tx_buf_offs = 256;
-
-}
-
-int avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low, u8 block)
-{
-
-	if (tx_unit_busy) {
-	
-		if (block) {
-		
-			if (wait_event_interruptible(tx_wait, !tx_unit_busy))
-                return -ERESTARTSYS;
-				
-		} else {
-		
-			return -EWOULDBLOCK;
-		
-		}
-		
-	}
-					
 	if (avia_gt_chip(ENX)) {
 	
-		enx_reg_16(MSPL) = period_low * frequency / 1000000;
-		enx_reg_16(MSPR) = (1 << 10) | ((((period_high + period_low) * frequency / 1000000) - 1) & 0x03FF);
-		
+	    enx_reg_s(IRQA)->Addr = addr >> 9;
+    	enx_reg_s(IRRO)->Offset = 0 >> 1;
+	    enx_reg_s(IRTO)->Offset = 0 >> 1;
+
 	} else if (avia_gt_chip(GTX)) {
 	
 	}
-	
-	tx_unit_busy = 1;
-	
-	return 0;
 
+	rx_buffer = (sAviaGtIrPulse *)(gt_info->mem_addr + addr);
+	tx_buffer = (sAviaGtIrPulse *)(gt_info->mem_addr + addr + 256);
+    
 }
 
 int __init avia_gt_ir_init(void)
@@ -222,7 +304,7 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq;
 	u16 tx_irq;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.9 2002/05/11 15:28:00 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.10 2002/05/11 20:23:22 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		
@@ -233,7 +315,7 @@ int __init avia_gt_ir_init(void)
 		return -EIO;
 							
 	}
-
+	
 	// REMOVE THIS IF GTX SUPPORT IS AVAILIBLE!!!!!!	
 	if (avia_gt_chip(GTX))
 		return 0;
@@ -277,7 +359,6 @@ int __init avia_gt_ir_init(void)
     avia_gt_ir_set_tick_period(7032);
     avia_gt_ir_set_filter(0, 0, 3, 5);
     avia_gt_ir_set_queue(AVIA_GT_MEM_IR_OFFS);
-    avia_gt_ir_set_dma(1, rx_buf_offs + 1);
 
 	avia_gt_ir_set_frequency(frequency);
 	
