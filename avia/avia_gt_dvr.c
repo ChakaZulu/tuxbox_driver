@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.4  2002/06/11 22:44:35  Jolt
+ *   DVR fix
+ *
  *   Revision 1.3  2002/06/11 22:37:18  Jolt
  *   DVR fixes
  *
@@ -273,6 +276,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 		int i;
 		u32 ptc=0;
 		unsigned char *buffer= (unsigned char *)buf;
+		DECLARE_WAITQUEUE(wait,current);
 		
 		if(start)
 		for(i=0;i<count-13;i++)
@@ -327,7 +331,6 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 		if(apointer >= aqsize) apointer=0;
 		
 #if 1		
-		DECLARE_WAITQUEUE(wait,current);
 		add_wait_queue(&aframe_wait,&wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		astate=1;
@@ -353,7 +356,7 @@ static int enx_iframe_init(void)
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
 				  &aiframe_fops,NULL);
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.3 2002/06/11 22:37:18 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.4 2002/06/11 22:44:35 Jolt Exp $\n");
 	
     gt_info = avia_gt_get_info();
 		
