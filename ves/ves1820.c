@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.16  2001/06/24 11:25:45  gillem
+    - sync with cvs
+
     Revision 1.15  2001/05/03 20:30:21  gillem
     - ...
 
@@ -43,7 +46,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.15 $
+    $Revision: 1.16 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -304,7 +307,7 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 }
 
 /* ---------------------------------------------------------------------- */
-
+/*
 typedef enum QAM_TYPE
 {	QAM_16,
 	QAM_32,
@@ -312,6 +315,7 @@ typedef enum QAM_TYPE
 	QAM_128,
 	QAM_256
 } QAM_TYPE, *PQAM_TYPE;
+*/
 
 typedef struct {
         QAM_TYPE        QAM_Mode;

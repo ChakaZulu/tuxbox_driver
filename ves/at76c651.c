@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.17 2001/05/03 22:16:20 fnbrd Exp $
+    $Id: at76c651.c,v 1.18 2001/06/24 11:25:53 gillem Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.18  2001/06/24 11:25:53  gillem
+    - sync with cvs
+
     Revision 1.17  2001/05/03 22:16:20  fnbrd
     Sync-Bits (lock) etwas umsortiert.
 
@@ -543,7 +546,7 @@ static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
 */
   	return 0;
 }
-
+/*
 typedef enum QAM_TYPE
 {	QAM_16,
 	QAM_32,
@@ -551,7 +554,7 @@ typedef enum QAM_TYPE
 	QAM_128,
 	QAM_256
 } QAM_TYPE, *PQAM_TYPE;
-
+*/
 static const char *qamstr[5]= {
 	"QAM 16",
 	"QAM 32",
@@ -809,7 +812,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.17 2001/05/03 22:16:20 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.18 2001/06/24 11:25:53 gillem Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
