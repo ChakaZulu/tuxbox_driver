@@ -1,0 +1,23 @@
+Extension drivers
+-----------------
+
+Exist for any functionality that seems important enough to be supported but lacks a
+proper interface in any currently used API.
+
+aviaEXT:
+	For the Avia MPEG decoder, is dependent on avia_av.o
+	simply do "insmod aviaEXT", there are no parameters.
+	
+	appears as "/dev/dbox/aviaEXT", only 2 ioctls are supported
+	
+	ioctl:
+		AVIA_EXT_IEC_SET (int)
+			1 = digital optical output (IEC) is enabled
+			0 = digital optical output (IEC) is disabled (clock turned off)
+			(this is an Avia600-only(!) feature)
+		
+		AVIA_EXT_IEC_GET (*int)
+			received value reflects the settings above (0= turned off, 1 = turned on)
+			(this is an Avia600-only(!) feature)
+
+	for testing there is a tool in "/apps/tuxbox/tools/misc" called - surprise - aviaext ;)

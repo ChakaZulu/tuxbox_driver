@@ -2,7 +2,7 @@
  * Extension device for non-API covered stuff for the Avia
  * (hopefully will disappear at some point)
  *
- * $Id: aviaEXT.c,v 1.2 2004/07/03 02:36:55 carjay Exp $
+ * $Id: aviaEXT.c,v 1.3 2004/07/03 22:46:12 carjay Exp $
  *
  * Copyright (C) 2004 Carsten Juttner <carjay@gmx.net>
  *
@@ -33,7 +33,7 @@
 
 static devfs_handle_t devfs_h;
 
-int aviaEXT_ioctl(struct inode *inode, struct file *file, 
+static int aviaEXT_ioctl(struct inode *inode, struct file *file, 
 						unsigned int cmd, unsigned long arg)
 {
 	switch (cmd){
