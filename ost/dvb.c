@@ -17,13 +17,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.76 2002/09/01 21:13:54 obi Exp $
+ * $Id: dvb.c,v 1.77 2002/09/02 04:17:10 Ghostrider Exp $
  */
 
 #include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
-#include <linux/poll.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -32,7 +31,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-
+#include <linux/poll.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -1359,6 +1358,10 @@ unsigned int dvb_poll (struct dvb_device * dvbdev, int type, struct file * file,
 		case DVB_DEVICE_DEMUX:
 		{
 			return DmxDevPoll(&dvb->dmxdev, file, wait);
+		}
+		case DVB_DEVICE_DVR:
+		{
+			return DmxDevDVRPoll(&dvb->dmxdev, file, wait);
 		}
 		default:
 		{
