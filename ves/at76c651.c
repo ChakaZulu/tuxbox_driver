@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.12 2001/04/24 20:36:16 fnbrd Exp $
+    $Id: at76c651.c,v 1.13 2001/04/28 21:45:00 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,6 +33,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.13  2001/04/28 21:45:00  fnbrd
+    Kosmetik.
+
     Revision 1.12  2001/04/24 20:36:16  fnbrd
     Kleinere Aenderungen.
 
@@ -733,8 +736,6 @@ static int attach_adapter(struct i2c_adapter *adap)
 	ves_tasklet.data = (void*)client->data;
 #endif // DONT_USE_IRQ
 
-	if (register_demod(&at76c651))
- 		printk("at76c651.o: can't register demod.\n");
 #ifndef DONT_USE_IRQ
 	if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "at76c651", NULL) != 0)
 	{
@@ -854,7 +855,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.12 2001/04/24 20:36:16 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.13 2001/04/28 21:45:00 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
@@ -869,6 +870,8 @@ int init_module(void) {
 	tuner_init();
 	tuner_initialized=1;
 	ves_init();
+	if (register_demod(&at76c651))
+ 		printk("at76c651.o: can't register demod.\n");
 	return 0;
 }
 
