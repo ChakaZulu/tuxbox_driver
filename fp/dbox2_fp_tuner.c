@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_tuner.c,v 1.2 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_tuner.c,v 1.3 2003/03/04 23:05:30 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -38,28 +38,31 @@ dbox2_fp_tuner_init (void)
 
 
 int
-dbox2_fp_tuner_write (u8 *buf, u8 len)
+dbox2_fp_tuner_write_qam (u8 *buf, u8 len)
 {
 	u8 msg [len + 3];
 
-	switch (tuxbox_frontend) {
-	case TUXBOX_FRONTEND_CABLE:
-		msg[0] = 0x00;
-		msg[1] = 0x07;
-		msg[2] = 0xc0;
-		memcpy(msg + 3, buf, len);
-		len += 3;
-		break;
+	msg[0] = 0x00;
+	msg[1] = 0x07;
+	msg[2] = 0xc0;
+	memcpy(msg + 3, buf, len);
+	len += 3;
 
-	case TUXBOX_FRONTEND_SATELLITE:
-		msg[0] = 0x00;
-		msg[1] = 0x05;
-		memcpy(msg + 2, buf, len);
-		len += 2;
-		break;
-	default:
+	if (i2c_master_send(fp_i2c_client, msg, len) != len)
 		return -1;
-	}
+
+	return 0;
+}
+
+int
+dbox2_fp_tuner_write_qpsk (u8 *buf, u8 len)
+{
+	u8 msg [len + 2];
+
+	msg[0] = 0x00;
+	msg[1] = 0x05;
+	memcpy(msg + 2, buf, len);
+	len += 2;
 
 	if (i2c_master_send(fp_i2c_client, msg, len) != len)
 		return -1;
@@ -68,5 +71,6 @@ dbox2_fp_tuner_write (u8 *buf, u8 len)
 }
 
 #ifdef MODULE
-EXPORT_SYMBOL(dbox2_fp_tuner_write);
+EXPORT_SYMBOL(dbox2_fp_tuner_write_qam);
+EXPORT_SYMBOL(dbox2_fp_tuner_write_qpsk);
 #endif

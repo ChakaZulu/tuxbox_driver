@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_tuner.h,v 1.1 2002/10/21 11:38:59 obi Exp $
+ * $Id: dbox2_fp_tuner.h,v 1.2 2003/03/04 23:05:30 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -26,7 +26,8 @@
 #include <linux/types.h>
 
 void dbox2_fp_tuner_init (void);
-int dbox2_fp_tuner_write (u8 *buf, u8 len);
+int dbox2_fp_tuner_write_qam (u8 *buf, u8 len);
+int dbox2_fp_tuner_write_qpsk (u8 *buf, u8 len);
 
 #endif /* __dbox2_fp_tuner_h__ */
 #endif /* __KERNEL__ */

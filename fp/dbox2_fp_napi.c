@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.6 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.7 2003/03/04 23:05:30 waldi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -29,11 +29,29 @@
 #include <dbox/dbox2_fp_tuner.h>
 #include <dvb-core/dvb_frontend.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
-
 static int
 dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 {
+	static int demod;
+
+	if (!demod)
+	{
+		struct dvb_frontend_info info;
+		frontend->ioctl (frontend, FE_GET_INFO, &info);
+		if (!strncmp (info.name, "VES1820", 7))
+			demod = 1;
+		else if (!strncmp (info.name, "VES1893", 7))
+			demod = 2;
+		else if (!strncmp (info.name, "VES1993", 7))
+			demod = 3;
+		else
+			demod = -1;
+		printk (KERN_ERR "dbox2_fp_napi_before_ioctl: find frontend: %d\n", demod);
+	}
+
+	if (demod == -1)
+		return -EOPNOTSUPP;
+
 	switch (cmd) {
 	case FE_DISEQC_SEND_MASTER_CMD:
 	{
@@ -86,13 +104,12 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		break;
 
 	case FE_SET_FRONTEND:
-		if (tuxbox_dbox2_demod != TUXBOX_DBOX2_DEMOD_VES1993) {
+	{
+		u32 div;
+		u8 buf[4];
 
-			u32 div;
-			u8 buf[4];
-
-			switch (tuxbox_dbox2_demod) {
-			case TUXBOX_DBOX2_DEMOD_VES1820:
+		switch (demod) {
+			case 1: /* VES1820 */
 			{
 				/*
 				 * mitel sp5659
@@ -104,10 +121,13 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				buf[1] = div & 0xff;
 				buf[2] = 0x80 | (((div >> 15) & 0x03) << 6) | 0x04;
 				buf[3] = div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01;
+
+				if (dbox2_fp_tuner_write_qam(buf, sizeof(buf)))
+					return 0;
 				break;
 			}
 
-			case TUXBOX_DBOX2_DEMOD_VES1893:
+			case 2:	/* VES1893 */
 			{
 				/*
 				 * mitel sp5668
@@ -148,15 +168,14 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				buf[2] = (div >> 8) & 0xff;
 				/* div[7:0] */
 				buf[3] = div & 0xff;
+
+				if (dbox2_fp_tuner_write_qpsk(buf, sizeof(buf)))
+					return 0;
 				break;
 			}
 
 			default:
 				break;
-			}
-
-			if (dbox2_fp_tuner_write(buf, sizeof(buf)))
-				return 0;
 		}
 
 		/*
@@ -166,6 +185,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		 * the demodulator driver after tuning.
 		 */
 		return -EOPNOTSUPP;
+	}
 
 	case FE_SLEEP:
 		dbox2_fp_sec_set_power(0);
@@ -186,29 +206,13 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 int __init
 dbox2_fp_napi_init(void)
 {
-	switch (tuxbox_dbox2_demod) {
-	case TUXBOX_DBOX2_DEMOD_VES1820:
-	case TUXBOX_DBOX2_DEMOD_VES1893:
-	case TUXBOX_DBOX2_DEMOD_VES1993:
-		return dvb_add_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL, NULL);
-	default:
-		return 0;
-	}
+	return dvb_add_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL, NULL);
 }
-
 
 void __exit
 dbox2_fp_napi_exit(void)
 {
-	switch (tuxbox_dbox2_demod) {
-	case TUXBOX_DBOX2_DEMOD_VES1820:
-	case TUXBOX_DBOX2_DEMOD_VES1893:
-	case TUXBOX_DBOX2_DEMOD_VES1993:
-		dvb_remove_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL);
-		break;
-	default:
-		break;
-	}
+	dvb_remove_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL);
 }
 
 
