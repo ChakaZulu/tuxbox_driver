@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.80 2003/11/21 19:36:19 obi Exp $
+ * $Id: avia_av_core.c,v 1.81 2003/11/21 20:06:16 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -304,7 +304,7 @@ int avia_av_wait(u32 reg, u32 val, u32 ms)
 	while ((avia_av_dram_read(reg) != val) && (--tries)) {
 		printk(KERN_DEBUG "avia_av: reg %08x != %08x (%d tries left)\n", reg, val, tries);
 		if (in_interrupt()) {
-			udelay(ms);
+			mdelay(ms);
 		}
 		else {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -1391,7 +1391,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.80 2003/11/21 19:36:19 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.81 2003/11/21 20:06:16 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
