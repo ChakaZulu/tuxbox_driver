@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.63 2003/06/19 20:10:17 obi Exp $
+ * $Id: avia_av_core.c,v 1.64 2003/06/25 11:13:23 alexw Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1109,7 +1109,6 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 				return -EINVAL;
 
 		dprintk("avia_av: stopping audio decoder\n");
-		avia_av_cmd(SelectStream, 0x03 - bypass_mode, 0xFFFF);
 
 		if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
 		{
@@ -1122,6 +1121,10 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 			{
 				avia_av_cmd(NewChannel,0x00,0xFFFF,0xFFFF);
 			}
+		}
+		else
+		{
+			avia_av_cmd(SelectStream, 0x03 - bypass_mode, 0xFFFF);
 		}
 		break;
 
@@ -1160,7 +1163,6 @@ int avia_av_play_state_set_video(const u8 new_play_state)
 				return -EINVAL;
 
 		dprintk("avia_av: stopping video decoder\n");
-		avia_av_cmd(SelectStream, 0x00, 0xFFFF);
 
 		if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
 		{
@@ -1173,6 +1175,10 @@ int avia_av_play_state_set_video(const u8 new_play_state)
 			{
 				avia_av_cmd(NewChannel,0x00,0xFFFF,0xFFFF);
 			}
+		}
+		else
+		{
+			avia_av_cmd(SelectStream, 0x00, 0xFFFF);
 		}
 		break;
 
@@ -1336,7 +1342,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.63 2003/06/19 20:10:17 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.64 2003/06/25 11:13:23 alexw Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
