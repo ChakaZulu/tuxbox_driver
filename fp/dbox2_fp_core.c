@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.48  2002/01/19 08:20:02  Hunz
+ *   F(i)n(al) fix?
+ *
  *   Revision 1.47  2002/01/19 07:58:21  Hunz
  *   SHOULD work...
  *
@@ -155,7 +158,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.47 $
+ *   $Revision: 1.48 $
  *
  */
 
@@ -347,8 +350,10 @@ unsigned char fn_keymap[128] = {
   0,   0,   0,   0,   0,   0,   0,   0
 };
 
+unsigned char fn_flags[128];
+
 unsigned char irkbd_flags=0;
-int fn_scan=0;
+
 #define IRKBD_FN 1
 #define IRKBD_MOUSER 2
 #define IRKBD_MOUSEL 4
@@ -888,20 +893,22 @@ int irkbd_getkeycode(unsigned int scancode) {
 
 int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
   /* i wonder wether that's enough... */
-  if((scancode&0x7f)==0x49) /* Fn toggled */
+  if((scancode&0x7f)==0x49) {/* Fn toggled */
+    *keycode=0;
     return 0;
-
+  }
+  
   if(irkbd_flags&IRKBD_FN) {
     *keycode=fn_keymap[scancode&0x7f];
     if(scancode&0x80)                   /* Fn pressed, other key released */
-      fn_scan=0;
+      fn_flags[scancode&0x7f]=0;
     else                                /* Fn + other key pressed */
-      fn_scan=scancode&0x7f;
+      fn_flags[scancode&0x7f]=1;
   }
   /* Fn released while other key still pressed - we release it */
-  else if((!(irkbd_flags&IRKBD_FN)) && (fn_scan==(scancode&0x7f)) && (fn_scan!=0)) {
-     *keycode=fn_keymap[scancode&0x7f];
-     fn_scan=0;
+  else if((!(irkbd_flags&IRKBD_FN)) && (fn_flags[scancode&0x7f])) {
+    *keycode=fn_keymap[scancode&0x7f];
+    fn_flags[scancode&0x7f]=0;
   }
   /* no Fn and other key pressed/released */
   else
@@ -1018,6 +1025,7 @@ static int fp_init(void)
 	ppc_md.halt=fp_halt;
 
 	/* keyboard */
+	memset(fn_flags,0,sizeof(fn_flags));
 	ppc_md.kbd_setkeycode    = irkbd_setkeycode;
         ppc_md.kbd_getkeycode    = irkbd_getkeycode;
         ppc_md.kbd_translate     = irkbd_translate;
