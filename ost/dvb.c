@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.83 2002/10/03 12:47:58 Jolt Exp $
+ * $Id: dvb.c,v 1.84 2002/10/05 19:34:31 obi Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -1488,8 +1488,8 @@ dvb_register(struct dvb_struct *dvb)
 
 	dvb->dvb_devs=&dbox2_devs;
 
-	dvb->audio_pid=0xFFFF;
-	dvb->video_pid=0xFFFF;
+	dvb->audio_pid=0x0000;
+	dvb->video_pid=0x0000;
 #ifdef AVIA_SPTS
 	dvb->audio_stream_type=STREAM_TYPE_SPTS_ES;
 	dvb->video_stream_type=STREAM_TYPE_SPTS_ES;
