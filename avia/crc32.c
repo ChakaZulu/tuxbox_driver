@@ -57,3 +57,19 @@ u_long crc32 (char *data, int len)
 
 	return crc;
 }
+
+u32 crc32_seed (char *data, u32 len, u32 seed)
+{
+	register int i = 0;
+	u32 crc;
+	
+	if (seed)
+		crc = seed;
+	else
+		crc = 0xffffffff;
+
+	for (i=0; i<len; i++)
+		crc = (crc << 8) ^ crc_table[((crc >> 24) ^ *data++) & 0xff];
+
+	return crc;
+}
