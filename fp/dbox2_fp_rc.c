@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.7 2002/12/26 21:25:28 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.8 2002/12/27 17:32:44 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -29,19 +29,23 @@
 #include <linux/input.h>
 
 #include <dbox/dbox2_fp_core.h>
-#include <dbox/fp.h>
 
-#define RCBUFFERSIZE		16
 #define UP_TIMEOUT (HZ/2)
 
+#define OLD_INTERFACE
+
+#ifdef OLD_INTERFACE
+#include <dbox/fp.h>
+#define RCBUFFERSIZE		16
 static devfs_handle_t devfs_handle;
 static u16 rcbuffer[RCBUFFERSIZE];
 static u16 rcbeg = 0, rcend = 0;
 static wait_queue_head_t rcwait;
 static DECLARE_MUTEX_LOCKED(rc_opened);
-static struct input_dev input_dev;
-static old_rc = 1;
-static new_rc = 1;
+#endif
+static struct input_dev *rc_input_dev;
+static int old_rc = 1;
+static int new_rc = 1;
 
 //#define dprintk printk
 #define dprintk if (0) printk
@@ -94,10 +98,10 @@ static struct {
 static void dbox2_fp_rc_keyup(unsigned long data)
 {
 
-	if ((!data) || (!test_bit(data, input_dev.key)))
+	if ((!data) || (!test_bit(data, rc_input_dev->key)))
 		return;
 
-	input_event(&input_dev, EV_KEY, data, !!0);
+	input_event(rc_input_dev, EV_KEY, data, !!0);
 
 }
 
@@ -117,20 +121,18 @@ static void dbox2_fp_add_event(int code)
 	
 		if (rc_key_map[rc_key_nr].value_new == (code & 0x1f)) {
 
-			dprintk("input=%d ", rc_key_map[rc_key_nr].code);
-
 			if (timer_pending(&keyup_timer)) {
 	
 				del_timer(&keyup_timer);
 	
 				if (keyup_timer.data != rc_key_map[rc_key_nr].code)
-					input_event(&input_dev, EV_KEY, keyup_timer.data, !!0);
+					input_event(rc_input_dev, EV_KEY, keyup_timer.data, !!0);
 					
 			}
 																		
-			clear_bit(rc_key_map[rc_key_nr].code, input_dev.key);
+			clear_bit(rc_key_map[rc_key_nr].code, rc_input_dev->key);
 																				
-			input_event(&input_dev, EV_KEY, rc_key_map[rc_key_nr].code, !0);
+			input_event(rc_input_dev, EV_KEY, rc_key_map[rc_key_nr].code, !0);
 
 			keyup_timer.expires = jiffies + UP_TIMEOUT;
 			keyup_timer.data = rc_key_map[rc_key_nr].code;
@@ -142,6 +144,8 @@ static void dbox2_fp_add_event(int code)
 	}
 
 	dprintk("\n");
+
+#ifdef OLD_INTERFACE
 
 /* OLD STUFF */
 
@@ -158,8 +162,10 @@ static void dbox2_fp_add_event(int code)
 		printk("fp.o: RC overflow.\n");
 	else
 		wake_up(&rcwait);
+#endif		
 }
 
+#ifdef OLD_INTERFACE
 static ssize_t rc_read (struct file *file, char *buf, size_t count, loff_t *offset)
 {
 	int i;
@@ -229,45 +235,39 @@ static unsigned int rc_poll (struct file *file, poll_table *wait)
 	
 	return 0;
 }
+#endif
 
-static void fp_handle_frontpanel_button(void)
-{
-	u8 rc;
-
-	fp_cmd(fp_get_i2c(), 0x25, (u8*)&rc, sizeof(rc));
-	dbox2_fp_add_event(0xFF00 | rc);
-}
-
-static void fp_handle_ir_rc(void)
+void dbox2_fp_rc_queue_handler(u8 queue_nr)
 {
 	u16 rc;
 
+	dprintk("event on queue %d\n", queue_nr);
+
+	if ((queue_nr != 0) && (queue_nr != 3))
+		return;
+
 	switch (fp_get_info()->mID) {
-	case DBOX_MID_NOKIA:
-		fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc, sizeof(rc));
-		break;
-	case DBOX_MID_PHILIPS:
-	case DBOX_MID_SAGEM:
-		fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc, sizeof(rc));
-		break;
+	
+		case DBOX_MID_NOKIA:
+		
+			fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc, sizeof(rc));
+			
+			break;
+			
+		case DBOX_MID_PHILIPS:
+		case DBOX_MID_SAGEM:
+	
+			fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc, sizeof(rc));
+			
+			break;
+			
 	}
 
 	dbox2_fp_add_event(rc);
-}
-
-void queue_handler(u8 queue_nr)
-{
-
-	dprintk("event on queue %d\n", queue_nr);
-
-	if ((queue_nr == 0) || (queue_nr == 3))
-		fp_handle_ir_rc();
-
-	if (queue_nr == 4)
-		fp_handle_frontpanel_button();
 
 }
 
+#ifdef OLD_INTERFACE
 static struct file_operations rc_fops =
 {
 	owner:			THIS_MODULE,
@@ -289,37 +289,34 @@ static struct file_operations rc_fops =
 	sendpage:		NULL,
 	get_unmapped_area:	NULL
 };
+#endif
 
-int __init dbox2_fp_rc_init(void)
+int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 {
 
 	int rc_key_nr;
+	
+	rc_input_dev = input_dev;
 		
-	input_dev.name = "DBOX-2 FP IR remote control";
+	set_bit(EV_KEY, rc_input_dev->evbit);
 
-	set_bit(EV_KEY, input_dev.evbit);
-
-	memset(input_dev.keybit, 0, sizeof(input_dev.keybit));
-				
 	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++)
-		set_bit(rc_key_map[rc_key_nr].code, input_dev.keybit);
-
-	input_register_device(&input_dev);
+		set_bit(rc_key_map[rc_key_nr].code, rc_input_dev->keybit);
 
 	if (old_rc)
-		dbox2_fp_queue_alloc(0, queue_handler);
+		dbox2_fp_queue_alloc(0, dbox2_fp_rc_queue_handler);
 
 	if (new_rc)
-		dbox2_fp_queue_alloc(3, queue_handler);
+		dbox2_fp_queue_alloc(3, dbox2_fp_rc_queue_handler);
 		
-	dbox2_fp_queue_alloc(4, queue_handler);
-
+#ifdef OLD_INTERFACE
 	devfs_handle = devfs_register(NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
 			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 			&rc_fops, NULL);
 
 	init_waitqueue_head(&rcwait);
 	up(&rc_opened);  
+#endif
 
 	// Enable break codes	
 	//fp_sendcmd(fp_get_i2c(), 0x01, 0x80);
@@ -338,21 +335,13 @@ void __exit dbox2_fp_rc_exit(void)
 	if (new_rc)
 		dbox2_fp_queue_free(3);
 
-	dbox2_fp_queue_free(4);
-
-	input_unregister_device(&input_dev);
+#ifdef OLD_INTERFACE
 	devfs_unregister(devfs_handle);
+#endif
 
 }
 
 #ifdef MODULE
-module_init(dbox2_fp_rc_init);
-module_exit(dbox2_fp_rc_exit);
 MODULE_PARM(old_rc, "i");
 MODULE_PARM(new_rc, "i");
-MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("dbox2 remote control driver");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
 #endif

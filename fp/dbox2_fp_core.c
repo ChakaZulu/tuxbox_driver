@@ -51,7 +51,6 @@
 #endif
 
 #include <dbox/dbox2_fp_core.h>
-#include <dbox/dbox2_fp_irkbd.h>
 #include <dbox/dbox2_fp_reset.h>
 #include <dbox/dbox2_fp_sec.h>
 #include <dbox/dbox2_fp_timer.h>
@@ -542,6 +541,7 @@ fp_check_queues (void)
  */
 
 	do {
+
 		fp_cmd(defdata->client, 0x20, &status, 1);
 
 		dprintk("status: %02x\n", status);
@@ -552,23 +552,6 @@ fp_check_queues (void)
 				queue_list[queue_nr].queue_proc(queue_nr);
 
 		}
-
-		if (status & 0x02)
-			dbox2_fp_handle_ir_keyboard(defdata);
-
-		if (status & 0x04)
-			dbox2_fp_handle_ir_mouse(defdata);
-
-#if 0
-		if (status & 0x20)
-			fp_handle_unknown(defdata);
-
-		if (status & 0x40)
-			fp_handle_unknown(defdata);
-
-		if (status & 0x80)
-			fp_handle_unknown(defdata);
-#endif
 
 	} while (status & 0x1F);
 
@@ -637,22 +620,10 @@ __init fp_init (void)
 		return -EIO;
 	}
 
-	ppc_md.restart			= dbox2_fp_restart;
-	ppc_md.power_off		= dbox2_fp_power_off;
-	ppc_md.halt			= dbox2_fp_power_off;
+	ppc_md.restart = dbox2_fp_restart;
+	ppc_md.power_off = dbox2_fp_power_off;
+	ppc_md.halt = dbox2_fp_power_off;
 
-	/* keyboard */
-	ppc_md.kbd_setkeycode		= dbox2_fp_irkbd_setkeycode;
-	ppc_md.kbd_getkeycode		= dbox2_fp_irkbd_getkeycode;
-	ppc_md.kbd_translate		= dbox2_fp_irkbd_translate;
-	ppc_md.kbd_unexpected_up	= dbox2_fp_irkbd_unexpected_up;
-	ppc_md.kbd_leds			= dbox2_fp_irkbd_leds;
-	ppc_md.kbd_init_hw		= dbox2_fp_irkbd_init_hw;
-#ifdef CONFIG_MAGIC_SYSRQ
-	ppc_md.kbd_sysrq_xlate		= keymap;
-#endif
-
-	dbox2_fp_irkbd_init();
 	dbox2_fp_reset_init();
 	dbox2_fp_sec_init();
 	dbox2_fp_timer_init();
@@ -681,29 +652,6 @@ __exit fp_exit (void)
 	if (ppc_md.halt == dbox2_fp_power_off)
 		ppc_md.halt = NULL;
 
-	if (ppc_md.kbd_setkeycode == dbox2_fp_irkbd_setkeycode)
-		ppc_md.kbd_setkeycode = NULL;
-
-	if (ppc_md.kbd_getkeycode == dbox2_fp_irkbd_getkeycode)
-		ppc_md.kbd_getkeycode = NULL;
-
-	if (ppc_md.kbd_translate == dbox2_fp_irkbd_translate)
-		ppc_md.kbd_translate = NULL;
-
-	if (ppc_md.kbd_unexpected_up == dbox2_fp_irkbd_unexpected_up)
-		ppc_md.kbd_unexpected_up = NULL;
-
-	if (ppc_md.kbd_leds == dbox2_fp_irkbd_leds)
-		ppc_md.kbd_leds = NULL;
-
-	if (ppc_md.kbd_init_hw == dbox2_fp_irkbd_init_hw)
-		ppc_md.kbd_init_hw = NULL;
-
-#ifdef CONFIG_MAGIC_SYSRQ
-	if (ppc_md.kbd_sysrq_xlate == dbox2_fp_irkbd_sysrq_xlate)
-		ppc_md.kbd_sysrq_xlate = NULL;
-#endif
-	dbox2_fp_irkbd_exit();
 	/*
 	dbox2_fp_reset_exit();
 	dbox2_fp_sec_exit();
