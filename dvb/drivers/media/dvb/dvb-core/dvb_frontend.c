@@ -154,6 +154,7 @@ void dvb_bend_frequency (struct dvb_frontend_data *this_fe, int recursive)
 	if (!recursive) {
 		if (down_interruptible (&frontend_mutex))
 			return;
+
 		this_fe->bending = 0;
 	}
 
@@ -468,8 +469,9 @@ int dvb_frontend_thread (void *data)
 			fe->lost_sync_count = 0;
 		} else {
 			fe->lost_sync_count++;
-			if (fe->lost_sync_count < 4)  /* XXX FIXME CHECKME! */
-				continue;
+			if (!(fe->info->caps & FE_CAN_CLEAN_SETUP))
+				if (fe->lost_sync_count < 10)
+					continue;
 			dvb_frontend_recover (fe);
 			delay = HZ/5;
 			if (jiffies - fe->lost_sync_jiffies > TIMEOUT) {
@@ -495,10 +497,9 @@ void dvb_frontend_stop (struct dvb_frontend_data *fe)
 {
 	dprintk ("%s\n", __FUNCTION__);
 
-	fe->exit = 1;
-	wake_up_interruptible (&fe->wait_queue);
-
 	while (fe->thread) {
+		fe->exit = 1;
+		wake_up_interruptible (&fe->wait_queue);
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout (5);
 	};
@@ -686,8 +687,7 @@ dvb_remove_frontend_ioctls (struct dvb_adapter *adapter,
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (down_interruptible (&frontend_mutex))
-		return;
+	down (&frontend_mutex);
 
 	list_for_each (entry, &frontend_list) {
 		struct dvb_frontend_data *fe;
@@ -779,8 +779,7 @@ dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (down_interruptible (&frontend_mutex))
-		return;
+	down (&frontend_mutex);
 
 	list_for_each (entry, &frontend_list) {
 		struct dvb_frontend_data *fe;
@@ -917,8 +916,7 @@ int dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (down_interruptible (&frontend_mutex))
-		return -ERESTARTSYS;
+	down (&frontend_mutex);
 
 	list_for_each_safe (entry, n, &frontend_list) {
 		struct dvb_frontend_data *fe;
@@ -927,10 +925,8 @@ int dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 
 		if (fe->frontend.ioctl == ioctl && fe->frontend.i2c == i2c) {
 			dvb_unregister_device (fe->dvbdev);
-
 			list_del (entry);
 			up (&frontend_mutex);
-
 			dvb_frontend_stop (fe);
 			kfree (fe);
 			return 0;

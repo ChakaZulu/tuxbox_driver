@@ -82,5 +82,20 @@ extern u32 crc32_le (u32 crc, unsigned char const *p, size_t len);
 #include <linux/crc32.h>
 #endif
 
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,48))
+static inline 
+int try_module_get(struct module *mod)
+{
+	if (!MOD_CAN_QUERY(mod))
+		return 0;
+	__MOD_INC_USE_COUNT(mod);
+	return 1;
+}
+
+#define module_put(mod) __MOD_DEC_USE_COUNT(mod)
+#endif
+
+
 #endif
 

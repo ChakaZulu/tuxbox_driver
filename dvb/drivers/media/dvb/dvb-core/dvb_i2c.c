@@ -64,17 +64,15 @@ static
 void try_attach_device (struct dvb_i2c_bus *i2c, struct dvb_i2c_device *dev)
 {
 	if (dev->owner) {
-		if (!MOD_CAN_QUERY(dev->owner))
+		if (!try_module_get(dev->owner))
 			return;
-
-		__MOD_INC_USE_COUNT(dev->owner);
 	}
 
 	if (dev->attach (i2c) == 0) {
 		register_i2c_client (i2c, dev);
 	} else {
 		if (dev->owner)
-			__MOD_DEC_USE_COUNT(dev->owner);
+			module_put (dev->owner);
 	}
 }
 
@@ -85,7 +83,7 @@ void detach_device (struct dvb_i2c_bus *i2c, struct dvb_i2c_device *dev)
 	dev->detach (i2c);
 
 	if (dev->owner)
-		__MOD_DEC_USE_COUNT(dev->owner);
+		module_put (dev->owner);
 }
 
 
@@ -93,15 +91,17 @@ static
 void unregister_i2c_client_from_bus (struct dvb_i2c_device *dev,
 				     struct dvb_i2c_bus *i2c)
 {
-	struct list_head *entry;
+	struct list_head *entry, *n;
 
-	list_for_each (entry, &i2c->client_list) {
+	list_for_each_safe (entry, n, &i2c->client_list) {
                 struct dvb_i2c_device *client;
 
 		client = list_entry (entry, struct dvb_i2c_device, list_head);
 
-		if (client->detach == dev->detach)
+		if (client->detach == dev->detach) {
+			list_del (entry);
 			detach_device (i2c, dev);
+		}
 	}
 }
 
@@ -109,9 +109,9 @@ void unregister_i2c_client_from_bus (struct dvb_i2c_device *dev,
 static
 void unregister_i2c_client_from_all_busses (struct dvb_i2c_device *dev)
 {
-	struct list_head *entry;
+	struct list_head *entry, *n;
 
-	list_for_each (entry, &dvb_i2c_buslist) {
+	list_for_each_safe (entry, n, &dvb_i2c_buslist) {
                 struct dvb_i2c_bus *i2c;
 
 		i2c = list_entry (entry, struct dvb_i2c_bus, list_head);
@@ -127,16 +127,13 @@ void unregister_all_clients_from_bus (struct dvb_i2c_bus *i2c)
 	struct list_head *entry, *n;
 
 	list_for_each_safe (entry, n, &(i2c->client_list)) {
-		struct dvb_i2c_device *client;
+		struct dvb_i2c_device *dev;
 
-		client = list_entry (entry, struct dvb_i2c_device, list_head);
+		dev = list_entry (entry, struct dvb_i2c_device, list_head);
 
-		detach_device (i2c, client);
-
-		list_del (entry);
+		unregister_i2c_client_from_bus (dev, i2c);
 	}
 }
-
 
 
 static
@@ -169,14 +166,37 @@ void probe_devices_on_bus (struct dvb_i2c_bus *i2c)
 }
 
 
+static
+struct dvb_i2c_bus* dvb_find_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
+		                                   const struct i2c_msg msgs[],
+						   int num),
+				      struct dvb_adapter *adapter,
+				      int id)
+{
+	struct list_head *entry;
+
+	list_for_each (entry, &dvb_i2c_buslist) {
+		struct dvb_i2c_bus *i2c;
+
+		i2c = list_entry (entry, struct dvb_i2c_bus, list_head);
+
+		if (i2c->xfer == xfer && i2c->adapter == adapter && i2c->id == id)
+			return i2c;
+	}
+
+	return NULL;
+}
+
+
 struct dvb_i2c_bus*
 dvb_register_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
-				   struct i2c_msg msgs[], int num),
-		      void *data,
-		      struct dvb_adapter *adapter,
-		      int id)
+				   const struct i2c_msg *msgs, int num),
+		      void *data, struct dvb_adapter *adapter, int id)
 {
 	struct dvb_i2c_bus *i2c;
+
+	if (down_interruptible (&dvb_i2c_mutex))
+		return NULL;
 
 	if (!(i2c = kmalloc (sizeof (struct dvb_i2c_bus), GFP_KERNEL)))
 		return NULL;
@@ -193,54 +213,27 @@ dvb_register_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
 
 	list_add_tail (&i2c->list_head, &dvb_i2c_buslist);
 
+	up (&dvb_i2c_mutex);
+
 	return i2c;
 }
 
 
-struct dvb_i2c_bus*
-dvb_find_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
-                                   struct i2c_msg msgs[], int num),
-                  struct dvb_adapter *adapter,
-		  int id)
-{
-	struct list_head *entry;
-
-	if (down_interruptible (&dvb_i2c_mutex))
-		return NULL;
-
-	list_for_each (entry, &dvb_i2c_buslist) {
-		struct dvb_i2c_bus *i2c;
-
-		i2c = list_entry (entry, struct dvb_i2c_bus, list_head);
-
-		if (i2c->xfer == xfer &&
-		    i2c->adapter == adapter &&
-		    i2c->id == id)
-		{
-			up (&dvb_i2c_mutex);
-			return i2c;
-		}
-	}
-
-	up (&dvb_i2c_mutex);
-
-	return NULL;
-}
-
-
-
 void dvb_unregister_i2c_bus (int (*xfer) (struct dvb_i2c_bus *i2c,
-					  struct i2c_msg msgs[], int num),
-			     struct dvb_adapter *adapter,
-			     int id)
+					  const struct i2c_msg msgs[], int num),
+			     struct dvb_adapter *adapter, int id)
 {
-	struct dvb_i2c_bus *i2c = dvb_find_i2c_bus (xfer, adapter, id);
+	struct dvb_i2c_bus *i2c;
 
-	if (i2c) {
+	down (&dvb_i2c_mutex);
+
+	if ((i2c = dvb_find_i2c_bus (xfer, adapter, id))) {
 		unregister_all_clients_from_bus (i2c);
 		list_del (&i2c->list_head);
 		kfree (i2c);
 	}
+
+	up (&dvb_i2c_mutex);
 }
 
 
@@ -276,8 +269,7 @@ int dvb_unregister_i2c_device (int (*attach) (struct dvb_i2c_bus *i2c))
 {
 	struct list_head *entry, *n;
 
-	if (down_interruptible (&dvb_i2c_mutex))
-		return -ERESTARTSYS;
+	down (&dvb_i2c_mutex);
 
 	list_for_each_safe (entry, n, &dvb_i2c_devicelist) {
 		struct dvb_i2c_device *dev;

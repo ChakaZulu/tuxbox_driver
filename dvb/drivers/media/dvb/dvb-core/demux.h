@@ -146,7 +146,7 @@ struct dmx_section_feed_s {
         void* priv; /* Pointer to private data of the API client */ 
 
         int check_crc;
-		u32 crc_val;
+	u32 crc_val;
 
         u8 secbuf[4096];
         int secbufp;

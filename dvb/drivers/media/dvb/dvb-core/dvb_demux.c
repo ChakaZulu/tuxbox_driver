@@ -31,7 +31,6 @@
 #include "dvb_demux.h"
 
 #define NOBUFS  
-#define DVB_CRC_SEED (~0)
 
 LIST_HEAD(dmx_muxs);
 
@@ -113,7 +112,7 @@ void dvb_set_crc32(u8 *data, int length)
 {
         u32 crc;
 
-        crc = crc32_le(DVB_CRC_SEED, data, length);
+        crc = crc32_le(~0, data, length);
 
 	data[length]   = (crc >> 24) & 0xff;
         data[length+1] = (crc >> 16) & 0xff;
@@ -280,13 +279,13 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
 
 		while (count) {
 
-			sec->crc_val = DVB_CRC_SEED;
+			sec->crc_val = ~0;
 
                         if ((count>2) && // enough data to determine sec length?
                             ((sec->seclen = section_length(buf+p)) <= count)) {
 				if (sec->seclen>4096) 
 					return -1;
-					
+
 				demux->memcopy (feed, sec->secbuf, buf+p,
 					       sec->seclen);
 
@@ -324,7 +323,7 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
 		if (tmp>count)
 			return -1;
 
-		sec->crc_val = DVB_CRC_SEED;
+		sec->crc_val = ~0;
 
 		demux->memcopy (feed, sec->secbuf + sec->secbufp, buf+p, tmp);
 
@@ -711,8 +710,7 @@ static int dvbdmx_release_ts_feed(dmx_demux_t *demux, dmx_ts_feed_t *feed)
                 dvbdmxfeed->pid=0xffff;
         }
 	
-	if ((dvbdmxfeed->ts_type & TS_DECODER) &&
-	    (dvbdmx->pesfilter[dvbdmxfeed->pes_type] == dvbdmxfeed))
+	if (dvbdmxfeed->ts_type & TS_DECODER)
 		dvbdmx->pesfilter[dvbdmxfeed->pes_type] = NULL;
 
         up(&dvbdmx->mutex);
