@@ -26,7 +26,7 @@ STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
 
-CPPFLAGS	:= -D__KERNEL__ -DMODULE -I$(DRIVER_TOPDIR)/include -I$(DRIVER_TOPDIR)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
+CPPFLAGS	:= -D__KERNEL__ -DMODULE -I$(DRIVER_TOPDIR)/include -I$(DRIVER_TOPDIR)/dvb/include -I$(KERNEL_LOCATION)/include
 CFLAGS		:= $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -Werror -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
 AFLAGS		:= -D__ASSEMBLY__ $(CPPFLAGS)
 
@@ -51,3 +51,7 @@ all: depend modules
 endif
 
 include $(KERNEL_LOCATION)/.config
+
+include $(KERNEL_LOCATION)/arch/$(ARCH)/Makefile
+
+SUBDIRS =
