@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia.c,v $
+ *   Revision 1.12  2001/02/03 16:39:17  tmbinc
+ *   sound fixes
+ *
  *   Revision 1.11  2001/02/03 14:48:16  gillem
  *   - more audio fixes :-/
  *
@@ -33,7 +36,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -361,7 +364,7 @@ int init_module(void)
   wDR(0x1A8, 0xA);              // TM_MODE              (nokia) (br: evtl. 0x18, aber das wäre seriell.. eNX?)
   wDR(0x7C, 0);                 // (HSYNC/VSYNC master, BT.656 output)
 
-  wDR(0xEC, 6);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
+  wDR(0xEC, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
 
   wDR(0xE8, 2);                 // AUDIO_DAC_MODE
   wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
@@ -469,8 +472,8 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
   val |= (1<<3);        // 0: normal 1:I2S output
   // on/off
   val |= (1<<2);        // 0:off 1:on channels
-  val |= (0<<1);        // 0:off 1:on IEC-958
-  val |= (0);           // 0:encoded 1:decoded output
+  val |= (1<<1);        // 0:off 1:on IEC-958
+  val |= (1);           // 0:encoded 1:decoded output
   wDR(0xE0, val);
 
   val = 0;
@@ -480,14 +483,14 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
   val |= (0<<6);
   val |= (0<<4);
   val |= (0<<3);        // 0:high 1:low DA-LRCK polarity
-  val |= (1<<2);        // 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
+  val |= (0<<2);        // 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
   val |= (0<<1);        // 0:msb 1:lsb first
   wDR(0xE8, val);
 
   val = 0;
 
   // AUDIO_CLOCK_SELECTION
-  val |= (0<<2);
+  val |= (1<<2);
   // ;-)
   val |= (1<<1);        // 1:256 0:384 x sampling frequ.
   val |= (1);           // master,slave mode
