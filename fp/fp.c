@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.60  2002/02/11 16:11:19  Hunz
+ *   keyboard-debug-msgs only when module loaded with debug=1 now
+ *
  *   Revision 1.59  2002/02/08 20:52:30  Hunz
  *   keyboard/mouse now work with SAGEM (and Phillips??) too :-)
  *
@@ -191,7 +194,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.59 $
+ *   $Revision: 1.60 $
  *
  */
 
@@ -950,23 +953,23 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
 
   if(*keycode==0) {
     if (!raw_mode)
-      printk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+      dprintk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
     return 0;
   }
   return 1;
 }
 
 char irkbd_unexpected_up(unsigned char keycode) {
-  printk("fp.o: irkbd_unexpected_up 0x%02X (flags 0x%02X)\n",keycode,irkbd_flags);
+  dprintk("fp.o: irkbd_unexpected_up 0x%02X (flags 0x%02X)\n",keycode,irkbd_flags);
   return 0200;
 }
 
 void irkbd_leds(unsigned char leds) {
-  printk("fp.o: irkbd_leds 0x%02X\n",leds);
+  dprintk("fp.o: irkbd_leds 0x%02X\n",leds);
 }
 
 void __init irkbd_init_hw(void) {
-  printk("fp.o: IR-Keyboard initialized\n");
+  dprintk("fp.o: IR-Keyboard initialized\n");
 }
 
 #ifdef CONFIG_INPUT_MODULE
@@ -980,7 +983,7 @@ int irkbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int
   else 
   */
   if (type==EV_LED) {
-    printk("IR-Keyboard LEDs: [%s|%s|%s]\n",(test_bit(LED_NUML,dev->led)?" NUM ":"     "),(test_bit(LED_CAPSL,dev->led)?"CAPS ":"     "),(test_bit(LED_SCROLLL,dev->led)?"SCROLL":"     "));
+    dprintk("IR-Keyboard LEDs: [%s|%s|%s]\n",(test_bit(LED_NUML,dev->led)?" NUM ":"     "),(test_bit(LED_CAPSL,dev->led)?"CAPS ":"     "),(test_bit(LED_SCROLLL,dev->led)?"SCROLL":"     "));
     return 0;
   }
   else
@@ -1079,7 +1082,7 @@ static int fp_init(void)
         ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
 	//	irkbd_init_hw();
-        kbd_ledfunc = irkbd_leds;
+//        kbd_ledfunc = irkbd_leds;
 #ifdef CONFIG_INPUT_MODULE
 	memset(&input_irkbd,0,sizeof(input_irkbd));
 	input_irkbd.evbit[0]=BIT(EV_KEY) | BIT(EV_REL); // BIT(EV_LED) | BIT(EV_REP)
@@ -1406,8 +1409,9 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	else
 	  keycode=keymap[scancode&0x7f];
 	
-	if(keycode==0)
-	  printk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+	if(keycode==0) {
+	  dprintk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+        }
 #ifdef CONFIG_INPUT_MODULE
 	else
 	  input_report_key(&input_irkbd,keycode,!(scancode&0x80));
@@ -1572,7 +1576,7 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 {
 	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0};
 	unsigned char status_cmd;
-	unsigned char sagem_send[1]={0x22};
+//	unsigned char sagem_send[1]={0x22};
 	int c,sleep_perbyte,sleeptime;
 
 	if (sec_bus_status == -1)
