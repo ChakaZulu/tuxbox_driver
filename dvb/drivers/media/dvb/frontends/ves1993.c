@@ -170,7 +170,7 @@ static int tuner_init(void)
 		return -EBUSY;
 	}
 	ves_write_reg(0x00,0x01);  //disable tuner access on ves1993
-	mitel_set_freq(2099000000);
+	//mitel_set_freq(1198000000);
 	
 	return 0;
 }
