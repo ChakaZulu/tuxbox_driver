@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.10  2002/09/24 17:50:19  Jolt
+ *   PCM sample rate hack
+ *
  *   Revision 1.9  2002/09/22 14:19:00  Jolt
  *   Misc fixes/cleanups
  *
@@ -53,7 +56,7 @@
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -77,6 +80,9 @@
 
 int dsp_dev			= (int)0;
 int mixer_dev		= (int)0;
+
+extern int avia_standby(int state);
+extern u16 avia_get_sample_rate(void);
 
 static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -244,6 +250,13 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		return -EFAULT;
 
 	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SPEED (arg=%d)\n", val);
+		
+		if ((val != 48000) && (avia_get_sample_rate() != 44100)) {
+
+			avia_standby(1);
+			avia_standby(0);
+		
+		}
 
 	    return avia_gt_pcm_set_rate(val);
 
@@ -346,7 +359,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.9 2002/09/22 14:19:00 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.10 2002/09/24 17:50:19 Jolt Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 
