@@ -412,6 +412,7 @@ DmxDevTSCallback(u8 *buffer1, size_t buffer1_len,
 			   dmxdevfilter->s,
 			   dmxdevfilter->params.pes.output,
 			   &dmxdevfilter->dev->dvr_buffer);
+		spin_unlock(&dmxdevfilter->dev->lock);
 		return 0;
 	}
 
