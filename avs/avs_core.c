@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.16  2001/07/21 18:40:51  gillem
+ *   - fix address-range for stv6412
+ *
  *   Revision 1.15  2001/07/03 19:24:09  gillem
  *   - add stv6412
  *
@@ -64,7 +67,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -104,7 +107,7 @@ static devfs_handle_t devfs_handle;
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] 			= {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x90>>1,I2C_CLIENT_END};
+static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x94>>1,I2C_CLIENT_END};
 static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short ignore[2]       		= { I2C_CLIENT_END, I2C_CLIENT_END };
