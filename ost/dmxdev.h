@@ -28,12 +28,9 @@
 #define __KERNEL__ 
 #endif 
 
-#define __DVB_PACK__
-
 #ifdef __DVB_PACK__
 #include <ost/demux.h>
 #include <ost/dmx.h>
-#include <ost/frontend.h>
 #else
 #include <linux/ost/demux.h>
 #include <linux/ost/dmx.h>
@@ -53,16 +50,21 @@
 #define WAIT_QUEUE                 wait_queue_head_t
 #endif
 
-#define DMXDEV_TYPE_SEC 1
-#define DMXDEV_TYPE_PES 2
+typedef enum {
+	DMXDEV_TYPE_NONE,
+	DMXDEV_TYPE_SEC,
+	DMXDEV_TYPE_PES,
+} dmxdev_type_t;
 
-#define DMXDEV_STATE_FREE      0
-#define DMXDEV_STATE_ALLOCATED 1
-#define DMXDEV_STATE_SET       2
-#define DMXDEV_STATE_READY     3
-#define DMXDEV_STATE_GO        4
-#define DMXDEV_STATE_DONE      5
-#define DMXDEV_STATE_TIMEDOUT  6
+typedef enum {
+	DMXDEV_STATE_FREE,
+	DMXDEV_STATE_ALLOCATED,
+	DMXDEV_STATE_SET,
+	DMXDEV_STATE_READY,		/* remove this later ! */
+	DMXDEV_STATE_GO,
+	DMXDEV_STATE_DONE,
+	DMXDEV_STATE_TIMEDOUT
+} dmxdev_state_t;
 
 typedef struct dmxdev_buffer_s {
         uint8_t *data;
@@ -91,7 +93,7 @@ typedef struct dmxdev_filter_s {
 	} params;
 
         int type;
-        int state;
+        dmxdev_state_t state;
         struct dmxdev_s *dev;
         dmxdev_buffer_t buffer;
 
@@ -123,6 +125,7 @@ typedef struct dmxdev_s {
 
         dmxdev_buffer_t dvr_buffer;
 #define DVR_BUFFER_SIZE (512*1024)
+
 	struct semaphore mutex;
 	spinlock_t lock;
 } dmxdev_t;
@@ -145,6 +148,8 @@ ssize_t DmxDevDVRWrite(dmxdev_t *dmxdev, struct file *file,
 		       const char *buf, size_t count, loff_t *ppos);
 ssize_t DmxDevDVRRead(dmxdev_t *dmxdev, struct file *file, 
 		      char *buf, size_t count, loff_t *ppos);
+int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file, 
+		   unsigned int cmd, unsigned long arg);
 unsigned int DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait);
 
 #endif /* _DMXDEV_H_ */
