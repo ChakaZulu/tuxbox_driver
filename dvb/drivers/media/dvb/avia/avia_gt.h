@@ -46,6 +46,8 @@ typedef struct {
 	u32 reg_size;
 	/* interrupts */
 	int irq;
+	u16 irq_lock;
+	u16 irq_drop;
 	u16 irq_pcr;
 	u16 irq_it;
 	u16 irq_ir;

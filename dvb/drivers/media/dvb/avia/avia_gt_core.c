@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.42 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_gt_core.c,v 1.43 2003/10/08 19:54:24 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -120,7 +120,7 @@ int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.42 2003/09/30 05:45:35 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.43 2003/10/08 19:54:24 obi Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
@@ -165,11 +165,13 @@ int __init avia_gt_init(void)
 		gt_info->reg_size = ENX_REG_SIZE;
 
 		gt_info->irq = ENX_INTERRUPT;
+		gt_info->irq_lock = ENX_IRQ_LOCK;
+		gt_info->irq_drop = ENX_IRQ_DROP;
 		gt_info->irq_pcr = ENX_IRQ_PCR;
-		gt_info->irq_it = ENX_IRQ_IR_TX;
-		gt_info->irq_ir = ENX_IRQ_IR_RX;
-		gt_info->irq_pf = ENX_IRQ_PCM_PF;
-		gt_info->irq_ad = ENX_IRQ_PCM_AD;
+		gt_info->irq_it = ENX_IRQ_IT;
+		gt_info->irq_ir = ENX_IRQ_IR;
+		gt_info->irq_pf = ENX_IRQ_PF;
+		gt_info->irq_ad = ENX_IRQ_AD;
 		gt_info->irq_vl1 = ENX_IRQ_VL1;
 		gt_info->irq_tt = ENX_IRQ_TT;
 
@@ -190,6 +192,8 @@ int __init avia_gt_init(void)
 		gt_info->reg_size = GTX_REG_SIZE;
 
 		gt_info->irq = GTX_INTERRUPT;
+		gt_info->irq_lock = GTX_IRQ_LOCK;
+		gt_info->irq_drop = GTX_IRQ_DROP;
 		gt_info->irq_pcr = GTX_IRQ_PCR;
 		gt_info->irq_it = GTX_IRQ_IT;
 		gt_info->irq_ir = GTX_IRQ_IR;
