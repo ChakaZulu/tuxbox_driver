@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_ksyms.c,v 1.4 2004/01/29 19:38:20 zwen Exp $
+ * $Id: avia_av_ksyms.c,v 1.5 2004/07/03 01:18:36 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include "avia_av.h"
 
+EXPORT_SYMBOL(avia_av_is500);
 EXPORT_SYMBOL(avia_av_read);
 EXPORT_SYMBOL(avia_av_write);
 EXPORT_SYMBOL(avia_av_dram_memcpy32);
@@ -47,4 +48,3 @@ EXPORT_SYMBOL(avia_av_unregister_video_event_handler);
 EXPORT_SYMBOL(avia_av_get_video_size);
 EXPORT_SYMBOL(avia_av_new_audio_config);
 EXPORT_SYMBOL(avia_av_set_video_system);
-

@@ -330,6 +330,8 @@
 #define AVIA_AV_VIDEO_SYSTEM_PAL	0
 #define AVIA_AV_VIDEO_SYSTEM_NTSC	1
 
+int avia_av_is500(void);
+
 void avia_av_bypass_mode_set(const u8 enable);
 u16 avia_av_get_sample_rate(void);
 int avia_av_set_sample_rate(u16 rate);

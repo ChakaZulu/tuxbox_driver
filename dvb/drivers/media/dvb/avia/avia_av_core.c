@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.93 2004/06/26 16:12:43 carjay Exp $
+ * $Id: avia_av_core.c,v 1.94 2004/07/03 01:18:36 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -108,6 +108,11 @@ static u16 video_aspect_ratio;
 static int avia_av_init(void);
 
 /* ---------------------------------------------------------------------- */
+
+int avia_av_is500(void)
+{
+	return aviarev;
+}
 
 u32 avia_av_read(const u8 mode, u32 address)
 {
@@ -1500,7 +1505,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.93 2004/06/26 16:12:43 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.94 2004/07/03 01:18:36 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
