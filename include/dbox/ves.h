@@ -9,7 +9,9 @@ struct demod_function_struct
 	void (*get_frontend)(struct frontend *front);
 	int (*get_unc_packet)(uint32_t *uncp);
 	int (*set_frequency)(int frequency);
-	// todo: SEC (+diseqc)
+	int (*set_sec)(int power,int tone);
+	int (*send_diseqc)(u8 *cmd,unsigned int len);
+	int (*sec_status)(void);
 };
 
 extern int register_demod(struct demod_function_struct *demod);

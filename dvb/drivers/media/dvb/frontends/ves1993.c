@@ -42,7 +42,16 @@ static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int mitel_set_freq(int freq);
 
-struct demod_function_struct ves1993={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet, mitel_set_freq};
+struct demod_function_struct ves1993={
+		write_reg:			ves_write_reg, 
+		init:						ves_init,
+		set_frontend: 	ves_set_frontend,
+		get_frontend:		ves_get_frontend,
+		get_unc_packet: ves_get_unc_packet,
+		set_frequency:	mitel_set_freq,
+		set_sec:				fp_set_sec,								// das hier stimmt nicht, oder?
+		send_diseqc:		fp_send_diseqc,
+		sec_status:			fp_sec_status};
 
 static int debug = 9;
 #define dprintk	if (debug) printk

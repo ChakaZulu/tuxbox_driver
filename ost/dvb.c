@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.25 2001/04/08 02:05:40 tmbinc Exp $
+ * $Id: dvb.c,v 1.26 2001/04/08 17:39:01 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -48,7 +48,7 @@
 
 #include <dbox/dvb.h>
 #include <dbox/ves.h>
-#include <dbox/fp.h>
+// #include <dbox/fp.h>
 #include <dbox/avia.h>
 #include <dbox/cam.h>
 
@@ -158,19 +158,25 @@ int SetSec(powerState_t power,secVoltage voltage,secToneMode contone) {
 	if (power != OST_POWER_ON)
 		volt=0;
 
-	return fp_set_sec(volt,tone);
+	if (!dvb.demod || !dvb.demod->set_sec)
+		return -EINVAL; 
+	return dvb.demod->set_sec(volt,tone);
 }
 
 int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
-	int res;
+	int res, status;
 	secToneMode old;
+	
+	if (!dvb->demod || !dvb->demod->sec_status)
+		return -EINVAL;
 
 	// ERROR handling
-	if (fp_sec_status() == -1)
+	status=dvb->demod->sec_status();
+	if (status == -1)
 		return -EBUSOVERLOAD;
-	else if (fp_sec_status() == -2)
+	else if (status == -2)
 		return -EBUSY;
-	else if (fp_sec_status() < 0)
+	else if (status < 0)
 		return -EINTERNAL;
 
 	old=dvb->front.ttk;
@@ -182,14 +188,20 @@ int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
 }
 
 int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
-	int res;
+	int res, status;
 	secVoltage old;
+
+	if (!dvb->demod || !dvb->demod->sec_status)
+		return -EINVAL;
+
+	// ERROR handling
+	status=dvb->demod->sec_status();
 	
-	if (fp_sec_status() == -1)
+	if (status == -1)
 		return -EBUSOVERLOAD;
-	else if (fp_sec_status() == -2)
+	else if (status == -2)
 		return -EBUSY;
-	else if (fp_sec_status() < 0)
+	else if (status < 0)
 		return -EINTERNAL;
 	
 	old=dvb->front.volt;
@@ -203,16 +215,22 @@ int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
 
 int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 {
-	int i, ret, burst, len;
+	int i, ret, burst, len, status;
 	secVoltage old_volt;
 	secToneMode old_tone;
 	u8 msg[16];
+	
+	if (!dvb->demod || !dvb->demod->sec_status || !dvb->demod->send_diseqc)
+		return -EINVAL;
 
-	if (fp_sec_status() == -1)
+	// ERROR handling
+	status=dvb->demod->sec_status();
+	
+	if (status == -1)
 		return -EBUSOVERLOAD;
-	else if (fp_sec_status() == -2)
+	else if (status == -2)
 		return -EBUSY;
-	else if (fp_sec_status() < 0)
+	else if (status < 0)
 		return -EINTERNAL;
 
 	switch (seq->miniCommand)
@@ -229,6 +247,7 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 	default:
 		return -EINVAL;
 	}
+	
 	for (i=0; i<seq->numCommands; i++) {
 		switch (seq->commands[i].type) {
 		case SEC_CMDTYPE_DISEQC:
@@ -240,7 +259,7 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 			msg[1]=seq->commands[i].u.diseqc.addr;
 			msg[2]=seq->commands[i].u.diseqc.cmd;
 			memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
-			ret=fp_send_diseqc(msg,len+3);
+			ret=dvb->demod->send_diseqc(msg,len+3);
 			if (ret < 0)
 				return -EINTERNAL;
 			break;
@@ -258,7 +277,7 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 			msg[0]=0;
 		else if (burst == 1)
 			msg[0]=0xFF;
-		ret=fp_send_diseqc(msg,1);
+		ret=dvb->demod->send_diseqc(msg,1);
 		if (ret < 0)
 			return -EINTERNAL;
 	}
@@ -515,8 +534,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		case OST_SELFTEST:
 			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 				return -EPERM;
-			if(dvb->front.type==FRONT_DVBS)
-				return fp_sec_status(); // anyone a better idea ? 
+			if(dvb->demod->sec_status)
+				return dvb->demod->sec_status(); // anyone a better idea ? 
 			else 
 				return -ENOSYS;
 			break;
@@ -529,8 +548,9 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				return -EPERM;
 			if (copy_from_user(&pwr, parg, sizeof(pwr))) //FIXME!! -Hunz
 				return -EFAULT;
-			if(dvb->front.type==FRONT_DVBS) {
-				if (fp_sec_status() < 0)
+			if(dvb->demod->set_sec)
+			{
+				if (!dvb->demod->sec_status || (dvb->demod->sec_status() < 0))
 					return -EINVAL;
 				old=dvb->front.power;
 				if(pwr == OST_POWER_OFF)
@@ -699,6 +719,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		break;
 	}
 	case DVB_DEVICE_SEC:
+		if (!dvb->demod->set_sec)
+			return -ENOENT;
 				switch(cmd) {
 		case SEC_GET_STATUS:
 			{
@@ -707,7 +729,9 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 	if ((file->f_flags&O_ACCMODE)==O_WRONLY)
 		return -EPERM;
-	ret=fp_sec_status();
+	if (!dvb->demod->sec_status)
+		return -ENOSYS;
+	ret=dvb->demod->sec_status();
 	if (ret == 0)
 		status.busMode=SEC_BUS_IDLE;
 	else if (ret == -1)
