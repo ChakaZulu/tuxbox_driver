@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.43  2002/11/17 22:36:32  Jolt
+ *   Large cleanups + fixes
+ *
  *   Revision 1.42  2002/11/17 01:12:19  Jolt
  *   Ultra fast zapping support :D
  *
@@ -182,7 +185,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.42 $
+ *   $Revision: 1.43 $
  *
  */
 
@@ -273,8 +276,6 @@ static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
 #define PAL_20MB_WO_ROM_SRAM		12
 
 /* ---------------------------------------------------------------------- */
-
-static int avia_delay_sync = -1;
 
 static void avia_htd_interrupt(void);
 
@@ -488,18 +489,6 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 
 	status = rDR(0x2AC);
 
-	/* usr data */
-	if (status & (1 << 12)) {
-//		printk (KERN_INFO "AVIA: User data :-)\n");
-	}
-
-	if (status & (1 << 5))
-		if (avia_delay_sync && !--avia_delay_sync) {
-			dprintk ("%s: %s: CHCH [DECODE] enabling SYNC.\n",
-				 __FILE__, __FUNCTION__);
-			wDR (AV_SYNC_MODE, 6);
-		}
-
 	/* avia cmd stuff */
 	if (status & (1 << 15) || status & (1 << 9)) {
 	
@@ -508,11 +497,6 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 
 		wake_up_interruptible (&avia_cmd_wait);
 		
-	}
-
-	/* INIT INTR */
-	if (status & (1 << 23)) {
-//		dprintk ("INIT RECV!\n");
 	}
 
 	/* AUD INTR */
@@ -568,51 +552,6 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 			}
 		if (sem&0xFF)
 			wDR (0x468, 1);
-	}
-
-	/* buffer full */
-	if ( status&(1<<16) ) {
-//	      dprintk("BUF-F INTR\n");
-
-		if ( rDR(0x2b4)&2 ) {
-//		      dprintk("BUF-F VIDEO\n");
-		}
-
-		if ( rDR(0x2b4)&2 ) {
-//		      dprintk("BUF-F AUDIO\n");
-		}
-
-	}
-
-	/* buffer und. */
-	if (status & (1 << 8)) {
-//		dprintk ("UND INTR\n");
-
-		if (rDR (0x2b8) & 1) {
-//			dprintk ("UND VIDEO\n");
-		}
-
-		if (rDR (0x2b8) & 2) {
-//			dprintk ("UND AUDIO\n");
-		}
-	}
-
-
-	/* bitstream error */
-	if (status & 1) {
-//		dprintk ("ERR INTR\n");
-
-		if (rDR (0x2c4) & (1 << 1)) {
-//			dprintk ("ERR SYSTEM BITSTREAM CURR: %d\n",rDR(0x318));
-		}
-
-		if (rDR (0x2c4) & (1 << 2)) {
-//			dprintk (KERN_DEBUG "AVIA: ERR AUDIO BITSTREAM CURR: %d\n",rDR(0x320));
-		}
-
-		if (rDR (0x2c4) & (1 << 3)) {
-//			dprintk ("ERR VIDEO BITSTREAM CURR: %d\n",rDR(0x31C));
-		}
 	}
 
 	/* intr. ack */
@@ -746,8 +685,7 @@ void avia_set_pcr(u32 hi, u32 lo)
 
 	wGB(0x02, timer_high);
 	wGB(0x03, timer_low);
-	dprintk("CHCH [DECODE] delaying sync in 1s\n");
-	avia_delay_sync=50;
+	wDR(AV_SYNC_MODE, 6);
 }
 
 void avia_flush_pcr(void)
@@ -755,7 +693,7 @@ void avia_flush_pcr(void)
 
 	dprintk("CHCH [DECODE] disabling sync\n");
 	
-	wDR(AV_SYNC_MODE, 0);			   // no sync
+//	wDR(AV_SYNC_MODE, 0);			   // no sync
 	
 }
 
@@ -897,7 +835,7 @@ void avia_set_default(void)
 //	      dprintk("AVIA: eNX\n");
 	}
 
-	wDR(AV_SYNC_MODE, 0x06);
+	wDR(AV_SYNC_MODE, 0x00);
 
 	wDR(VIDEO_PTS_DELAY, 0);
 	wDR(VIDEO_PTS_SKIP_THRESHOLD, 0xE10);
@@ -1198,7 +1136,7 @@ static int init_avia(void)
 	wDR(0x2AC, 0);
 
 	/* enable interrupts */
-	wDR(0x200, (1<<23)|(1<<22)|(1<<16)|(1<<12)|(1<<8)|(1<<5)|(1) );
+	wDR(0x200, ((1 << 22) | (1 << 15) | (1 << 9)));
 
 	tries=20;
 
@@ -1357,7 +1295,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
 				return -EINVAL;
 		
-			avia_command(Pause, 0x01, 0x01);
+//			avia_command(Pause, 0x01, 0x01);
 		
 			break;
 
@@ -1365,19 +1303,19 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED) {
 			
-				avia_command(Resume);
+//				avia_command(Resume);
 				
 			} else {
 			
-				avia_command(SelectStream, 0x03, pid_audio);	//FIXME AC3
+//				avia_command(SelectStream, 0x03, pid_audio);	//FIXME AC3
 			
 				if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
 				
-					avia_command(Play, 0x00, 0xFFFF, pid_audio);
+//					avia_command(Play, 0x00, 0xFFFF, pid_audio);
 					
 				} else {
 
-					avia_command(NewChannel, 0x00, pid_video, pid_audio);
+//					avia_command(NewChannel, 0x00, pid_video, pid_audio);
 				
 //FIXME					if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
 //FIXME						avia_command(Pause, 0x01, 0x01);
@@ -1396,12 +1334,12 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
 			
-				avia_command(Abort, 0x01);
-				avia_flush_pcr();
+//				avia_command(Abort, 0x01);
+//				avia_flush_pcr();
 				
 			}
 			
-			avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
+//			avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
 		
 			break;
 			
@@ -1444,18 +1382,20 @@ int avia_av_play_state_set_video(u8 new_play_state)
 				
 			} else {
 
-				avia_command(SelectStream, 0x00, pid_video);
+				avia_command(SelectStream, 0x00, 0);
+				avia_command(SelectStream, 0x03, 0);
+//				avia_command(Play, 0x00, 0, 0);
 			
 				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
 				
-					avia_command(Play, 0x00, pid_video, 0xFFFF);
+//					avia_command(Play, 0x00, pid_video, 0x0);
 					
 				} else {
 
-					avia_command(Play, 0x00, pid_video, pid_audio);
+//					avia_command(Play, 0x00, pid_video, pid_audio);
 				
-					if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED)
-						avia_command(Pause, 0x01, 0x01);
+//					if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED)
+//						avia_command(Pause, 0x01, 0x01);
 
 				}
 			
@@ -1471,12 +1411,18 @@ int avia_av_play_state_set_video(u8 new_play_state)
 				
 			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
 			
-				avia_command(Abort, 0x01);
-				avia_flush_pcr();
+//				avia_command(Abort, 0x01);
+//				avia_flush_pcr();
 				
 			}
+
+//			avia_command(Abort, 0x01);
+//			avia_command(Reset);
 			
 			avia_command(SelectStream, 0x00, 0xFFFF);
+//			avia_command(SelectStream, 0x02, 0xFFFF);
+			avia_command(SelectStream, 0x03, 0xFFFF);
+			wDR(AV_SYNC_MODE, 0x00);
 				
 			break;
 			
@@ -1656,7 +1602,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.42 2002/11/17 01:12:19 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.43 2002/11/17 22:36:32 Jolt Exp $\n");
 
 	aviamem = 0;
 
