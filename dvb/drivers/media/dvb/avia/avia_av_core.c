@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.71 2003/08/01 22:48:37 alexw Exp $
+ * $Id: avia_av_core.c,v 1.72 2003/08/08 17:03:39 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1300,7 +1300,7 @@ int avia_av_audio_pts_to_stc(struct pes_header *pes)
 		return -1;
 
 	/* audio pes packet? */
-	if ((pes->stream_id & 0xe0) != 0xc0)
+	if (((pes->stream_id & 0xe0) != 0xc0) && (pes->stream_id != 0xbd))
 		return -1;
 
 	/* pts value available? */
@@ -1322,7 +1322,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.71 2003/08/01 22:48:37 alexw Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.72 2003/08/08 17:03:39 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
