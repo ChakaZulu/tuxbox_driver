@@ -96,6 +96,8 @@ typedef struct dmxdev_filter_s {
         struct dmxdev_s *dev;
         dmxdev_buffer_t buffer;
 
+	struct semaphore mutex;
+
         // only for sections
         struct timer_list timer;
         int todo;
@@ -155,5 +157,4 @@ int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 unsigned int DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait);
 
 void DmxNetSend(u8 *b1, size_t l_b1, u8 *b2, size_t l_b2, struct socket *s, dmxOutput_t otype, dmxdev_buffer_t *dvrbuf);
-
 #endif /* _DMXDEV_H_ */
