@@ -25,6 +25,9 @@
 #ifndef _DVB_DEMUX_H_
 #define _DVB_DEMUX_H_
 
+#include <asm/semaphore.h>
+#include <linux/timer.h>
+
 #include "demux.h"
 
 #define DMX_TYPE_TS  0
