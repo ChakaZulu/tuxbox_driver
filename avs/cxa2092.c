@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.8  2001/01/20 16:09:22  gillem
+ *   - add avs_get_volume function
+ *
  *   Revision 1.7  2001/01/20 15:44:57  gillem
  *   - fix volume set
  *   - fix ioctl get functions
@@ -38,7 +41,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -256,7 +259,7 @@ int avs_set_logic( int sw, int type )
 
 int avs_get_volume(void)
 {
- return 0;
+ return (((avs_data[0]&AVS_EVC)>>5)*8)+((avs_data[0]&AVS_EVF)>>2);
 }
 
 int avs_get_mute(void)
