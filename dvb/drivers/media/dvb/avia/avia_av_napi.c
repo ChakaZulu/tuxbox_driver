@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.25 2003/09/12 03:01:51 obi Exp $
+ * $Id: avia_av_napi.c,v 1.26 2003/11/20 01:20:50 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -23,26 +23,14 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/poll.h>
 #include <linux/bitops.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
 #include <linux/init.h>
-
-#include "../dvb-core/demux.h"
-#include "../dvb-core/dvb_demux.h"
-#include "../dvb-core/dvbdev.h"
-#include <linux/dvb/video.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/dvb/audio.h>
+#include <linux/dvb/video.h>
+
+#include "dvbdev.h"
 
 #include "avia_napi.h"
 #include "avia_av.h"
@@ -87,7 +75,6 @@ struct dvb_video_events {
  * ES is undefined atm.
  */
 #define AVIA_AV_AUDIO_CAPS	(AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3)
-
 
 int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 {
@@ -159,8 +146,7 @@ int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
-static
-void avia_av_napi_video_add_event(u16 width, u16 height, u16 aspect_ratio)
+static void avia_av_napi_video_add_event(u16 width, u16 height, u16 aspect_ratio)
 {
 	struct video_event *event;
 	int wp;
@@ -201,8 +187,7 @@ void avia_av_napi_video_add_event(u16 width, u16 height, u16 aspect_ratio)
 	wake_up_interruptible(&video_events.wait_queue);
 }
 
-static
-int avia_av_napi_video_get_event(struct video_event *event, int flags)
+static int avia_av_napi_video_get_event(struct video_event *event, int flags)
 {
 	int ret;
 
@@ -234,8 +219,7 @@ int avia_av_napi_video_get_event(struct video_event *event, int flags)
 	return 0;
 }
 
-static
-int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
 	int err;
@@ -430,8 +414,7 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 	return 0;
 }
 
-static
-int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
 	int err;
@@ -493,7 +476,7 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 			/* unmute av spdif (2) and analog audio (4) */
 			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 6);
 		}
-		avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
+		avia_av_dram_write(NEW_AUDIO_CONFIG, 0xffff);
 		audiostate.mute_state = !!arg;
 		break;
 
@@ -513,27 +496,24 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 	case AUDIO_CHANNEL_SELECT:
 	{
 		audio_channel_select_t select = (audio_channel_select_t) arg;
+		u8 val;
 
 		switch (select) {
 		case AUDIO_STEREO:
-			avia_av_dram_write(AUDIO_DAC_MODE, avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30);
-			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
+			val = 0x00;
 			break;
-
 		case AUDIO_MONO_LEFT:
-			avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | 0x10);
-			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
+			val = 0x10;
 			break;
-
 		case AUDIO_MONO_RIGHT:
-			avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | 0x20);
-			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
+			val = 0x20;
 			break;
-
 		default:
 			return -EINVAL;
 		}
-				
+
+		avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | val);
+		avia_av_dram_write(NEW_AUDIO_CONFIG, 0xffff);
 		audiostate.channel_select = select;
 		break;
 	}
@@ -593,8 +573,7 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 	return 0;
 }
 
-static
-ssize_t avia_av_napi_video_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+static ssize_t avia_av_napi_video_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
 		(videostate.stream_source != VIDEO_SOURCE_MEMORY))
@@ -603,8 +582,7 @@ ssize_t avia_av_napi_video_write(struct file *file, const char *buf, size_t coun
 	return avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, file->f_flags & O_NONBLOCK);
 }
 
-static
-int avia_av_napi_video_open(struct inode *inode, struct file *file)
+static int avia_av_napi_video_open(struct inode *inode, struct file *file)
 {
 	int err;
 
@@ -620,8 +598,7 @@ int avia_av_napi_video_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static
-int avia_av_napi_video_release(struct inode *inode, struct file *file)
+static int avia_av_napi_video_release(struct inode *inode, struct file *file)
 {
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		avia_av_napi_video_ioctl(inode, file, VIDEO_STOP, NULL);
@@ -631,8 +608,7 @@ int avia_av_napi_video_release(struct inode *inode, struct file *file)
 	return dvb_generic_release(inode, file);
 }
 
-static
-unsigned int avia_av_napi_video_poll(struct file *file, poll_table *wait)
+static unsigned int avia_av_napi_video_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 
@@ -657,8 +633,7 @@ unsigned int avia_av_napi_video_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static
-ssize_t avia_av_napi_audio_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+static ssize_t avia_av_napi_audio_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	size_t i = 0;
 
@@ -679,14 +654,12 @@ ssize_t avia_av_napi_audio_write(struct file *file, const char *buf, size_t coun
 	return avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_AUDIO, &buf[i], count - i, file->f_flags & O_NONBLOCK);
 }
 
-static
-int avia_av_napi_audio_open(struct inode *inode, struct file *file)
+static int avia_av_napi_audio_open(struct inode *inode, struct file *file)
 {
 	return dvb_generic_open(inode, file);
 }
 
-static
-int avia_av_napi_audio_release(struct inode *inode, struct file *file)
+static int avia_av_napi_audio_release(struct inode *inode, struct file *file)
 {
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		avia_av_napi_audio_ioctl(inode, file, AUDIO_STOP, NULL);
@@ -696,8 +669,7 @@ int avia_av_napi_audio_release(struct inode *inode, struct file *file)
 	return dvb_generic_release(inode, file);
 }
 
-static
-unsigned int avia_av_napi_audio_poll(struct file *file, poll_table *wait)
+static unsigned int avia_av_napi_audio_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 
@@ -750,11 +722,11 @@ static struct dvb_device avia_av_napi_audio_dev = {
 	.kernel_ioctl = avia_av_napi_audio_ioctl,
 };
 
-int __init avia_av_napi_init(void)
+static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.25 2003/09/12 03:01:51 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.26 2003/11/20 01:20:50 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -805,7 +777,7 @@ fail_0:
 	return result;
 }
 
-void __exit avia_av_napi_exit(void)
+static void __exit avia_av_napi_exit(void)
 {
 	dvb_unregister_device(audio_dev);
 	dvb_unregister_device(video_dev);
@@ -819,3 +791,5 @@ MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>, Andreas Oberritter <obi@tuxbo
 MODULE_DESCRIPTION("AViA 500/600 dvb api driver");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL(avia_av_napi_decoder_start);
+EXPORT_SYMBOL(avia_av_napi_decoder_stop);
