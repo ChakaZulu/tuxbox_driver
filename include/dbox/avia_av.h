@@ -8,7 +8,6 @@ extern u32 avia_rd(int mode, int address);
 extern void avia_wr(int mode, u32 address, u32 data);
 
 extern u32 avia_command(u32 cmd, ...);
-extern u32 avia_wait(u32 status);
 extern void avia_flush_pcr(void);
 
 #define wGB(a, d) avia_wr(TM_GBUS, a, d)

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.33  2002/09/29 16:47:03  Jolt
+ *   AViA command handling fixes
+ *
  *   Revision 1.32  2002/09/24 17:50:19  Jolt
  *   PCM sample rate hack
  *
@@ -152,7 +155,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.32 $
+ *   $Revision: 1.33 $
  *
  */
 
@@ -213,16 +216,10 @@ static int run_cmd;
 #define AVIA_CMD_TIMEOUT		350
 
 static spinlock_t avia_lock;
-static spinlock_t avia_cmd_state_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
-static u8 cmd_state;
 static u16 sample_rate = 44100;
-
-/* mutex stuff */
-//static DECLARE_MUTEX(avia_cmd_mutex);
-//static DECLARE_MUTEX(avia_wait_cmd_mutex);
 
 /* finally i got them */
 #define UX_MAGIC			0x00
@@ -493,26 +490,12 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 
 	/* avia cmd stuff */
 	if (status & (1 << 15) || status & (1 << 9)) {
+	
 		dprintk (KERN_INFO "%s: %s: CMD INTR\n", __FILE__,
 			 __FUNCTION__);
 
-		if (run_cmd) {
-			run_cmd--;
-			wake_up_interruptible (&avia_cmd_wait);
-		}
-		else {
-			dprintk (KERN_DEBUG "%s: %s: "
-				"CMD UNKN %.8x %.8x %.8x %.8x "
-					 "%.8x %.8x %.8x %.8x\n",
-				__FILE__, __FUNCTION__,
-				rDR (0x40), rDR (0x44), rDR (0x48),
-				rDR (0x4c), rDR (0x50), rDR (0x54),
-				rDR (0x58), rDR (0x5c));
-			dprintk (KERN_DEBUG "%s: %s: "
-				"PROC %.8x %.8x %.8x\n",
-				__FILE__, __FUNCTION__,
-				rDR (0x2a0), rDR (0x2a4), rDR (0x2a8));
-		}
+		wake_up_interruptible (&avia_cmd_wait);
+		
 	}
 
 	/* INIT INTR */
@@ -632,72 +615,79 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 	spin_unlock(&avia_lock);
 
 	return;
+	
 }
 
 /* ---------------------------------------------------------------------- */
 
-static u32
-avia_wait_command( u32 tries )
+u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 {
-	int i			= (int)0;
 
-	spin_lock_irq(&avia_cmd_state_lock);
+	if (!status_addr)
+		return 0;
 
-	if (cmd_state==1)
-	{
-	    //error !
-	    dprintk("state allready 1\n");
+	dprintk("SA: 0x%X -> run\n", status_addr);
+
+	if (wait_for_completion) {
+	
+		if (wait_event_interruptible(avia_cmd_wait, (rDR(status_addr) >= 0x03))) {
+
+			printk(KERN_ERR "avia_av: error while fetching command status\n");
+
+			return 0;
+		
+		}
+		
 	}
 
-	cmd_state = 1;
+	dprintk("SA: 0x%X -> end -> S: 0x%X\n", status_addr, rDR(status_addr));
 
-	spin_unlock_irq(&avia_cmd_state_lock);
+	return rDR(status_addr);
 
-	// TODO: add tries ...
-	i = interruptible_sleep_on_timeout(&avia_cmd_state_wait, AVIA_CMD_TIMEOUT);
-
-	if(i==0)
-	    dprintk("sorry timeout in cmd_state ...\n");
-
-	spin_lock_irq(&avia_cmd_state_lock);
-	cmd_state=0;
-	spin_unlock_irq(&avia_cmd_state_lock);
-
-	return rDR(0x5C);
 }
 
-/* ---------------------------------------------------------------------- */
+static u32 avia_cmd_status_get_addr(void)
+{
+
+	if (wait_event_interruptible(avia_cmd_state_wait, rDR(0x5C))) {
+	
+		printk("sorry timeout in cmd_state ...\n");
+		
+		return 0;
+		
+	}
+
+	return rDR(0x5C);
+	
+}
 
 u32 avia_command(u32 command, ...)
 {
-	u32			 state		= (u32)0;
-	u32			 i				= (u32)0;
-	va_list ap;
 
-	spin_lock_irq(&avia_lock);
+	u32	i;
+	va_list ap;
+	u32 status_addr;
+	
+	// BUSY ?
+	if (!avia_cmd_status_get_addr()) {
+	
+		printk(KERN_ERR "avia_av: timeout.\n");
+		
+		return 0;
+		
+	}
 
 	va_start(ap, command);
 
-	// BUSY ?
-	if ( !avia_wait_command(1000) )
-	{
-		dprintk(KERN_ERR "AVIA: timeout.\n");
-		return -1;
-	}
+	spin_lock_irq(&avia_lock);
 
 	wDR(0x40, command);
 
-	for (i=0; i<((command&0x7F00)>>8); i++)
-	{
-		wDR(0x44+i*4, va_arg(ap, int));
-	}
+	for (i = 0; i < ((command & 0x7F00) >> 8); i++)
+		wDR(0x44 + i * 4, va_arg(ap, int));
 
-	va_end(ap);
-
-	for (; i<8; i++)
-	{
-		wDR(0x44+i*4, 0);
-	}
+	for (; i < 8; i++)
+		wDR(0x44 + i * 4, 0);
 
 	// RUN
 	wDR(0x5C, 0);
@@ -707,37 +697,23 @@ u32 avia_command(u32 command, ...)
 
 	spin_unlock_irq(&avia_lock);
 
-	return state;
-}
-
-/* ---------------------------------------------------------------------- */
-
-u32 avia_wait(u32 sa)
-{
-	int i = (int)0;
-
-	if (sa==-1)
-	{
-		return -1;
+	va_end(ap);
+	
+	if (!(status_addr = avia_cmd_status_get_addr())) {
+	
+		printk(KERN_ERR "avia_av: timeout.\n");
+		
+		return 0;
+		
 	}
 
-	dprintk(KERN_INFO "AVIA: COMMAND run\n");
+	dprintk("C: 0x%X -> SA: 0x%X\n", command, status_addr);
 
-	run_cmd++;
+	if (command & 0x8000)
+		avia_cmd_status_get(status_addr, 1);
 
-	i = interruptible_sleep_on_timeout(&avia_cmd_wait, AVIA_CMD_TIMEOUT);
+	return status_addr;
 
-	if (i==0)
-	{
-		dprintk(KERN_ERR "AVIA: COMMAND timeout.\n");
-		return -1;
-	}
-	else
-	{
-		dprintk(KERN_INFO "AVIA: COMMAND complete: %d.\n",AVIA_CMD_TIMEOUT-i);
-	}
-
-	return(rDR(sa));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1252,22 +1228,18 @@ static int init_avia(void)
 
 	avia_event_init();
 
-	avia_wait(avia_command(Abort, 0));
+	avia_command(Abort, 0);
 
 //      wDR(OSD_BUFFER_START, 0x1f0000);
 //      wDR(OSD_BUFFER_END,   0x200000);
 
-	avia_wait(avia_command(Reset));
+	avia_command(Reset);
 
-	/* TODO: better handling */
-	if (avia_wait(avia_command(SetStreamType, 0xB))==-1)
-	{
-		return 0;
-	}
+	avia_command(SetStreamType, 0xB);
 
 	avia_command(SelectStream, 0, 0xFF);
-//      avia_wait(avia_command(SelectStream, 2, 0x100));
-//      avia_wait(avia_command(SelectStream, 3, 0x100));
+//      avia_command(SelectStream, 2, 0x100);
+//      avia_command(SelectStream, 3, 0x100);
 	avia_command(Play, 0, 0, 0);
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
@@ -1350,7 +1322,6 @@ void avia_event_init()
 
 	spin_lock_irq(&avia_event_lock);
 
-	cmd_state   = 0;
 	event_delay = 0;
 
 	p = kmalloc ( sizeof(struct avia_event_reg), GFP_KERNEL );
@@ -1391,17 +1362,8 @@ void avia_event_func(unsigned long data)
 
 	spin_lock_irq(&avia_event_lock);
 
-	spin_lock_irq(&avia_cmd_state_lock);
-
-	if (cmd_state==1)
-	{
-	    if ( rDR(0x5C) )
-	    {
-		wake_up_interruptible (&avia_cmd_state_wait);
-	    }
-	}
-
-	spin_unlock_irq(&avia_cmd_state_lock);
+    if (rDR(0x5C))
+		wake_up_interruptible(&avia_cmd_state_wait);
 
 	// TODO: optimize
 	if((++event_delay)==30)
@@ -1507,7 +1469,6 @@ u16 avia_get_sample_rate(void)
 
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
-EXPORT_SYMBOL(avia_wait);
 EXPORT_SYMBOL(avia_command);
 EXPORT_SYMBOL(avia_set_pcr);
 EXPORT_SYMBOL(avia_flush_pcr);
@@ -1530,7 +1491,7 @@ init_module (void)
 {
 	int err = (int)0;
 
-	printk ("AVIA: $Id: avia_av_core.c,v 1.32 2002/09/24 17:50:19 Jolt Exp $\n");
+	printk ("AVIA: $Id: avia_av_core.c,v 1.33 2002/09/29 16:47:03 Jolt Exp $\n");
 
 	aviamem = 0;
 
