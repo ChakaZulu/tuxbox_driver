@@ -84,50 +84,37 @@ static int gtx_underlay_LayerDataSize()
 }
 
 static DFBResult
-gtx_underlay_Enable( CoreLayer *layer,
-                     void      *driver_data,
-                     void      *layer_data )
+gtx_underlay_InitLayer( CoreLayer                   *layer,
+                        void                        *driver_data,
+                        void                        *layer_data,
+                        DFBDisplayLayerDescription  *description,
+                        DFBDisplayLayerConfig       *config,
+                        DFBColorAdjustment          *adjustment)
 {
-  return DFB_OK;
-}
-
-static DFBResult
-gtx_underlay_Disable( CoreLayer *layer,
-                      void      *driver_data,
-                      void      *layer_data )
-{
-  return DFB_OK;
-}
-
-static DFBResult
-gtx_underlay_InitLayer( GraphicsDevice         *device,
-                        CoreLayer              *layer,
-                        DisplayLayerInfo       *layer_info,
-                        DFBDisplayLayerConfig  *default_config,
-                        DFBColorAdjustment     *default_adj,
-                        void                   *driver_data,
-                        void                   *layer_data )
-{
-  layer_info->desc.type = DLTF_VIDEO;
+  description->type = DLTF_VIDEO;
   
   return DFB_OK;
 } 
 
 static DFBResult
-gtx_underlay_TestConfiguration( CoreLayer                  *layer,
-                                void                       *driver_data,
-                                void                       *layer_data,
-                                DFBDisplayLayerConfig      *config,
-                                DFBDisplayLayerConfigFlags *failed )
+gtx_underlay_TestRegion( CoreLayer                  *layer,
+                         void                       *driver_data,
+                         void                       *layer_data,
+                         CoreLayerRegionConfig      *config,
+                         CoreLayerRegionConfigFlags *failed )
 {
   return DFB_OK;
 }
 
 static DFBResult
-gtx_underlay_SetConfiguration( CoreLayer             *layer,
-                               void                  *driver_data,
-                               void                  *layer_data,
-                               DFBDisplayLayerConfig *config )
+gtx_underlay_SetRegion( CoreLayer                  *layer,
+                        void                       *driver_data,
+                        void                       *layer_data,
+                        void                       *region_data,
+                        CoreLayerRegionConfig      *config,
+                        CoreLayerRegionConfigFlags  updated,
+                        CoreSurface                *surface,
+                        CorePalette                *palette )
 {
   return DFB_OK;
 }
@@ -135,10 +122,8 @@ gtx_underlay_SetConfiguration( CoreLayer             *layer,
 DisplayLayerFuncs gtx_underlay_funcs = {
   .LayerDataSize =      gtx_underlay_LayerDataSize,
   .InitLayer =          gtx_underlay_InitLayer,
-  .Enable =             gtx_underlay_Enable,
-  .Disable =            gtx_underlay_Disable,
-  .TestConfiguration =  gtx_underlay_TestConfiguration,
-  .SetConfiguration =   gtx_underlay_SetConfiguration
+  .TestRegion =         gtx_underlay_TestRegion,
+  .SetRegion =          gtx_underlay_SetRegion
 };
 
 static __u8 gtx = 0;
