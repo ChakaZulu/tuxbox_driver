@@ -30,7 +30,7 @@ int fp_do_reset(int type);
 int fp_cam_reset(void);
 int fp_send_diseqc(int style, u8 *cmd,unsigned int len);
 int fp_sec_status(void);
-int fp_sagem_set_SECpower(int power);
+int fp_sagem_set_SECpower(int power,int tone);
 
 #endif
 #endif
