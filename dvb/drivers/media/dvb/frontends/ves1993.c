@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.19 2002/04/24 12:08:38 obi Exp $
+  $Id: ves1993.c,v 1.20 2002/04/30 14:54:01 happydude Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.20  2002/04/30 14:54:01  happydude
+  fix ASTRA MTV-Transponder, please test thoroughly, it works on my 2 dishes
+
   Revision 1.19  2002/04/24 12:08:38  obi
   made framing byte hack nicer
 
@@ -231,7 +234,7 @@ static int mitel_set_freq(int freq)
 
 static u8 Init1993Tab[] =
 {
-				0x00, 0x9c, 0x35, 0x80, 0x6a, 0x2b, 0xab, 0xaa,
+				0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0xab, 0xaa,
 				0x0e, 0x45, 0x00, 0x00, 0x4c, 0x0a, 0x00, 0x00,
 				0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
 				0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x10,
