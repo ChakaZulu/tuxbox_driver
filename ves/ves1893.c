@@ -35,26 +35,15 @@
 MODULE_PARM(debug,"i");
 #endif
 
-/*
-   exported functions:
-void ves_write_reg(int reg, int val);
-void ves_init(void);
-void ves_set_frontend(struct frontend *front);
-void ves_get_frontend(struct frontend *front);
-void ves_reset(void);
-int ves_read_reg(int reg);
-*/
+static void ves_write_reg(int reg, int val);
+static void ves_init(void);
+static void ves_set_frontend(struct frontend *front);
+static void ves_get_frontend(struct frontend *front);
+static void ves_reset(void);
+static int ves_read_reg(int reg);
+static int ves_get_unc_packet(u32 *uncp);
 
-void ves_reset(void);
-int ves_read_reg(int reg);
-
-EXPORT_SYMBOL(ves_write_reg);
-EXPORT_SYMBOL(ves_init);
-EXPORT_SYMBOL(ves_set_frontend);
-EXPORT_SYMBOL(ves_get_frontend);
-EXPORT_SYMBOL(ves_get_unc_packet);
-EXPORT_SYMBOL(ves_reset);
-EXPORT_SYMBOL(ves_read_reg);
+struct demod_function_struct ves1893={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
 
 static int debug = 9;
 #define dprintk	if (debug) printk
@@ -66,160 +55,160 @@ static struct i2c_client client_template, *dclient;
 static u8 Init1893Tab[] =
 {
 #ifdef BN
-        0x01, 0x94, 0x00, 0x80, 0x80, 0x6a, 0x9b, 0xab,
-        0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
-        0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
-        0x80, 0x00, 0x21, 0xb0, 0x14, 0x00, 0xDC, 0x00,
-        0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x55, 0x03, 0x00, 0x7f, 0x00
+	0x01, 0x94, 0x00, 0x80, 0x80, 0x6a, 0x9b, 0xab,
+	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
+	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
+	0x80, 0x00, 0x21, 0xb0, 0x14, 0x00, 0xDC, 0x00,
+	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x55, 0x03, 0x00, 0x7f, 0x00
 #else
-        0x01, 0xA4, 0x35, 0x81, 0x2A, 0x0d, 0x55, 0xC4,
-        0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
-        0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
-        0x80, 0x00, 0x31, 0xb0, 0x14, 0x00, 0xDC, 0x20,
-        0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x55, 0x00, 0x00, 0x7f, 0x00
+	0x01, 0xA4, 0x35, 0x81, 0x2A, 0x0d, 0x55, 0xC4,
+	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
+	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
+	0x80, 0x00, 0x31, 0xb0, 0x14, 0x00, 0xDC, 0x20,
+	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x55, 0x00, 0x00, 0x7f, 0x00
 #endif
 };
 
 static u8 Init1893WTab[] =
 {
-        1,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,
-        0,1,0,0,0,0,0,0, 1,0,1,1,0,0,0,1,
-        1,1,1,0,0,0,0,0, 0,0,1,1,0,0,0,0,
-        1,1,1,0,1,1
+	1,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,
+	0,1,0,0,0,0,0,0, 1,0,1,1,0,0,0,1,
+	1,1,1,0,0,0,0,0, 0,0,1,1,0,0,0,0,
+	1,1,1,0,1,1
 };
 
 struct ves1893 {
-        u32 srate;
-        u8 ctr;
-        u8 fec;
-        u8 inv;
+	u32 srate;
+	u8 ctr;
+	u8 fec;
+	u8 inv;
 };
 
 static int writereg(struct i2c_client *client, int reg, int data)
 {
-        int ret;
-        unsigned char msg[] = {0x00, 0x1f, 0x00};
-        
-        msg[1]=reg; msg[2]=data;
-        ret=i2c_master_send(client, msg, 3);
-        if (ret!=3) 
-                printk("writereg error\n");
-        return ret;
+	int ret;
+	unsigned char msg[] = {0x00, 0x1f, 0x00};
+	
+	msg[1]=reg; msg[2]=data;
+	ret=i2c_master_send(client, msg, 3);
+	if (ret!=3) 
+		printk("writereg error\n");
+	return ret;
 }
 
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
-        struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[] = {0x00, 0x1e};
-        unsigned char mm2[] = {0x00};
-        struct i2c_msg msgs[2];
-        
-        msgs[0].flags=0;
-        msgs[1].flags=I2C_M_RD;
-        msgs[0].addr=msgs[1].addr=client->addr;
-        mm1[1]=reg;
-        msgs[0].len=2; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
-        i2c_transfer(adap, msgs, 2);
-        
-        return mm2[0];
+	struct i2c_adapter *adap=client->adapter;
+	unsigned char mm1[] = {0x00, 0x1e};
+	unsigned char mm2[] = {0x00};
+	struct i2c_msg msgs[2];
+	
+	msgs[0].flags=0;
+	msgs[1].flags=I2C_M_RD;
+	msgs[0].addr=msgs[1].addr=client->addr;
+	mm1[1]=reg;
+	msgs[0].len=2; msgs[1].len=1;
+	msgs[0].buf=mm1; msgs[1].buf=mm2;
+	i2c_transfer(adap, msgs, 2);
+	
+	return mm2[0];
 }
 
 /*
 static int dump(struct i2c_client *client)
 {
-        int i;
-        
-        printk("VES1893: DUMP\n");
-        
-        for (i=0; i<54; i++) 
-        {
-                printk("%02x ", readreg(client, i));
-                if ((i&7)==7)
-                        printk("\n");
-        }
-        printk("\n");
-        return 0;
+	int i;
+	
+	printk("VES1893: DUMP\n");
+	
+	for (i=0; i<54; i++) 
+	{
+		printk("%02x ", readreg(client, i));
+		if ((i&7)==7)
+			printk("\n");
+	}
+	printk("\n");
+	return 0;
 }
 */
 
 static int init(struct i2c_client *client)
 {
-        int i;
-        struct ves1893 *ves=(struct ves1893 *) client->data;
-        
-        dprintk("VES1893: init chip\n");
+	int i;
+	struct ves1893 *ves=(struct ves1893 *) client->data;
+	
+	dprintk("VES1893: init chip\n");
 
-        if (writereg(client, 0, 0)<0)
-                printk("VES1893: send error\n");
-        for (i=0; i<54; i++)
-                if (Init1893WTab[i])
-                        writereg(client, i, Init1893Tab[i]);
-        ves->ctr=Init1893Tab[0x1f];
-        ves->srate=0;
-        ves->fec=9;
-        ves->inv=0;
+	if (writereg(client, 0, 0)<0)
+		printk("VES1893: send error\n");
+	for (i=0; i<54; i++)
+		if (Init1893WTab[i])
+			writereg(client, i, Init1893Tab[i]);
+	ves->ctr=Init1893Tab[0x1f];
+	ves->srate=0;
+	ves->fec=9;
+	ves->inv=0;
 
-        return 0;
+	return 0;
 }
 
 static inline void ddelay(int i) 
 {
-        current->state=TASK_INTERRUPTIBLE;
-        schedule_timeout((HZ*i)/100);
+	current->state=TASK_INTERRUPTIBLE;
+	schedule_timeout((HZ*i)/100);
 }
 
 static void ClrBit1893(struct i2c_client *client)
 {
-        dprintk("clrbit1893\n");
-        ddelay(2);
-        writereg(client, 0, Init1893Tab[0] & 0xfe);
-        writereg(client, 0, Init1893Tab[0]);
+	dprintk("clrbit1893\n");
+	ddelay(2);
+	writereg(client, 0, Init1893Tab[0] & 0xfe);
+	writereg(client, 0, Init1893Tab[0]);
 }
 
 static int SetFEC(struct i2c_client *client, u8 fec)
 {
-        struct ves1893 *ves=(struct ves1893 *) client->data;
-        
-        if (fec>=8) 
-                fec=8;
-        if (ves->fec==fec)
-                return 0;
-        ves->fec=fec;
-        return writereg(client, 0x0d, ves->fec);
+	struct ves1893 *ves=(struct ves1893 *) client->data;
+	
+	if (fec>=8) 
+		fec=8;
+	if (ves->fec==fec)
+		return 0;
+	ves->fec=fec;
+	return writereg(client, 0x0d, ves->fec);
 }
 
 static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 {
-        struct ves1893 *ves=(struct ves1893 *) client->data;
-        u32 BDR;
-        u32 ratio;
+	struct ves1893 *ves=(struct ves1893 *) client->data;
+	u32 BDR;
+	u32 ratio;
   	u8  ADCONF, FCONF, FNR;
 	u32 BDRI;
 	u32 tmp;
-        
-        if (ves->srate==srate) {
-                if (doclr)
-                        ClrBit1893(client);
-                return 0;
-        }
-        dprintk("setsymbolrate %d\n", srate);
+	
+	if (ves->srate==srate) {
+		if (doclr)
+			ClrBit1893(client);
+		return 0;
+	}
+	dprintk("setsymbolrate %d\n", srate);
 
 #define XIN (91000000UL) // dbox Crystal iss 91 MHz !!
 
 	if (srate>XIN/2)
-                srate=XIN/2;
-        if (srate<500000)
-                srate=500000;
-        ves->srate=srate;
-        
+		srate=XIN/2;
+	if (srate<500000)
+		srate=500000;
+	ves->srate=srate;
+	
 #define MUL (1UL<<26)
 #define FIN (XIN>>4)
-        tmp=srate<<6;
+	tmp=srate<<6;
 	ratio=tmp/FIN;
 
 	tmp=(tmp%FIN)<<8;
@@ -230,15 +219,15 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	
 	FNR = 0xFF;
 	
-	if (ratio < MUL/3)           FNR = 0;
+	if (ratio < MUL/3)	   FNR = 0;
 	if (ratio < (MUL*11)/50)     FNR = 1;
-	if (ratio < MUL/6)           FNR = 2;
-	if (ratio < MUL/9)           FNR = 3;
-	if (ratio < MUL/12)          FNR = 4;
+	if (ratio < MUL/6)	   FNR = 2;
+	if (ratio < MUL/9)	   FNR = 3;
+	if (ratio < MUL/12)	  FNR = 4;
 	if (ratio < (MUL*11)/200)    FNR = 5;
-	if (ratio < MUL/24)          FNR = 6;
+	if (ratio < MUL/24)	  FNR = 6;
 	if (ratio < (MUL*27)/1000)   FNR = 7;
-	if (ratio < MUL/48)          FNR = 8;
+	if (ratio < MUL/48)	  FNR = 8;
 	if (ratio < (MUL*137)/10000) FNR = 9;
 
 	if (FNR == 0xFF)
@@ -255,15 +244,15 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	BDR = ((  (ratio<<(FNR>>1))  >>4)+1)>>1;
 	BDRI = (  ((FIN<<8) / ((srate << (FNR>>1))>>2)  ) +1 ) >> 1;
 
-        dprintk("FNR= %d\n", FNR);
-        dprintk("ratio= %08x\n", ratio);
-        dprintk("BDR= %08x\n", BDR);
-        dprintk("BDRI= %02x\n", BDRI);
+	dprintk("FNR= %d\n", FNR);
+	dprintk("ratio= %08x\n", ratio);
+	dprintk("BDR= %08x\n", BDR);
+	dprintk("BDRI= %02x\n", BDRI);
 
 	if (BDRI > 0xFF)
-	        BDRI = 0xFF;
+		BDRI = 0xFF;
 
-        writereg(client, 6, 0xff&BDR);
+	writereg(client, 6, 0xff&BDR);
 	writereg(client, 7, 0xff&(BDR>>8));
 	writereg(client, 8, 0x0f&(BDR>>16));
 
@@ -271,10 +260,10 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	writereg(client, 0x20, ADCONF);
 	writereg(client, 0x21, FCONF);
 
-        if (srate<6000000) 
-                writereg(client, 5, Init1893Tab[0x05] | 0x80);
-        else
-                writereg(client, 5, Init1893Tab[0x05] & 0x7f);
+	if (srate<6000000) 
+		writereg(client, 5, Init1893Tab[0x05] | 0x80);
+	else
+		writereg(client, 5, Init1893Tab[0x05] & 0x7f);
 
 	writereg(client, 0, 0);
 	writereg(client, 0, 1);
@@ -286,52 +275,54 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 
 static int attach_adapter(struct i2c_adapter *adap)
 {
-        struct ves1893 *ves;
-        struct i2c_client *client;
-        
-        client_template.adapter=adap;
+	struct ves1893 *ves;
+	struct i2c_client *client;
+	
+	client_template.adapter=adap;
 
 // siehe ves1820.c ... TODO: check ...
-//        if (i2c_master_send(&client_template,NULL,0))
-//                return -1;
-        
-        client_template.adapter=adap;
-        
-        dprintk("readreg\n");
-        if ((readreg(&client_template, 0x1e)&0xf0)!=0xd0)
-        {
-          if ((readreg(&client_template, 0x1a)&0xF0)==0x70)
-            printk("warning, no VES1893 found but a VES1820\n");
-          return -1;
-        }
-        printk("feID: 1893 %x\n", readreg(&client_template, 0x1e));
-        
-        if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
-                return -ENOMEM;
-        memcpy(client, &client_template, sizeof(struct i2c_client));
-        dclient=client;
-        
-        client->data=ves=kmalloc(sizeof(struct ves1893),GFP_KERNEL);
-        if (ves==NULL) {
-                kfree(client);
-                return -ENOMEM;
-        }
+//	if (i2c_master_send(&client_template,NULL,0))
+//		return -1;
+	
+	client_template.adapter=adap;
+	
+	dprintk("readreg\n");
+	if ((readreg(&client_template, 0x1e)&0xf0)!=0xd0)
+	{
+	  if ((readreg(&client_template, 0x1a)&0xF0)==0x70)
+	    printk("warning, no VES1893 found but a VES1820\n");
+	  return -1;
+	}
+	printk("feID: 1893 %x\n", readreg(&client_template, 0x1e));
+	
+	if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+		return -ENOMEM;
+	memcpy(client, &client_template, sizeof(struct i2c_client));
+	dclient=client;
+	
+	client->data=ves=kmalloc(sizeof(struct ves1893),GFP_KERNEL);
+	if (ves==NULL) {
+		kfree(client);
+		return -ENOMEM;
+	}
        
-        i2c_attach_client(client);
-        init(client);
+	i2c_attach_client(client);
+	init(client);
+	
+	if (register_demod(&ves1893))
+ 		printk("ves1893.o: can't register demod.\n");
 
-        printk("VES1893: attaching VES1893 at 0x%02x ", (client->addr)<<1);
-        printk("to adapter %s\n", adap->name);
-        return 0;
+	return 0;
 }
 
 static int detach_client(struct i2c_client *client)
 {
-        printk("VES1893: detach_client\n");
-        i2c_detach_client(client);
-        kfree(client->data);
-        kfree(client);
-        return 0;
+	printk("VES1893: detach_client\n");
+	i2c_detach_client(client);
+	kfree(client->data);
+	kfree(client);
+	unregister_demod(&ves1893);
+	return 0;
 }
 
 void ves_write_reg(int reg, int val)
@@ -396,69 +387,69 @@ int ves_get_unc_packet(u32 *uncp)
 static void inc_use (struct i2c_client *client)
 {
 #ifdef MODULE
-        MOD_INC_USE_COUNT;
+	MOD_INC_USE_COUNT;
 #endif
 }
 
 static void dec_use (struct i2c_client *client)
 {
 #ifdef MODULE
-        MOD_DEC_USE_COUNT;
+	MOD_DEC_USE_COUNT;
 #endif
 }
 
 static struct i2c_driver dvbt_driver = {
-        "VES1893 DVB DECODER",
-        I2C_DRIVERID_VES1893,
-        I2C_DF_NOTIFY,
-        attach_adapter,
-        detach_client,
-        0,
-        inc_use,
-        dec_use,
+	"VES1893 DVB DECODER",
+	I2C_DRIVERID_VES1893,
+	I2C_DF_NOTIFY,
+	attach_adapter,
+	detach_client,
+	0,
+	inc_use,
+	dec_use,
 };
 
 static struct i2c_client client_template = {
-        "VES1893",
-        I2C_DRIVERID_VES1893,
-        0,
-        (0x10 >> 1),
-        NULL,
-        &dvbt_driver,
-        NULL
+	"VES1893",
+	I2C_DRIVERID_VES1893,
+	0,
+	(0x10 >> 1),
+	NULL,
+	&dvbt_driver,
+	NULL
 };
 
 
 #ifdef MODULE
 int init_module(void) {
-        int res;
-        
-        if ((res = i2c_add_driver(&dvbt_driver))) 
-        {
-                printk("VES1893: Driver registration failed, module not inserted.\n");
-                return res;
-        }
-        if (!dclient)
-        {
-                printk("VES1893: not found.\n");
-                i2c_del_driver(&dvbt_driver);
-                return -EBUSY;
-        }
-        
-        dprintk("VES1893: init_module\n");
-        return 0;
+	int res;
+	
+	if ((res = i2c_add_driver(&dvbt_driver))) 
+	{
+		printk("VES1893: Driver registration failed, module not inserted.\n");
+		return res;
+	}
+	if (!dclient)
+	{
+		printk("VES1893: not found.\n");
+		i2c_del_driver(&dvbt_driver);
+		return -EBUSY;
+	}
+	
+	dprintk("VES1893: init_module\n");
+	return 0;
 }
 
 void cleanup_module(void)
 {
-        int res;
-        
-        if ((res = i2c_del_driver(&dvbt_driver))) 
-        {
-                printk("dvb-tuner: Driver deregistration failed, "
-                       "module not removed.\n");
-        }
-        dprintk("VES1893: cleanup\n");
+	int res;
+	
+	if ((res = i2c_del_driver(&dvbt_driver))) 
+	{
+		printk("dvb-tuner: Driver deregistration failed, "
+		       "module not removed.\n");
+	}
+	dprintk("VES1893: cleanup\n");
 }
 #endif
 

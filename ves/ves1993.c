@@ -34,24 +34,14 @@
 MODULE_PARM(debug,"i");
 #endif
 
-//   exported functions:
-void ves_write_reg(int reg, int val);
-void ves_init(void);
-void ves_set_frontend(struct frontend *front);
-void ves_get_frontend(struct frontend *front);
-void ves_reset(void);
-int ves_read_reg(int reg);
+static void ves_write_reg(int reg, int val);
+static void ves_init(void);
+static void ves_set_frontend(struct frontend *front);
+static void ves_get_frontend(struct frontend *front);
+static void ves_reset(void);
+static int ves_read_reg(int reg);
 
-void ves_reset(void);
-int ves_read_reg(int reg);
-
-EXPORT_SYMBOL(ves_write_reg);
-EXPORT_SYMBOL(ves_init);
-EXPORT_SYMBOL(ves_set_frontend);
-EXPORT_SYMBOL(ves_get_frontend);
-
-EXPORT_SYMBOL(ves_reset);
-EXPORT_SYMBOL(ves_read_reg);
+struct demod_function_struct ves1993={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
 
 static int debug = 9;
 #define dprintk	if (debug) printk
@@ -379,9 +369,9 @@ static int attach_adapter(struct i2c_adapter *adap)
        
         i2c_attach_client(client);
         init(client);
-
-        printk("ves1993: attaching ves1993 at 0x%02x ", (client->addr)<<1);
-        printk("to adapter %s\n", adap->name);
+				if (register_demod(&ves1993))
+					printk("ves1993.o: can't register demod.\n");
+              
         return 0;
 }
 
@@ -391,6 +381,7 @@ static int detach_client(struct i2c_client *client)
         i2c_detach_client(client);
         kfree(client->data);
         kfree(client);
+        unregister_demod(&ves1993);
         return 0;
 }
 

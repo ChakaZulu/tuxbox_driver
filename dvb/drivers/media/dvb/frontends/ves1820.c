@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.11  2001/03/29 02:13:25  tmbinc
+    Added register_demod, unregister_dmod. be sure to use new load script
+
     Revision 1.10  2001/03/19 18:19:25  gillem
     - add ioctl GET_UNCORRECTABLE_BLOCKS
 
@@ -28,7 +31,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.10 $
+    $Revision: 1.11 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -47,11 +50,13 @@
 
 /* ---------------------------------------------------------------------- */
 
-EXPORT_SYMBOL(ves_write_reg);
-EXPORT_SYMBOL(ves_init);
-EXPORT_SYMBOL(ves_set_frontend);
-EXPORT_SYMBOL(ves_get_frontend);
-EXPORT_SYMBOL(ves_get_unc_packet);
+static void ves_write_reg(int reg, int val);
+static void ves_init(void);
+static void ves_set_frontend(struct frontend *front);
+static void ves_get_frontend(struct frontend *front);
+static int ves_get_unc_packet(uint32_t *uncp);
+
+struct demod_function_struct ves1820={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
 
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
@@ -367,16 +372,16 @@ int attach_adapter(struct i2c_adapter *adap)
         i2c_attach_client(client);
         
         init(client);
-        
-        printk("ves1820.o: attached to adapter %s\n", adap->name);
 
+	if (register_demod(&ves1820))
+ 		printk("ves1820.o: can't register demod.\n");
 	/* mask interrupt */
 	writereg(client, 0x32 , 0x80 | 1 | (1<<1) | (1<<2) | (1<<3));
 
 	ves_tasklet.data = (void*)client->data;
 
 	if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "ves1820", NULL) != 0)
-	{
+ 	{
 		i2c_del_driver(&dvbt_driver);
 		dprintk("ves1820.o: can't request interrupt\n");
 		return -EBUSY;
@@ -391,6 +396,7 @@ int detach_client(struct i2c_client *client)
         i2c_detach_client(client);
         kfree(client->data);
         kfree(client);
+        unregister_demod(&ves1820);
         return 0;
 }
 
@@ -429,12 +435,12 @@ void ves_get_frontend(struct frontend *front)
 
 	front->sync = ves->sync;
 	front->vber = ves->ber;
-/*
+
 	front->sync=readreg(dclient,0x11);
 	front->vber = readreg(dclient,0x14);
 	front->vber|=(readreg(dclient,0x15)<<8);
 	front->vber|=(readreg(dclient,0x16)<<16);
-*/
+
 } 
 
 int ves_get_unc_packet(u32 *uncp)

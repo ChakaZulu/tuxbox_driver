@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.9 2001/03/22 18:00:08 fnbrd Exp $
+    $Id: at76c651.c,v 1.10 2001/03/29 02:13:25 tmbinc Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,6 +33,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.10  2001/03/29 02:13:25  tmbinc
+    Added register_demod, unregister_dmod. be sure to use new load script
+
     Revision 1.9  2001/03/22 18:00:08  fnbrd
     Kleinigkeiten.
 
@@ -59,22 +62,14 @@
 
 #include <dbox/ves.h>
 
-void ves_tuner_i2c(int an); // Sollte evtl. noch ins ves.h
+static void ves_write_reg(int reg, int val);
+static void ves_init(void);
+static void ves_set_frontend(struct frontend *front);
+static void ves_get_frontend(struct frontend *front);
+static void ves_tuner_i2c(int an);
+static int ves_get_unc_packet(u32 *uncp);
 
-/*
-  exported functions:
-    void ves_write_reg(int reg, int val);
-    void ves_init(void);
-    void ves_set_frontend(struct frontend *front);
-    void ves_get_frontend(struct frontend *front);
-    void ves_tuner_i2c(int an)
-*/
-//EXPORT_SYMBOL(ves_write_reg); // Zur Sicherheit auskommentiert.
-EXPORT_SYMBOL(ves_init);
-EXPORT_SYMBOL(ves_set_frontend);
-EXPORT_SYMBOL(ves_get_frontend);
-EXPORT_SYMBOL(ves_get_unc_packet);
-EXPORT_SYMBOL(ves_tuner_i2c);
+struct demod_function_struct at76c651={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
 
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
@@ -535,14 +530,17 @@ int attach_adapter(struct i2c_adapter *adap)
         // Wird auch im ves_task gemacht, um den IRQ zurueckzusetzen
 	writereg(client, 0x0b, 0x0c); // signal input loss und frame lost
 
-		if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "at76c651", NULL) != 0)
-		{
-			i2c_del_driver(&dvbt_driver);
-			dprintk("AT76C651: can't request interrupt\n");
-	        return -EBUSY;
-		}
+	if (register_demod(&at76c651))
+ 		printk("at76c651.o: can't register demod.\n");
 
-        return 0;
+	if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "at76c651", NULL) != 0)
+	{
+		i2c_del_driver(&dvbt_driver);
+		dprintk("AT76C651: can't request interrupt\n");
+	       return -EBUSY;
+	}
+
+  return 0;
 }
 
 int detach_client(struct i2c_client *client)
@@ -556,6 +554,7 @@ int detach_client(struct i2c_client *client)
         i2c_detach_client(client);
         kfree(client->data);
         kfree(client);
+        unregister_demod(&at76c651);
         return 0;
 }
 
