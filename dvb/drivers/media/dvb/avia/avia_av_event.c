@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_event.c,v 1.10 2003/07/24 01:59:21 homar Exp $
+ * $Id: avia_av_event.c,v 1.11 2003/10/26 16:32:51 obi Exp $
  *   
  * AViA 500/600 event driver (dbox-II-project)
  *
@@ -23,24 +23,15 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/poll.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
-#include <linux/init.h>
+#include <linux/timer.h>
 
+#include <dbox/event.h>
 #include "avia_av.h"
 #include "avia_av_event.h"
-#include <dbox/event.h>
 
 static u32 event_delay;
 static spinlock_t event_lock = SPIN_LOCK_UNLOCKED;
@@ -57,34 +48,20 @@ static void avia_av_event_timer_function(unsigned long data)
 	if ((++event_delay) == 30) {
 		event_delay = 0;
 
-		if (reg) {
-			if (((avia_av_dram_read(H_SIZE) & 0xFFFF) != reg->hsize) ||
-				((avia_av_dram_read(V_SIZE) & 0xFFFF) != reg->vsize)) {
-				reg->hsize = (avia_av_dram_read(H_SIZE) & 0xFFFF);
-				reg->vsize = (avia_av_dram_read(V_SIZE) & 0xFFFF);
-				memset(&event, 0, sizeof(struct event_t));
-				event.event = EVENT_VHSIZE_CHANGE;
-				event_write_message(&event, 1);
-			}
+		if (((avia_av_dram_read(H_SIZE) & 0xFFFF) != reg->hsize) ||
+			((avia_av_dram_read(V_SIZE) & 0xFFFF) != reg->vsize)) {
+			reg->hsize = (avia_av_dram_read(H_SIZE) & 0xFFFF);
+			reg->vsize = (avia_av_dram_read(V_SIZE) & 0xFFFF);
+			memset(&event, 0, sizeof(struct event_t));
+			event.event = EVENT_VHSIZE_CHANGE;
+			event_write_message(&event, 1);
+		}
 
-			if ((avia_av_dram_read(ASPECT_RATIO) & 0xFFFF) != reg->aratio) {
-				reg->aratio = (avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
-				memset(&event, 0, sizeof(struct event_t));
-				event.event = EVENT_ARATIO_CHANGE;
-				event_write_message(&event, 1);
-			}
-
-			if ((avia_av_dram_read(FRAME_RATE) & 0xFFFF) != reg->frate)
-				reg->frate = avia_av_dram_read(FRAME_RATE) & 0xFFFF;
-
-			if ((avia_av_dram_read(BIT_RATE) & 0xFFFF) != reg->brate)
-				reg->brate = avia_av_dram_read(BIT_RATE) & 0xFFFF;
-
-			if ((avia_av_dram_read(VBV_SIZE) & 0xFFFF) != reg->vbsize)
-				reg->vbsize = avia_av_dram_read(VBV_SIZE) & 0xFFFF;
-
-			if ((avia_av_dram_read(AUDIO_TYPE) & 0xFFFF) != reg->atype)
-				reg->atype = avia_av_dram_read(AUDIO_TYPE) & 0xFFFF;
+		if ((avia_av_dram_read(ASPECT_RATIO) & 0xFFFF) != reg->aratio) {
+			reg->aratio = (avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
+			memset(&event, 0, sizeof(struct event_t));
+			event.event = EVENT_ARATIO_CHANGE;
+			event_write_message(&event, 1);
 		}
 	}
 
@@ -95,7 +72,7 @@ static void avia_av_event_timer_function(unsigned long data)
 
 int avia_av_event_init(void)
 {
-	printk(KERN_INFO "avia_av_event: $Id: avia_av_event.c,v 1.10 2003/07/24 01:59:21 homar Exp $\n");
+	printk(KERN_INFO "avia_av_event: $Id: avia_av_event.c,v 1.11 2003/10/26 16:32:51 obi Exp $\n");
 
 	event_delay = 0;
 
