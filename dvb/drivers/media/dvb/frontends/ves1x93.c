@@ -290,6 +290,11 @@ int ves1x93_set_inversion (struct dvb_i2c_bus *i2c, fe_spectral_inversion_t inve
 {
 	u8 val;
 
+	/*
+	 * inversion on/off are interchanged because i and q seem to
+	 * be swapped on the hardware
+	 */
+
 	switch (inversion) {
 	case INVERSION_OFF:
 		val = 0xc0;
@@ -298,13 +303,16 @@ int ves1x93_set_inversion (struct dvb_i2c_bus *i2c, fe_spectral_inversion_t inve
 		val = 0x80;
 		break;
 	case INVERSION_AUTO:
-		val = 0x40;
+		val = 0x00;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return ves1x93_writereg (i2c, 0x0c, (init_1x93_tab[0x0c] & 0x3f) | val);
+	/* needs to be saved for FE_GET_FRONTEND */
+	init_1x93_tab[0x0c] = (init_1x93_tab[0x0c] & 0x3f) | val;
+
+	return ves1x93_writereg (i2c, 0x0c, init_1x93_tab[0x0c]);
 }
 
 
@@ -542,8 +550,10 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		afc = (afc * (int)(p->u.qpsk.symbol_rate/1000/8))/16;
 
 		p->frequency -= afc;
-		p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
-					INVERSION_ON : INVERSION_OFF;
+
+		if (!(init_1x93_tab[0x0c] & 0x80))
+			p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
+					INVERSION_OFF : INVERSION_ON;
 		p->u.qpsk.fec_inner = ves1x93_get_fec (i2c);
 	/*  XXX FIXME: timing offset !! */
 		break;
