@@ -80,7 +80,16 @@ struct videoDisplayStillPicture {
         int32_t size; 
 };
 
-#define VIDEO_STOP                 _IOW('o', 21, boolean) 
+struct videoDigest {
+        int16_t x;
+        int16_t y;
+        int32_t skip;
+        int16_t decimation;
+        int16_t threshold;
+        int16_t pictureID;
+};
+
+#define VIDEO_STOP                 _IOW('o', 21, boolean)
 #define VIDEO_PLAY                 _IOW('o', 22, void)
 #define VIDEO_FREEZE               _IOW('o', 23, void)
 #define VIDEO_CONTINUE             _IOW('o', 24, void)
@@ -93,4 +102,5 @@ struct videoDisplayStillPicture {
 #define VIDEO_FAST_FORWARD         _IOW('o', 31, int)
 #define VIDEO_SLOWMOTION           _IOW('o', 32, int)
 #define VIDEO_SET_FORMAT           _IOW('o', 33, videoFormat_t)
+#define VIDEO_DIGEST               _IOW('o', 34, struct videoDigest *)
 #endif /*_OST_VIDEO_H_*/

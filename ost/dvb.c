@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.11 2001/03/08 20:02:01 gillem Exp $
+ * $Id: dvb.c,v 1.12 2001/03/08 21:00:49 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -353,6 +353,16 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       return -EPERM;
     switch (cmd)
     {
+	case VIDEO_DIGEST:
+	  /* TODO: check values */
+	  avia_wait(avia_command(Digest,\
+		((struct videoDigest*)parg)->x,
+		((struct videoDigest*)parg)->y,
+		((struct videoDigest*)parg)->skip,
+		((struct videoDigest*)parg)->decimation,
+		((struct videoDigest*)parg)->threshold,
+		((struct videoDigest*)parg)->pictureID));
+	  break;
     case VIDEO_STOP:
       dvb->videostate.playState=VIDEO_STOPPED;
       avia_wait(avia_command(Pause, 3, 3));
