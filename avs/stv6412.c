@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.4  2001/07/21 18:41:07  gillem
+ *   - fix data struct
+ *
  *   Revision 1.3  2001/07/03 19:24:46  gillem
  *   - some changes ... bugreport !
  *
@@ -31,7 +34,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -66,6 +69,7 @@ typedef struct s_stv6412_data {
  unsigned char svm				: 1;
  /* Data 1 */
  unsigned char v_stereo			: 1;
+ unsigned char res1				: 1;
  unsigned char v_asc			: 2;
  unsigned char c_ag				: 1;
  unsigned char tc_asc			: 3;
@@ -84,6 +88,7 @@ typedef struct s_stv6412_data {
  unsigned char slb				: 1;
  unsigned char res2				: 1;
  unsigned char v_coc			: 1;
+ unsigned char v_cgc			: 1;
  unsigned char r_tfc			: 1;
  unsigned char r_ac				: 1;
  unsigned char t_rcos			: 1;
@@ -412,25 +417,27 @@ int stv6412_init(struct i2c_client *client)
 {
 	memset((void*)&stv6412_data,0,STV6412_DATA_SIZE);
 
+	/* Data 0 */
+	stv6412_data.t_vol_c = 2;
+	 /* Data 1 */
 	stv6412_data.tc_asc = 1;
 	stv6412_data.c_ag   = 1;
-	stv6412_data.v_asc  = 1;
-
-	stv6412_data.t_vsc  = 1;
+	/* Data 2 */
 	stv6412_data.t_cm   = 1;
 	stv6412_data.v_vsc  = 1;
 	stv6412_data.v_cm   = 1;
-
+	stv6412_data.t_vsc  = 1;
+	/* Data 3 */
 	stv6412_data.fblk     = 1;
 	stv6412_data.rgb_sc   = 1;
 	stv6412_data.rgb_gain = 2;
 	stv6412_data.rgb_tri  = 1;
-
+	/* Data 4 */
 	stv6412_data.v_coc = 1;
-
+	/* Data 5 */
 	stv6412_data.e_aig = 1;
 	stv6412_data.t_sb  = 3;
-
+	/* Data 6 */
 	stv6412_data.a_in  = 1;
 	stv6412_data.r_out = 1;
 
