@@ -1,9 +1,9 @@
 /*
- * $Id: sqc6100.c,v 1.6 2003/12/25 15:30:51 wjoost Exp $
+ * $Id: sqc6100.c,v 1.7 2003/12/25 15:35:01 wjoost Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
- * (C) 2003 Andreas Oberritter <obi@saftware.de>,
+ * (C) 2003 Andreas Oberritter <obi@linuxtv.org>,
  *          Wolfram Joost <dbox2@frokaschwei.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -605,6 +605,7 @@ static int sqc6100_reset(struct dvb_i2c_bus *i2c)
 	if ((ret = sqc6100_writereg(i2c, GC_RES_TSERR, 0x02)) < 0)
 		return ret;
 
+	sqc6100_status = 0;
 	return sqc6100_init(i2c);
 }
 
@@ -637,9 +638,7 @@ static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	case FE_READ_BER:
 		return sqc6100_read_ber(i2c, arg);
 
-	case FE_READ_SIGNAL_STRENGTH:
-		return -ENOSYS;		/* AGC_GAIN unusable */
-
+	case FE_READ_SIGNAL_STRENGTH:	/* AGC_GAIN unusable */
 	case FE_READ_SNR:
 		return -ENOSYS;
 
