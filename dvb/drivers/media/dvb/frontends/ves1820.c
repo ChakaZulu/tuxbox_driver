@@ -129,10 +129,10 @@ u8 ves1820_readreg (struct dvb_i2c_bus *i2c, u8 reg)
 
 
 static
-int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 *data, u8 len)
+int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
 {
         int ret;
-        struct i2c_msg msg = { addr: addr, flags: 0, buf: data, len: len };
+        struct i2c_msg msg = { addr: addr, flags: 0, buf: data, len: 4 };
 
         ret = i2c->xfer (i2c, &msg, 1);
 
@@ -151,35 +151,29 @@ static
 int tuner_set_tv_freq (struct dvb_frontend *frontend, u32 freq)
 {
         u32 div;
-	static u8 addr [] = { 0x61, 0x62, 0x30 };
-	static u8 byte3 [] = { 0x8e, 0x85, 0x85 };
+	static u8 addr [] = { 0x61, 0x62 };
+	static u8 byte3 [] = { 0x8e, 0x85 };
 	int tuner_type = GET_TUNER(frontend);
-        u8 buf [7];
-	u8 offs = 0;
+        u8 buf [4];
 
+	if (tuner_type == 0xff)
+		return 0;
 	div = (freq + 36250000 + 31250) / 62500;
 
-	if (tuner_type == 2) {
-		buf[0] = 0x00;
-		buf[1] = 0x07;
-		buf[2] = 0xc0;
-		offs = 3;
-	}
-	
-	buf[offs + 0] = (div >> 8) & 0x7f;
-	buf[offs + 1] = div & 0xff;
-	buf[offs + 2] = byte3[tuner_type];
+	buf[0] = (div >> 8) & 0x7f;
+	buf[1] = div & 0xff;
+	buf[2] = byte3[tuner_type];
 
-	if (tuner_type > 0) {
-		buf[offs + 2] |= (div >> 10) & 0x60;
-		buf[offs + 3] = (freq < 174000000 ? 0x88 :
-				 freq < 470000000 ? 0x84 : 0x81);
+	if (tuner_type == 1) {
+		buf[2] |= (div >> 10) & 0x60;
+		buf[3] = (freq < 174000000 ? 0x88 :
+			  freq < 470000000 ? 0x84 : 0x81);
 	} else {
-		buf[offs + 3] = (freq < 174000000 ? 0xa1 :
-				 freq < 454000000 ? 0x92 : 0x34);
+		buf[3] = (freq < 174000000 ? 0xa1 :
+			  freq < 454000000 ? 0x92 : 0x34);
 	}
 
-        return tuner_write (frontend->i2c, addr[tuner_type], buf, offs + 4);
+        return tuner_write (frontend->i2c, addr[tuner_type], buf);
 }
 
 
@@ -198,8 +192,8 @@ int probe_tuner (struct dvb_frontend *frontend)
 			SET_TUNER(frontend,1);
 			printk ("%s: setup for tuner sp5659c\n", __FILE__);
 		} else {
-			SET_TUNER(frontend,2);
-			printk("%s: setup for tuner sp5659 on nokia dbox2\n", __FILE__);
+			SET_TUNER(frontend, 0xff);
+			printk ("%s: setup for tuner on unreachable bus\n", __FILE__);
 		}
 	}
 
@@ -239,7 +233,6 @@ int ves1820_init (struct dvb_frontend *frontend)
 	probe_tuner (frontend);
 
         SET_REG0(frontend,ves1820_inittab[0]);
-
 	return 0;
 }
 
@@ -302,15 +295,9 @@ int ves1820_set_symbolrate (struct dvb_i2c_bus *i2c, u32 symbolrate)
         s16 SFIL=0;
         u16 NDEC = 0;
         u32 tmp, ratio;
-	u32 XIN, FIN;
 
-	/* FIXME */
-	if (0) /* siemens pci */
-		XIN = 57840000UL;
-	else /* nokia dbox2 */
-		XIN = 69600000UL;
-
-	FIN = XIN >> 4;
+#define XIN 69600000UL
+#define FIN (XIN>>4)
 
         if (symbolrate > XIN/2) 
                 symbolrate = XIN/2;
@@ -456,12 +443,13 @@ int ves1820_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	}
 
 	case FE_READ_BER:
-		*((u32*) arg) = ves1820_readreg(frontend->i2c, 0x14) |
-			        (ves1820_readreg(frontend->i2c, 0x15) << 8) |
-			        (ves1820_readreg(frontend->i2c, 0x16) << 16);
-                *((u32*) arg) *= 10;
+	{
+		u32 ber = ves1820_readreg(frontend->i2c, 0x14) |
+			 (ves1820_readreg(frontend->i2c, 0x15) << 8) |
+			 ((ves1820_readreg(frontend->i2c, 0x16) & 0x0f) << 16);
+		*((u32*) arg) = 10 * ber;
 		break;
-
+	}
 	case FE_READ_SIGNAL_STRENGTH:
 	{
 		u8 gain = ves1820_readreg(frontend->i2c, 0x17);
