@@ -21,6 +21,10 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.17  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.16  2002/02/24 19:14:59  obi
  *   reverted to previous revision - is not related to tuning api
  *
@@ -67,7 +71,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -339,7 +343,7 @@ inline int stv6412_set_fblk( struct i2c_client *client, int type )
 
 /* ---------------------------------------------------------------------- */
 
-static int stv6412_getstatus(struct i2c_client *client)
+int stv6412_get_status(struct i2c_client *client)
 {
 	unsigned char byte;
 
@@ -525,7 +529,7 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			/* get status */
 			case AVSIOGSTATUS:
                                 // TODO: error handling
-                                val = stv6412_getstatus(client);
+                                val = stv6412_get_status(client);
                                 break;
 			default:
 				return -EINVAL;

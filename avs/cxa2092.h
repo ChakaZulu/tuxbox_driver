@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.12  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.11  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -52,7 +56,7 @@
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -61,5 +65,6 @@ int cxa2092_init(struct i2c_client *client);
 int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg );
 int cxa2092_set_volume( struct i2c_client *client, int vol );
 int cxa2092_get_volume(void);
+int cxa2092_get_status(struct i2c_client *client);
 #endif
 

@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.22  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.21  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -80,7 +84,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -422,18 +426,21 @@ inline int cxa2092_get_logic( int sw )
 
 /* ---------------------------------------------------------------------- */
 
-static int cxa2092_getstatus(struct i2c_client *client)
+int cxa2092_get_status(struct i2c_client *client)
 {
-	unsigned char byte;
+	unsigned char byte[1];
+	int i;
+	byte[0] = 0;
 
-	byte = 0;
+	i = i2c_master_recv(client,byte,1);
 
-	if (1 != i2c_master_recv(client,&byte,1))
+	if (1 != i)
 	{
+		printk("[AVS] i2c error %d\n",i);
 		return -1;
 	}
 
-	return byte;
+	return byte[0];
 }
 
 /* ---------------------------------------------------------------------- */
@@ -557,7 +564,7 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
                                 break;
 			case AVSIOGSTATUS:
                                 // TODO: error handling
-                                val = cxa2092_getstatus(client);
+                                val = cxa2092_get_status(client);
                                 break;
 			default:
                                 return -EINVAL;

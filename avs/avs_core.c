@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.19  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.18  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -73,11 +77,11 @@
  *   - initial release
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -95,6 +99,7 @@
 
 #include "dbox/avs_core.h"
 #include "dbox/info.h"
+#include "dbox/event.h"
 #include "mtdriver/scartApi.h"
 
 #include "cxa2092.h"
@@ -109,7 +114,7 @@
 
 static devfs_handle_t devfs_handle;
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
@@ -157,13 +162,13 @@ struct s_avs
 
 struct s_avs * avs_data;
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static int avs_ioctl (struct inode *inode, struct file *file,
                          unsigned int cmd, unsigned long arg);
 static int avs_open (struct inode *inode, struct file *file);
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static struct file_operations avs_fops = {
 	owner:		THIS_MODULE,
@@ -171,7 +176,7 @@ static struct file_operations avs_fops = {
 	open:		avs_open,
 };
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 #define dprintk     if (debug) printk
 
@@ -179,7 +184,34 @@ static int debug = 0;
 static int addr  = 0;
 static int type  = CXAAUTO;
 
-/* --------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+/* event stuff */
+
+#define AVS_EVENT_TIMER 1
+
+static spinlock_t avs_event_lock;
+static struct timer_list avs_event_timer;
+
+static int  avs_event_init(void);
+static void avs_event_cleanup(void);
+static void avs_event_func(unsigned long data);
+static void avs_event_task(void *data);
+
+static u32 avs_event_delay;
+
+struct tq_struct avs_event_tasklet=
+{
+	routine: avs_event_task,
+	data: 0
+};
+
+typedef struct avs_event_reg {
+	u8 state;
+} avs_event_reg;
+
+//static int avs_standby( int state );
+
+/* ------------------------------------------------------------------------- */
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -187,7 +219,7 @@ MODULE_PARM(addr,"i");
 MODULE_PARM(type,"i");
 #endif
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static const struct {
   unsigned volidx:4;
@@ -335,55 +367,65 @@ static struct file_operations avs_mixer_fops = {
 	release:	avs_release_mixdev,
 };
 
-/* --------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static int avs_attach(struct i2c_adapter *adap, int addr,
 			unsigned short flags, int kind)
 {
-    struct i2c_client *client;
+	struct i2c_client *client;
 
-    dprintk("[AVS]: attach\n");
+	dprintk("[AVS]: attach\n");
 
-    if (this_adap > 0)
+	if (this_adap > 0)
 	{
-        return -1;
-    }
+		dprintk("[AVS]: attach failed\n");
+		return -1;
+	}
 
-    this_adap++;
+	this_adap++;
 	
-    client_template.adapter = adap;
-    client_template.addr = addr;
+	client_template.adapter = adap;
+	client_template.addr = addr;
 
-    dprintk("[AVS]: chip found @ 0x%x\n",addr);
+	dprintk("[AVS]: chip found @ 0x%x\n",addr);
 
-    if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+	if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
 	{
-        return -ENOMEM;
-    }
+		dprintk("[AVS]: attach nomem 1\n");
+		return -ENOMEM;
+	}
 
-    memcpy(client,&client_template,sizeof(struct i2c_client));
-    client->data = avs_data = kmalloc(sizeof(struct s_avs),GFP_KERNEL);
+	memcpy(client,&client_template,sizeof(struct i2c_client));
+	client->data = avs_data = kmalloc(sizeof(struct s_avs),GFP_KERNEL);
 
-    if (NULL == avs_data)
+	if (NULL == avs_data)
 	{
-        kfree(client);
-        return -ENOMEM;
-    }
+		dprintk("[AVS]: attach nomem 2\n");
+		kfree(client);
+		return -ENOMEM;
+	}
 
-    memset(avs_data,0,sizeof(struct s_avs));
+	memset(avs_data,0,sizeof(struct s_avs));
 
-    if (type >= 0 && type < AVS_COUNT) {
-	    avs_data->type = type;
-	    strncpy(client->name, avs_types[avs_data->type].name, sizeof(client->name));
-    } else {
-	    avs_data->type = -1;
-    }
+	if (type >= 0 && type < AVS_COUNT)
+	{
+		avs_data->type = type;
+		strncpy(client->name, avs_types[avs_data->type].name, sizeof(client->name));
+	}
+	else
+	{
+		avs_data->type = -1;
+	}
 
-    i2c_attach_client(client);
+	dprintk("[AVS]: attach final\n");
 
-    //MOD_INC_USE_COUNT;
+	i2c_attach_client(client);
 
-    return 0;
+	dprintk("[AVS]: attach final ok\n");
+
+	//MOD_INC_USE_COUNT;
+
+	return 0;
 }
 
 static int avs_probe(struct i2c_adapter *adap)
@@ -418,8 +460,11 @@ static int avs_detach(struct i2c_client *client)
 
 	i2c_detach_client(client);
 
-	kfree(t);
-	kfree(client);
+	if(t)
+		kfree(t);
+
+	if(client)
+		kfree(client);
 
 	return 0;
 }
@@ -448,7 +493,7 @@ static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
 	return err;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 /* nokia-ostnet scart api -> driver api wrapper */
 
 int scart_command( unsigned int cmd, void *arg )
@@ -657,7 +702,7 @@ int scart_command( unsigned int cmd, void *arg )
 	return 0;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
@@ -678,14 +723,164 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	return err;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 int avs_open (struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+int avs_event_init()
+{
+	int ret = 0;
+	struct avs_event_reg * reg;
+
+	dprintk("[AVS]: event init\n");
+
+	spin_lock_irq(&avs_event_lock);
+
+	reg = (avs_event_reg*) kmalloc ( sizeof(struct avs_event_reg), GFP_KERNEL );
+
+	if (reg)
+	{
+		switch(type)
+		{
+			case CXA2092:
+				reg->state = cxa2092_get_status(&client_template);
+				break;
+			case CXA2126:
+				reg->state = cxa2126_get_status(&client_template);
+				break;
+			case STV6412:
+				reg->state = stv6412_get_status(&client_template);
+				break;
+		}
+
+		init_timer(&avs_event_timer);
+
+		avs_event_timer.function = avs_event_func;
+		avs_event_timer.expires  = jiffies + HZ/AVS_EVENT_TIMER + 2*HZ/100;
+		avs_event_timer.data     = (unsigned long)reg;
+
+		add_timer(&avs_event_timer);
+	}
+	else
+	{
+		ret = -ENOMEM;
+	}
+
+	spin_unlock_irq(&avs_event_lock);
+
+	return ret;
+}
+
+void avs_event_cleanup()
+{
+	spin_lock_irq(&avs_event_lock);
+
+	dprintk("[AVS]: event cleanup\n");
+
+	if (avs_event_timer.data)
+	{
+		kfree((char*)avs_event_timer.data);
+		avs_event_timer.data = 0;
+	}
+
+	del_timer(&avs_event_timer);
+
+	spin_unlock_irq(&avs_event_lock);
+}
+
+void avs_event_func(unsigned long data)
+{
+	avs_event_tasklet.data = (void*)data;
+	schedule_task(&avs_event_tasklet);
+}
+
+void avs_event_task(void * data)
+{
+	struct avs_event_reg * reg;
+	struct event_t event;
+	int state;
+
+	spin_lock_irq(&avs_event_lock);
+
+	reg = (struct avs_event_reg *)data;
+
+	if(reg)
+	{
+		switch(type)
+		{
+			case CXA2092:
+				state = cxa2092_get_status(&client_template);
+				break;
+			case CXA2126:
+				state = cxa2126_get_status(&client_template);
+				break;
+			case STV6412:
+				state = stv6412_get_status(&client_template);
+				break;
+			default:
+				state = -1;
+				break;
+		}
+
+		if ( state != -1 )
+		{
+			if ( (state&0x0f) != (reg->state&0x0f) )
+			{
+				dprintk("[AVS]: state change %02X -> %02X\n",reg->state,state);
+
+				switch(type)
+				{
+					case CXA2092:
+					case STV6412:
+						if( (state&0x0c) != (reg->state&0x0c) )
+						{
+							dprintk("[AVS]: vcr state change %02X -> %02X\n",(reg->state>>2)&3,(state>>3)&3);
+							event.event = EVENT_SBVCR_CHANGE;
+							event_write_message( &event, 1 );
+						}
+						if( (state&0x03) != (reg->state&0x03) )
+						{
+							dprintk("[AVS]: tv state change %02X -> %02X\n",reg->state&3,state&3);
+							event.event = EVENT_SBTV_CHANGE;
+							event_write_message( &event, 1 );
+						}
+						break;
+					case CXA2126:
+						if( (state&0x0c) != (reg->state&0x0c) )
+						{
+							dprintk("[AVS]: tv state change %02X -> %02X\n",(reg->state>>2)&3,(state>>3)&3);
+							event.event = EVENT_SBTV_CHANGE;
+							event_write_message( &event, 1 );
+						}
+						if( (state&0x03) != (reg->state&0x03) )
+						{
+							dprintk("[AVS]: vcr state change %02X -> %02X\n",reg->state&3,state&3);
+							event.event = EVENT_SBVCR_CHANGE;
+							event_write_message( &event, 1 );
+						}
+						break;
+				}
+
+				reg->state = state;
+			}
+		}
+
+		mod_timer(&avs_event_timer, jiffies + HZ/AVS_EVENT_TIMER + 2*HZ/100);
+	}
+	else
+	{
+		dprintk("[AVS]: event task error\n");
+	}
+
+	spin_unlock_irq(&avs_event_lock);
+}
+
+/* ------------------------------------------------------------------------- */
 
 void inc_use (struct i2c_client *client)
 {
@@ -701,7 +896,7 @@ void dec_use (struct i2c_client *client)
 #endif
 }
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
         "i2c audio/video switch driver",
@@ -728,7 +923,7 @@ static struct i2c_client client_template =
 
 EXPORT_SYMBOL(scart_command);
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 #ifdef MODULE
 MODULE_AUTHOR("Gillem <gillem@berlios.de>");
@@ -741,7 +936,7 @@ int init_module(void)
 int i2c_avs_init(void)
 #endif
 {
-
+	int res;
 	struct dbox_info_struct dinfo;
 	
 	if (type == CXAAUTO)
@@ -762,7 +957,11 @@ int i2c_avs_init(void)
 		}
 	}
 	
-	i2c_add_driver(&driver);
+	if ( (res=i2c_add_driver(&driver)) )
+	{
+		dprintk("[AVS]: i2c add driver failed\n");
+		return res;
+	}
 
 	switch(type)
 	{
@@ -781,6 +980,12 @@ int i2c_avs_init(void)
 			return -EIO;
 	}
 
+	if ( avs_event_init() != 0 )
+	{
+		i2c_del_driver(&driver);
+		return -ENOMEM;
+	}
+
 	devfs_handle = devfs_register ( NULL, "dbox/avs0", DEVFS_FL_DEFAULT,
 			0, 0,
 			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
@@ -788,11 +993,11 @@ int i2c_avs_init(void)
 
 	if ( ! devfs_handle )
 	{
-		i2c_del_driver ( &driver );
+		i2c_del_driver(&driver);
 		return -EIO;
 	}
 
-	avs_mixerdev=register_sound_mixer(&avs_mixer_fops, -1);
+	avs_mixerdev = register_sound_mixer(&avs_mixer_fops, -1);
 
 	return 0;
 }
@@ -800,6 +1005,8 @@ int i2c_avs_init(void)
 #ifdef MODULE
 void cleanup_module(void)
 {
+	avs_event_cleanup();
+
 	unregister_sound_mixer(avs_mixerdev);
 
 	i2c_del_driver(&driver);
@@ -808,4 +1015,4 @@ void cleanup_module(void)
 }
 #endif
 
-/* ---------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */

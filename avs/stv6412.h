@@ -21,6 +21,10 @@
  *
  *
  *   $Log: stv6412.h,v $
+ *   Revision 1.3  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.2  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -28,12 +32,15 @@
  *   - initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
 #ifdef __KERNEL__
 int stv6412_init(struct i2c_client *client);
 int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg );
+int stv6412_set_volume( struct i2c_client *client, int vol );
+int stv6412_get_volume(void);
+int stv6412_get_status(struct i2c_client *client);
 #endif
 

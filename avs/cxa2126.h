@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2126.h,v $
+ *   Revision 1.8  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.7  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -43,7 +47,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -52,4 +56,5 @@ int cxa2126_init(struct i2c_client *client);
 int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg);
 int cxa2126_set_volume( struct i2c_client *client, int vol );
 int cxa2126_get_volume(void);
+int cxa2126_get_status(struct i2c_client *client);
 #endif

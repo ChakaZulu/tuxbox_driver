@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.21  2002/02/28 20:42:45  gillem
+ *   - some changes
+ *   - add vcr/tv slow blanking event
+ *
  *   Revision 1.20  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -82,7 +86,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -388,7 +392,7 @@ inline int cxa2126_get_logic(void)
 
 /* ---------------------------------------------------------------------- */
 
-static int cxa2126_getstatus(struct i2c_client *client)
+int cxa2126_get_status(struct i2c_client *client)
 {
 	unsigned char byte;
 
@@ -489,7 +493,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
                                 break;
 			case AVSIOGSTATUS:
                                 // TODO: error handling
-                                val = cxa2126_getstatus(client);
+                                val = cxa2126_get_status(client);
                                 break;
 			default:
                                 return -EINVAL;
@@ -517,7 +521,7 @@ int cxa2126_init(struct i2c_client *client)
 
     cxa2126_data.asw1 = 0;
     cxa2126_data.vsw1 = 0;
-    cxa2126_data.fnc = 2;
+    cxa2126_data.fnc  = 2;
 
     return cxa2126_set(client);
 }
