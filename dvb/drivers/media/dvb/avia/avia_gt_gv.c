@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.27 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_gv.c,v 1.28 2003/01/11 22:45:16 obi Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -554,7 +554,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.27 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.28 2003/01/11 22:45:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -701,6 +701,11 @@ void __exit avia_gt_gv_exit(void)
 
 }
 
+#if defined(STANDALONE)
+module_init(avia_gt_gv_init);
+module_exit(avia_gt_gv_exit);
+#endif
+
 EXPORT_SYMBOL(avia_gt_gv_copyarea);
 EXPORT_SYMBOL(avia_gt_gv_get_clut);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
@@ -713,7 +718,3 @@ EXPORT_SYMBOL(avia_gt_gv_set_size);
 EXPORT_SYMBOL(avia_gt_gv_hide);
 EXPORT_SYMBOL(avia_gt_gv_show);
 
-#if defined(STANDALONE)
-module_init(avia_gt_gv_init);
-module_exit(avia_gt_gv_exit);
-#endif

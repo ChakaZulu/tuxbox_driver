@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pig.c,v 1.33 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_pig.c,v 1.34 2003/01/11 22:45:16 obi Exp $
  *
  * pig driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -227,7 +227,7 @@ int __init avia_gt_pig_init(void)
 
 	unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.33 2003/01/02 05:26:43 obi Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.34 2003/01/11 22:45:16 obi Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -294,13 +294,14 @@ void __exit avia_gt_pig_exit(void)
     
 }
 
+#if defined(STANDALONE)
+module_init(avia_gt_pig_init);
+module_exit(avia_gt_pig_exit);
+#endif
+
 EXPORT_SYMBOL(avia_gt_pig_hide);
 EXPORT_SYMBOL(avia_gt_pig_set_pos);
 EXPORT_SYMBOL(avia_gt_pig_set_size);
 EXPORT_SYMBOL(avia_gt_pig_set_stack);
 EXPORT_SYMBOL(avia_gt_pig_show);
 
-#if defined(STANDALONE)
-module_init(avia_gt_pig_init);
-module_exit(avia_gt_pig_exit);
-#endif

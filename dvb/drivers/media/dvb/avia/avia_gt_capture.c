@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_capture.c,v 1.25 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_capture.c,v 1.26 2003/01/11 22:45:16 obi Exp $
  * 
  * capture driver for eNX/GTX (dbox-II-project)
  *
@@ -289,7 +289,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.25 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.26 2003/01/11 22:45:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -341,20 +341,18 @@ void __exit avia_gt_capture_exit(void)
 
 }
 
+#if defined(STANDALONE)
+module_init(avia_gt_capture_init);
+module_exit(avia_gt_capture_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX capture driver");
+MODULE_LICENSE("GPL");
+#endif
+
 EXPORT_SYMBOL(avia_gt_capture_set_input_pos);
 EXPORT_SYMBOL(avia_gt_capture_set_input_size);
 EXPORT_SYMBOL(avia_gt_capture_set_output_size);
 EXPORT_SYMBOL(avia_gt_capture_start);
 EXPORT_SYMBOL(avia_gt_capture_stop);
 
-#if defined(STANDALONE)
-module_init(avia_gt_capture_init);
-module_exit(avia_gt_capture_exit);
-#if defined(MODULE)
-MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("AViA eNX/GTX capture driver");
-#if defined(MODULE_LICENSE)
-MODULE_LICENSE("GPL");
-#endif
-#endif
-#endif

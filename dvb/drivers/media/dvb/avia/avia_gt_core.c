@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.28 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_core.c,v 1.29 2003/01/11 22:45:16 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -212,7 +212,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.28 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.29 2003/01/11 22:45:16 obi Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -471,17 +471,14 @@ void avia_gt_exit(void)
 
 }
 
-#ifdef MODULE
+module_init(avia_gt_init);
+module_exit(avia_gt_exit);
+
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("Avia eNX/GTX driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
 EXPORT_SYMBOL(avia_gt_get_info);
 
-module_init(avia_gt_init);
-module_exit(avia_gt_exit);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pcm.c,v 1.21 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_pcm.c,v 1.22 2003/01/11 22:45:16 obi Exp $
  *
  * AViA eNX/GTX pcm driver (dbox-II-project)
  *
@@ -516,7 +516,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad  = (unsigned short)0;
 	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.21 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.22 2003/01/11 22:45:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -608,6 +608,11 @@ void avia_gt_pcm_exit(void)
 
 }
 
+#if defined(STANDALONE)
+module_init(avia_gt_pcm_init);
+module_exit(avia_gt_pcm_exit);
+#endif
+
 EXPORT_SYMBOL(avia_gt_pcm_play_buffer);
 EXPORT_SYMBOL(avia_gt_pcm_stop);
 EXPORT_SYMBOL(avia_gt_pcm_set_signed);
@@ -620,7 +625,3 @@ EXPORT_SYMBOL(avia_gt_pcm_set_pcm_attenuation);
 EXPORT_SYMBOL(avia_gt_pcm_get_block_size);
 EXPORT_SYMBOL(avia_gt_pcm_poll);
 
-#if defined(STANDALONE)
-module_init(avia_gt_pcm_init);
-module_exit(avia_gt_pcm_exit);
-#endif

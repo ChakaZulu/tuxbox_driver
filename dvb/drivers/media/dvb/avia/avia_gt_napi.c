@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.170 2003/01/10 20:26:51 wjoost Exp $
+ * $Id: avia_gt_napi.c,v 1.171 2003/01/11 22:45:16 obi Exp $
  * 
  * AViA GTX demux driver (dbox-II-project)
  *
@@ -612,7 +612,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.170 2003/01/10 20:26:51 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.171 2003/01/11 22:45:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -758,11 +758,7 @@ void __exit avia_gt_napi_exit(void)
 module_init(avia_gt_napi_init);
 module_exit(avia_gt_napi_exit);
 
-#ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
 

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_oss.c,v 1.15 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_oss.c,v 1.16 2003/01/11 22:45:16 obi Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
@@ -320,7 +320,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.15 2003/01/02 05:26:43 obi Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.16 2003/01/11 22:45:16 obi Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 
@@ -351,9 +351,5 @@ static void __exit avia_oss_cleanup(void)
 module_init(avia_oss_init);
 module_exit(avia_oss_cleanup);
 
-#ifdef MODULE
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
 

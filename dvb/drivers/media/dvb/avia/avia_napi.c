@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.10 2003/01/04 11:05:31 Jolt Exp $
+ * $Id: avia_napi.c,v 1.11 2003/01/11 22:45:16 obi Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -46,7 +46,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.10 2003/01/04 11:05:31 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.11 2003/01/11 22:45:16 obi Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
@@ -85,10 +85,7 @@ static void __exit avia_napi_exit(void)
 module_init(avia_napi_init);
 module_exit(avia_napi_exit);
 
-#if defined(MODULE)
 MODULE_DESCRIPTION("AViA dvb adapter driver");
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-#if defined(MODULE_LICENSE)
 MODULE_LICENSE("GPL");
-#endif
-#endif
+

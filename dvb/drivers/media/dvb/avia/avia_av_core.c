@@ -1,218 +1,25 @@
 /*
- *   avia_av.c - AViA x00 driver (dbox-II-project)
- *
- *   Homepage: http://dbox2.elxsi.de
- *
- *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *   $Log: avia_av_core.c,v $
- *   Revision 1.52  2003/01/09 07:23:43  obi
- *   time_before(a,b) wants longs
- *
- *   Revision 1.51  2002/12/27 21:03:52  wjoost
- *   Abort tuts auch (und passt auch besser).
- *
- *   Revision 1.50  2002/12/27 16:50:25  wjoost
- *   AVIA 500 AC3 (kein Wunder das es die nicht mehr gibt)
- *
- *   Revision 1.49  2002/12/17 16:41:14  wjoost
- *   Audioumschaltung
- *
- *   Revision 1.48  2002/11/20 12:03:46  Jolt
- *   SPTS mode support (which is now default)
- *
- *   Revision 1.47  2002/11/19 14:22:25  Jolt
- *   Fixes
- *
- *   Revision 1.46  2002/11/19 13:53:24  Jolt
- *   More work on AVIA API
- *
- *   Revision 1.45  2002/11/18 11:40:18  Jolt
- *   Support for AC3 and non sync mode
- *
- *   Revision 1.44  2002/11/17 23:03:16  Jolt
- *   Audio fixes
- *
- *   Revision 1.43  2002/11/17 22:36:32  Jolt
- *   Large cleanups + fixes
- *
- *   Revision 1.42  2002/11/17 01:12:19  Jolt
- *   Ultra fast zapping support :D
- *
- *   Revision 1.41  2002/11/16 16:53:14  Jolt
- *   AVIA API work
- *
- *   Revision 1.40  2002/11/12 22:59:35  Jolt
- *   AViA crash[TM] handler
- *
- *   Revision 1.39  2002/11/05 22:03:25  Jolt
- *   Decoder work
- *
- *   Revision 1.38  2002/10/22 23:46:58  obi
- *   compile fix
- *
- *   Revision 1.37  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.36  2002/10/03 12:47:57  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.35  2002/10/01 20:22:59  Jolt
- *   Cleanups
- *
- *   Revision 1.34  2002/09/30 19:46:10  Jolt
- *   SPTS support
- *
- *   Revision 1.33  2002/09/29 16:47:03  Jolt
- *   AViA command handling fixes
- *
- *   Revision 1.32  2002/09/24 17:50:19  Jolt
- *   PCM sample rate hack
- *
- *   Revision 1.31  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.30  2002/05/06 02:18:18  obi
- *   cleanup for new kernel
- *
- *   Revision 1.29  2002/05/03 06:03:51  obi
- *   removed compile warnings
- *   use tabs instead of space
- *
- *   Revision 1.28  2002/03/17 16:25:38  happydude
- *   allow digital recording from SPDIF output
- *
- *   Revision 1.27  2002/03/06 09:01:55  gillem
- *   - fix output
- *
- *   Revision 1.26  2002/03/02 19:23:47  TripleDES
- *   fixes
- *
- *   Revision 1.25  2001/12/20 16:56:29  gillem
- *   - add host to decoder interrupt
- *
- *   Revision 1.24  2001/12/20 15:31:34  derget
- *   New sample freq output rausgeschmissen
- *
- *   Revision 1.23  2001/12/19 22:02:34  gillem
- *   - work on standby mode
- *
- *   Revision 1.22  2001/12/19 21:26:05  gillem
- *   - work on timer stuff
- *   - remove some logs
- *
- *   Revision 1.21  2001/12/18 19:39:21  TheDOC
- *   Changed event-delay to 30, which works well.
- *
- *   Revision 1.20  2001/12/18 18:01:51  gillem
- *   - add events
- *   - add timer
- *   - rewrite avia command handling
- *   - todo: optimize
- *   - i hope it works
- *
- *   Revision 1.19  2001/12/01 06:37:06  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.18  2001/07/08 02:24:59  fnbrd
- *   Parameter firmware is now only the path for the ucode.
- *   The filename itself is now according to the HW avia600.ux or avia500.ux.
- *
- *   Revision 1.17  2001/05/26 20:39:33  tmbinc
- *   fixed annoying audio bug (thought this was already fixed?!)
- *
- *   Revision 1.16  2001/05/15 22:19:11  kwon
- *   use __le32_to_cpu() instead of endian_swap()
- *
- *   Revision 1.15  2001/04/27 20:02:37  fnbrd
- *   Debugausgabe der Modulversion.
- *
- *   Revision 1.14  2001/04/27 19:46:59  fnbrd
- *   Unterscheidung von enx/gtx.
- *
- *   Revision 1.13  2001/04/21 00:32:01  TripleDES
- *   final "new resolution" fix
- *   -user fifo fix
- *
- *   Revision 1.12  2001/04/20 22:55:56  TripleDES
- *
- *   fixed "new resolution" bug
- *   - setting up the user-data fifo (in a free mem-area)
- *
- *   Revision 1.11  2001/03/21 15:30:25  tmbinc
- *   Added SYNC-delay for avia, resulting in faster zap-time.
- *
- *   Revision 1.10  2001/03/08 20:01:41  gillem
- *   - add display modes + ioctl
- *
- *   Revision 1.9  2001/03/07 20:58:07  gillem
- *   - add bitstream info @ procfs
- *
- *   Revision 1.8  2001/02/25 16:12:53  gillem
- *   - fix "volume" for AVIA600L
- *
- *   Revision 1.7  2001/02/25 15:27:02  gillem
- *   - fix sound for AVIA600L
- *
- *   Revision 1.6  2001/02/24 11:09:39  gillem
- *   - change osd stuff
- *
- *   Revision 1.5  2001/02/17 19:50:14  gillem
- *   - bugfix ...
- *
- *   Revision 1.4  2001/02/17 19:45:21  gillem
- *   - some changes
- *
- *   Revision 1.3  2001/02/17 11:12:42  gillem
- *   - fix init
- *
- *   Revision 1.2  2001/02/16 20:48:29  gillem
- *   - some avia600 tests
- *
- *   Revision 1.1  2001/02/15 21:55:56  gillem
- *   - change module name to avia.o
- *   - add interrupt for commands
- *   - some rewrites
- *
- *   Revision 1.14  2001/02/15 00:11:20  gillem
- *   - rewrite stuff ... not ready (read source to understand new params)
- *
- *   Revision 1.13  2001/02/13 23:46:30  gillem
- *   -fix the interrupt problem (ppc i like you)
- *
- *   Revision 1.12  2001/02/03 16:39:17  tmbinc
- *   sound fixes
- *
- *   Revision 1.11  2001/02/03 14:48:16  gillem
- *   - more audio fixes :-/
- *
- *   Revision 1.10  2001/02/03 11:29:54  gillem
- *   - fix audio
- *
- *   Revision 1.9  2001/02/02 18:17:18  gillem
- *   - add exports (avia_wait,avia_command)
- *
- *   Revision 1.8  2001/01/31 17:17:46  tmbinc
- *   Cleaned up avia drivers. - tmb
- *
- *   $Revision: 1.52 $
+ * $Id: avia_av_core.c,v 1.53 2003/01/11 22:45:16 obi Exp $
+ * 
+ * AViA 500/600 core driver (dbox-II-project)
+ *
+ * Homepage: http://dbox2.elxsi.de
+ *
+ * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -248,15 +55,11 @@
 
 /* ---------------------------------------------------------------------- */
 
-#ifdef MODULE
 static int   pal = 1;
 static char *firmware = NULL;
-#endif
 
 static int debug = 0;
 #define dprintk if (debug) printk
-
-#ifdef MODULE
 
 void avia_set_pcr(u32 hi, u32 lo);
 void avia_flush_pcr(void);
@@ -1630,6 +1433,44 @@ int avia_av_sync_mode_set(u8 new_sync_mode)
 
 /* ---------------------------------------------------------------------- */
 
+int __init avia_av_core_init(void)
+{
+
+	int err;
+
+	printk("avia_av: $Id: avia_av_core.c,v 1.53 2003/01/11 22:45:16 obi Exp $\n");
+
+	aviamem = 0;
+
+	if (!(err = init_avia()))
+		avia_av_proc_init();
+
+	return err;
+	
+}
+
+void __exit avia_av_core_exit(void)
+{
+
+	avia_av_proc_exit();
+
+	avia_standby(1);
+
+	if (aviamem)
+		iounmap((void*)aviamem);
+
+}
+
+module_init(avia_av_core_init);
+module_exit(avia_av_core_exit);
+
+MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+MODULE_DESCRIPTION("Avia 500/600 driver");
+MODULE_LICENSE("GPL");
+MODULE_PARM(debug,"i");
+MODULE_PARM(pal,"i");
+MODULE_PARM(firmware,"s");
+
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
 EXPORT_SYMBOL(avia_command);
@@ -1645,43 +1486,3 @@ EXPORT_SYMBOL(avia_av_play_state_set_video);
 EXPORT_SYMBOL(avia_av_stream_type_set);
 EXPORT_SYMBOL(avia_av_sync_mode_set);
 
-/* ---------------------------------------------------------------------- */
-
-MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("Avia 500/600 driver");
-MODULE_PARM(debug,"i");
-MODULE_PARM(pal,"i");
-MODULE_PARM(firmware,"s");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-
-int
-init_module (void)
-{
-
-	int err;
-
-	printk ("avia_av: $Id: avia_av_core.c,v 1.52 2003/01/09 07:23:43 obi Exp $\n");
-
-	aviamem = 0;
-
-	if (!(err = init_avia()))
-		avia_av_proc_init();
-
-	return err;
-	
-}
-
-void cleanup_module(void)
-{
-
-	avia_av_proc_exit();
-
-	avia_standby(1);
-
-	if (aviamem)
-		iounmap((void*)aviamem);
-
-}
-#endif

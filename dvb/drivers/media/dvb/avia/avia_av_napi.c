@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.13 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_av_napi.c,v 1.14 2003/01/11 22:45:16 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -578,7 +578,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.13 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.14 2003/01/11 22:45:16 obi Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -628,10 +628,7 @@ void __exit avia_av_napi_exit(void)
 module_init(avia_av_napi_init);
 module_exit(avia_av_napi_exit);
 
-#if defined(MODULE)
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>, Andreas Oberritter <obi@tuxbox.org>");
 MODULE_DESCRIPTION("AViA 500/600 dvb api driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
+

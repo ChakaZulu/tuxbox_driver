@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dvr.c,v 1.13 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_dvr.c,v 1.14 2003/01/11 22:45:16 obi Exp $
  *
  * Queue-Insertion driver (dbox-II-project)
  *
@@ -409,24 +409,24 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 int __init avia_gt_dvr_init(void)
 {
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.13 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.14 2003/01/11 22:45:16 obi Exp $\n");
 
-    gt_info = avia_gt_get_info();
+	gt_info = avia_gt_get_info();
 		
-    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 		
-        printk("avia_gt_dvr: Unsupported chip type\n");
+		printk("avia_gt_dvr: Unsupported chip type\n");
 					
-        return -EIO;
+		return -EIO;
 							
-    }
+	}
 	
-    devfs_handle = devfs_register(NULL, "dvrv", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &iframe_fops, NULL);
-    adevfs_handle = devfs_register(NULL, "dvra", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &aiframe_fops, NULL);
-										
-    if (avia_gt_chip(ENX)) {
+	devfs_handle = devfs_register(NULL, "dvrv", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &iframe_fops, NULL);
+	adevfs_handle = devfs_register(NULL, "dvra", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &aiframe_fops, NULL);
 
-    } else if (avia_gt_chip(GTX)) {
+	if (avia_gt_chip(ENX)) {
+
+	} else if (avia_gt_chip(GTX)) {
 
 		gtx_reg_16(CR0) &= ~(1<<8);
 
@@ -435,7 +435,7 @@ int __init avia_gt_dvr_init(void)
 	up(&lock_open);
 	up(&alock_open);
 
-    return 0;
+	return 0;
 	
 }
 
@@ -450,15 +450,10 @@ void __exit avia_gt_dvr_exit(void)
 
 }
 
-//#if defined(STANDALONE)
 module_init(avia_gt_dvr_init);
 module_exit(avia_gt_dvr_exit);
-#if defined(MODULE)
+
 MODULE_AUTHOR("Ronny Strutz <3des@elitedvb.com>");
 MODULE_DESCRIPTION("Video/Audio Playback Driver");
-#if defined(MODULE_LICENSE)
 MODULE_LICENSE("GPL");
-#endif
-#endif
-//#endif
 

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ir.c,v 1.21 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_ir.c,v 1.22 2003/01/11 22:45:16 obi Exp $
  * 
  * AViA eNX ir driver (dbox-II-project)
  *
@@ -379,7 +379,7 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq = 0;
 	u16 tx_irq = 0;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.21 2003/01/02 05:26:43 obi Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.22 2003/01/11 22:45:16 obi Exp $\n");
 
     do_gettimeofday(&last_timestamp);
 	
@@ -458,6 +458,11 @@ void __exit avia_gt_ir_exit(void)
 
 }
 
+#if defined(STANDALONE)
+module_init(avia_gt_ir_init);
+module_exit(avia_gt_ir_exit);
+#endif
+
 EXPORT_SYMBOL(avia_gt_ir_get_rx_buffer_read_position);
 EXPORT_SYMBOL(avia_gt_ir_get_rx_buffer_write_position);
 EXPORT_SYMBOL(avia_gt_ir_queue_pulse);
@@ -468,7 +473,3 @@ EXPORT_SYMBOL(avia_gt_ir_send_pulse);
 EXPORT_SYMBOL(avia_gt_ir_set_duty_cycle);
 EXPORT_SYMBOL(avia_gt_ir_set_frequency);
 
-#if defined(STANDALONE)
-module_init(avia_gt_ir_init);
-module_exit(avia_gt_ir_exit);
-#endif

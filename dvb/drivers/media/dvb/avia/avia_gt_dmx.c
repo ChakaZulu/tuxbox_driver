@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.158 2003/01/10 22:01:46 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.159 2003/01/11 22:45:16 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -2046,7 +2046,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.158 2003/01/10 22:01:46 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.159 2003/01/11 22:45:16 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2181,22 +2181,16 @@ void __exit avia_gt_dmx_exit(void)
 
 }
 
-#if defined(MODULE)
-MODULE_PARM(ucode, "s");
-MODULE_PARM(hw_sections, "i");
-#endif
-
 #if defined(STANDALONE)
 module_init(avia_gt_dmx_init);
 module_exit(avia_gt_dmx_exit);
-#if defined(MODULE)
+
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
-#if defined(MODULE_LICENSE)
 MODULE_LICENSE("GPL");
 #endif
-#endif
-#endif
+MODULE_PARM(hw_sections, "i");
+MODULE_PARM(ucode, "s");
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_audio);

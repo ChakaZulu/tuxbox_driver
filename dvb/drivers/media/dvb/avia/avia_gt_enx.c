@@ -1,130 +1,25 @@
 /*
- *   avia_gt_enx.c - AViA eNX core driver (dbox-II-project)
+ * $Id: avia_gt_enx.c,v 1.15 2003/01/11 22:45:16 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX core driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_enx.c,v $
- *   Revision 1.14  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.13  2002/09/02 19:25:37  Jolt
- *   - DMX/NAPI cleanup
- *   - Compile fix
- *
- *   Revision 1.12  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.11  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.10  2002/04/25 22:10:38  Jolt
- *   FB cleanup
- *
- *   Revision 1.9  2002/04/25 21:09:02  Jolt
- *   Fixes/Cleanups
- *
- *   Revision 1.8  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.7  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.6  2002/04/12 14:00:20  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.5  2002/04/10 22:23:18  Jolt
- *   Cleanups Part2
- *
- *   Revision 1.4  2002/04/10 21:59:59  Jolt
- *   Cleanups
- *
- *   Revision 1.3  2001/12/01 06:37:06  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.2  2001/10/23 08:40:58  Jolt
- *   eNX capture and pig driver
- *
- *   Revision 1.1  2001/10/15 20:47:46  tmbinc
- *   re-added enx-core
- *
- *   Revision 1.24  2001/09/19 18:47:00  TripleDES
- *   small init fix
- *
- *   Revision 1.23  2001/09/17 21:21:40  TripleDES
- *   some small changes
- *
- *   Revision 1.22  2001/09/02 01:01:23  TripleDES
- *   -some fixes
- *
- *   Revision 1.21  2001/08/18 18:21:54  TripleDES
- *   moved the ucode-loading to dmx
- *
- *   Revision 1.20  2001/07/17 14:38:17  tmbinc
- *   sdram fixes, but problems still not solved
- *
- *   Revision 1.19  2001/05/15 22:42:03  kwon
- *   make do_firmread() do a printk on error even if not loaded with debug=1
- *
- *   Revision 1.17  2001/04/21 10:40:13  tmbinc
- *   fixes for eNX
- *
- *   Revision 1.16  2001/04/20 01:20:19  Jolt
- *   Final Merge :-)
- *
- *   Revision 1.15  2001/04/17 22:55:05  Jolt
- *   Merged framebuffer
- *
- *   Revision 1.14  2001/04/09 23:26:42  TripleDES
- *   some changes
- *
- *   Revision 1.12  2001/03/29 03:58:24  tmbinc
- *   chaned enx_reg_w to enx_reg_h and enx_reg_d to enx_reg_w.
- *   Improved framebuffer.
- *
- *   Revision 1.11  2001/03/29 02:26:22  tmbinc
- *   fixed defines and CRLFs
- *
- *   Revision 1.10  2001/03/29 02:23:19  fnbrd
- *   IRQ angepasst, load_ram aktiviert.
- *
- *   Revision 1.9  2001/03/29 01:28:23  TripleDES
- *   Some demux testing...still not working
- *
- *   Revision 1.5  2001/03/03 12:00:35  Jolt
- *   Firmware loader
- *
- *   Revision 1.4  2001/03/03 00:47:46  Jolt
- *   Firmware loader
- *
- *   Revision 1.3  2001/03/03 00:11:34  Jolt
- *   Version cleanup
- *
- *   Revision 1.2  2001/03/03 00:09:15  Jolt
- *   Typo fix
- *
- *   Revision 1.1  2001/03/02 23:56:34  gillem
- *   - initial release
- *
- *   $Revision: 1.14 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -277,7 +172,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.14 2002/10/20 20:38:26 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.15 2003/01/11 22:45:16 obi Exp $\n");
     
     gt_info = avia_gt_get_info();
     

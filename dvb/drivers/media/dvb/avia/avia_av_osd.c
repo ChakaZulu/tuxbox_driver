@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_osd.c,v 1.16 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_av_osd.c,v 1.17 2003/01/11 22:45:16 obi Exp $
  *
  * AViA OSD driver (dbox-II-project)
  *
@@ -394,35 +394,29 @@ static int init_avia_osd(void)
 
 /* ---------------------------------------------------------------------- */
 
-#ifdef MODULE
-MODULE_AUTHOR("Gillem <htoa@gmx.net>");
-MODULE_DESCRIPTION("AVIA OSD driver");
-MODULE_PARM(debug,"i");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-#endif
 
 #if 0
 #if defined(STANDALONE)
 module_init(avia_av_osd_init);
 module_exit(avia_av_osd_exit);
 #endif
-#endif
 
-/*int init_module(void)
+int __init avia_av_osd_init(void)
 {
 	return init_avia_osd();
 }
 
-void cleanup_module(void)
+void __exit avia_av_osd_exit(void)
 {
-	wDR(OSD_EVEN_FIELD, 0 );
-	wDR(OSD_ODD_FIELD, 0 );
+	wDR(OSD_EVEN_FIELD, 0);
+	wDR(OSD_ODD_FIELD, 0);
 
-	devfs_unregister ( devfs_handle );
+	devfs_unregister(devfs_handle);
+}
+#endif
 
-	return;
-}*/
+MODULE_AUTHOR("Gillem <htoa@gmx.net>");
+MODULE_DESCRIPTION("AVIA OSD driver");
+MODULE_LICENSE("GPL");
+MODULE_PARM(debug,"i");
 
-/* ---------------------------------------------------------------------- */

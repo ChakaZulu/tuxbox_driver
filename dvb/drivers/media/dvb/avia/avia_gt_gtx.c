@@ -1,145 +1,25 @@
 /*
- *   avia_gt_gtx.c - AViA GTX core driver (dbox-II-project)
+ * $Id: avia_gt_gtx.c,v 1.19 2003/01/11 22:45:16 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA GTX core driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   $Log: avia_gt_gtx.c,v $
- *   Revision 1.18  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.17  2002/09/15 18:06:26  Jolt
- *   Cleanup
- *
- *   Revision 1.16  2002/09/02 20:56:06  Jolt
- *   - HW section fix (GTX)
- *   - DMX/NAPI cleanups
- *
- *   Revision 1.15  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.14  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.13  2002/05/09 22:25:23  obi
- *   cleanup, use structs
- *
- *   Revision 1.12  2002/05/03 17:03:36  obi
- *   replaced r*() by gtx_reg_*()
- *   formatted source
- *
- *   Revision 1.11  2002/04/22 19:50:25  Jolt
- *   Missing init stuff
- *
- *   Revision 1.10  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.9  2002/04/16 15:57:23  Jolt
- *   GTX bugfix
- *
- *   Revision 1.8  2002/04/15 21:58:57  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.7  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.6  2002/04/13 14:47:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.5  2002/04/12 23:20:25  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.4  2002/04/12 21:31:37  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.3  2002/03/06 09:04:10  gillem
- *   - clean module unload
- *
- *   Revision 1.2  2001/12/12 17:20:38  obi
- *   version history was gone
- *
- *   Revision 1.1  2001/12/12 01:47:10  obi
- *   re-added with correct file rights
- *
- *   Revision 1.2  2001/10/15 21:04:33  tmbinc
- *   sorry, CRLF sucks
- *
- *   Revision 1.1  2001/10/15 20:59:47  tmbinc
- *   re-added because of lameness
- *
- *   Revision 1.26  2001/08/18 18:21:10  TripleDES
- *   moved the ucode loading to dmx
- *
- *   Revision 1.25  2001/07/22 09:55:38  gillem
- *   - define bug fixed
- *
- *   Revision 1.24  2001/07/19 22:22:46  gillem
- *   - add proc fs
- *
- *   Revision 1.23  2001/05/15 22:42:03  kwon
- *   make do_firmread() do a printk on error even if not loaded with debug=1
- *
- *   Revision 1.22  2001/04/20 01:20:19  Jolt
- *   Final Merge :-)
- *
- *   Revision 1.21  2001/04/19 23:32:27  Jolt
- *   Merge Part II
- *
- *   Revision 1.20  2001/04/17 22:55:05  Jolt
- *   Merged framebuffer
- *
- *   Revision 1.19  2001/04/03 22:38:32  kwon
- *   make /proc/bus/gtx writable, just in case...
- *
- *   Revision 1.18  2001/03/21 15:30:25  tmbinc
- *   Added SYNC-delay for avia, resulting in faster zap-time.
- *
- *   Revision 1.17  2001/03/18 00:03:35  Hunz
- *   framebuffer fix
- *
- *   Revision 1.16  2001/03/04 13:02:25  tmbinc
- *   Added uCode interface for debugging.
- *
- *   Revision 1.15  2001/03/03 11:27:17  gillem
- *   - fix dprintk
- *
- *   Revision 1.14  2001/02/16 20:05:44  gillem
- *   - add new options ucode,debug
- *
- *   Revision 1.13  2001/02/11 15:53:25  tmbinc
- *   section filtering (not yet working)
- *
- *   Revision 1.12  2001/02/03 16:39:17  tmbinc
- *   sound fixes
- *
- *   Revision 1.11  2001/02/03 14:48:16  gillem
- *   - more audio fixes :-/
- *
- *   Revision 1.10  2001/02/03 11:30:10  gillem
- *   - fix audio
- *
- *   Revision 1.9  2001/01/31 17:17:46  tmbinc
- *   Cleaned up avia drivers. - tmb
- *
- *
- *   $Revision: 1.18 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -292,7 +172,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.18 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.19 2003/01/11 22:45:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -351,3 +231,4 @@ void avia_gt_gtx_exit(void)
 	//gtx_reg_16(RR0) |= (1<<10);
 
 }
+
