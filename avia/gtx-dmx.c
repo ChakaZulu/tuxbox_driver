@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.32  2001/03/30 01:19:55  tmbinc
+ *   Fixed multiple-section bug.
+ *
  *   Revision 1.31  2001/03/27 14:41:49  tmbinc
  *   CRC check now optional.
  *
@@ -94,7 +97,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.31 $
+ *   $Revision: 1.32 $
  *
  */
 
@@ -1039,12 +1042,18 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_t *gtx=gtxfeed->demux;
 //  gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
-  gtx_demux_secfilter_t *gtxsecfilter;
+  gtx_demux_secfilter_t *gtxsecfilter=0;
+  int i;
   
   dprintk("gtx_dmx: allocating a filter.\n");
 
-  gtxsecfilter=gtx->secfilter;
-  
+	for (i=0; i<32; i++)
+		if (gtx->secfilter[i].state==DMX_STATE_FREE)
+		{
+			gtxsecfilter=gtx->secfilter+i;
+			break;
+		}
+
   if (!gtxsecfilter)
     return -ENOSPC;
 
@@ -1068,9 +1077,15 @@ static int dmx_section_feed_release_filter(dmx_section_feed_t *feed,
 
   dprintk("gtx_dmx: releasing section feed filter.\n");
   if (gtxfilter->feed!=gtxfeed)
+  {
+  	dprintk("FAILED (gtxfilter->feed!=gtxfeed) (%p != %p)\n", gtxfilter->feed, gtxfeed);
     return -EINVAL;
+  }
   if (feed->is_filtering)
+  {
+  	dprintk("FAILED (feed->is_filtering)\n");
     return -EBUSY;
+  }
   
   f=gtxfeed->secfilter;
   if (f==gtxfilter)
