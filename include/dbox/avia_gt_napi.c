@@ -135,8 +135,6 @@ typedef struct gtx_demux_s
   struct list_head frontend_list;
 } gtx_demux_t;
 
-extern int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *model);
-
 /* data tables */
 
 typedef struct pid_allocation_entry_s {

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.24 2001/04/07 01:44:55 tmbinc Exp $
+ * $Id: dvb.c,v 1.25 2001/04/08 02:05:40 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -49,7 +49,6 @@
 #include <dbox/dvb.h>
 #include <dbox/ves.h>
 #include <dbox/fp.h>
-#include <dbox/gtx-dmx.h>
 #include <dbox/avia.h>
 #include <dbox/cam.h>
 
@@ -63,8 +62,6 @@
 typedef struct dvb_struct
 {
 	dmxdev_t							dmxdev;
-	gtx_demux_t						hw_demux;
-	char									hw_demux_id[8];
 	dvb_device_t					dvb_dev;
 	struct frontend				front;
 	struct demod_function_struct *demod;
@@ -294,8 +291,12 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 			return -ENOENT;
 		break;
 	case DVB_DEVICE_DEMUX:
+		if (!dvb->dmxdev.demux)
+			return -ENOENT;
 		return DmxDevFilterAlloc(&dvb->dmxdev, file);
 	case DVB_DEVICE_DVR:
+		if (!dvb->dmxdev.demux)
+			return -ENOENT;
 		return DmxDevDVROpen(&dvb->dmxdev, file);
 	case DVB_DEVICE_CA:
 	break;
@@ -402,7 +403,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 			// printk("CHCH [DECODER] PLAY\n");
 			avia_command(Play, 0, 0, 0);
 			avia_flush_pcr();
-			gtx_flush_pcr();
+			if (dvb->dmxdev.demux)
+				dvb->dmxdev.demux->flush_pcr();
 			dvb->videostate.playState=VIDEO_PLAYING;
 			break;
 		case VIDEO_FREEZE:
@@ -839,12 +841,8 @@ static int dvb_register(struct dvb_struct *dvb)
 	struct dvb_device *dvbd=&dvb->dvb_dev;
 
 	dvb->num=0;
-	dvb->dmxdev.filternum=32;
-	dvb->dmxdev.demux=&dvb->hw_demux.dmx;
-	dvb->dmxdev.capabilities=0;
-	printk("DmxDevInit.\n");
-	DmxDevInit(&dvb->dmxdev);
-	
+	dvb->dmxdev.demux=0;
+
 //	for (i=0; i<32; i++)
 //		dvb->handle2filter[i]=NULL;
 
@@ -874,20 +872,11 @@ static int dvb_register(struct dvb_struct *dvb)
 		return result;
 	}
 
-	memcpy(dvb->hw_demux_id, "demux0", 7);
-
-	dvb->hw_demux_id[5]=dvb->num+0x30;
-
-	printk("gtx/dmx init\n");
-	GtxDmxInit(&dvb->hw_demux, (void*)dvb, dvb->hw_demux_id, "C-Cube", "Avia GTX");
-
 	return 0;
 }
 
 void dvb_unregister(struct dvb_struct *dvb)
 {
-	GtxDmxCleanup(&dvb->hw_demux, (void*)dvb, dvb->hw_demux_id );
-
 	return dvb_unregister_device(&dvb->dvb_dev);
 }
 
@@ -896,6 +885,9 @@ int register_demod(struct demod_function_struct *demod)
 	if (!dvb.demod)
 	{
 		dvb.demod=demod;
+#ifdef MODULE
+		MOD_INC_USE_COUNT;
+#endif
 		return frontend_init(&dvb);
 	}
 	return -EEXIST;
@@ -906,6 +898,38 @@ int unregister_demod(struct demod_function_struct *demod)
 	if (dvb.demod==demod)
 	{
 		dvb.demod=0;
+#ifdef MODULE
+		MOD_DEC_USE_COUNT;
+#endif
+		return 0;
+	}
+	return -ENOENT;
+}
+
+int register_demux(struct dmx_demux_s *demux)
+{
+	if (!dvb.dmxdev.demux)
+	{
+		dvb.dmxdev.filternum=32;
+		dvb.dmxdev.demux=demux;
+		dvb.dmxdev.capabilities=0;
+#ifdef MODULE
+		MOD_INC_USE_COUNT;
+#endif
+		return DmxDevInit(&dvb.dmxdev);
+	}
+	return -EEXIST;
+}
+
+int unregister_demux(struct dmx_demux_s *demux)
+{
+	if (dvb.dmxdev.demux==demux)
+	{
+		DmxDevRelease(&dvb.dmxdev);
+		dvb.dmxdev.demux=0;
+#ifdef MODULE
+		MOD_DEC_USE_COUNT;
+#endif
 		return 0;
 	}
 	return -ENOENT;
@@ -925,3 +949,5 @@ module_init ( dvb_init_module );
 module_exit ( dvb_cleanup_module );
 EXPORT_SYMBOL(register_demod);
 EXPORT_SYMBOL(unregister_demod);
+EXPORT_SYMBOL(register_demux);
+EXPORT_SYMBOL(unregister_demux);

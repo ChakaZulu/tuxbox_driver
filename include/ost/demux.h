@@ -53,7 +53,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-/* $Id: demux.h,v 1.1 2001/01/30 17:49:14 tmbinc Exp $ */ 
+/* $Id: demux.h,v 1.2 2001/04/08 02:05:40 tmbinc Exp $ */ 
 
 #ifndef __DEMUX_H 
 #define __DEMUX_H 
@@ -322,6 +322,7 @@ struct dmx_demux_s {
         int (*connect_frontend) (struct dmx_demux_s* demux, 
 				 dmx_frontend_t* frontend); 
         int (*disconnect_frontend) (struct dmx_demux_s* demux); 
+	void (*flush_pcr)(void);
 }; 
 typedef struct dmx_demux_s dmx_demux_t; 
 

@@ -21,6 +21,10 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.33  2001/04/08 02:05:40  tmbinc
+ *   made it more modular, this time the demux. dvb.c not anymore dependant on
+ *   the gtx.
+ *
  *   Revision 1.32  2001/03/30 01:19:55  tmbinc
  *   Fixed multiple-section bug.
  *
@@ -97,7 +101,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.32 $
+ *   $Revision: 1.33 $
  *
  */
 
@@ -130,10 +134,11 @@
 #include <asm/uaccess.h>
 
 #include <ost/demux.h>
+#include <dbox/dvb.h>
+#include <dbox/gtx.h>
+#include <dbox/gtx-dmx.h>
+#include <dbox/avia.h>
 
-#include "dbox/gtx.h"
-#include "dbox/gtx-dmx.h"
-#include "dbox/avia.h"
 #include "crc32.h"
 
 static unsigned char* gtxmem;
@@ -148,6 +153,8 @@ MODULE_DESCRIPTION("Avia GTX demux driver");
 /* parameter stuff */
 static int debug = 0;
 
+static gtx_demux_t gtx;
+
 #define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
 static u32 gtx_get_queue_wptr(int queue);
@@ -158,6 +165,9 @@ static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2);
 static s32 gtx_bound_delta(s32 bound, s32 delta);
 
 static void gtx_task(void *);
+static int GtxDmxInit(gtx_demux_t *gtxdemux);
+static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
+static void gtx_flush_pcr(void);
 
 static int wantirq;
 
@@ -477,7 +487,7 @@ WE_HAVE_DISCONTINUITY:
   discont=1;
 }
 
-void gtx_flush_pcr(void)
+static void gtx_flush_pcr(void)
 {
 	discont=1;
 	rh(FCR)|=0x100;
@@ -510,15 +520,19 @@ int gtx_dmx_init(void)
 
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
- 
-  printk(KERN_DEBUG "gtx_dmx: AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
 
+	GtxDmxInit(&gtx);
+	register_demux(&gtx.dmx);
+	
   return 0;
 }
 
 void gtx_dmx_close(void)
 {
   int i, j;
+  
+  unregister_demux(&gtx.dmx);
+  GtxDmxCleanup(&gtx);
 
   for (j=0; j<2; j++)
     for (i=0; i<16; i++)
@@ -1290,7 +1304,7 @@ static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
   return -EINVAL;
 }
 
-int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *model)
+int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
   dmx_demux_t *dmx=&gtxdemux->dmx;
   int i;
@@ -1337,9 +1351,9 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
   gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, 10, 0);
   gtx_set_queue_pointer(Q_TELETEXT, gtxdemux->feed[TELETEXT_QUEUE].base, gtxdemux->feed[TELETEXT_QUEUE].base, 10, 0);
 
-  dmx->id=id;
-  dmx->vendor=vendor;
-  dmx->model=model;
+  dmx->id="demux0";
+  dmx->vendor="C-Cube";
+  dmx->model="AViA GTX/DMX";
   dmx->frontend=0;
   dmx->reg_list.next=dmx->reg_list.prev=&dmx->reg_list;
   dmx->priv=(void *) gtxdemux;
@@ -1361,6 +1375,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
   dmx->get_frontends=dmx_get_frontends;
   dmx->connect_frontend=dmx_connect_frontend;
   dmx->disconnect_frontend=dmx_disconnect_frontend;
+  dmx->flush_pcr=gtx_flush_pcr;
   
   gtx_tasklet.data=gtxdemux;
 
@@ -1373,7 +1388,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
   return 0;
 }
 
-int GtxDmxCleanup(gtx_demux_t *gtxdemux, void *priv, char *id )
+int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 {
   dmx_demux_t *dmx=&gtxdemux->dmx;
 
@@ -1400,9 +1415,6 @@ void cleanup_module(void)
 }
 
 EXPORT_SYMBOL(cleanup_module);
-EXPORT_SYMBOL(GtxDmxInit);
-EXPORT_SYMBOL(GtxDmxCleanup);
-EXPORT_SYMBOL(gtx_flush_pcr);
 
 #endif
 

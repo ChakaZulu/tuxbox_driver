@@ -14,6 +14,7 @@
 
 #define I2C_DRIVERID_VES1893    32      /* DVB-S decoder                */
 #define I2C_DRIVERID_VES1820    33      /* DVB-C decoder                */
+#define I2C_DRIVERID_TDA8044H		34
 
 #define BASE_VIDIOCPRIVATE      192             /* 192-255 are private */
 
@@ -93,5 +94,10 @@ typedef struct qpsk_s {
         wait_queue_head_t       eventq;
         spinlock_t              eventlock;
 } qpsk_t;
+
+struct dmx_demux_s;
+
+int register_demux(struct dmx_demux_s *demux);
+int unregister_demux(struct dmx_demux_s *demux);
 
 #endif
