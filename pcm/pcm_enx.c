@@ -24,9 +24,8 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm_enx.c,v $
- *   Revision 1.1  2001/03/28 19:40:57  fnbrd
- *   Modifizierte pcm-Treiber angepasst an den enx. Da er allerdings noch nicht laeuft sind
- *   noch JEDE Menge debugausgaben drin.
+ *   Revision 1.2  2001/03/29 11:55:17  fnbrd
+ *   Angepasst an neues enx.h. Geht aber immer noch nicht.
  *
  *   Revision 1.12  2001/03/10 22:27:59  gillem
  *   - remove avia settings
@@ -60,7 +59,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
