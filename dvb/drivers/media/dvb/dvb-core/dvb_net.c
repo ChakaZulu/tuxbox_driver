@@ -24,11 +24,18 @@
  * 
  */
 
+#include <asm/errno.h>
 #include <asm/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/ioctl.h>
+#include <linux/slab.h>
 
 #include <linux/dvb/net.h>
+
 #include "dvb_demux.h"
 #include "dvb_net.h"
+
 #include "compat.h"
 
 
@@ -224,7 +231,8 @@ dvb_net_feed_start(struct net_device *dev)
 		priv->secfeed=0;
 		return ret;
 	}
-	MOD_INC_USE_COUNT;
+	/* fixme: is this correct? */
+	try_module_get(THIS_MODULE);
 
 	if (priv->mode<3) 
 		dvb_net_filter_set(dev, &priv->secfilter, mac, mask_normal);
@@ -274,7 +282,8 @@ dvb_net_feed_stop(struct net_device *dev)
 		priv->demux->
 		        release_section_feed(priv->demux, priv->secfeed);
 		priv->secfeed=0;
-		MOD_DEC_USE_COUNT;
+		/* fixme: is this correct? */
+		module_put(THIS_MODULE);
 	} else
 		printk("%s: no feed to stop\n", dev->name);
 }
@@ -462,7 +471,9 @@ dvb_net_add_if(struct dvb_net *dvbnet, u16 pid)
 	if ((result = register_netdev(net)) < 0) {
 		return result;
 	}
-	MOD_INC_USE_COUNT;
+	/* fixme: is this correct? */
+	try_module_get(THIS_MODULE);
+
         return if_num;
 }
 
@@ -475,7 +486,9 @@ dvb_net_remove_if(struct dvb_net *dvbnet, int num)
         kfree(dvbnet->device[num].priv);
         unregister_netdev(&dvbnet->device[num]);
 	dvbnet->state[num]=0;
-	MOD_DEC_USE_COUNT;
+	/* fixme: is this correct? */
+	module_put(THIS_MODULE);
+
 	return 0;
 }
 

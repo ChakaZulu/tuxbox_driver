@@ -32,10 +32,12 @@
 
 
 #define __KERNEL_SYSCALLS__
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/module.h>
 #include <asm/uaccess.h>
+#include <asm/errno.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/string.h>
 
 #include "dvb_ringbuffer.h"
 
@@ -50,7 +52,6 @@ void dvb_ringbuffer_init(dvb_ringbuffer_t *rbuf, void *data, size_t len)
         init_waitqueue_head(&rbuf->queue);
 
         spin_lock_init(&(rbuf->lock));
-        rbuf->lock=SPIN_LOCK_UNLOCKED;
 }
 
 

@@ -21,25 +21,19 @@
  *
  */
 
-/*#define CONFIG_DVB_DEVFS_ONLY 1*/
-
-#include <linux/config.h>
-#include <linux/version.h>
+#include <asm/types.h>
+#include <asm/errno.h>
+#include <asm/semaphore.h>
+#include <linux/string.h>
 #include <linux/module.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/errno.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/kmod.h>
 #include <linux/slab.h>
 
 #include "dvbdev.h"
 #include "compat.h"
+
 
 static int dvbdev_debug = 0;
 #define dprintk if (dvbdev_debug) printk
@@ -59,13 +53,11 @@ static char *dnames[] = {
 
 	#define DVB_MAX_IDS              ~0
 	#define nums2minor(num,type,id)  0
-	#define DVB_DEVFS_FLAGS          (DEVFS_FL_DEFAULT|DEVFS_FL_AUTO_DEVNUM)
 
 #else
 
 	#define DVB_MAX_IDS              4
 	#define nums2minor(num,type,id)  ((num << 6) | (id << 4) | type)
-	#define DVB_DEVFS_FLAGS          (DEVFS_FL_DEFAULT)
 
 static
 struct dvb_device* dvbdev_find_device (int minor)
@@ -199,9 +191,9 @@ skip:
 int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev, 
 			const struct dvb_device *template, void *priv, int type)
 {
-	u32 id;
-	char name [20];
 	struct dvb_device *dvbdev;
+	char name [20];
+	int id;
 
 	if (down_interruptible (&dvbdev_register_lock))
 		return -ERESTARTSYS;
@@ -230,9 +222,9 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
-	sprintf(name, "%s%d", dnames[type], id);
+	snprintf(name, sizeof(name), "%s%d", dnames[type], id);
 	dvbdev->devfs_handle = devfs_register(adap->devfs_handle, name,
-					      DVB_DEVFS_FLAGS,
+					      DEVFS_FL_DEFAULT,
 					      DVB_MAJOR,
 					      nums2minor(adap->num, type, id),
 					      S_IFCHR | S_IRUSR | S_IWUSR,
@@ -301,11 +293,12 @@ int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 	memset (adap, 0, sizeof(struct dvb_adapter));
 	INIT_LIST_HEAD (&adap->device_list);
 
-	MOD_INC_USE_COUNT;
+	/* fixme: is this correct? */
+	try_module_get(THIS_MODULE);
 
 	printk ("DVB: registering new adapter (%s).\n", name);
 	
-	sprintf(dirname, "adapter%d", num);
+	snprintf(dirname, sizeof(dirname), "adapter%d", num);
 	adap->devfs_handle = devfs_mk_dir(dvb_devfs_handle, dirname, NULL);
 	adap->num = num;
 	adap->name = name;
@@ -326,7 +319,8 @@ int dvb_unregister_adapter(struct dvb_adapter *adap)
 	list_del (&adap->list_head);
 	up (&dvbdev_register_lock);
 	kfree (adap);
-	MOD_DEC_USE_COUNT;
+	/* fixme: is this correct? */
+	module_put(THIS_MODULE);
 	return 0;
 }
 

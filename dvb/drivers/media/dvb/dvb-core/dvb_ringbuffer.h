@@ -32,8 +32,11 @@
 #ifndef _DVB_RINGBUFFER_H_
 #define _DVB_RINGBUFFER_H_
 
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
-typedef struct dvb_ringbuffer_s {
+
+typedef struct dvb_ringbuffer {
         u8               *data;
         ssize_t           size;
         ssize_t           pread;
@@ -59,7 +62,7 @@ typedef struct dvb_ringbuffer_s {
 **         ...
 **
 **     *** read min. 1000, max. <bufsize> bytes ***
-**     avail = dvb_ringbuffer_available(rbuf);
+**     avail = dvb_ringbuffer_avail(rbuf);
 **     if (avail >= 1000)
 **         count = dvb_ringbuffer_read(rbuf, buffer, min(avail, bufsize), 0);
 **     else

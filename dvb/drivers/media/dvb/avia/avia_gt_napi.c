@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.177 2003/04/12 21:24:58 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.178 2003/04/20 21:24:54 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -643,7 +643,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.177 2003/04/12 21:24:58 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.178 2003/04/20 21:24:54 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -662,9 +662,6 @@ int __init avia_gt_napi_init(void)
 
 	memset(&demux, 0, sizeof(demux));
 
-	demux.dmx.vendor = "C-Cube";
-	demux.dmx.model = "AViA GTX/eNX";
-	demux.dmx.id = "demux0_0";
 	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_PES_FILTERING |
 		DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING |
 		DMX_CRC_CHECKING;
@@ -712,14 +709,6 @@ int __init avia_gt_napi_init(void)
 
 	}
 
-	fe_hw.id = "hw_frontend";
-
-	if (avia_gt_chip(GTX))
-		fe_hw.vendor = "Nokia";
-	else
-		fe_hw.vendor = "Philips or Sagem";
-
-	fe_hw.model = "hw";
 	fe_hw.source = DMX_FRONTEND_0;
 
 	if ((result = demux.dmx.add_frontend(&demux.dmx, &fe_hw)) < 0) {
@@ -733,9 +722,6 @@ int __init avia_gt_napi_init(void)
 		
 	}
 	
-	fe_mem.id = "mem_frontend";
-	fe_mem.vendor = "memory";
-	fe_mem.model = "sw";
 	fe_mem.source = DMX_MEMORY_FE;
 
 	if ((result = demux.dmx.add_frontend(&demux.dmx, &fe_mem)) < 0) {

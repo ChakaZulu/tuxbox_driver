@@ -26,7 +26,9 @@
 #define _DVB_DEMUX_H_
 
 #include <asm/semaphore.h>
+#include <linux/time.h>
 #include <linux/timer.h>
+#include <linux/spinlock.h>
 
 #include "demux.h"
 

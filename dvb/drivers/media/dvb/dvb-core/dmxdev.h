@@ -24,16 +24,16 @@
 #ifndef _DMXDEV_H_
 #define _DMXDEV_H_
 
-#ifndef __KERNEL__ 
-#define __KERNEL__ 
-#endif 
+#include <asm/types.h>
+#include <asm/semaphore.h>
+#include <linux/spinlock.h>
+#include <linux/kernel.h>
+#include <linux/timer.h>
+#include <linux/wait.h>
+#include <linux/fs.h>
+#include <linux/string.h>
 
 #include <linux/dvb/dmx.h>
-
-#include <linux/version.h>
-#include <linux/wait.h>
-#include <linux/types.h>
-#include <linux/fs.h>
 
 #include "dvbdev.h"
 #include "demux.h"
@@ -53,17 +53,17 @@ typedef enum {
 	DMXDEV_STATE_TIMEDOUT
 } dmxdev_state_t;
 
-typedef struct dmxdev_buffer_s {
-        uint8_t *data;
-        uint32_t size;
-        int32_t  pread;
-        int32_t  pwrite;
+typedef struct dmxdev_buffer {
+        u8 *data;
+        int size;
+        int pread;
+        int pwrite;
 	wait_queue_head_t queue;
         int error;
 } dmxdev_buffer_t;
 
 
-typedef struct dmxdev_filter_s {
+typedef struct dmxdev_filter {
 	struct dvb_device *dvbdev;
 
         union {
@@ -82,7 +82,7 @@ typedef struct dmxdev_filter_s {
 
         int type;
         dmxdev_state_t state;
-        struct dmxdev_s *dev;
+        struct dmxdev *dev;
         dmxdev_buffer_t buffer;
 
 	struct semaphore mutex;
@@ -90,20 +90,20 @@ typedef struct dmxdev_filter_s {
         // only for sections
         struct timer_list timer;
         int todo;
-        uint8_t secheader[3];
+        u8 secheader[3];
 
         u16 pid;
 } dmxdev_filter_t;
 
 
-typedef struct dmxdev_dvr_s {
+typedef struct dmxdev_dvr {
         int state;
-        struct dmxdev_s *dev;
+        struct dmxdev *dev;
         dmxdev_buffer_t buffer;
 } dmxdev_dvr_t;
 
 
-typedef struct dmxdev_s {
+typedef struct dmxdev {
 	struct dvb_device *dvbdev;
 	struct dvb_device *dvr_dvbdev;
 

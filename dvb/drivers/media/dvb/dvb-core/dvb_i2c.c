@@ -19,11 +19,15 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <asm/semaphore.h>
+#include <asm/errno.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/module.h>
 
 #include "dvb_i2c.h"
+#include "compat.h"
+
 
 struct dvb_i2c_device {
 	struct list_head list_head;
@@ -32,24 +36,10 @@ struct dvb_i2c_device {
 	void (*detach) (struct dvb_i2c_bus *i2c);
 };
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,48))
-static inline 
-int try_module_get(struct module *mod)
-{
-        if (!MOD_CAN_QUERY(mod))
-                return 0;
-        __MOD_INC_USE_COUNT(mod);
-        return 1;
-}
-
-#define module_put(mod) __MOD_DEC_USE_COUNT(mod)
-#endif
-
 LIST_HEAD(dvb_i2c_buslist);
 LIST_HEAD(dvb_i2c_devicelist);
 
 DECLARE_MUTEX(dvb_i2c_mutex);
-
 
 static
 int register_i2c_client (struct dvb_i2c_bus *i2c, struct dvb_i2c_device *dev)

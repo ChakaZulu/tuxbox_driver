@@ -2,7 +2,46 @@
 #define __CRAP_H
 
 #include <asm/uaccess.h>
+#include <linux/string.h>
+#include <linux/smp_lock.h>
 #include <linux/version.h>
+#include <linux/fs.h>
+
+
+/**
+ *  a sleeping delay function, waits i ms
+ *
+ */
+static
+inline void ddelay(int i)
+{
+	current->state=TASK_INTERRUPTIBLE;
+	schedule_timeout((HZ*i)/1000);
+}
+
+
+static inline
+void kernel_thread_setup (const char *thread_name)
+{
+        lock_kernel ();
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,61))
+        daemonize ();
+	strncpy (current->comm, thread_name, sizeof(current->comm));
+#else
+        daemonize (thread_name);
+#endif
+
+/*      not needed anymore in 2.5.x, done in daemonize() */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+        reparent_to_init ();
+#endif
+
+        sigfillset (&current->blocked);
+        unlock_kernel ();
+}
+
+
 
 /**
  *  compatibility crap for old kernels. No guarantee for a working driver
@@ -81,9 +120,14 @@ int try_module_get(struct module *mod)
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20)
-
 extern struct page * vmalloc_to_page(void *addr);
+#define unlikely(x)    __builtin_expect((x),0)
+#define BUG_ON(condition) do { if (unlikely((condition)!=0)) BUG(); } while(0)
+#endif
 
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,66))
+#define devfs_mk_dir(parent,name,info) devfs_mk_dir(name)
 #endif
 
 

@@ -19,11 +19,15 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */    
 
+#include <asm/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
+#include "compat.h"
 
 
 #if 0
@@ -63,13 +67,9 @@
 #define GET_TUNER(data) ((u8) (((int) data >> 16) & 0xff))
 #define GET_DEMOD_ADDR(data) ((u8) (((int) data >> 24) & 0xff))
 
+#define XIN 69600000UL
+#define FIN (XIN >> 4)
 
-static inline
-void ddelay (int ms)
-{
-	current->state=TASK_INTERRUPTIBLE;
-	schedule_timeout((HZ*ms)/1000);
-}
 
 
 static
@@ -79,8 +79,8 @@ struct dvb_frontend_info ves1820_info = {
 	.frequency_stepsize = 62500,
 	.frequency_min = 51000000,
 	.frequency_max = 858000000,
-	.symbol_rate_min = (69600000/2)/64,     /* SACLK/64 == (XIN/2)/64 */
-	.symbol_rate_max = (69600000/2)/4,      /* SACLK/4 */
+	.symbol_rate_min = (XIN/2)/64,     /* SACLK/64 == (XIN/2)/64 */
+	.symbol_rate_max = (XIN/2)/4,      /* SACLK/4 */
 #if 0
 	frequency_tolerance: ???,
 	symbol_rate_tolerance: ???,  /* ppm */  /* == 8% (spec p. 5) */
@@ -89,7 +89,7 @@ struct dvb_frontend_info ves1820_info = {
 	.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 		FE_CAN_QAM_128 | FE_CAN_QAM_256 | 
 		FE_CAN_FEC_AUTO | FE_CAN_INVERSION_AUTO |
-		FE_CAN_CLEAN_SETUP
+		FE_CAN_CLEAN_SETUP | FE_CAN_RECOVER
 };
 
 
@@ -123,7 +123,7 @@ int ves1820_writereg (struct dvb_frontend *fe, u8 reg, u8 data)
 			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			__FUNCTION__, reg, data, ret);
 
-	mdelay(10);
+	ddelay(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
@@ -179,7 +179,7 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 	if (tuner_type == 0xff)     /*  PLL not reachable over i2c ...  */
 		return 0;
 
-	div = (freq + 36250000 + 31250) / 62500;
+	div = (freq + 36125000 + 31250) / 62500;
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = byte3[tuner_type];
@@ -209,7 +209,7 @@ int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0)
 	 *  check lock and toggle inversion bit if required...
 	 */
 	if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
-		ddelay(1);
+		ddelay(10);
 		if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
 			reg0 ^= 0x20;
 			ves1820_writereg (fe, 0x00, reg0 & 0xfe);
@@ -249,9 +249,6 @@ int ves1820_set_symbolrate (struct dvb_frontend *fe, u32 symbolrate)
         s16 SFIL=0;
         u16 NDEC = 0;
         u32 tmp, ratio;
-
-#define XIN 69600000UL
-#define FIN (XIN >> 4)
 
         if (symbolrate > XIN/2) 
                 symbolrate = XIN/2;

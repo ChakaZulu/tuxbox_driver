@@ -25,14 +25,10 @@
 #ifndef __DEMUX_H 
 #define __DEMUX_H 
 
-#ifndef __KERNEL__ 
-#define __KERNEL__ 
-#endif 
-
-#include <linux/types.h>
+#include <asm/types.h>
+#include <asm/errno.h>
 #include <linux/list.h> 
 #include <linux/time.h> 
-#include <linux/errno.h>
 
 /*--------------------------------------------------------------------------*/ 
 /* Common definitions */ 
@@ -115,7 +111,7 @@ struct dmx_ts_feed_s {
         struct dmx_demux_s *parent; /* Back-pointer */
         void *priv; /* Pointer to private data of the API client */ 
         int (*set) (struct dmx_ts_feed_s *feed, 
-		    uint16_t pid,
+		    u16 pid,
 		    int type, 
 		    dmx_ts_pes_t pes_type,
 		    size_t callback_length, 
@@ -133,9 +129,9 @@ typedef struct dmx_ts_feed_s dmx_ts_feed_t;
 /*--------------------------------------------------------------------------*/ 
 
 typedef struct { 
-        __u8 filter_value [DMX_MAX_FILTER_SIZE]; 
-        __u8 filter_mask [DMX_MAX_FILTER_SIZE]; 
-        __u8 filter_mode [DMX_MAX_FILTER_SIZE]; 
+        u8 filter_value [DMX_MAX_FILTER_SIZE]; 
+        u8 filter_mask [DMX_MAX_FILTER_SIZE]; 
+        u8 filter_mode [DMX_MAX_FILTER_SIZE]; 
         struct dmx_section_feed_s* parent; /* Back-pointer */ 
         void* priv; /* Pointer to private data of the API client */ 
 } dmx_section_filter_t;
@@ -153,7 +149,7 @@ struct dmx_section_feed_s {
         int seclen;
 
         int (*set) (struct dmx_section_feed_s* feed, 
-		    __u16 pid, 
+		    u16 pid, 
 		    size_t circular_buffer_size, 
 		    int descramble, 
 		    int check_crc); 
@@ -201,10 +197,6 @@ typedef enum {
 } dmx_frontend_source_t; 
 
 typedef struct { 
-        /* The following char* fields point to NULL terminated strings */ 
-        char* id;                    /* Unique front-end identifier */ 
-        char* vendor;                /* Name of the front-end vendor */ 
-        char* model;                 /* Name of the front-end model */ 
         struct list_head connectivity_list; /* List of front-ends that can 
 					       be connected to a particular 
 					       demux */ 
@@ -243,11 +235,7 @@ typedef struct {
 #define DMX_FE_ENTRY(list) list_entry(list, dmx_frontend_t, connectivity_list) 
 
 struct dmx_demux_s { 
-        /* The following char* fields point to NULL terminated strings */ 
-        char* id;                    /* Unique demux identifier */ 
-        char* vendor;                /* Name of the demux vendor */ 
-        char* model;                 /* Name of the demux model */ 
-        __u32 capabilities;          /* Bitfield of capability flags */ 
+        u32 capabilities;            /* Bitfield of capability flags */ 
         dmx_frontend_t* frontend;    /* Front-end connected to the demux */ 
         struct list_head reg_list;   /* List of registered demuxes */
         void* priv;                  /* Pointer to private data of the API client */ 
@@ -266,16 +254,16 @@ struct dmx_demux_s {
         int (*release_section_feed) (struct dmx_demux_s* demux,
 				     dmx_section_feed_t* feed); 
         int (*descramble_mac_address) (struct dmx_demux_s* demux, 
-				       __u8* buffer1, 
+				       u8* buffer1, 
 				       size_t buffer1_length, 
-				       __u8* buffer2, 
+				       u8* buffer2, 
 				       size_t buffer2_length,
-				       __u16 pid); 
+				       u16 pid); 
         int (*descramble_section_payload) (struct dmx_demux_s* demux,
-					   __u8* buffer1, 
+					   u8* buffer1, 
 					   size_t buffer1_length,
-					   __u8* buffer2, size_t buffer2_length,
-					   __u16 pid); 
+					   u8* buffer2, size_t buffer2_length,
+					   u16 pid); 
         int (*add_frontend) (struct dmx_demux_s* demux, 
 			     dmx_frontend_t* frontend); 
         int (*remove_frontend) (struct dmx_demux_s* demux,
@@ -285,10 +273,10 @@ struct dmx_demux_s {
 				 dmx_frontend_t* frontend); 
         int (*disconnect_frontend) (struct dmx_demux_s* demux); 
 
-        int (*get_pes_pids) (struct dmx_demux_s* demux, __u16 *pids);
+        int (*get_pes_pids) (struct dmx_demux_s* demux, u16 *pids);
 
         int (*get_stc) (struct dmx_demux_s* demux, unsigned int num,
-			uint64_t *stc, unsigned int *base);
+			u64 *stc, unsigned int *base);
 }; 
 typedef struct dmx_demux_s dmx_demux_t; 
 
