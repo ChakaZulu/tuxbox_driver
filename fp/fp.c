@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.28  2001/04/26 17:28:07  Hunz
+ *   breakcode-fix
+ *
  *   Revision 1.27  2001/04/26 16:56:58  Hunz
  *   added breakcodes support
  *
@@ -84,7 +87,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.27 $
+ *   $Revision: 1.28 $
  *
  */
 
@@ -289,11 +292,7 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 			switch (cmd)
 			{
 				case RC_IOCTL_BCODES:
-					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
-                                        {
-                                                return -EFAULT;
-                                        }
-					if (val != 0)
+					if (arg > 0)
 					{
 						rc_bcodes=1;
 						return fp_sendcmd(defdata->client, 0x26, 0x80);
