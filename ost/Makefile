@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS = dmxdev.o dvb.o dvb_demux.o dvb_frontend.o dvb_net.o dvbdev.o
+M_OBJS = dmxdev.o dvb.o dvb_demux.o dvb_filter.o dvb_frontend.o dvb_net.o dvbdev.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
