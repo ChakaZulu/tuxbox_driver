@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.66 2002/03/18 23:23:19 obi Exp $
+ * $Id: dvb.c,v 1.67 2002/03/24 17:52:40 happydude Exp $
  */
 
 #include <linux/config.h>
@@ -915,12 +915,12 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    break;
 
 					case SPDIF_ON:
-					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)|1);
+					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)|2);
 					    wDR(NEW_AUDIO_CONFIG, 1);
 					    break;
 
 					case SPDIF_OFF:
-					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)&~1);
+					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)&~2);
 					    wDR(NEW_AUDIO_CONFIG, 1);
 					    break;
 
