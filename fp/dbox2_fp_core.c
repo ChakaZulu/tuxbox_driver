@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.39  2002/01/04 00:59:13  Hunz
+ *   added FP_IOCTL_REBOOT
+ *
  *   Revision 1.38  2001/12/08 15:20:14  gillem
  *   - add global event handler now
  *
@@ -120,7 +123,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.38 $
+ *   $Revision: 1.39 $
  *
  */
 
@@ -305,7 +308,10 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					else
 						return fp_sendcmd(defdata->client, 0, 0);
 					break; 
-
+				case FP_IOCTL_REBOOT:
+					fp_restart("LIFE SUX");
+                                        return 0;
+					break;
 				case FP_IOCTL_LCD_DIMM:
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 					{
