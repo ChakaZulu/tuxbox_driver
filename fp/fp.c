@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.41  2002/01/17 22:38:09  tmbinc
+ *   added keyboard support. keyboard events are ignored.
+ *
  *   Revision 1.40  2002/01/10 16:47:06  Hunz
  *   possible SEC_VOLTAGE_LT fix maybe... (untested)
  *
@@ -126,7 +129,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.40 $
+ *   $Revision: 1.41 $
  *
  */
 
@@ -313,7 +316,7 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					break; 
 				case FP_IOCTL_REBOOT:
 					fp_restart("LIFE SUX");
-                                        return 0;
+					return 0;
 					break;
 				case FP_IOCTL_LCD_DIMM:
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
@@ -941,6 +944,15 @@ int fp_do_reset(int type)
 	return 0;
 }
 
+static void fp_handle_keyboard(struct fp_data *dev)
+{
+	u16 scancode=-1;
+
+	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+	printk("keyboard scancode: %02x\n", scancode);
+}
+
+
 /* ------------------------------------------------------------------------- */
 
 static void fp_check_queues(void)
@@ -963,10 +975,22 @@ static void fp_check_queues(void)
 	}
 
 	iwork=0;
+/*
+fp status:
 
+1       new rc
+2       keyboard
+4       mouse
+8       RC
+10      button
+20      scart status
+40      lnb alarm
+80      timer underrun
+*/
 	do
 	{
 		fp_cmd(defdata->client, 0x20, &status, 1);
+//		printk("status: %02x\n", status);
   
 		/* remote control */
 		if (status&9)
@@ -982,12 +1006,21 @@ static void fp_check_queues(void)
 		{
 			fp_handle_button(defdata);
 		}
+		
+		if (status&0x2)
+		{
+			fp_handle_keyboard(defdata);
+		}
 
 		/* ??? */
-		if (status&0x40)
+		if (status&0x40)		// LNB alarm
 		{
 			fp_handle_unknown(defdata);
 		}
+		
+		/* if (status&0x20)  // scart status
+		{
+		} */
 
 		if (iwork++ > 100)
 		{
@@ -995,7 +1028,7 @@ static void fp_check_queues(void)
 			break;
 		}
 
-	} while (status & (0x59));            // only the ones we can handle
+	} while (status & (0x59|2));            // only the ones we can handle
 
 	if (status)
 		dprintk("fp.o: unhandled interrupt source %x\n", status);
