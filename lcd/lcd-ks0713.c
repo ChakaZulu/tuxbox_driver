@@ -21,6 +21,10 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.19  2002/03/03 09:32:33  gillem
+ *   - add lcd defines
+ *   - boxtype output
+ *
  *   Revision 1.18  2002/03/03 07:11:48  gillem
  *   - add lcd interface detect
  *
@@ -66,7 +70,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -92,6 +96,7 @@
 /* HACK HACK HACK */
 #include <commproc.h>
 
+#include "dbox/info.h"
 #include "lcd-ks0713.h"
 #include "lcd-console.h"
 
@@ -102,6 +107,11 @@
 #endif
 
 static devfs_handle_t devfs_handle;
+
+/* lcd interface id */
+#define KS0713		0x00
+#define SED153X		0x00
+#define SSD181X		0x0a
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -883,10 +893,11 @@ void lcd_reset_init(void)
 int __init lcd_init(void)
 {
 	int status;
-
+	struct dbox_info_struct dinfo;
+	
 	immap_t	*immap;
 
-	printk("lcd.o: LCD driver (KS0713) module\n");
+	printk("lcd.o: init lcd driver module\n");
 
 //	lcd_initialized = 0;
 //	if (register_chrdev(LCD_MAJOR,"lcd",&lcd_fops)) {
@@ -927,13 +938,19 @@ int __init lcd_init(void)
 
 	status = lcd_read_status();
 
+	dbox_get_info(&dinfo);
+	
 	switch(status&0x0f)
 	{
-		case 0x0a:
-			printk("lcd.o: found SSD181X lcd interface\n");
+		case KS0713:
+//		case SED153X:
+			printk("lcd.o: found KS0713/SED153X lcd interface on %x\n",dinfo.mID);
+			break;
+		case SSD181X:
+			printk("lcd.o: found SSD181X lcd interface on %x\n",dinfo.mID);
 			break;
 		default:
-			printk("lcd.o: found unknown (%02X) lcd interface\n",status&0x0f);
+			printk("lcd.o: found unknown (%02X) lcd interface on %x\n",status&0x0f,dinfo.mID);
 			break;
 	}
 
