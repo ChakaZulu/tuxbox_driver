@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.11  2002/04/22 19:50:25  Jolt
+ *   Missing init stuff
+ *
  *   Revision 1.10  2002/04/22 17:40:01  Jolt
  *   Major cleanup
  *
@@ -111,7 +114,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -269,8 +272,18 @@ void avia_gt_gtx_init(void)
 
     int cr;
 
-    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.10 2002/04/22 17:40:01 Jolt Exp $\n");
+    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.11 2002/04/22 19:50:25 Jolt Exp $\n");
+
+    gt_info = avia_gt_get_info();
+    
+    if (!avia_gt_chip(GTX)) {
 	
+	printk("avia_gt_gtx: Unsupported chip type\n");
+		
+	return;
+			
+    }
+			    	
     avia_gt_gtx_reset();
 
     udelay (500);
