@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.8  2001/09/17 21:25:55  TripleDES
+ *   removed the "@lcd"
+ *
  *   Revision 1.7  2001/01/28 19:47:12  gillem
  *   - fix setpos ...
  *
@@ -36,7 +39,7 @@
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -69,7 +72,7 @@ void lcd_init_console(void)
     row = 0;
     col = 0;
 
-	lcd_console_put_data(INITSTRING,strlen(INITSTRING));
+	//lcd_console_put_data(INITSTRING,strlen(INITSTRING));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
