@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.20  2002/08/07 13:28:49  obi
+ *   checked wrong byte for avia detection?
+ *
  *   Revision 1.19  2002/07/18 19:19:35  wjoost
  *
  *   AVIA-Erkennung gefixt. Hinweis auf Konfigurationsfalle eingebaut.
@@ -77,7 +80,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -355,7 +358,7 @@ static int aviatype(void)
 	aviarev |= aviamem[1] << 8;
 	aviarev |= aviamem[0];
 
-	return (aviarev & 0x0300) ? 500:600;
+	return (aviarev & 0x030000) ? 500:600;
 }
 
 static int dbox_info_init(void)
