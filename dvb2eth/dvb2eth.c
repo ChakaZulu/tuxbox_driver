@@ -30,7 +30,6 @@
 #include <linux/bitops.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
-#include <asm/page.h>
 #include <asm/io.h>
 #include <asm/checksum.h>
 #include <asm/uaccess.h>
@@ -95,7 +94,7 @@ unsigned char dvb2eth_udp_header_skel[44] =
 		0x00, 0x00								// udp-checksum, not used
 };
 
-#define UDP_HEADERS		(PAGE_SIZE / sizeof(dvb2eth_udp_header_skel))
+#define UDP_HEADERS		32
 
 /*
  * variables
@@ -108,7 +107,7 @@ static unsigned	char		dvb2eth_header_index;
 static unsigned char		dvb2eth_running;
 static unsigned char		dvb2eth_setup_done;
 static unsigned short		dvb2eth_udp_id = 15796;
-static unsigned				dvb2eth_ph_addr[UDP_HEADERS];
+static dma_addr_t			dvb2eth_ph_addr[UDP_HEADERS];
 static struct net_device 	*dvb2eth_dev;
 
 /*
@@ -148,7 +147,6 @@ static int dvb2eth_send(unsigned first, unsigned first_len,
 		*((unsigned short *) (udp + 20)) = dvb2eth_udp_id++;
 		*((unsigned short *) (udp + 26)) = 0;
 		*((unsigned short *) (udp + 26)) = ip_fast_csum(udp + 16,5);
-		flush_dcache_range(((unsigned long) udp) + 20,((unsigned long) udp) + 27);
 
 		if (first_len >= 1316)
 		{
@@ -179,10 +177,7 @@ static int dvb2eth_send(unsigned first, unsigned first_len,
 		}
 		len -= 1316;
 		sent += 1316;
-		if (++dvb2eth_header_index >= UDP_HEADERS)
-		{
-			dvb2eth_header_index = 0;
-		}
+		dvb2eth_header_index = (dvb2eth_header_index + 1) & (UDP_HEADERS - 1);
 	}
 
 	return sent;
@@ -242,8 +237,6 @@ static int dvb2eth_ioctl(struct inode *inode, struct file *file,
 			{
 				memcpy(j,dvb2eth_udp_header_skel,sizeof(dvb2eth_udp_header_skel));
 			}
-			flush_dcache_range((unsigned long) dvb2eth_header_buf,
-				((unsigned long) dvb2eth_header_buf) + PAGE_SIZE - 1);
 			dvb2eth_setup_done = 1;
 			break;
 		default:
@@ -318,7 +311,8 @@ static void __exit dvb2eth_exit(void)
 	 * free memory
 	 */
 
-	free_page((unsigned long) dvb2eth_header_buf);
+
+	consistent_free(dvb2eth_header_buf);
 
 	/*
 	 * unregister device
@@ -333,8 +327,8 @@ static void __exit dvb2eth_exit(void)
 
 static int __init dvb2eth_init(void)
 {
-	unsigned i;
-	unsigned 		phy_addr;
+	unsigned 	i;
+	dma_addr_t	phy_addr;
 	/*
 	 * find network device
 	 */
@@ -360,7 +354,8 @@ static int __init dvb2eth_init(void)
 	 * alloc memory
 	 */
 
-	if ( (dvb2eth_header_buf = (unsigned char *) __get_free_page(GFP_KERNEL)) == NULL)
+	if ( (dvb2eth_header_buf = (unsigned char *) consistent_alloc(GFP_KERNEL,
+			UDP_HEADERS * sizeof(dvb2eth_udp_header_skel),&phy_addr)) == NULL)
 	{
 		printk(KERN_ERR "dvb2eth_init: cannot allocate memory.\n");
 		devfs_unregister(dvb2eth_device);
@@ -371,7 +366,7 @@ static int __init dvb2eth_init(void)
 	 * store physical addresses for udp-headers
 	 */
 
-	phy_addr = virt_to_phys(dvb2eth_header_buf) + 2;
+	phy_addr += 2;
 	for (i = 0; i < UDP_HEADERS; i++)
 	{
 		dvb2eth_ph_addr[i] = phy_addr;
