@@ -11,9 +11,9 @@ BIN_DEST := $(INSTALL_MOD_PATH)/bin
 
 export KERNELRELEASE KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST BIN_DEST
 
-mod-subdirs := avs lcd saa7126 pcm avia fp i2c ves cam ost test info core event
+mod-subdirs := avs lcd saa7126 avia fp i2c ves cam ost test info core event
 
-subdir-y := avs lcd saa7126 pcm avia fp i2c ves cam ost test info core event
+subdir-y := avs lcd saa7126 avia fp i2c ves cam ost test info core event
 
 subdir-m := $(subdir-y)
 
