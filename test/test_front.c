@@ -324,7 +324,7 @@ main(int argc, char **argv)
         printf("tuning to ---> %d\n", parm.iFrequency);
 	OSTSelftest(fd); */
 	OSTSetPowerState(fd, OST_POWER_OFF);
-	OSTGetPowerState(fd, &state);/*
+	OSTGetPowerState(fd, &state);
 	FEReadStatus(fd);
 	FEReadBER(fd, &state);
 	FEReadSignalStrength(fd, &strength);
@@ -334,7 +334,7 @@ main(int argc, char **argv)
 	FEGetNextFrequency(fd, &state);
 	FEGetNextSymbolRate(fd, &state);
 	QPSKFEInfo (fd, &info);
-	
+/*	
 	QPSKTune(fd, &parm);
 	printf("frequency set to: %d\n", parm.iFrequency);
 	
