@@ -94,6 +94,11 @@ struct dvb_demux_feed {
         u16 peslen;
 };
 
+struct dvb_demux_feed_chain {
+	struct dvb_demux_feed * feed;
+	u8		        next;
+};
+
 struct dvb_demux {
         dmx_demux_t dmx;
         void *priv;
@@ -121,7 +126,8 @@ struct dvb_demux {
         int recording; 
 
 #define DMX_MAX_PID 0x2000
-        struct dvb_demux_feed *pid2feed[DMX_MAX_PID+1];
+        u8 pid2feedindex[DMX_MAX_PID+1];
+	struct dvb_demux_feed_chain * feedchain;
         u8 tsbuf[188];
         int tsbufp;
 

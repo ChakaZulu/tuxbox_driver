@@ -582,10 +582,10 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *filter)
 		for (i=0; i<dmxdev->filternum; i++) {
 			if (dmxdev->filter[i].state >= DMXDEV_STATE_GO &&
 			    dmxdev->filter[i].pid == para->pid) {
-				if (dmxdev->filter[i].type != DMXDEV_TYPE_SEC)
-					return -EBUSY;
-				*secfeed = dmxdev->filter[i].feed.sec;
-				break;
+				if (dmxdev->filter[i].type == DMXDEV_TYPE_SEC) {
+					*secfeed = dmxdev->filter[i].feed.sec;
+					break;
+				}
 			}
 		}
 
