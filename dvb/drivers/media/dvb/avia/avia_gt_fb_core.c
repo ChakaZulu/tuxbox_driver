@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.22  2002/04/15 19:05:03  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.21  2002/04/15 12:04:53  Jolt
  *   eNX/GTX merge
  *
@@ -108,7 +111,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -148,6 +151,7 @@
 #include <video/fbcon-cfb16.h>
 #include "dbox/fb.h"
 #include "dbox/avia_gt.h"
+#include "dbox/avia_gt_gv.h"
 
 #define RES_X           720
 #define RES_Y           576
@@ -881,7 +885,7 @@ int __init avia_gt_fb_init(void)
     unsigned char *gv_mem_phys;
     unsigned int gv_mem_size;
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.21 2002/04/15 12:04:53 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.22 2002/04/15 19:05:03 Jolt Exp $\n");
 	    
     avia_gt_gv_get_info(&gv_mem_phys, &gv_mem_lin, &gv_mem_size);
 		
