@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.88 2002/11/08 01:35:51 obi Exp $
+ * $Id: dvb.c,v 1.89 2002/11/10 12:29:36 wjoost Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -475,7 +475,7 @@ ca_ioctl(struct dvb_device *dvbdev, struct file *file,
 		ca_msg.length = cam_read_message(ca_msg.msg, ca_msg.length);
 
 		if (copy_to_user(parg, &ca_msg, sizeof(ca_msg_t)))
-			return -EFAULT:
+			return -EFAULT;
 		break;
 	}
 
