@@ -2,8 +2,8 @@ DRIVER_TOPDIR = ../../../../..
 
 include $(DRIVER_TOPDIR)/Config.make
 
-obj-m		:= avia_napi.o avia_av.o avia_av_napi.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_v4l2.o avia_gt_dvr.o
-export-objs	:= avia_av_core.o avia_gt_core.o avia_gt_accel.o avia_gt_dmx.o avia_gt_dvr.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o avia_gt_ir.o avia_gt_vbi.o fbgen.o
+obj-m		:= avia_napi.o avia_av.o avia_av_napi.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_v4l2.o
+export-objs	:= avia_av_core.o avia_gt_core.o avia_gt_accel.o avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o avia_gt_ir.o avia_gt_vbi.o fbgen.o
 
 AVIA_AV_MODS	:= avia_av_event.o avia_av_proc.o
 AVIA_AV		:= avia_av_core.o 
