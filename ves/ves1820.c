@@ -345,15 +345,13 @@ int attach_adapter(struct i2c_adapter *adap)
 //		init_waitqueue_head(&tuner_wait);
 //		kernel_thread(tuner_task,&cam_busy,0);
 /*
-		flags = SA_SAMPLE_RANDOM;
-
-		if (request_8xxirq(TUNER_INTERRUPT, ves_interrupt, flags, "tuner", NULL) != 0)
+		if (request_8xxirq(TUNER_INTERRUPT, ves_interrupt, SA_ONESHOT, "tuner", NULL) != 0)
 		{
 			i2c_del_driver(&dvbt_driver);
 			dprintk("VES1820: can't request interrupt\n");
 	        return -EBUSY;
 		}
-*/		
+*/
 //        schedule_task(&tuner_tasklet);
 
 
@@ -567,7 +565,7 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
 
-		free_irq(TUNER_INTERRUPT, NULL);
+//		free_irq(TUNER_INTERRUPT, NULL);
 
         dprintk("VES1820: cleanup\n");
 }
