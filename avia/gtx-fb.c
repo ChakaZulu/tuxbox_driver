@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-fb.c,v $
+ *   Revision 1.11  2001/03/23 08:00:30  gillem
+ *   - adjust xpos of fb
+ *
  *   Revision 1.10  2001/03/08 01:15:14  tmbinc
  *   smem_length 1MB now, transparent color, defaults to dynaclut.
  *
@@ -33,7 +36,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -299,6 +302,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
   struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
   int val;
+	int div,rem;
 
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
   rh(VHT)=par->pal?858:852;
@@ -339,27 +343,47 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   VCR_SET_FP(0);
   val=par->pal?127:117;
   val*=8;
+
   if (par->lowres)
-    val/=2;
-  if (rw(GMR)&(1<<28))
-    val/=9;
-  else
-    val/=8;
-  val-=3;
+	{
+		if (rw(GMR)&(1<<28))
+			div=18;
+		else
+			div=16;
+	}
+	else
+	{
+		if (rw(GMR)&(1<<28))
+			div=9;
+		else
+			div=8;
+	}
+
+	rem = val-((val/div)*div);
+	val/=div;
+
+	// ???
+  val-=(3+20);
   GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
-  rh(GFUNC)=0x10;               // enable dynamic clut
+
+	/* set SPP */
+	rw(GVP) |= (rem<<27);
+
+  rh(GFUNC)=0x10;			// enable dynamic clut
   rh(TCR)=0xFC0F;                       // ekelhaftes rosa als transparent
   
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
     GVS_SET_XSZ(par->xres*2);
   else */
-    GVS_SET_XSZ(par->xres);
+	GVS_SET_XSZ(par->xres);
 
   if (par->interlaced)
     GVS_SET_YSZ(par->yres);
   else
     GVS_SET_YSZ(par->yres*2);
+
+//	rw(GVS)|=(0<<27);
 
   rw(VBR)=0;                       // disable background..
   
