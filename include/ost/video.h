@@ -96,9 +96,9 @@ struct videoDigest {
 // };
 
 #define VIDEO_STOP                 _IOW('o', 21, boolean)
-#define VIDEO_PLAY                 _IOW('o', 22, void)
-#define VIDEO_FREEZE               _IOW('o', 23, void)
-#define VIDEO_CONTINUE             _IOW('o', 24, void)
+#define VIDEO_PLAY                 _IO('o', 22)
+#define VIDEO_FREEZE               _IO('o', 23)
+#define VIDEO_CONTINUE             _IO('o', 24)
 #define VIDEO_SELECT_SOURCE        _IOW('o', 25, videoStreamSource_t)
 #define VIDEO_SET_BLANK            _IOW('o', 26, boolean)
 #define VIDEO_GET_STATUS           _IOR('o', 27, struct videoStatus *)
