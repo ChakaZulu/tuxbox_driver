@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.8 2002/05/06 04:44:16 obi Exp $
+ * $Id: dvbdev.c,v 1.9 2002/05/08 13:21:50 obi Exp $
  */
 
 #include <linux/config.h>
@@ -41,9 +41,23 @@
 
 #include "dvbdev.h"
 
-static struct dvb_device * dvb_device[DVB_DEVICES_NUM];
+static struct dvb_device * dvb_device = NULL;
 
-static devfs_handle_t devfs_dir_handle[DVB_DEVFSDIRS_NUM];
+static devfs_handle_t devfs_dir_handle_dvb;
+static devfs_handle_t devfs_dir_handle_ost;
+
+static char * dnames[DVB_DEVICES_NUM] =
+{
+	"video0",
+	"audio0",
+	"sec0",
+	"frontend0",
+	"demux0",
+	"dvr0",
+	"ca0",
+	"net0",
+	"osd0"
+};
 
 static int dvbdev_open (struct inode * inode, struct file * file)
 {
@@ -127,35 +141,32 @@ static struct file_operations dvbdev_fops =
 
 void dvbdev_devfs_init (void)
 {
-	devfs_dir_handle[DVB_DEVFSDIR_DVB] = devfs_mk_dir(NULL, "dvb", NULL);
-	devfs_dir_handle[DVB_DEVFSDIR_OST] = devfs_mk_dir(NULL, "ost", NULL);
+	devfs_dir_handle_dvb = devfs_mk_dir(NULL, "dvb", NULL);
+	devfs_dir_handle_ost = devfs_mk_dir(NULL, "ost", NULL);
 }
 
 void dvbdev_devfs_cleanup (void)
 {
-	devfs_unregister(devfs_dir_handle[DVB_DEVFSDIR_DVB]);
-	devfs_unregister(devfs_dir_handle[DVB_DEVFSDIR_OST]);
+	devfs_unregister(devfs_dir_handle_ost);
+	devfs_unregister(devfs_dir_handle_dvb);
 }
 
-void dvbdev_devfs_register_dev (dvb_device_t * dev, int number)
+void dvbdev_devfs_register_dev (dvb_device_t * dev)
 {
 	unsigned char i;
-	char string1[20];
-	char string2[20];
+	char path[24];
 
-	sprintf(string1, "card%d", number);
-	dev->devfs_handle_dvb_dir = devfs_mk_dir(devfs_dir_handle[DVB_DEVFSDIR_DVB], string1, NULL);
+	dev->devfs_handle_dvb_card = devfs_mk_dir(devfs_dir_handle_dvb, "card0", NULL);
 
-	for (i = 0; i < DVB_SUBDEVICES_NUM; i++)
+	for (i = 0; i < DVB_DEVICES_NUM; i++)
 	{
 		dev->devfs_info[i].device = dev;
 		dev->devfs_info[i].type = i;
-		dev->devfs_handle_dvb[i] = devfs_register(dev->devfs_handle_dvb_dir, subdevice_names[i], DEVFS_FL_DEFAULT, 0, 0,
-				S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &dvbdev_fops, &dev -> devfs_info[i]);
+		dev->devfs_handle_dvb_device[i] = devfs_register(dev->devfs_handle_dvb_card, dnames[i], DEVFS_FL_DEFAULT, 0, 0,
+				S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &dvbdev_fops, &dev->devfs_info[i]);
 
-		sprintf(string1, "%s%d", subdevice_names[i], number);
-		sprintf(string2, "../dvb/card%d/%s", number, subdevice_names[i]);
-		devfs_mk_symlink(devfs_dir_handle[DVB_DEVFSDIR_OST], string1, DEVFS_FL_DEFAULT, string2, &dev->devfs_handle_ost[i], NULL);
+		sprintf(path, "../dvb/card0/%s", dnames[i]);
+		devfs_mk_symlink(devfs_dir_handle_ost, dnames[i], DEVFS_FL_DEFAULT, path, NULL, NULL);
 	}
 }
 
@@ -163,30 +174,24 @@ void dvbdev_devfs_unregister_dev (dvb_device_t * dev)
 {
 	unsigned char i;
 
-	for (i = 0;i < DVB_SUBDEVICES_NUM; i++)
+	for (i = 0; i < DVB_DEVICES_NUM; i++)
 	{
-		devfs_unregister(dev->devfs_handle_ost[i]);
-		devfs_unregister(dev->devfs_handle_dvb[i]);
+		devfs_unregister(dev->devfs_handle_dvb_device[i]);
 	}
 
-	devfs_unregister(dev->devfs_handle_dvb_dir);
+	devfs_unregister(dev->devfs_handle_dvb_card);
 }
 
 int dvb_register_device (dvb_device_t * dev)
 {
-	unsigned char i;
-
-	for (i = 0; i < DVB_DEVICES_NUM; i++)
+	if (dvb_device == NULL)
 	{
-		if (dvb_device[i] == NULL)
-		{
-			dvb_device[i] = dev;
-			dvbdev_devfs_register_dev (dev, i);
+		dvb_device = dev;
+		dvbdev_devfs_register_dev(dev);
 #ifdef MODULE
-			MOD_INC_USE_COUNT;
+		MOD_INC_USE_COUNT;
 #endif /* MODULE */
-			return 0;
-		}
+		return 0;
 	}
 
 	return -ENFILE;
@@ -194,34 +199,20 @@ int dvb_register_device (dvb_device_t * dev)
 
 void dvb_unregister_device (dvb_device_t * dev)
 {
-	unsigned char i;
-
-	for (i = 0; i < DVB_DEVICES_NUM; i++)
+	if (dvb_device == dev)
 	{
-		if (dvb_device[i] == dev)
-		{
-			dvbdev_devfs_unregister_dev(dev);
-			dvb_device[i] = NULL;
-		}
-	}
-
+		dvbdev_devfs_unregister_dev(dev);
+		dvb_device = NULL;
 #ifdef MODULE
-	MOD_DEC_USE_COUNT;
+		MOD_DEC_USE_COUNT;
 #endif /* MODULE */
+	}
 }
 
 #ifdef MODULE
 int __init dvbdev_init_module (void)
 {
-	unsigned char i;
-
-	for (i = 0; i < DVB_DEVICES_NUM; i++)
-	{
-		dvb_device[i] = NULL;
-	}
-
 	dvbdev_devfs_init();
-
 	return 0;
 }
 
