@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.36 2001/06/24 12:10:51 gillem Exp $
+ * $Id: dvb.c,v 1.37 2001/06/24 18:29:02 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -60,6 +60,7 @@
 
 #include "dvbdev.h"
 #include "dmxdev.h"
+#include "dvb_net.h"
 
 /* dirty - gotta do that better... -Hunz */
 #define EBUSOVERLOAD -6
@@ -67,13 +68,14 @@
 
 typedef struct dvb_struct
 {
-	dmxdev_t							dmxdev;
+	dmxdev_t						dmxdev;
 	dvb_device_t					dvb_dev;
-	struct frontend				front;
-	struct demod_function_struct *demod;
-	qpsk_t								qpsk;
-	struct videoStatus		videostate;
-	int										num;
+	struct frontend					front;
+	struct demod_function_struct	*demod;
+	qpsk_t							qpsk;
+	struct videoStatus				videostate;
+	int								num;
+	dvb_net_t						dvb_net;
 } dvb_struct_t;
 
 static dvb_struct_t dvb;
@@ -1391,12 +1393,32 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_NET:
 		{
+			if (((file->f_flags&O_ACCMODE)==O_RDONLY))
+				return -EPERM;
+
 			switch (cmd)
 			{
 				case NET_ADD_IF:
+				{
+					struct dvb_net_if dvbnetif;
+					int result;
+
+					if(copy_from_user(&dvbnetif, parg, sizeof(dvbnetif)))
+						return -EFAULT;
+					result=dvb_net_add_if(&dvb->dvb_net, dvbnetif.pid);
+					if (result<0)
+						return result;
+					dvbnetif.if_num=result;
+					if(copy_to_user(parg, &dvbnetif, sizeof(dvbnetif)))
+						return -EFAULT;
+					break;
+				}
 				case NET_REMOVE_IF:
+				{
+					return dvb_net_remove_if(&dvb->dvb_net, (int) arg);
+				}
 				default:
-					return -EOPNOTSUPP;
+					return -EINVAL;
 			}
 
 			return 0;
@@ -1507,6 +1529,8 @@ int unregister_demod(struct demod_function_struct *demod)
 
 int register_demux(struct dmx_demux_s *demux)
 {
+	int err;
+
 	if (!dvb.dmxdev.demux)
 	{
 		dvb.dmxdev.filternum=32;
@@ -1515,7 +1539,16 @@ int register_demux(struct dmx_demux_s *demux)
 #ifdef MODULE
 		MOD_INC_USE_COUNT;
 #endif
-		return DmxDevInit(&dvb.dmxdev);
+		err = DmxDevInit(&dvb.dmxdev);
+
+		if(!err)
+		{
+			/* now register net-device with demux */
+			dvb.dvb_net.card_num=dvb.num;
+			err = dvb_net_init(&dvb.dvb_net, demux);
+		}
+
+		return err;
 	}
 	return -EEXIST;
 }
