@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.99 $
+ *   $Revision: 1.100 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.100  2002/09/03 15:37:50  wjoost
+ *   Ein Bug weniger
+ *
  *   Revision 1.99  2002/09/03 14:02:05  Jolt
  *   DMX/NAPI cleanup
  *
@@ -478,7 +481,7 @@ static void gtx_queue_interrupt(unsigned short irq)
 		printk("avia_gt_napi: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
 		
 		return;
-	
+
 	}
 
 	set_bit(queue_nr, &datamask);
@@ -845,8 +848,7 @@ static void gtx_task(void *data)
 										for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++)
 										{
 											if ( (gtx->feed[i].state == DMX_STATE_GO) &&
-											     (gtx->feed[i].type == DMX_TYPE_HW_SEC) &&
-												 (gtx->feed[i].filter->pid == (msg.pid & 0x1FFF)) )
+											     (gtx->feed[i].type == DMX_TYPE_HW_SEC) )
 											{
 												gtx->feed[i].filter->invalid = 1;
 												dmx_set_filter(gtx->feed[i].filter);
@@ -1198,55 +1200,55 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 	switch (type) {
 
 		case DMX_TS_PES_VIDEO:
-	
+
 			queue_nr = avia_gt_dmx_alloc_queue_video();
 
 		break;
-	
+
 		case DMX_TS_PES_AUDIO:
 
 			queue_nr = avia_gt_dmx_alloc_queue_audio();
 
 		break;
-	
+
 		case DMX_TS_PES_TELETEXT:
 
 			queue_nr = avia_gt_dmx_alloc_queue_teletext();
 
 		break;
-	
+
 		case DMX_TS_PES_PCR:
 		case DMX_TS_PES_SUBTITLE:
-		
+
 			return NULL;
-			
+
 		break;
-	
+
 		case DMX_TS_PES_OTHER:
-	
+
 			queue_nr = avia_gt_dmx_alloc_queue_user();
 
 		break;
 
 	}
-	
+
 	if (queue_nr < 0) {
-	
+
 		printk("avia_gt_napi: failed to allocate queue (error=%d)\n", queue_nr);
-	
+
 		return NULL;
-	
+
 	}
 
 	if (gtx->feed[queue_nr].state != DMX_STATE_FREE)
 		return NULL;
-		
+
 	gtx->feed[queue_nr].state = DMX_STATE_ALLOCATED;
-	
+
 	dprintk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", queue_nr, type);
-	
+
 	return &gtx->feed[queue_nr];
-	
+
 }
 
 static int dmx_open(struct dmx_demux_s* demux)
@@ -1375,7 +1377,7 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 	u8 used = 0;
 	
 	for (i = 0; i < LAST_USER_QUEUE; i++) {
-	
+
 		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid) && (gtx->feed[i].output & TS_PACKET)) {
 		
 			used++;
@@ -1977,7 +1979,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.99 2002/09/03 14:02:05 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.100 2002/09/03 15:37:50 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

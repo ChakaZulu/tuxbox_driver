@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.102  2002/09/03 15:37:50  wjoost
+ *   Ein Bug weniger
+ *
  *   Revision 1.101  2002/09/03 14:02:05  Jolt
  *   DMX/NAPI cleanup
  *
@@ -109,7 +112,7 @@
  *
  *
  *
- *   $Revision: 1.101 $
+ *   $Revision: 1.102 $
  *
  */
 
@@ -183,7 +186,7 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr)
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
 		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
-		
+
 		return -EINVAL;
 
 	}
@@ -191,14 +194,14 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr)
 	if (queue_list[queue_nr].busy) {
 
 		printk("avia_gt_dmx: alloc_queue: queue %d busy\n", queue_nr);
-		
+
 		return -EBUSY;
 
 	}
 
 	queue_list[queue_nr].busy = 1;
 
-	return 0;
+	return queue_nr;
 
 }
 
@@ -227,7 +230,7 @@ s32 avia_gt_dmx_alloc_queue_user(void)
 			return avia_gt_dmx_alloc_queue(queue_nr);
 
 	}
-    
+
 	return -EBUSY;
 
 }
@@ -247,7 +250,7 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 		printk("avia_gt_dmx:  free_queue: queue %d out of bounce\n", queue_nr);
 	
 		return -EINVAL;
-    
+
 	}
 
 	if (!queue_list[queue_nr].busy) {
@@ -946,13 +949,13 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 		queue_nr = (nr - 2) * 16 + bit;
 
     }
-	
+
 	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
-	
+
 		printk("avia_gt_dmx: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
-		
+
 		return;
-	
+
 	}
 
 	if (!queue_list[queue_nr].busy) {
@@ -960,7 +963,7 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 		printk("avia_gt_dmx: irq on idle queue (queue_nr=%d)\n", queue_nr);
 		
 		return;
-	
+
 	}
 
 	queue_list[queue_nr].irq_count++;
@@ -1362,7 +1365,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.101 2002/09/03 14:02:05 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.102 2002/09/03 15:37:50 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1373,7 +1376,7 @@ int __init avia_gt_dmx_init(void)
 		return -EIO;
 
 	}
-	
+
 	memset(queue_list, 0, sizeof(queue_list));
 
 //	avia_gt_dmx_reset(1);
