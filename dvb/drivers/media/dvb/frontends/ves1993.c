@@ -181,7 +181,7 @@ static int tuner_close(void)
 	
 	if ((res=i2c_del_driver(&tuner_driver)))
 	{
-		dprintk("VES1993: tuner driver unregistration failed.\n");
+		printk("VES1993: tuner driver unregistration failed.\n");
 		return res;
 	}
 	
@@ -210,12 +210,12 @@ static int mitel_set_freq(int freq)		/* NOT SURE */
 {
 	u8 buffer[4]={0x25,0x70,0x95,0x00};
 
-	printk("SET:%x\n",freq);
+	dprintk("SET:%x\n",freq);
 	freq/=125000;
 	
 	buffer[0]=freq>>8;
 	buffer[1]=freq;
-	printk("SET:%x\n",*((u32*)buffer));
+	dprintk("SET:%x\n",*((u32*)buffer));
 	set_tuner_dword(*((u32*)buffer));
 	return 0;
 }
@@ -261,7 +261,7 @@ static int writereg(struct i2c_client *client, int reg, int data)
         ret=i2c_master_send(client, msg, 3);
         dprintk("VES_writereg\n");
 	if (ret!=3) 
-                printk("writereg error\n");
+                dprintk("writereg error\n");
         return ret;
 }
 
@@ -298,11 +298,11 @@ static int dump(struct i2c_client *client)
         
         for (i=0; i<54; i++) 
         {
-                printk("%02x ", readreg(client, i));
+                dprintk("%02x ", readreg(client, i));
                 if ((i&7)==7)
-                        printk("\n");
+                        dprintk("\n");
         }
-        printk("\n");
+        dprintk("\n");
         return 0;
 }
 
@@ -322,7 +322,7 @@ static int init(struct i2c_client *client)
         dprintk("ves1993: init chip\n");
 
         if (writereg(client, 0, 0)<0)
-                printk("ves1993: send error\n");
+                dprintk("ves1993: send error\n");
 		
 	//Init fuer VES1993
 	writereg(client,0x3a, 0x0c);	
@@ -361,7 +361,7 @@ static inline void ddelay(int i)
 
 static void ClrBit1893(struct i2c_client *client)
 {
-        printk("VES_clrbit1893\n");
+        dprintk("VES_clrbit1893\n");
         ddelay(2);
 //        writereg(client, 0, Init1993Tab[0] & 0xfe);
 //        writereg(client, 0, Init1993Tab[0]);
@@ -393,7 +393,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
                         ClrBit1893(client);
                 return 0;
         }
-        printk("VES_setsymbolrate %d\n", srate);
+        dprintk("VES_setsymbolrate %d\n", srate);
 
 #define XIN (92160000UL) // 3des sagem dbox Crystal ist 92,16 MHz !!
 
@@ -441,10 +441,10 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	BDR = ((  (ratio<<(FNR>>1))  >>4)+1)>>1;
 	BDRI = (  ((FIN<<8) / ((srate << (FNR>>1))>>2)  ) +1 ) >> 1;
 
-        printk("VES_FNR= %d\n", FNR);
-        printk("VES_ratio= %08x\n", ratio);
-        printk("VES_BDR= %08x\n", BDR);
-        printk("VES_BDRI= %02x\n", BDRI);
+        dprintk("VES_FNR= %d\n", FNR);
+        dprintk("VES_ratio= %08x\n", ratio);
+        dprintk("VES_BDR= %08x\n", BDR);
+        dprintk("VES_BDRI= %02x\n", BDRI);
 
 	if (BDRI > 0xFF)
 	        BDRI = 0xFF;
@@ -483,14 +483,14 @@ static int attach_adapter(struct i2c_adapter *adap)
         
         client_template.adapter=adap;
         
-        printk("readreg\n");
+        dprintk("readreg\n");
         if ((readreg(&client_template, 0x1e)&0xf0)!=0xd0)
         {
           if ((readreg(&client_template, 0x1a)&0xF0)==0x70)
             printk("warning, no ves1993 found but a VES1820\n");
           return -1;
         }
-        printk("feID: 1893 %x\n", readreg(&client_template, 0x1e));
+        dprintk("feID: 1893 %x\n", readreg(&client_template, 0x1e));
         
         if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
                 return -ENOMEM;
@@ -552,7 +552,7 @@ void ves_set_frontend(struct frontend *front)
   }
   SetFEC(dclient, front->fec);              
   SetSymbolrate(dclient, front->srate, 1);
-  printk("sync: %x\n", readreg(dclient, 0x0E));
+  dprintk("sync: %x\n", readreg(dclient, 0x0E));
 }
 
 void ves_get_frontend(struct frontend *front)
@@ -562,13 +562,13 @@ void ves_get_frontend(struct frontend *front)
   front->afc=(front->afc*(int)(front->srate/8))/16;
   front->agc=(readreg(dclient,0x0b)<<8);
   front->sync=readreg(dclient,0x0e);
-  printk("sync: %x\n", front->sync);
+  dprintk("sync: %x\n", front->sync);
   front->nest=(readreg(dclient,0x1c)<<8);
 
   front->vber = readreg(dclient,0x15);
   front->vber|=(readreg(dclient,0x16)<<8);
   front->vber|=(readreg(dclient,0x17)<<16);
-  printk("vber: %x\n", front->vber);
+  dprintk("vber: %x\n", front->vber);
 
   if ((front->fec==8) && ((front->sync&0x1f) == 0x1f))
     front->fec=(readreg(dclient, 0x0d)>>4)&0x07;

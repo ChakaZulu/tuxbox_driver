@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.18  2001/09/17 21:23:11  TripleDES
+ *   some changes (scart fnc 2 init) &  (removed some printks from ves1993)
+ *
  *   Revision 1.17  2001/04/28 07:15:27  gillem
  *   - fix value check
  *
@@ -73,7 +76,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -495,7 +498,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.17 2001/04/28 07:15:27 gillem Exp $\n");
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.18 2001/09/17 21:23:11 TripleDES Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
@@ -508,6 +511,8 @@ int cxa2126_init(struct i2c_client *client)
 
     cxa2126_data.asw1 = 0;
     cxa2126_data.vsw1 = 0;
+    cxa2126_data.fnc = 2;
+    
 
     return cxa2126_set(client);
 }
