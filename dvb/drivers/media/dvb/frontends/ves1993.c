@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.22 2002/05/08 00:10:32 derget Exp $
+  $Id: ves1993.c,v 1.23 2002/05/08 00:54:39 derget Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.23  2002/05/08 00:54:39  derget
+  minidiseq eingebaut (untestet)
+
   Revision 1.22  2002/05/08 00:10:32  derget
   support für nokia mit ves1993 und tsa5059 eingebaut
   diseqc tut da noch nicht
@@ -679,7 +682,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			ves->power=4;
 			break;
 		default:
-			printk("invalid voltage\n");
+			dprintk("invalid voltage\n");
 		}
 		if (mid==1) return fp_set_sec(ves->power, ves->tone);
 		else return fp_sagem_set_SECpower(ves->power, ves->tone);
@@ -687,9 +690,27 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case FE_SEC_MINI_COMMAND:
 	{
-//		secMiniCmd minicmd=(secMiniCmd)arg;
-//		return fp_send_diseqc(1, (minicmd==SEC_MINI_A)?"\xFF\xFF\xFF\xFF":"\x00\x00\x00\x00", 4);		// das ist evtl. falschrum
+	if (mid==1) {
+                secMiniCmd minicmd = (secMiniCmd) arg;
+                 
+                switch (minicmd) {
+                case SEC_MINI_A:
+                        dprintk ("minidiseqc: A\n");   
+                        return fp_send_diseqc (1, "\x00\x00\x00\x00", 4);
+                        
+                case SEC_MINI_B:
+                        dprintk ("minidiseqc: B\n");
+                        return fp_send_diseqc (1, "\xff", 1);
+                 
+                default:
+                        break;
+                }
+		}
+	 else {		    
+		//secMiniCmd minicmd=(secMiniCmd)arg;
+		//return fp_send_diseqc(1, (minicmd==SEC_MINI_A)?"\xFF\xFF\xFF\xFF":"\x00\x00\x00\x00", 4); // das ist evtl. falschrum
 		return 0;
+              }
 		break;
 	}
 	case FE_SEC_COMMAND:
@@ -704,7 +725,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
 			if (mid==1) {
-					printk("diseq geht nicht\n");
+				    	printk("diseq geht nicht\n");
 				    } 
 				else { 
 					memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
