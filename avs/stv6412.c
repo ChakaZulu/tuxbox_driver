@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.21  2002/08/03 13:18:12  happydude
+ *   mix Philips AV-Switch mute
+ *
  *   Revision 1.20  2002/04/25 12:08:49  happydude
  *   unified scart pin 8 voltage setting for lazyT :)
  *   hopefully fix mute status on Philips for sat24
@@ -81,7 +84,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -226,24 +229,26 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-	if (type==1)
+	if (type==AVS_MUTE) 
 	{
-		/* save old values */
-		tc_asc = stv6412_data.tc_asc;
-		v_asc  = stv6412_data.v_asc;
+		if (tc_asc == 0xff)
+		{
+			/* save old values */
+			tc_asc = stv6412_data.tc_asc;
+			v_asc  = stv6412_data.v_asc;
 
-		/* set mute */
-		stv6412_data.tc_asc = 0;	// tv & cinch mute
-		stv6412_data.v_asc  = 0;	// vcr mute
-
+			/* set mute */
+			stv6412_data.tc_asc = 0;	// tv & cinch mute
+			stv6412_data.v_asc  = 0;	// vcr mute
+		}
 	}
 	else /* unmute with old values */
 	{
 		stv6412_data.tc_asc = tc_asc;
 		stv6412_data.v_asc  = v_asc;
 
-		tc_asc = 0;
-		v_asc  = 0;
+		tc_asc = 0xff;
+		v_asc  = 0xff;
 	}
 
 	return stv6412_set(client);
@@ -296,7 +301,7 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 			}
 
 			/* if muted ? yes: save in temp */
-			if ( v_asc == 0 )
+			if ( v_asc == 0xff )
 				stv6412_data.v_asc = type;
 			else
 				v_asc = type;
@@ -310,7 +315,7 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 			}
 
 			/* if muted ? yes: save in temp */
-			if ( tc_asc == 0 )
+			if ( tc_asc == 0xff )
 				stv6412_data.tc_asc = type;
 			else
 				tc_asc = type;
@@ -387,7 +392,7 @@ int stv6412_get_volume(void)
 
 inline int stv6412_get_mute(void)
 {
-	return ((tc_asc == 0) & (v_asc == 0));
+	return !((tc_asc == 0xff) && (v_asc == 0xff));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -434,13 +439,13 @@ inline int stv6412_get_asw( int sw )
 	{
 		case 0:
 			// muted ? yes: return tmp values
-			if ( v_asc == 0 )
+			if ( v_asc == 0xff )
 				return stv6412_data.v_asc;
 			else
 				return v_asc;
 		case 1:
 		case 2:
-			if ( tc_asc == 0 )
+			if ( tc_asc == 0xff )
 				return stv6412_data.tc_asc;
 			else
 				return tc_asc;
@@ -566,7 +571,7 @@ int stv6412_init(struct i2c_client *client)
 	memset((void*)&stv6412_data,0,STV6412_DATA_SIZE);
 
 	/* Data 0 */
-	stv6412_data.t_vol_c = 2;
+	stv6412_data.t_vol_c = 0;
 	 /* Data 1 */
 	stv6412_data.v_asc  = 1;
 	stv6412_data.tc_asc = 1;
@@ -588,8 +593,8 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.r_out = 1;
 
 	/* save mute/unmute values */
-	tc_asc = stv6412_data.tc_asc;
-	v_asc  = stv6412_data.v_asc;
+	tc_asc = 0xff;
+	v_asc  = 0xff;
 
 	return stv6412_set(client);
 }
