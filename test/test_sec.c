@@ -90,7 +90,7 @@ int SecGetStatus (int fd, struct secStatus *state)
 		break;
 	}
 
-	printf("SEC CONT TONE: %s\n", (state->contTone ? "ON" : "OFF"));
+	printf("SEC CONT TONE: %s (%d)\n", (state->contTone ? "OFF" : "ON"),state->contTone);
 	return 0;
 }
 
@@ -150,7 +150,7 @@ main(int argc, char **argv)
 	}
 //	SecResetOverload(fd_sec);
 //	SecGetStatus (fd_sec, &sec_state);
-	SecSetVoltage(fd_sec, SEC_VOLTAGE_13_5);
+//	SecSetVoltage(fd_sec, SEC_VOLTAGE_13_5);
 //        SecSetTone(fd_sec, SEC_TONE_ON);       
         SecGetStatus (fd_sec, &sec_state);
 /*
