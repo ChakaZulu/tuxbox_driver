@@ -8,7 +8,7 @@ obj-m		:= avia_av.o avia_av_napi.o avia_gt.o avia_napi.o
 av-core-objs	:= avia_av_core.o avia_av_ksyms.o
 av-misc-objs	:= avia_av_event.o avia_av_proc.o
 
-gt-core-objs	:= avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_ucode.o
+gt-core-objs	:= avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_ucode.o avia_gt_ucode_firmware.o
 gt-fb-objs	:= avia_gt_fb_core.o fbgen.o
 gt-misc-objs	:= avia_gt_accel.o
 

@@ -1,1039 +1,807 @@
 /*
- * AViA GTX/eNX Microcode v.0014
+ * $Id: avia_gt_ucode.c,v 1.3 2004/04/07 23:17:45 carjay Exp $
  *
- * Taken from the Pent@VALUE GPL Linux driver version 2.1.3
+ * AViA eNX/GTX dmx driver (dbox-II-project)
  *
- * See COPYING in their archive for license details:
- * http://www.pentamedia.com/english/supports/down/Linux/pentaval-2.1.3_011124.tar.gz
+ * Homepage: http://www.tuxbox.org
+ *
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
-const unsigned short avia_gt_dmx_ucode_img[1024] = { 
-0xb009,
-0xa88b,
-0x08f0,
-0xc218,
-0x080f,
-0x8702,
-0x2820,
-0xd009,
-0xe001,
-0xa02d,
-0xd008,
-0x3820,
-0xe817,
-0x98f1,
-0x0846,
-0x90a7,
-0xb800,
-0x3085,
-0x3083,
-0xa877,
-0xb818,
-0x2005,
-0xc8fd,
-0xc705,
-0x08f6,
-0x90da,
-0xe105,
-0x3005,
-0xe008,
-0x3084,
-0x80f8,
-0x883a,
-0xb084,
-0x740e,
-0x8dd8,
-0x8d07,
-0x8ea7,
-0x8e9f,
-0x08c0,
-0xe238,
-0xa0b0,
-0xf0f8,
-0x8fee,
-0xa8cf,
-0x08c7,
-0x0872,
-0xc8fa,
-0x08c3,
-0x08c6,
-0x91b4,
-0x91b5,
-0xcfef,
-0xb0d4,
-0x0bc0,
-0x88fa,
-0x8010,
-0x8001,
-0xb0ec,
-0x2894,
-0xcbfc,
-0x1842,
-0xa100,
-0x2c94,
-0xa8cf,
-0x8710,
-0x3802,
-0xe011,
-0x4611,
-0xd201,
-0x081d,
-0x2095,
-0x0852,
-0xc8fa,
-0xa12d,
-0x810a,
-0xe00a,
-0x2010,
-0xcc00,
-0x4002,
-0x702e,
-0x0874,
-0xca07,
-0x0850,
-0xcf00,
-0xa171,
-0x0860,
-0xc9f8,
-0x8a3e,
-0x084e,
-0x083e,
-0x080e,
-0xc087,
-0x92f5,
-0xa9f7,
-0x08c3,
-0x9b0c,
-0xa98b,
-0x083e,
-0x4833,
-0xa1f4,
-0x08c4,
-0x9bac,
-0x0860,
-0x0846,
-0xc047,
-0x936f,
-0xcfbf,
-0x9369,
-0x8ebf,
-0x0806,
-0x8710,
-0xf0f8,
-0x8fe6,
-0x208e,
-0x200e,
-0x086e,
-0x083e,
-0x084e,
-0xe00b,
-0xa1f4,
-0xe00b,
-0x083a,
-0xb1ec,
-0x0cce,
-0x702e,
-0x2093,
-0x2014,
-0x2010,
-0xc900,
-0x4600,
-0x4577,
-0x4007,
-0xc017,
-0x8e9f,
-0x0861,
-0x9dc3,
-0xc879,
-0xb800,
-0xe200,
-0x4500,
-0x2000,
-0xcc00,
-0xa2ad,
-0x0840,
-0xca00,
-0xa2d5,
-0x9daa,
-0x0830,
-0xc878,
-0x1010,
-0xa0cc,
-0xd008,
-0xc878,
-0x1010,
-0xa2d4,
-0xf0f8,
-0x8ff6,
-0x080e,
-0x081e,
-0x8710,
-0x208e,
-0x200e,
-0x702e,
-0x9dae,
-0x8000,
-0x882a,
-0xb29c,
-0x0c0e,
-0x880e,
-0x8da6,
-0xaad7,
-0x9d6d,
-0xa8cf,
-0x0819,
-0xb801,
-0xe201,
-0x4511,
-0x2010,
-0xcbf8,
-0x3010,
-0x0891,
-0xcdfc,
-0xcf83,
-0x4013,
-0x95d7,
-0xab4b,
-0x0830,
-0xcb80,
-0x0801,
-0xe181,
-0xa31e,
-0xe181,
-0xa312,
-0x0810,
-0x8e17,
-0xab23,
-0xe180,
-0x8e0f,
-0xab23,
-0x8e07,
-0xd680,
-0x965e,
-0xd040,
-0x883a,
-0x8e0f,
-0xb338,
-0x248c,
-0x8e97,
-0x8edf,
-0x088b,
-0x9eab,
-0x0856,
-0x96bf,
-0xb358,
-0x0bce,
-0xb808,
-0x3083,
-0x3084,
-0x702e,
-0x8721,
-0x3012,
-0x8c87,
-0xcbef,
-0x2006,
-0xcf06,
-0xee06,
-0xa398,
-0x8220,
-0x400f,
-0xc407,
-0x9f4d,
-0xb3a0,
-0x0bce,
-0x08c0,
-0xf800,
-0xa3c0,
-0xe008,
-0x080a,
-0xb3bc,
-0x0cce,
-0x9fd7,
-0xf0f8,
-0x8e76,
-0x8712,
-0x28a0,
-0x20a6,
-0x086e,
-0x080e,
-0x081e,
-0x706e,
-0x08f6,
-0xc206,
-0xcfde,
-0x086f,
-0x0856,
-0x8027,
-0x9015,
-0x8007,
-0x08c2,
-0x8e9f,
-0xb810,
-0x2083,
-0xc8fb,
-0xd603,
-0x2036,
-0x0864,
-0x2003,
-0xcc04,
-0xd204,
-0xc87b,
-0xd00b,
-0xcbe6,
-0x0861,
-0x4566,
-0x5016,
-0xc827,
-0x4047,
-0xfffa,
-0xa475,
-0xc017,
-0xb810,
-0x2004,
-0x8220,
-0x400f,
-0xa0d1,
-0x8600,
-0x8e87,
-0x3082,
-0x9963,
-0x8671,
-0x08c4,
-0x3094,
-0x08c5,
-0x3095,
-0xfffd,
-0xa4a8,
-0xc87c,
-0xa4ac,
-0x87f5,
-0xd015,
-0xe00d,
-0xa510,
-0x880a,
-0xb4c0,
-0xe00d,
-0xa510,
-0x08c2,
-0x3482,
-0x8e8f,
-0xe018,
-0xb4e0,
-0x8812,
-0xe00d,
-0xa510,
-0x08c2,
-0x3482,
-0x8e97,
-0xe018,
-0xb500,
-0x880a,
-0xe00d,
-0xa510,
-0x08c2,
-0x3482,
-0x9a32,
-0xad2f,
-0x9a5b,
-0xe847,
-0x08c2,
-0x8620,
-0xac7b,
-0xce2f,
-0x8600,
-0x8e97,
-0x0861,
-0xd021,
-0x2011,
-0xc891,
-0x4017,
-0x8e87,
-0x0861,
-0xd001,
-0xb560,
-0x8812,
-0x2082,
-0x2894,
-0x7c2d,
-0x8e8f,
-0xe018,
-0xe031,
-0x8812,
-0x9b52,
-0x2082,
-0x2894,
-0x7828,
-0x9b30,
-0x9b39,
-0xada3,
-0x9b41,
-0xc107,
-0x880a,
-0xcff7,
-0xb5ac,
-0x2082,
-0x2894,
-0x7c2d,
-0x8e97,
-0xe018,
-0xe031,
-0x2082,
-0x2894,
-0x782d,
-0x2082,
-0x2894,
-0x782d,
-0x9bca,
-0xadff,
-0x9bfb,
-0xe847,
-0xd036,
-0xcf7f,
-0x8620,
-0xad37,
-0xcfbf,
-0x9c2d,
-0x9c34,
-0x9c6f,
-0xcfff,
-0xae1f,
-0x9c14,
-0xcdff,
-0xe00b,
-0xa62c,
-0xd036,
-0xad2f,
-0x9c6e,
-0xae3f,
-0x8681,
-0xae43,
-0x86a1,
-0x8600,
-0x081f,
-0x208e,
-0x9d0b,
-0x8672,
-0x2824,
-0x20ae,
-0x20ae,
-0xc87c,
-0xa67d,
-0x0852,
-0xf802,
-0xa740,
-0xfffa,
-0xa681,
-0x87f2,
-0xd012,
-0xe00a,
-0xa740,
-0x880a,
-0xb694,
-0xe00a,
-0xa740,
-0x248e,
-0xd009,
-0x081f,
-0xe018,
-0x8812,
-0xb6b4,
-0xe00a,
-0xa740,
-0x248e,
-0xd009,
-0x081f,
-0xe018,
-0x880a,
-0xb6d4,
-0xe00a,
-0xa740,
-0x248e,
-0x9dd2,
-0xaeff,
-0x9dfb,
-0xe847,
-0x8620,
-0xe011,
-0xae47,
-0xd009,
-0x081f,
-0xc87c,
-0xa781,
-0x0870,
-0xcfef,
-0xe085,
-0x9e4a,
-0xd085,
-0xe045,
-0xa742,
-0x0852,
-0x5882,
-0xaf80,
-0x085a,
-0xb73c,
-0x0cce,
-0x08f2,
-0xc822,
-0xa775,
-0x8e9f,
-0xf0f8,
-0x8e76,
-0x8712,
-0x28a4,
-0x2022,
-0x082e,
-0x084e,
-0x085e,
-0x702e,
-0x08c2,
-0x0807,
-0xac0f,
-0xb810,
-0x2004,
-0xc017,
-0xb790,
-0x0bce,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xff40,
-0xff77,
-0xff88,
-0xff41,
-0xffa1,
-0xffa2,
-0xff42,
-0x0000,
-0x0000,
-0xff50,
-0x0000,
-0x0075,
-0xff02,
-0x0000,
-0x0000,
-0xff00,
-0x0000,
-0x0000,
-0xff0b,
-0x0000,
-0x0000,
-0xff29,
-0x0000,
-0x0000,
-0xff51,
-0x0000,
-0x0000,
-0xff52,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xff10,
-0xffaa,
-0xff00,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xff50,
-0x0000,
-0x0000,
-0xff55,
-0xff10,
-0xff11,
-0xff22,
-0xff23,
-0xff24,
-0xff56,
-0xff10,
-0xff11,
-0xff22,
-0xff23,
-0xff24,
-0xff90,
-0xffa1,
-0xffa2,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xffb2,
-0xffb3,
-0xffb4,
-0xff71,
-0xff72,
-0xff73,
-0xff81,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x7171,
-0x7171,
-0x7171,
-0x7171,
-0x7070,
-0x7070,
-0x7070,
-0x7070,
-0x8181,
-0x8181,
-0x8181,
-0x8181,
-0x8080,
-0x8080,
-0x8080,
-0x8080,
-0x9191,
-0x9191,
-0x9191,
-0x9191,
-0x9090,
-0x9090,
-0x9090,
-0x9090,
-0x3e00,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x3f11,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x3e04,
-0xf860,
-0x0000,
-0x3e04,
-0xf878,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xff81,
-0x0000,
-0x3e2c,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x3e12,
-0xff13,
-0xff14,
-0xff25,
-0xff26,
-0xff27,
-0x3e12,
-0xff13,
-0xff14,
-0xff25,
-0xff26,
-0xff27,
-0x3fa3,
-0xffa4,
-0xffa5,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xffb5,
-0xffb6,
-0xffb7,
-0x3e74,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xa1a1,
-0xa1a1,
-0xa1a1,
-0xa1a1,
-0xa0a0,
-0xa0a0,
-0xa0a0,
-0xa0a0,
-0xb1b1,
-0xb1b1,
-0xb1b1,
-0xb1b1,
-0xb0b0,
-0xb0b0,
-0xb0b0,
-0xb0b0,
-0xc1c1,
-0xc1c1,
-0xc1c1,
-0xc1c1,
-0xc0c0,
-0xc0c0,
-0xc0c0,
-0xc0c0,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xff10,
-0xff11,
-0x0000,
-0xff40,
-0x0000,
-0x0000,
-0x0000,
-0xff41,
-0x0000,
-0x0000,
-0x0000,
-0x1000,
-0x0000,
-0x0000,
-0x0000,
-0xff20,
-0xff21,
-0x0000,
-0xff28,
-0xff29,
-0x0000,
-0xff20,
-0xff21,
-0x0000,
-0xff28,
-0xff26,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xffb0,
-0xffb1,
-0x0000,
-0x0000,
-0x0000,
-0x1000,
-0x0000,
-0x0000,
-0x0200,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xe1e1,
-0xe1e1,
-0xe1e1,
-0xe1e1,
-0xe0e0,
-0xe0e0,
-0xe0e0,
-0xe0e0,
-0xf1f1,
-0xf1f1,
-0xf1f1,
-0xf1f1,
-0xf0f0,
-0xf0f0,
-0xf0f0,
-0xf0f0,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0xdfff,
-0x6100,
-0x0000,
-0x6230,
-0x2000,
-0x0360,
-0x2000,
-0x4410,
-0x6000,
-0x6520,
-0x2000,
-0x8600,
-0xa0e2,
-0x8720,
-0xa1e0,
-0x4800,
-0x2000,
-0x8900,
-0xa2e0,
-0x8a00,
-0x83e0,
-0xab00,
-0xe0e2,
-0x8c00,
-0xa4e0,
-0x8d00,
-0x85e1,
-0x8e03,
-0x86e0,
-0x6f20,
-0x2000,
-0x7010,
-0x2000,
-0x9100,
-0x87e0,
-0x9200,
-0x88e1,
-0x9300,
-0x89e1,
-0xb400,
-0xaae1,
-0xb500,
-0xabe1,
-0x9600,
-0x80eb,
-0x9700,
-0x8ce1,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x7f90,
-0x2000,
-0x808c,
-0x9498,
-0x9ca0,
-0x90a8,
-0x2c34,
-0xbc4c,
-0xdc00,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0000,
-0x0014,
-};
+#define __KERNEL_SYSCALLS__
 
-const unsigned short avia_gt_dmx_ucode_size = 2048;
+#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/sched.h>
+#include <linux/string.h>
+#include <linux/fcntl.h>
+#include <linux/tqueue.h>
+#include <linux/unistd.h>
+#include <linux/interrupt.h>
+#include <asm/uaccess.h>
 
+#include "demux.h"
+#include "dvb_demux.h"
+
+#include "avia_gt.h"
+#include "avia_gt_dmx.h"
+#include "avia_gt_ucode_firmware.h"
+#include "avia_gt_ucode.h"
+
+static sAviaGtInfo *gt_info;
+static volatile sRISC_MEM_MAP *risc_mem_map;
+static volatile u16 *riscram;
+static volatile u16 *pst;
+static volatile u16 *ppct;
+static char *ucode;
+static sFilter_Definition_Entry filter_definition_table[32];
+static struct avia_gt_ucode_info ucode_info;
+static s8 section_filter_umap[32];
+
+static void avia_gt_dmx_memcpy16(volatile u16 *dest, const u16 *src, size_t n)
+{
+	while (n--) {
+		*dest++ = *src++;
+		mb();
+	}
+}
+
+static void avia_gt_dmx_memset16(volatile u16 *s, const u16 c, size_t n)
+{
+	while (n--) {
+		*s++ = c;
+		mb();
+	}
+}
+
+static ssize_t avia_gt_dmx_risc_write(volatile void *dest, const void *src, size_t n)
+{
+	if (((u16 *)dest < riscram) || (&((u16 *)dest)[n >> 1] > &riscram[DMX_RISC_RAM_SIZE])) {
+		printk(KERN_CRIT "avia_gt_ucode: invalid risc write destination\n");
+		return -EINVAL;
+	}
+
+	if (n & 1) {
+		printk(KERN_CRIT "avia_gt_ucode: odd size risc writes are not allowed\n");
+		return -EINVAL;
+	}
+
+	avia_gt_dmx_memset16(dest, 0, n >> 1);
+	avia_gt_dmx_memcpy16(dest, src, n >> 1);
+
+	return n;
+}
+
+void avia_gt_dmx_free_section_filter(u8 index)
+{
+	/* section_filter_umap is s8[] */
+	s8 nr = (s8)index;
+
+	if ((index > 31) || (section_filter_umap[index] != index)) {
+		printk(KERN_CRIT "avia_gt_ucode: trying to free section filters with wrong index!\n");
+		return;
+	}
+
+	while (index < 32) {
+		if (section_filter_umap[index] == nr)
+			section_filter_umap[index++] = -1;
+		else
+			break;
+	}
+}
+
+/*
+ * Analyzes the section filters and convert them into an usable format.
+ */
+
+#define MAX_SECTION_FILTERS	16
+
+int avia_gt_dmx_alloc_section_filter(void *f)
+{
+	u8 mask[MAX_SECTION_FILTERS][8];
+	u8 value[MAX_SECTION_FILTERS][8];
+	u8 mode[MAX_SECTION_FILTERS][8];
+	s8 in_use[MAX_SECTION_FILTERS];
+	u8 ver_not[MAX_SECTION_FILTERS];
+	u8 unchanged[MAX_SECTION_FILTERS];
+	u8 new_mask[8];
+	u8 new_value[8];
+	u8 new_valid;
+	u8 not_value[MAX_SECTION_FILTERS];
+	u8 not_mask[MAX_SECTION_FILTERS];
+	u8 temp_mask;
+	u8 and_or;
+	u8 anz_not;
+	u8 anz_mixed;
+	u8 anz_normal;
+	u8 compare_len;
+	s8 different_bit_index;
+	u8 xor = 0;
+	u8 not_the_first = 0;
+	u8 not_the_second = 0;
+	struct dvb_demux_filter *filter = (struct dvb_demux_filter *) f;
+
+	unsigned anz_filters = 0;
+	unsigned old_anz_filters;
+	unsigned i,j,k;
+	signed entry;
+	unsigned entry_len;
+	signed new_entry;
+	unsigned new_entry_len;
+	sFilter_Parameter_Entry1 fpe1[MAX_SECTION_FILTERS];
+	sFilter_Parameter_Entry2 fpe2[MAX_SECTION_FILTERS];
+	sFilter_Parameter_Entry3 fpe3[MAX_SECTION_FILTERS];
+	u32 flags;
+
+	/*
+	 * Copy and "normalize" the filters. The section-length cannot be filtered.
+	 */
+
+	if (!filter)
+		return -1;
+
+	while (filter && anz_filters < MAX_SECTION_FILTERS) {
+		mask[anz_filters][0]  = filter->filter.filter_mask[0];
+		value[anz_filters][0] = filter->filter.filter_value[0] & filter->filter.filter_mask[0];
+		mode[anz_filters][0]  = filter->filter.filter_mode[0] | ~filter->filter.filter_mask[0];
+
+		if (mask[anz_filters][0])
+			in_use[anz_filters] = 0;
+		else
+			in_use[anz_filters] = -1;
+
+		for (i = 1; i < 8; i++) {
+			mask[anz_filters][i]  = filter->filter.filter_mask[i+2];
+			value[anz_filters][i] = filter->filter.filter_value[i+2] & filter->filter.filter_mask[i+2];
+			mode[anz_filters][i]  = filter->filter.filter_mode[i+2] | ~filter->filter.filter_mask[i+2];
+			in_use[anz_filters] = mask[anz_filters][i] ? i : in_use[anz_filters];
+		}
+
+		unchanged[anz_filters] = 1;
+
+		if ((mode[anz_filters][3] != 0xFF) && ((mode[anz_filters][3] & mask[anz_filters][3]) == 0)) {
+			ver_not[anz_filters] = 1;
+			not_value[anz_filters] = value[anz_filters][3];
+			not_mask[anz_filters] = mask[anz_filters][3];
+		}
+		else {
+			ver_not[anz_filters] = 0;
+		}
+
+		/*
+		 * Don't need to filter because one filter does contain a mask with
+		 * all bits set to zero.
+		 */
+
+		if (in_use[anz_filters] == -1)
+			return -1;
+
+		anz_filters++;
+		filter = filter->next;
+	}
+
+	if (filter) {
+		printk(KERN_WARNING "avia_gt_ucode: too many section filters for hw-acceleration in this feed.\n");
+		return -1;
+	}
+
+	i = anz_filters;
+
+	while (i < MAX_SECTION_FILTERS)
+		in_use[i++] = -1;
+
+	/*
+	 * Special case: only one section filter in this feed.
+	 */
+
+	if (anz_filters == 1) {
+		/*
+		 * Check whether we need a not filter
+		 */
+
+		anz_not = 0;
+		anz_mixed = 0;
+		anz_normal = 0;
+		and_or = 0;	// AND
+
+		for (i = 0; i < 8; i++) {
+			if (mode[0][i] != 0xFF) {
+				anz_not++;
+				if (mode[0][i] & mask[0][i])
+					anz_mixed++;
+			}
+			else if (mask[0][i]) {
+				anz_normal++;
+			}
+		}
+
+		/*
+		 * Only the byte with the version has a mode != 0xFF.
+		 */
+		if ((anz_not == 1) && (anz_mixed == 0) && (mode[0][3] != 0xFF)) {
+		}
+
+		/*
+		 * Mixed mode.
+		 */
+		else if ((anz_not > 0) && (anz_normal > 0)) {
+			anz_filters = 2;
+			for (i = 0; i < 8; i++) {
+				value[1][i] = value[0][i] & ~mode[0][i];
+				mask[1][i] = ~mode[0][i];
+				mask[0][i] = mask[0][i] & mode[0][i];
+				value[0][i] = value[0][i] & mask[0][i];
+				in_use[1] = in_use[0];
+				not_the_second = 1;
+			}
+		}
+		/*
+		 * All relevant bits have mode-bit 0.
+		 */
+		else if (anz_not > 0) {
+			not_the_first = 1;
+		}
+	}
+
+	/*
+	 * More than one filter
+	 */
+
+	else {
+		and_or = 1;	// OR
+
+		/*
+		 * Cannot check for "mode-0" bits. Delete them from the mask.
+		 */
+
+		for (i = 0; i < anz_filters; i++) {
+			in_use[i] = -1;
+			for (j = 0; j < 8; j++) {
+				mask[i][j] = mask[i][j] & mode[i][j];
+				value[i][j] = value[i][j] & mask[i][j];
+				if (mask[i][j])
+					in_use[i] = j;
+			}
+			if (in_use[i] == -1)
+				return -1;	// We cannot filter. Damn, thats a really bad case.
+		}
+
+		/*
+		 * Eliminate redundant filters.
+		 */
+
+		old_anz_filters = anz_filters + 1;
+
+		while (anz_filters != old_anz_filters) {
+			old_anz_filters = anz_filters;
+			for (i = 0; (i < MAX_SECTION_FILTERS - 1) && (anz_filters > 1); i++) {
+				if (in_use[i] == -1)
+					continue;
+				for (j = i + 1; j < MAX_SECTION_FILTERS && (anz_filters > 1); j++) {
+					if (in_use[j] == -1)
+						continue;
+
+					if (in_use[i] < in_use[j])
+						compare_len = in_use[i] + 1;
+					else
+						compare_len = in_use[j] + 1;
+
+					different_bit_index = -1;
+
+					/*
+					 * Check wether the filters are equal or different only in
+					 * one bit.
+					 */
+
+					for (k = 0; k < compare_len; k++) {
+						if ((mask[i][k] == mask[j][k]) && (value[i][k] != value[j][k])) {
+							if (different_bit_index != -1)
+								goto next_check;
+
+							xor = value[i][k] ^ value[j][k];
+
+							if (hweight8(xor) == 1)
+								different_bit_index = k;
+							else
+								goto next_check;
+						}
+						else {
+							goto next_check;
+						}
+					}
+
+					if (different_bit_index != -1) {
+						mask[i][different_bit_index] -= xor;
+						value[i][different_bit_index] &= mask[i][different_bit_index];
+						if (different_bit_index == in_use[i]) {
+							in_use[i] = -1;
+							for (k = 0; k < compare_len; k++)
+								if (mask[i][k])
+									in_use[i] = k;
+						}
+						else {
+							in_use[i] = compare_len - 1;
+						}
+						if (in_use[i] == -1)
+							return -1;	// Uups, eliminated all filters...
+					}
+					else {
+						in_use[i] = compare_len - 1;
+					}
+
+					if ((not_value[i] != not_value[j]) || (not_mask[i] != not_mask[j]) || (ver_not[i] != ver_not[j]))
+						unchanged[i] = 0;
+
+					k = compare_len;
+
+					while (k < 8) {
+						mask[i][k] = 0;
+						value[i][k++] = 0;
+					}
+
+					in_use[j] = -1;
+					anz_filters--;
+					continue;
+
+next_check:
+					/*
+					 * If mask1 has less bits set than mask2 and all bits set in mask1 are set in mask2, too, then
+					 * they are redundant if the corresponding bits in both values are equal.
+					 */
+
+					new_valid = 1;
+					memset(new_mask, 0, sizeof(new_mask));
+					memset(new_value, 0, sizeof(new_value));
+
+					for (k = 0; k < compare_len; k++) {
+						temp_mask = mask[i][k] & mask[j][k];
+						if (((temp_mask == mask[i][k]) ||
+						      (temp_mask == mask[j][k])) &&
+						      ((value[i][k] & temp_mask) == (value[j][k] & temp_mask)))	{
+							new_mask[k] = temp_mask;
+							new_value[k] = value[i][k] & temp_mask;
+						}
+						else {
+							new_valid = 0;
+							break;
+						}
+					}
+					if (new_valid) {
+						memcpy(mask[i], new_mask, 8);
+						memcpy(value[i], new_value, 8);
+						if ((not_value[i] != not_value[j]) || (not_mask[i] != not_mask[j]) || (ver_not[i] != ver_not[j]))
+							unchanged[i] = 0;
+						in_use[i] = compare_len - 1;
+						in_use[j] = -1;
+						anz_filters--;
+						continue;
+					}
+				}
+			}
+		}
+	}
+
+	/*
+	 * Now we have anz_filters filters in value and mask. Look for best space
+	 * in the filter_param_table.
+	 */
+
+	i = 0;
+	j = 0;
+	entry_len = 33;
+	entry = -1;
+	new_entry_len = 33;
+	new_entry = -1;
+
+	while (i < 32) {
+		if (section_filter_umap[i] == -1) {
+			if (j == 1) {
+				new_entry_len++;
+			}
+			else {
+				if ((new_entry_len < entry_len) && (new_entry_len >= anz_filters)) {
+					entry_len = new_entry_len;
+					entry = new_entry;
+				}
+				new_entry_len = 1;
+				new_entry = i;
+				j = 1;
+			}
+		}
+		else {
+			j = 0;
+		}
+		i++;
+	}
+
+	if (((entry == -1) && (new_entry != -1) && (new_entry_len >= anz_filters)) ||
+	     ((new_entry_len < entry_len) && (new_entry_len >= anz_filters))) {
+		entry = new_entry;
+		entry_len = new_entry_len;
+	}
+
+	if (entry == -1)
+		return -1;
+
+	/*
+	 * Mark filter_param_table as used.
+	 */
+
+	i = entry;
+
+	while (i < entry + anz_filters)
+		section_filter_umap[i++] = entry;
+
+	/*
+	 * Set filter_definition_table.
+	 */
+
+	filter_definition_table[entry].and_or_flag = and_or;
+
+	/*
+	 * Set filter parameter tables.
+	 */
+
+	i = 0;
+	j = 0;
+	while (j < anz_filters) {
+		if (in_use[i] == -1) {
+			i++;
+			continue;
+		}
+
+		fpe1[j].mask_0  = mask[i][0];
+		fpe1[j].param_0 = value[i][0];
+		fpe1[j].mask_1  = mask[i][1];
+		fpe1[j].param_1 = value[i][1];
+		fpe1[j].mask_2  = mask[i][2];
+		fpe1[j].param_2 = value[i][2];
+
+		fpe2[j].mask_4  = mask[i][4];
+		fpe2[j].param_4 = value[i][4];
+		fpe2[j].mask_5  = mask[i][5];
+		fpe2[j].param_5 = value[i][5];
+
+		fpe3[j].mask_6  = mask[i][6];
+		fpe3[j].param_6 = value[i][6];
+		fpe3[j].mask_7  = mask[i][7];
+		fpe3[j].param_7 = value[i][7];
+		fpe3[j].Reserved1 = 0;
+		fpe3[j].not_flag = 0;
+		fpe3[j].Reserved2 = 0;
+
+		if (unchanged[i] && ver_not[i]) {
+			fpe3[j].not_flag_ver_id_byte = 1;
+			fpe2[j].mask_3 = not_mask[i];
+			fpe2[j].param_3 = not_value[i];
+		}
+		else {
+			fpe3[j].not_flag_ver_id_byte = 0;
+			fpe2[j].mask_3  = mask[i][3];
+			fpe2[j].param_3 = value[i][3];
+		}
+
+		fpe3[j].Reserved3 = 0;
+		fpe3[j].Reserved4 = 0;
+
+		j++;
+		i++;
+	}
+
+	fpe3[0].not_flag = not_the_first;
+	fpe3[1].not_flag = not_the_second;
+
+	/* copy to riscram */
+	local_irq_save(flags);
+	avia_gt_dmx_risc_write(((u8 *) (&risc_mem_map->Filter_Definition_Table)) + (entry & 0xFE), ((u8*) filter_definition_table) + (entry & 0xFE), 2);
+	avia_gt_dmx_risc_write(&risc_mem_map->Filter_Parameter_Table1[entry], fpe1, anz_filters * sizeof(sFilter_Parameter_Entry1));
+	avia_gt_dmx_risc_write(&risc_mem_map->Filter_Parameter_Table2[entry], fpe2, anz_filters * sizeof(sFilter_Parameter_Entry2));
+	avia_gt_dmx_risc_write(&risc_mem_map->Filter_Parameter_Table3[entry], fpe3, anz_filters * sizeof(sFilter_Parameter_Entry3));
+	local_irq_restore(flags);
+
+#if 0
+	printk("I programmed following filters, And-Or: %d:\n",filter_definition_table[entry].and_or_flag);
+	for (j = 0; j <anz_filters; j++)
+	{
+		printk("%d: %02X %02X %02X %02X %02X %02X %02X %02X\n",j,
+			fpe1[j].param_0,fpe1[j].param_1,fpe1[j].param_2,
+			fpe2[j].param_3,fpe2[j].param_4,fpe2[j].param_5,
+			fpe3[j].param_6,fpe3[j].param_7);
+		printk("   %02X %02X %02X %02X %02X %02X %02X %02X\n",
+			fpe1[j].mask_0,fpe1[j].mask_1,fpe1[j].mask_2,
+			fpe2[j].mask_3,fpe2[j].mask_4,fpe2[j].mask_5,
+			fpe3[j].mask_6,fpe3[j].mask_7);
+		printk("Not-Flag: %d, Not-Flag-Version: %d\n",fpe3[j].not_flag,fpe3[j].not_flag_ver_id_byte);
+	}
+#endif
+
+	/*
+	 * Tell caller the allocated filter_definition_table entry and the amount of used filters - 1.
+	 */
+
+	return entry | ((anz_filters - 1) << 8);
+}
+
+int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter)
+{
+	sPID_Parsing_Control_Entry ppc_entry;
+	struct avia_gt_ucode_info *ucode_info;
+	u8 target_queue_nr;
+	u32 flags;
+
+	if (queue_nr > AVIA_GT_DMX_QUEUE_COUNT) {
+		printk(KERN_CRIT "avia_gt_ucode: pid control table entry out of bounds (entry=%d)!\n", queue_nr);
+		return -EINVAL;
+	}
+
+	ucode_info = avia_gt_dmx_get_ucode_info();
+
+	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_control_table, entry %d, type %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
+		queue_nr, type, fork, cw_offset, cc, start_up, pec, filt_tab_idx, _psh);
+
+	/* Special case for SPTS audio queue */
+	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == AVIA_GT_DMX_QUEUE_MODE_TS))
+		target_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO;
+	else
+		target_queue_nr = queue_nr;
+
+	target_queue_nr += ucode_info->qid_offset;
+
+	ppc_entry.type = type;
+	ppc_entry.QID = target_queue_nr;
+	ppc_entry.fork = !!fork;
+	ppc_entry.CW_offset = cw_offset;
+	ppc_entry.CC = cc;
+	ppc_entry._PSH = _psh;
+	ppc_entry.start_up = !!start_up;
+	ppc_entry.PEC = !!pec;
+	ppc_entry.filt_tab_idx = filt_tab_idx;
+	//ppc_entry.State = 0;
+	ppc_entry.Reserved1 = 0;
+	ppc_entry.no_of_filter = no_of_filter;
+	/* FIXME: ppc_entry.State = 7; */
+	ppc_entry.State = 7;
+
+	local_irq_save(flags);
+	avia_gt_dmx_risc_write(&risc_mem_map->PID_Parsing_Control_Table[queue_nr], &ppc_entry, sizeof(ppc_entry));
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
+{
+	sPID_Entry pid_entry;
+	u32 flags;
+
+	if (entry > 31) {
+		printk(KERN_CRIT "avia_gt_ucode: pid search table entry out of bounds (entry=%d)!\n", entry);
+		return -EINVAL;
+	}
+
+	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_table, entry %d, wait_pusi %d, valid %d, pid 0x%04X\n", entry, wait_pusi, valid, pid);
+
+	pid_entry.wait_pusi = wait_pusi;
+	pid_entry.VALID = !!valid;			// 0 = VALID, 1 = INVALID
+	pid_entry.Reserved1 = 0;
+	pid_entry.PID = pid;
+
+	local_irq_save(flags);
+	avia_gt_dmx_risc_write(&risc_mem_map->PID_Search_Table[entry], &pid_entry, sizeof(pid_entry));
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+void avia_gt_dmx_ecd_reset(void)
+{
+	u32 flags;
+
+	local_irq_save(flags);
+	avia_gt_dmx_memset16(&riscram[DMX_CONTROL_WORDS_1], 0, 24);
+	avia_gt_dmx_memset16(&riscram[DMX_CONTROL_WORDS_2], 0, 24);
+	avia_gt_dmx_memset16(&riscram[DMX_CONTROL_WORDS_3], 0, 16);
+	local_irq_restore(flags);
+}
+
+int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *cw)
+{
+	u16 offset;
+	u32 flags;
+
+	offset = DMX_CONTROL_WORDS_1 + ((index / 3) << 7) + ((index % 3) << 3) + ((parity ^ 1) << 2);
+
+	local_irq_save(flags);
+	avia_gt_dmx_risc_write(&riscram[offset], cw, 8);
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid)
+{
+	u16 offset, control;
+	u32 flags;
+
+	for (offset = 0; offset < 0x20; offset++) {
+		if ((pst[offset] & 0x1fff) == pid) {
+			control = ppct[offset << 1];
+			if (((control >> 4) & 7) != index) {
+				local_irq_save(flags);
+				avia_gt_dmx_memset16(&ppct[offset << 1], 0, 1);
+				avia_gt_dmx_memset16(&ppct[offset << 1], (control & 0xff8f) | (index << 4), 1);
+				local_irq_restore(flags);
+			}
+			return 0;
+		}
+	}
+
+	printk(KERN_DEBUG "avia_gt_ucode: pid %04x not found\n", pid);
+	return -EINVAL;
+}
+
+void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
+{
+	u16 version_no = riscram[DMX_VERSION_NO];
+
+	switch (version_no) {
+	case 0x0013:
+	case 0x0014:
+ 		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+ 			AVIA_GT_UCODE_CAP_PES |
+ 			AVIA_GT_UCODE_CAP_SEC |
+ 			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 1;
+		ucode_info.queue_mode_pes = 3;
+ 		break;
+	case 0x001a:
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+			AVIA_GT_UCODE_CAP_PES |
+			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 5;
+		break;
+	case 0xb102:
+	case 0xb107:
+	case 0xb121:
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_PES |
+			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 3;
+		break;
+	case 0xc001:
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_PES |
+			AVIA_GT_UCODE_CAP_SEC |
+			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 2;
+		break;
+	default:
+		ucode_info.caps = 0;
+		if (version_no < 0xa000)
+			ucode_info.qid_offset = 1;
+		else 
+			ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 3;
+		break;
+	}
+
+	if (ucode_flags&DISABLE_UCODE_SECTION_FILTERING)	// workaround
+		ucode_info.caps &= ~AVIA_GT_UCODE_CAP_SEC;
+
+	if ((ucode_info.caps & AVIA_GT_UCODE_CAP_SEC) == AVIA_GT_UCODE_CAP_SEC)
+		printk(KERN_INFO "avia_gt_ucode: ucode section filters enabled.\n");
+	else
+		printk(KERN_INFO "avia_gt_ucode: ucode section filters disabled.\n");
+
+}
+
+struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void)
+{
+	return &ucode_info;
+}
+
+
+static
+void avia_gt_dmx_load_ucode(void)
+{
+	int fd;
+	mm_segment_t fs;
+	u8 ucode_fs_buf[2048];
+	u16 *ucode_buf = NULL;
+	loff_t file_size;
+	u32 flags;
+
+	fs = get_fs();
+	set_fs(get_ds());
+
+	if ((ucode) && ((fd = open(ucode, 0, 0)) >= 0)) {
+		file_size = lseek(fd, 0, 2);
+		lseek(fd, 0, 0);
+
+		if ((file_size <= 0) || (file_size > 2048))
+			printk(KERN_ERR "avia_gt_ucode: Firmware wrong size '%s'\n", ucode);
+		else if (read(fd, ucode_fs_buf, file_size) != file_size)
+			printk(KERN_ERR "avia_gt_ucode: Failed to read firmware file '%s'\n", ucode);
+		else
+			ucode_buf = (u16 *)ucode_fs_buf;
+
+		close(fd);
+
+		/* queues should be stopped */
+		if ((ucode_buf) && (file_size >= 0x740))
+			for (fd = DMX_PID_SEARCH_TABLE; fd < DMX_PID_PARSING_CONTROL_TABLE; fd++)
+				ucode_buf[fd] = 0xdfff;
+	}
+
+	set_fs(fs);
+
+	/* use internal ucode if loading failed for any reason */
+	if (!ucode_buf) {
+		ucode_buf = (u16 *)avia_gt_dmx_ucode_0014_img;
+		file_size = avia_gt_dmx_ucode_size;
+	}
+
+	local_irq_save(flags);
+	avia_gt_dmx_risc_write(risc_mem_map, ucode_buf, file_size);
+	local_irq_restore(flags);
+
+	printk(KERN_INFO "avia_gt_ucode: loaded ucode v%04X\n", riscram[DMX_VERSION_NO]);
+
+	if (riscram[DMX_VERSION_NO] == 0xb107)
+		avia_gt_dmx_memset16(&riscram[0x80], 0x0000, 4);
+}
+
+void avia_gt_dmx_risc_reset(int reenable)
+{
+	avia_gt_reg_set(RSTR0, TDMP, 1);
+
+	if (reenable)
+		avia_gt_reg_set(RSTR0, TDMP, 0);
+}
+
+int avia_gt_dmx_risc_init(sAviaGtDmxRiscInit *risc_info)
+{
+	u8 queue_nr;
+
+	gt_info = avia_gt_get_info();
+	
+	risc_mem_map = avia_gt_reg_o(gt_info->tdp_ram);
+	riscram = (volatile u16*) risc_mem_map;
+	pst = &riscram[DMX_PID_SEARCH_TABLE];
+	ppct = &riscram[DMX_PID_PARSING_CONTROL_TABLE];
+
+	avia_gt_dmx_risc_reset(0);
+
+	avia_gt_dmx_load_ucode();
+	avia_gt_dmx_set_ucode_info(risc_info->ucode_flags);
+
+	avia_gt_dmx_risc_reset(1);
+
+	if (avia_gt_chip(ENX))
+		enx_reg_16(EC) = 0;
+
+	for (queue_nr = 0; queue_nr < 32; queue_nr++) {
+		section_filter_umap[queue_nr] = -1;
+		filter_definition_table[queue_nr].and_or_flag = 0;
+		filter_definition_table[queue_nr].filter_param_id = queue_nr;
+		filter_definition_table[queue_nr].Reserved = 0;
+	}
+
+	return 0;
+}
