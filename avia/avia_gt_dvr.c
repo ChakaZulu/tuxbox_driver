@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.8  2002/09/21 00:02:05  Jolt
+ *   Improved dvr - still buggy
+ *
  *   Revision 1.7  2002/09/18 16:02:40  Jolt
  *   Mostly rewritten dvr driver
  *
@@ -80,16 +83,14 @@ static sAviaGtDmxQueue *audio_queue;
 static u8 video_queue_nr;
 static u8 audio_queue_nr;
 
+static u8 video_pre_buffer = 1;
+static u8 audio_pre_buffer = 1;
+
 DECLARE_WAIT_QUEUE_HEAD(audio_wait);
 DECLARE_WAIT_QUEUE_HEAD(video_wait);
 
 static DECLARE_MUTEX_LOCKED(lock_open);
 static DECLARE_MUTEX_LOCKED(alock_open);
-
-static int vstate=0;
-static int astate=0;
-
-static int start=1;
 
 static devfs_handle_t devfs_handle;
 static ssize_t iframe_write (struct file *file, const char *buf, size_t count,loff_t *offset);
@@ -105,35 +106,33 @@ static int aiframe_release (struct inode *inode, struct file *file);
 
 static struct file_operations iframe_fops = {
 
-    owner:	THIS_MODULE,
-    write:	iframe_write,
-    open:	iframe_open,
-    release:	iframe_release,
+	owner:		THIS_MODULE,
+	write:		iframe_write,
+	open:		iframe_open,
+	release:	iframe_release,
 	
 };
 
 static struct file_operations aiframe_fops = {
 
-    owner:	THIS_MODULE,
-    write:	aiframe_write,
-    open:	aiframe_open,
-    release:	aiframe_release,
+	owner:		THIS_MODULE,
+	write:		aiframe_write,
+	open:		aiframe_open,
+	release:	aiframe_release,
 	
 };
 
 void avia_gt_dvr_queue_irq_audio(u8 queue_nr, void *priv_data)
 {
 
-	if (astate)
-		wake_up_interruptible(&audio_wait);
+	wake_up_interruptible(&audio_wait);
 
 }
 
 void avia_gt_dvr_queue_irq_video(u8 queue_nr, void *priv_data)
 {
 
-	if (vstate)
-		wake_up_interruptible(&video_wait);
+	wake_up_interruptible(&video_wait);
 
 }
 
@@ -179,8 +178,14 @@ static int iframe_open (struct inode *inode, struct file *file){
 				enx_reg_set(CFGR0, VCP, 1);
 			else if (avia_gt_chip(GTX))
 				gtx_reg_set(CR1, VCP, 1);
+
+			//wDR(AV_SYNC_MODE, 0);
+			//wDR(VIDEO_PTS_DELAY, 0);
+			//avia_flush_pcr();
+			//avia_command(SetStreamType, 0x0B);
+			//avia_command(NewChannel, 0, 0, 0);        
 			
-			printk("dvr-video: open\n");
+			video_pre_buffer = 1;
 			
 			return 0;
 			
@@ -260,9 +265,10 @@ static int aiframe_open (struct inode *inode, struct file *file){
 			audio_queue_nr = result;
 
 			audio_queue = avia_gt_dmx_get_queue_info(audio_queue_nr);
+			audio_queue->read_pos = 0;
 			audio_queue->write_pos = 0;
 			avia_gt_dmx_system_queue_set_pos(audio_queue_nr, 0, 0);
-
+			avia_gt_dmx_queue_set_write_pos(audio_queue_nr, 0);
 			avia_gt_dmx_queue_irq_enable(audio_queue_nr);
 
 			if (avia_gt_chip(ENX))
@@ -270,14 +276,14 @@ static int aiframe_open (struct inode *inode, struct file *file){
 			else if (avia_gt_chip(GTX))
 				gtx_reg_set(CR1, ACP, 1);
 
-			printk("dvr-audio: open\n");
-
-			start = 1;
+			wDR(AV_SYNC_MODE, 0);
+			wDR(AUDIO_PTS_DELAY, 0);
 			avia_flush_pcr();
-			wDR(AV_SYNC_MODE,0);
-			avia_command(NewChannel,0,0,0);
-			//wDR(0x468,0x1);
-		
+			avia_command(SetStreamType, 0x0B);
+			avia_command(NewChannel, 0, 0, 0);        
+			
+			audio_pre_buffer = 1;
+			
 			return 0;
 			
 		break;
@@ -324,22 +330,33 @@ static int aiframe_release (struct inode *inode, struct file *file)
 static ssize_t iframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
 
-	DECLARE_WAITQUEUE(wait,current);
+	u32 bytes_free = avia_gt_dmx_queue_get_bytes_free(video_queue_nr);
 
-	video_queue->info.put_data(video_queue_nr, (void *)buf, count);
+	while (bytes_free < count) {
 	
-	avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
-
-	if (video_queue->write_pos >= video_queue->size)
-		video_queue->write_pos = 0;
+		if (video_pre_buffer) {
 		
-	add_wait_queue(&video_wait,&wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-	vstate = 1;
-	schedule();
-	current->state = TASK_RUNNING;
-	remove_wait_queue(&video_wait,&wait);
-	vstate = 0;
+			video_pre_buffer = 0;
+
+			if (!audio_pre_buffer) {
+			
+				avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
+				avia_gt_dmx_system_queue_set_write_pos(audio_queue_nr, audio_queue->write_pos);
+			
+			}
+		
+		}
+
+		wait_event_interruptible(video_wait, (avia_gt_dmx_queue_get_bytes_free(video_queue_nr) >= count));
+		
+		bytes_free = avia_gt_dmx_queue_get_bytes_free(video_queue_nr);
+		
+	}
+	
+	count = video_queue->info.put_data(video_queue_nr, (void *)buf, count, 1);
+
+	if (!video_pre_buffer)
+		avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
 
 	return count;
   
@@ -347,11 +364,13 @@ static ssize_t iframe_write (struct file *file, const char *buf, size_t count,lo
 
 static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
-		int						 i			= (int)0;
-		u32						 ptc		= (u32)0;
-		unsigned char	*buffer = (unsigned char *)buf;
-		DECLARE_WAITQUEUE(wait,current);
-		
+
+	u32 bytes_free = avia_gt_dmx_queue_get_bytes_free(audio_queue_nr);
+
+/*	int						 i			= (int)0;
+	u32						 ptc		= (u32)0;
+	unsigned char	*buffer = (unsigned char *)buf;
+
 		if(start)
 		for(i=0;i<count-13;i++)
 		{
@@ -375,21 +394,41 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 					break;
 				}
 		}			
-					
-	audio_queue->info.put_data(audio_queue_nr, (void *)buf, count);
+*/
+
+//	printk("begin: free %08d wp %08d rp %08d count %08d\n", avia_gt_dmx_queue_get_bytes_free(audio_queue_nr), audio_queue->write_pos, audio_queue->hw_read_pos, count);
+
+	while (bytes_free < count) {
 	
-	avia_gt_dmx_system_queue_set_write_pos(audio_queue_nr, audio_queue->write_pos);
-	
-	if (audio_queue->write_pos >= audio_queue->size)
-		audio_queue->write_pos = 0;
+		if (audio_pre_buffer) {
 		
-	add_wait_queue(&audio_wait,&wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-	astate=1;
-	schedule();
-	current->state = TASK_RUNNING;
-	remove_wait_queue(&audio_wait,&wait);
-	astate=0;
+			audio_pre_buffer = 0;
+			
+			if (!video_pre_buffer) {
+			
+				avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
+				avia_gt_dmx_system_queue_set_write_pos(audio_queue_nr, audio_queue->write_pos);
+			
+			}
+			
+		}
+
+		wait_event_interruptible(audio_wait, (avia_gt_dmx_queue_get_bytes_free(audio_queue_nr) >= count));
+		
+		bytes_free = avia_gt_dmx_queue_get_bytes_free(audio_queue_nr);
+		
+//		printk("sleep\n");
+		
+	}
+
+//	printk("mid:   free %08d wp %08d rp %08d count %08d\n", avia_gt_dmx_queue_get_bytes_free(audio_queue_nr), audio_queue->write_pos, audio_queue->hw_read_pos, count);
+	
+	count = audio_queue->info.put_data(audio_queue_nr, (void *)buf, count, 1);
+
+	if (!audio_pre_buffer)
+		avia_gt_dmx_system_queue_set_write_pos(audio_queue_nr, audio_queue->write_pos);
+
+//	printk("end:   free %08d wp %08d rp %08d count %08d\n", avia_gt_dmx_queue_get_bytes_free(audio_queue_nr), audio_queue->write_pos, audio_queue->hw_read_pos, count);
 
 	return count;
 	
@@ -398,7 +437,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 int __init avia_gt_dvr_init(void)
 {
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.7 2002/09/18 16:02:40 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.8 2002/09/21 00:02:05 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 		
@@ -413,13 +452,6 @@ int __init avia_gt_dvr_init(void)
     devfs_handle = devfs_register(NULL, "dvrv", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &iframe_fops, NULL);
     adevfs_handle = devfs_register(NULL, "dvra", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &aiframe_fops, NULL);
 										
-	wDR(AV_SYNC_MODE,0);
-	wDR(VIDEO_PTS_DELAY,0);
-	wDR(AUDIO_PTS_DELAY,0);
-	avia_flush_pcr();
-	avia_command(SetStreamType,0xB);
-	avia_command(NewChannel,0,0,0);        
-
     if (avia_gt_chip(ENX)) {
 
     } else if (avia_gt_chip(GTX)) {
