@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.93 $
+ *   $Revision: 1.94 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.94  2002/09/01 17:50:51  wjoost
+ *   I don't like #ifdef :-(
+ *
  *   Revision 1.93  2002/08/25 09:38:26  wjoost
  *   Hardware Section Filtering
  *
@@ -1602,11 +1605,10 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 	}
 	else
 	{
-#else
+#endif
 		filter->output=GTX_OUTPUT_TS;
 		filter->pec=0;
 		filter->wait_pusi=0;
-#endif
 #ifdef GTX_SECTIONS
 	}
 #endif
@@ -1717,6 +1719,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed_t* feed)
 {
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+	gtx_demux_t *gtx=(gtx_demux_t*)demux;
 
 	dprintk("gtx_dmx: dmx_release_section_feed.\n");
 
@@ -1728,7 +1731,10 @@ static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed
 	kfree(gtxfeed->sec_buffer);
 	dmx_release_ts_feed (demux, (dmx_ts_feed_t*)feed);						// free corresponding queue
 #ifdef GTX_SECTIONS
-	avia_gt_dmx_release_section_filter(demux,gtxfeed->index);
+	if (gtx->hw_sec_filt_enabled)
+	{
+		avia_gt_dmx_release_section_filter(demux,gtxfeed->index);
+	}
 #endif
 	return 0;
 }
@@ -1941,7 +1947,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.93 2002/08/25 09:38:26 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.94 2002/09/01 17:50:51 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
