@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.16  2002/05/07 01:15:35  derget
+ *   ves1993 detection für nokia
+ *
  *   Revision 1.15  2002/05/06 02:18:19  obi
  *   cleanup for new kernel
  *
@@ -64,7 +67,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -147,6 +150,7 @@ static int device_reg_addr_is_16bit;
 // deswegen lass ich das mal so hier drin
 // Routine sieht etwas merkwuerdig aus, habe ich aber groesstenteils so
 // aus ves1820 uebernommen und keine Lust das zu cleanen
+
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
 	struct i2c_adapter *adap=client->adapter;
@@ -179,11 +183,11 @@ static int attach_dummy_adapter(struct i2c_adapter *adap)
   dummy_i2c_client.adapter=adap;
   dummy_i2c_client.addr=i2c_addr_of_device;
   if ( ( readreg(&dummy_i2c_client, i2c_device_addr_to_read) & i2c_should_mask ) != i2c_should_value ) {
-//    printk("device not found\n");
+    printk("device not found\n");
     i2c_found=0;
   }
   else {
-//    printk("device found\n");
+    printk("device found\n");
     i2c_found=1;
   }
   return -1; // we don't need to attach, probing was done
@@ -216,6 +220,18 @@ static int checkForVES1820(void)
   probeDevice();
   return i2c_found;
 }
+
+static int checkForVES1993(void)
+{               
+  i2c_addr_of_device=0x08; //0x10>>1
+  i2c_device_addr_to_read=0x1e;
+  i2c_should_value=0xde;
+  i2c_should_mask=0xde;
+  device_reg_addr_is_16bit=1;
+  probeDevice();
+  return i2c_found;
+}
+
 
 volatile cpm8xx_t *cpm;
 
@@ -357,14 +373,20 @@ static int dbox_info_init(void)
 		info.demod=info.fe?DBOX_DEMOD_TDA8044H:-1;
 	}	else if (info.mID==DBOX_MID_NOKIA)
 	{
-		info.fe=checkForVES1820() ? 0 : 1;
-		info.feID=info.fe?0xdd:0x7a;
+		if (checkForVES1820())
+			{ info.feID=0x7a ;
+			  info.demod=DBOX_DEMOD_VES1820;}
+		else if (checkForVES1993())
+			{info.feID=0x00  ;
+			 info.demod=DBOX_DEMOD_VES1993;}
+		else {info.feID=0xdd ;
+		      info.demod=DBOX_DEMOD_VES1893;}
+
 		info.fpID=0x5a;
 		info.enxID=-1;
 		info.gtxID=0xB;
 		info.fpREV=0x81;
 		info.hwREV=0x5;
-		info.demod=info.fe ? DBOX_DEMOD_VES1893 : DBOX_DEMOD_VES1820;
 	}
 	iounmap(conf);
 	printk(KERN_DEBUG "mID: %02x feID: %02x fpID: %02x enxID: %02x gtxID: %02x hwREV: %02x fpREV: %02x\n",
