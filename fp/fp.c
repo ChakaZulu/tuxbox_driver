@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/tqueue.h>
 #include <asm/irq.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
@@ -53,8 +54,6 @@ int fp_set_tuner_dword(int type, u32 tw);
 #define RCBUFFERSIZE        16
 #define FP_GETID            0x1D
 
-#define THREAD_WAKEUP       1
-#define THREAD_END          2
 /* Scan 0x60 */
 static unsigned short normal_i2c[] = { 0x60>>1,I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { 0x60>>1, 0x60>>1, I2C_CLIENT_END };
@@ -75,14 +74,13 @@ static u16 rcbuffer[RCBUFFERSIZE];
 static u16 rcbeg, rcend, rc_opened;
 static wait_queue_head_t rcwait;
 
-typedef struct fp_thread_s
-{
-  struct task_struct *tsk;
-  wait_queue_head_t wait;
-  unsigned int flags;
-} fp_thread_t;
+static void fp_task(void *);
 
-static fp_thread_t thread;
+struct tq_struct fp_tasklet=
+{
+  routine: fp_task,
+  data: 0
+};
 
 static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 static int fp_open (struct inode *inode, struct file *file);
@@ -97,8 +95,6 @@ static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
 static int fp_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size);
 static int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1);
 static void fp_check_queues(void);
-
-static int fp_thread(void *arg);
 
 static struct i2c_driver fp_driver=
 {
@@ -384,16 +380,8 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
   immap_t *immap=(immap_t*)IMAP_ADDR;
   immap->im_ioport.iop_padat|=2;
-  
-  printk("fp-interrupt.\n");
-
-#if 0
-  set_bit(THREAD_WAKEUP, &thread.flags);
-  wake_up_interruptible(&thread.wait);
-#endif
-  fp_check_queues();
-    
-  immap->im_ioport.iop_padat&=~2;
+//  schedule_task(&fp_tasklet);
+  fp_task(0);
   return ;
 }
 
@@ -409,17 +397,6 @@ static int fp_init(void)
     return res;
   }
   init_waitqueue_head(&rcwait);
-#if 0
-  printk("intializing fp kernel thread.\n");
-  
-  init_waitqueue_head(&thread.wait);
-  thread.flags=0;
-  
-  if (kernel_thread(fp_thread, &thread, 0)<0)
-  {
-    printk("fp.o: coulnd't launch kernel thread.\n");
-  }
-#endif 
   if (register_chrdev(FP_MAJOR, "fp", &fp_fops))
   {
     printk("fp.o: unable to get major %d\n", FP_MAJOR);
@@ -441,11 +418,6 @@ static int fp_close(void)
     printk("fp.o: unable to release major %d\n", FP_MAJOR);
     return res;
   }
-#if 0
-  printk("waiting for thread end\n");
-  
-  send_sig(SIGKILL, thread.tsk, 1);
-#endif
   return 0;
 }
 
@@ -525,55 +497,12 @@ static void fp_check_queues(void)
     printk("fp.o: unhandled interrupt source %x\n", status);
 }
 
-#if 0
-static int fp_thread(void *arg)
+static void fp_task(void *arg)
 {
-  // kernel locking?
-  daemonize();                  // detach the thread
-  strcpy(current->comm, "fpqueue");
-  thread.tsk=current;
-  printk("fp_thread: initialized.\n");
-  
-  current->policy=SCHED_OTHER;
-  current->nice=-20;
-  
-  current->exit_signal = SIGCHLD;
-  siginitsetinv(&current->blocked, sigmask(SIGKILL));
-                  
-  spin_lock(&current->sigmask_lock);
-  flush_signals(current);
-  spin_unlock(&current->sigmask_lock);
-  
-  for (;;)
-  {
-    DECLARE_WAITQUEUE(wait, current);
-    printk("kthread legt sich schlafen...\n");
-    add_wait_queue(&thread.wait, &wait);
-    set_task_state(current, TASK_INTERRUPTIBLE);
-    if (!test_bit(THREAD_WAKEUP, &thread.flags))
-    {
-      printk("fp-thread went to sleep.\n");
-      schedule();
-      printk("fp-thread woke up.\n");
-    }
-    current->state=TASK_RUNNING;
-    remove_wait_queue(&thread.wait, &wait);
-    clear_bit(THREAD_WAKEUP, &thread.flags);
-    if (test_bit(THREAD_END, &thread.flags))
-      break;
-    fp_check_queues();
-    if (signal_pending(current))
-    {
-      spin_lock(&current->sigmask_lock);
-      flush_signals(current);
-      spin_unlock(&current->sigmask_lock);
-    }
-  }
-  printk("exiting kernel thread...\n");
-  clear_bit(THREAD_END, &thread.flags);
-  return 0;
+  immap_t *immap=(immap_t*)IMAP_ADDR;
+  fp_check_queues();
+  immap->im_ioport.iop_padat&=~2;
 }
-#endif
 
 int fp_send_diseqc(u32 dw)
 {
