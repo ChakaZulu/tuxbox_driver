@@ -185,7 +185,7 @@ void i2c_init(int speed)
   iip->iic_mrblr = 128;
 
 // i2c->i2c_i2mod |= ((bestspeed_modval & 3) << 1) | (bestspeed_filter << 3);
-//  i2c->i2c_i2brg = 7;
+  i2c->i2c_i2brg = 7;
 
     // Rx: Wrap, no interrupt, empty
   rxbuf      = (unsigned char*)m8xx_cpm_hostalloc(128);
@@ -222,9 +222,6 @@ void i2c_init(int speed)
 	// Clear events and interrupts
   i2c->i2c_i2cer = 0xff ;
   i2c->i2c_i2cmr = 0 ;
-
-  /* Turn off I2C */
-  i2c->i2c_i2mod&=(~1);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -236,7 +233,18 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
   if( size > I2C_TX_LEN )  /* Trying to send message larger than BD */
     return -1;
 
-  while( txbd->status & TXBD_R ) ; // Loop until previous data sent
+  i=0;
+  while( (txbd->status & TXBD_R) && (i<1000))
+  {
+    i++;
+    udelay(1000);
+  }
+
+	if (i==1000)
+	{
+    printk("TXBD: INITIAL TIMEOUT\n");
+		return -1;
+	}
 
   if(size==0)
    size++;
@@ -252,8 +260,7 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
     txbuf[i]=dataout[j];
 
   /* Ready to Transmit, wrap, last */
-  txbd->status |= TXBD_R | TXBD_W | TXBD_S;
-	txbd->status &= (~TXBD_L);
+  txbd->status |= TXBD_R | TXBD_W;
 
   /* Enable I2C */
   i2c->i2c_i2mod |= 1;
@@ -266,7 +273,7 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 	/* some error msg */
 	if ( txbd->status & TXBD_NAK )
 	{
-		printk("TXBD: NAK\n");
+		printk("TXBD: NAK AT %02X\n",address);
 		ret = -1;
 	}
 	if ( txbd->status & TXBD_UN )
@@ -305,9 +312,6 @@ int i2c_receive(unsigned char address,
   if( size_to_expect > I2C_RX_LEN )
 		return -1;  /* Expected to receive too much */
 
-  /* Turn on I2C */
-  i2c->i2c_i2mod |= 0x01;
-
 	ret = size_to_expect;
 
   /* Setup TXBD for destination address */
@@ -315,22 +319,27 @@ int i2c_receive(unsigned char address,
 
   txbd->length = 1 + size_to_expect;
 
-  if (!size_to_expect)
-    txbd->length++;
+	for(i=0;i<size_to_expect;i++)
+		txbuf[i+1] = datain[i];
 
-  txbd->status |= TXBD_W | TXBD_S | TXBD_L;
+  if (!size_to_expect)
+	{
+    txbd->length++;
+		txbuf[0] = 0;
+	}
+
+  txbd->status |= TXBD_R | TXBD_W | TXBD_S | TXBD_L;
 
   /* Reset the rxbd */
   rxbd->status |= RXBD_E | RXBD_W;
 
-  /* Buffer ready to transmit, wrap, start */
-  txbd->status |= TXBD_R;
+  /* Turn on I2C */
+  i2c->i2c_i2mod |= 0x01;
 
   /* Begin transmission */
   i2c->i2c_i2com |= 0x80;
 
   i=0;
-
   while( (txbd->status & TXBD_R) && (i<1000))
   {
     i++;
@@ -340,7 +349,7 @@ int i2c_receive(unsigned char address,
 	/* some error msg */
 	if ( txbd->status & TXBD_NAK )
 	{
-		printk("TXBD: NAK\n");
+		printk("TXBD: NAK AT %02X LEN: %02X\n",address,size_to_expect);
 		ret = -1;
 	}
 	if ( txbd->status & TXBD_UN )
@@ -362,35 +371,38 @@ int i2c_receive(unsigned char address,
 	/* clear flags */
   txbd->status &= (~(TXBD_NAK|TXBD_UN|TXBD_CO));
 
-	i=0;
-	while( (rxbd->status & RXBD_E) && (i<1000) )  /* Wait until receive is finished */
+	if ( ret != -1 )
 	{
-		i++;
-		udelay(1000);
-	}
+		i=0;
+		while( (rxbd->status & RXBD_E) && (i<1000) )  /* Wait until receive is finished */
+		{
+			i++;
+			udelay(1000);
+		}
 
-	/* some error msg */
-  if ( i==1000 )
-	{
-    printk("RXBD: TIMEOUT\n");
-		ret = -1;
-	}
-	if ( rxbd->length == 0  )
-	{
-		printk("RXBD: NO DATA\n");
-		ret = -1;
-	}
-	if ( rxbd->status & RXBD_OV )
-	{
-		printk("RXBD: OVERRUN\n");
-	 	rxbd->status &= (~RXBD_OV);
-		ret = -1;
-	}
+		/* some error msg */
+	  if ( i==1000 )
+		{
+	    printk("RXBD: TIMEOUT\n");
+			ret = -1;
+		}
+		if ( rxbd->length == 0  )
+		{
+			printk("RXBD: NO DATA\n");
+			ret = -1;
+		}
+		if ( rxbd->status & RXBD_OV )
+		{
+			printk("RXBD: OVERRUN\n");
+		 	rxbd->status &= (~RXBD_OV);
+			ret = -1;
+		}
 
-  if (ret != -1)
-	{
-      for(i=0;i<rxbd->length;i++)
-        datain[i]=rxbuf[i];
+	  if (ret != -1)
+		{
+	      for(i=0;i<rxbd->length;i++)
+	        datain[i]=rxbuf[i];
+		}
 	}
 
   /* Turn off I2C */
