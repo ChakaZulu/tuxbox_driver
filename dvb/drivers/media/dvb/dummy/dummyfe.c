@@ -1,9 +1,9 @@
 /*
- * $Id: dummyfe.c,v 1.3 2002/10/28 14:59:05 Jolt Exp $
+ * $Id: dummyfe.c,v 1.4 2003/07/01 03:51:07 obi Exp $
  *
  * Dummy Frontend Driver 
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer <jolt@tuxbox.org>
  *
@@ -205,7 +205,7 @@ static
 int __init dummyfe_init(void)
 {
 
-	printk("$Id: dummyfe.c,v 1.3 2002/10/28 14:59:05 Jolt Exp $\n");
+	printk("$Id: dummyfe.c,v 1.4 2003/07/01 03:51:07 obi Exp $\n");
 
 #ifdef USE_DVB_I2C
 	return dvb_register_i2c_device(THIS_MODULE, dummyfe_attach, dummyfe_detach);

@@ -1,9 +1,9 @@
 /*
- * $Id: avia_av_core.c,v 1.64 2003/06/25 11:13:23 alexw Exp $
+ * $Id: avia_av_core.c,v 1.65 2003/07/01 03:51:04 obi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
@@ -1342,7 +1342,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.64 2003/06/25 11:13:23 alexw Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.65 2003/07/01 03:51:04 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();

@@ -1,7 +1,7 @@
 /*
  *   avia_av.h - AViA driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001 Gillem (htoa@gmx.net)
  *

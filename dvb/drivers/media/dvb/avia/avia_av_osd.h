@@ -1,7 +1,7 @@
 /*
  *   avia_av_osd.h - AViA OSD driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001 Gillem (htoa@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.h,v $
+ *   Revision 1.3  2003/07/01 03:51:04  obi
+ *   updated homepage url
+ *
  *   Revision 1.2  2002/10/03 12:47:58  Jolt
  *   AViA AV cleanups
  *
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 

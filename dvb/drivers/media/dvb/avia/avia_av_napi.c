@@ -1,9 +1,9 @@
 /*
- * $Id: avia_av_napi.c,v 1.19 2003/06/24 01:02:21 obi Exp $
+ * $Id: avia_av_napi.c,v 1.20 2003/07/01 03:51:04 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -604,7 +604,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.19 2003/06/24 01:02:21 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.20 2003/07/01 03:51:04 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

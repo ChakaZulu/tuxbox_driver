@@ -1,9 +1,9 @@
 /*
- * $Id: dummyadap.c,v 1.4 2002/10/30 18:22:29 Jolt Exp $
+ * $Id: dummyadap.c,v 1.5 2003/07/01 03:51:07 obi Exp $
  *
  * Dummy Adapter Driver 
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer <jolt@tuxbox.org>
  *
@@ -175,7 +175,7 @@ static int __init dummyadap_init(void)
 
 	int result;
 
-	printk("$Id: dummyadap.c,v 1.4 2002/10/30 18:22:29 Jolt Exp $\n");
+	printk("$Id: dummyadap.c,v 1.5 2003/07/01 03:51:07 obi Exp $\n");
 
 	if ((result = dvb_register_adapter(&adap, "dummy adapter")) < 0) {
 	

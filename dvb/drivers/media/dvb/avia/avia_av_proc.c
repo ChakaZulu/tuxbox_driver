@@ -1,9 +1,9 @@
 /*
- * $Id: avia_av_proc.c,v 1.6 2003/05/26 03:11:28 obi Exp $
+ * $Id: avia_av_proc.c,v 1.7 2003/07/01 03:51:04 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer <jolt@tuxbox.org>
  * Copyright (C) 2003 Andreas Oberritter <obi@tuxbox.org>
@@ -111,7 +111,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.6 2003/05/26 03:11:28 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.7 2003/07/01 03:51:04 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");

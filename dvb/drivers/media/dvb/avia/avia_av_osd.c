@@ -1,9 +1,9 @@
 /*
- * $Id: avia_av_osd.c,v 1.17 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_av_osd.c,v 1.18 2003/07/01 03:51:04 obi Exp $
  *
  * AViA OSD driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2001 Gillem (htoa@gmx.net)
  *
