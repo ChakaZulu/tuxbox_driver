@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_event.c,v 1.7 2003/07/01 03:51:04 obi Exp $
+ * $Id: avia_av_event.c,v 1.8 2003/07/01 08:21:57 obi Exp $
  *   
  * AViA 500/600 event driver (dbox-II-project)
  *
@@ -48,39 +48,30 @@ static struct timer_list event_timer;
 
 static void avia_av_event_timer_function(unsigned long data)
 {
-
 	struct event_t event;
-	struct avia_av_event_reg *reg = (struct avia_av_event_reg *)data; 
+	struct avia_av_event_reg *reg = (struct avia_av_event_reg *)data;
 
 	spin_lock_irq(&event_lock);
 
 	// TODO: optimize
-	if ((++event_delay) == 30)	{
-	
+	if ((++event_delay) == 30) {
 		event_delay = 0;
 
 		if (reg) {
-		
 			if (((avia_av_dram_read(H_SIZE) & 0xFFFF) != reg->hsize) ||
 				((avia_av_dram_read(V_SIZE) & 0xFFFF) != reg->vsize)) {
-				
 				reg->hsize = (avia_av_dram_read(H_SIZE) & 0xFFFF);
 				reg->vsize = (avia_av_dram_read(V_SIZE) & 0xFFFF);
-
 				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_VHSIZE_CHANGE;
 				event_write_message(&event, 1);
-				
 			}
 
 			if ((avia_av_dram_read(ASPECT_RATIO) & 0xFFFF) != reg->aratio) {
-			
 				reg->aratio = (avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
-
 				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_ARATIO_CHANGE;
 				event_write_message(&event, 1);
-				
 			}
 
 			if ((avia_av_dram_read(FRAME_RATE) & 0xFFFF) != reg->frate)
@@ -94,22 +85,17 @@ static void avia_av_event_timer_function(unsigned long data)
 
 			if ((avia_av_dram_read(AUDIO_TYPE) & 0xFFFF) != reg->atype)
 				reg->atype = avia_av_dram_read(AUDIO_TYPE) & 0xFFFF;
-
 		}
-		
 	}
 
 	mod_timer(&event_timer, jiffies + HZ / AVIA_AV_EVENT_TIMER + 2 * HZ / 100);
 
 	spin_unlock_irq(&event_lock);
-	
 }
-
 
 int avia_av_event_init(void)
 {
-
-	printk("avia_av_event: $Id: avia_av_event.c,v 1.7 2003/07/01 03:51:04 obi Exp $\n");
+	printk(KERN_INFO "avia_av_event: $Id: avia_av_event.c,v 1.8 2003/07/01 08:21:57 obi Exp $\n");
 
 	event_delay = 0;
 
@@ -117,7 +103,9 @@ int avia_av_event_init(void)
 
 	if (!event_timer.data)
 		return -ENOMEM;
-	
+
+	memset((void *)event_timer.data, 0, sizeof(struct avia_av_event_reg));
+
 	event_timer.expires = jiffies + HZ / AVIA_AV_EVENT_TIMER + 2 * HZ / 100;
 	event_timer.function = avia_av_event_timer_function;
 
@@ -125,26 +113,20 @@ int avia_av_event_init(void)
 	add_timer(&event_timer);
 		
 	return 0;
-
 }
 
 void avia_av_event_exit(void)
 {
-
 	spin_lock_irq(&event_lock);
 
 	if (event_timer.data) {
-	
-		kfree((char *)event_timer.data);
-		
+		kfree((void *)event_timer.data);
 		event_timer.data = 0;
-		
 	}
 
 	del_timer(&event_timer);
 
 	spin_unlock_irq(&event_lock);
-
 }
 
 #if defined(STANDALONE)

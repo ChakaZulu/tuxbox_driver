@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.7 2003/07/01 03:51:04 obi Exp $
+ * $Id: avia_av_proc.c,v 1.8 2003/07/01 08:21:57 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -24,21 +24,11 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/poll.h>
+#include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
-#include <linux/init.h>
+#include <linux/vmalloc.h>
 
 #include "avia_av.h"
 #include "avia_av_proc.h"
@@ -71,7 +61,7 @@ int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *
 	/* copy dram to buffer on first read */
 	if (off == 0) {
 		if (!dram_copy)
-			dram_copy = kmalloc(0x200000, GFP_KERNEL);
+			dram_copy = vmalloc(0x200000);
 		if (!dram_copy)
 			return -ENOMEM;
 		for (n = 0; n < 512 * 1024; n++)
@@ -85,7 +75,7 @@ int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *
 
 	if (off >= n) {
 		*eof = 1;
-		kfree(dram_copy);
+		vfree(dram_copy);
 		dram_copy = NULL;
 		return 0;
 	}
@@ -99,7 +89,7 @@ int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *
 	*start = page;
 
 	if (*eof) {
-		kfree(dram_copy);
+		vfree(dram_copy);
 		dram_copy = NULL;
 	}
 
@@ -111,7 +101,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.7 2003/07/01 03:51:04 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.8 2003/07/01 08:21:57 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");
