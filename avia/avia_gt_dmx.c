@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.130  2002/09/18 13:17:28  Ghostrider
+ *   fix Jolts fix
+ *
  *   Revision 1.129  2002/09/18 12:13:20  Jolt
  *   Queue handling changes #2
  *
@@ -197,7 +200,7 @@
  *
  *
  *
- *   $Revision: 1.129 $
+ *   $Revision: 1.130 $
  *
  */
 
@@ -259,7 +262,7 @@ static void gtx_pcr_interrupt(unsigned short irq);
 
 static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 																// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
-	12,						// video
+	10,						// video
 	9,						// audio
 	9,						// teletext
 	10, 10, 10, 10, 10,		// user 3..7
@@ -1815,7 +1818,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.129 2002/09/18 12:13:20 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.130 2002/09/18 13:17:28 Ghostrider Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
