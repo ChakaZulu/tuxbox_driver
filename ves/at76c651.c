@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.29 2002/08/12 16:56:42 obi Exp $
+    $Id: at76c651.c,v 1.30 2002/08/24 22:48:40 wjoost Exp $
 
     AT76C651  - DVB frontend driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.30  2002/08/24 22:48:40  wjoost
+    Wer braucht schon Digikabel <g>
+
     Revision 1.29  2002/08/12 16:56:42  obi
     removed compiler warnings
 
@@ -321,6 +324,7 @@ static int set_tuner_dword(struct i2c_client *client, u32 tw)
 	return 0;
 }
 
+#if 0
 static int tuner_set_freq(struct i2c_client *client, int freq)
 {
 	u32 dw=0;
@@ -340,6 +344,33 @@ static int tuner_set_freq(struct i2c_client *client, int freq)
 	else
 	return -1;
 }
+#else
+static int tuner_set_freq(struct i2c_client *client, int freq)
+{
+	u32 dw;
+
+	if ((freq < 42000) || (freq > 860000) )
+	{
+		return -1;
+	}
+	// Formel: dw=0x17e28e06+(freq-346000UL)/8000UL*0x800000
+	// oder:   dw=0x4E28E06+(freq-42000) / 125 * 0x20000
+
+	dw = (freq - 42000) * 4096;
+	dw = dw / 125;
+	dw = dw * 32;
+	if (freq >394000)
+	{
+		dw += 0x4E28E85;
+	}
+	else
+	{
+		dw += 0x4E28E06;
+	}
+    set_tuner_dword(client, dw);
+	return 0;
+}
+#endif
 
 // Tuner an i2c an/abhaengen
 static void ves_tuner_i2c(struct i2c_client *client, int an)
@@ -669,7 +700,7 @@ static int detach_client(struct i2c_client *client)
 int init_module(void) {
 	int res;
 
-	dprintk("AT76C651: $Id: at76c651.c,v 1.29 2002/08/12 16:56:42 obi Exp $\n");
+	dprintk("AT76C651: $Id: at76c651.c,v 1.30 2002/08/24 22:48:40 wjoost Exp $\n");
 	if ((res = i2c_add_driver(&dvbt_driver)))
 	{
 		printk("AT76C651: Driver registration failed, module not inserted.\n");
