@@ -54,10 +54,12 @@ typedef struct {
 	u8 busy;
 	AviaGtDmxQueueProc *cb_proc;
 	u32 hw_read_pos;
+	u32 hw_write_pos;
 	sAviaGtDmxQueueInfo info;
 	u32 irq_count;
 	AviaGtDmxQueueProc *irq_proc;
 	u32 mem_addr;
+	u8 overflow_count;
 	void *priv_data;
 	u32 read_pos;
 	u32 size;
