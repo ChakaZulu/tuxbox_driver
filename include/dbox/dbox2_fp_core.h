@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_core.h,v 1.1 2002/10/21 11:38:59 obi Exp $
+ * $Id: dbox2_fp_core.h,v 1.2 2002/12/25 12:44:23 Jolt Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -27,6 +27,8 @@
 #include <linux/types.h>
 #include <dbox/info.h>
 
+typedef void (*queue_proc_t)(u8 queue_nr);
+
 struct fp_data
 {
 	int fpID;
@@ -35,6 +37,8 @@ struct fp_data
 };
 
 /* internal kernel api */
+int dbox2_fp_queue_alloc(u8 queue_nr, queue_proc_t queue_proc);
+void dbox2_fp_queue_free(u8 queue_nr);
 int fp_cmd (struct i2c_client * client, u8 cmd, u8 * res, u32 size);
 int fp_sendcmd (struct i2c_client * client, u8 b0, u8 b1);
 struct dbox_info_struct * fp_get_info (void);

@@ -58,7 +58,7 @@
 #include <dbox/dbox2_fp_tuner.h>
 
 
-static devfs_handle_t devfs_handle[2];
+static devfs_handle_t devfs_handle;
 static struct dbox_info_struct info;
 
 static int debug = 0;
@@ -82,7 +82,6 @@ fp:
 
 #define FP_INTERRUPT		SIU_IRQ2
 #define I2C_FP_DRIVERID		0xF060
-#define RCBUFFERSIZE		16
 #define FP_GETID		0x1D
 
 /* Scan 0x60 */
@@ -91,14 +90,8 @@ static unsigned short normal_i2c_range[] = { 0x60 >> 1, 0x60 >> 1, I2C_CLIENT_EN
 I2C_CLIENT_INSMOD;
 
 static int fp_id=0;
-static int rc_bcodes=0;
 
 struct fp_data *defdata=0;
-
-static u16 rcbuffer[RCBUFFERSIZE];
-static u16 rcbeg, rcend;
-static wait_queue_head_t rcwait;
-static DECLARE_MUTEX_LOCKED(rc_opened);
 
 static void fp_task (void * arg);
 
@@ -108,16 +101,11 @@ struct tq_struct fp_tasklet =
 	data:		0
 };
 
-
 static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
-
-
-
 
 /*****************************************************************************\
  *   Generic Frontprocessor Functions
 \*****************************************************************************/
-
 
 struct dbox_info_struct *
 fp_get_info (void)
@@ -186,31 +174,9 @@ fp_getid (struct i2c_client * client)
 	return id[0];
 }
 
-
-static void
-fp_add_event (int code)
-{
-	if (atomic_read(&rc_opened.count) >= 1)
-		return;
-
-	rcbuffer[rcend] = code;
-	rcend++;
-
-	if (rcend >= RCBUFFERSIZE)
-		rcend = 0;
-
-	if (rcbeg == rcend)
-		printk("fp.o: RC overflow.\n");
-	else
-		wake_up(&rcwait);
-}
-
-
-
 /*****************************************************************************\
  *   File Operations
 \*****************************************************************************/
-
 
 static int
 fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg)
@@ -303,127 +269,17 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 	}
 }
 
-
-static int
-rc_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case RC_IOCTL_BCODES:
-		if (arg > 0)
-			rc_bcodes = 1;
-		else
-			rc_bcodes = 0;
-
-		dprintk("fp.o: rc_ioctl\n");
-		return fp_sendcmd(defdata->client, 0x26, rc_bcodes ? 0x80 : 0x00);
-
-	default:
-		return -EINVAL;
-	}
-}
-
-
-static ssize_t
-rc_read (struct file * file, char * buf, size_t count, loff_t * offset)
-{
-	int i;
-	unsigned int read = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
-	for (;;) {
-
-		if (rcbeg == rcend) {
-
-			if (file->f_flags & O_NONBLOCK)
-				return read;
-
-			add_wait_queue(&rcwait, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-			current->state = TASK_RUNNING;
-			remove_wait_queue(&rcwait, &wait);
-
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			continue;
-		}
-
-		break;
-	}
-
-	count &= ~1;
-
-	for (i = 0; i < count; i += 2) {
-
-		if (rcbeg == rcend)
-			break;
-
-		*((u16*)(buf+i)) = rcbuffer[rcbeg++];
-		read += 2;
-
-		if (rcbeg >= RCBUFFERSIZE)
-			rcbeg = 0;
-	}
-
-	return read;
-}
-
-
 static int
 fp_open (struct inode * inode, struct file * file)
 {
 	return 0;
 }
 
-
-static int
-rc_open (struct inode * inode, struct file * file)
-{
-	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&rc_opened))
-			return -EAGAIN;
-	}
-
-	else {
-		if (down_interruptible(&rc_opened))
-			return -ERESTARTSYS;
-	}
-
-	return 0;
-}
-
-
 static int
 fp_release (struct inode * inode, struct file * file)
 {
 	return 0;
 }
-
-
-static int
-rc_release (struct inode * inode, struct file * file)
-{
-	dprintk("fp.o: rc_release\n");
-	if (rc_bcodes != 0)
-		fp_sendcmd(defdata->client, 0x26, 0);
-
-	up(&rc_opened);
-	return 0;
-}
-
-
-static unsigned int
-rc_poll (struct file * file, poll_table * wait)
-{
-	poll_wait(file, &rcwait, wait);
-
-	if (rcbeg != rcend)
-		return POLLIN | POLLRDNORM;
-	
-	return 0;
-}
-
 
 static struct
 file_operations fp_fops =
@@ -448,41 +304,12 @@ file_operations fp_fops =
 	get_unmapped_area:	NULL
 };
 
-
-static struct
-file_operations rc_fops =
-{
-	owner:			THIS_MODULE,
-	llseek:			NULL,
-	read:			rc_read,
-	write:			NULL,
-	readdir:		NULL,
-	poll:			rc_poll,
-	ioctl:			rc_ioctl,
-	mmap:			NULL,
-	open:			rc_open,
-	flush:			NULL,
-	release:		rc_release,
-	fsync:			NULL,
-	fasync:			NULL,
-	lock:			NULL,
-	readv:			NULL,
-	writev:			NULL,
-	sendpage:		NULL,
-	get_unmapped_area:	NULL
-};
-
-
-
-
 /*****************************************************************************\
  *   I2C Functions
 \*****************************************************************************/
 
-
 static struct
 i2c_driver fp_driver;
-
 
 static int
 fp_detach_client (struct i2c_client * client)
@@ -517,8 +344,6 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 
 	/* init vcr value (off) */
 	defdata->fpVCR = 0;
-	rcbeg = 0;
-	rcend = 0;
 	new_client->addr = address;
 	data->client = new_client;
 	new_client->data = data;
@@ -595,7 +420,6 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 	if (request_8xxirq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
 		panic("Could not allocate FP IRQ!");
 
-	up(&rc_opened);  
 	return 0;
 }
 
@@ -627,35 +451,40 @@ i2c_driver fp_driver =
  *   Interrupt Handler Functions
 \*****************************************************************************/
 
+#define QUEUE_COUNT	8
 
-static void
-fp_handle_frontpanel_button (struct fp_data * dev)
+static struct fp_queue {
+
+	u8 busy;
+	queue_proc_t queue_proc;
+
+} queue_list[QUEUE_COUNT];
+
+int dbox2_fp_queue_alloc(u8 queue_nr, queue_proc_t queue_proc)
 {
-	u8 rc;
 
-	fp_cmd(dev->client, 0x25, (u8*)&rc, sizeof(rc));
-	fp_add_event(0xFF00 | rc);
+	if (queue_nr >= QUEUE_COUNT)
+		return -EINVAL;
+
+	if (queue_list[queue_nr].busy)
+		return -EBUSY;
+
+	queue_list[queue_nr].busy = 1;
+	queue_list[queue_nr].queue_proc = queue_proc;
+
+	return 0;
+
 }
 
-
-static void
-fp_handle_ir_rc (struct fp_data * dev)
+void dbox2_fp_queue_free(u8 queue_nr)
 {
-	u16 rc;
 
-	switch (info.mID) {
-	case DBOX_MID_NOKIA:
-		fp_cmd(dev->client, 0x01, (u8*)&rc, sizeof(rc));
-		break;
-	case DBOX_MID_PHILIPS:
-	case DBOX_MID_SAGEM:
-		fp_cmd(dev->client, 0x26, (u8*)&rc, sizeof(rc));
-		break;
-	}
+	if (queue_nr >= QUEUE_COUNT)
+		return;
 
-	fp_add_event(rc);
+	queue_list[queue_nr].busy = 0;
+
 }
-
 
 static void
 fp_handle_vcr (struct fp_data * dev, int fpVCR)
@@ -690,6 +519,7 @@ static void
 fp_check_queues (void)
 {
 	u8 status;
+	u8 queue_nr;
 
 	dprintk("fp.o: checking queues.\n");
 	fp_cmd(defdata->client, 0x23, &status, 1);
@@ -700,24 +530,28 @@ fp_check_queues (void)
 /*
  * fp status:
  *
- * 0x01	ir remote control (dbox1, old dbox2)
- * 0x02	ir keyboard
- * 0x04	ir mouse
- * 0x08	ir remote control (new dbox2)
+ * 0x00 0x01	ir remote control (dbox1, old dbox2)
+ * 0x01 0x02	ir keyboard
+ * 0x02 0x04	ir mouse
+ * 0x03 0x08	ir remote control (new dbox2)
  *
- * 0x10	frontpanel button
- * 0x20	scart status
- * 0x40	lnb alarm
- * 0x80	timer underrun
+ * 0x04 0x10	frontpanel button
+ * 0x05 0x20	scart status
+ * 0x06 0x40	lnb alarm
+ * 0x07 0x80	timer underrun
  */
 
 	do {
 		fp_cmd(defdata->client, 0x20, &status, 1);
 
 		dprintk("status: %02x\n", status);
+		
+		for (queue_nr = 0; queue_nr < QUEUE_COUNT; queue_nr++) {
 
-		if (status & 0x01)
-			fp_handle_ir_rc(defdata);
+			if ((status & (1 << queue_nr)) && (queue_list[queue_nr].busy))
+				queue_list[queue_nr].queue_proc(queue_nr);
+
+		}
 
 		if (status & 0x02)
 			dbox2_fp_handle_ir_keyboard(defdata);
@@ -725,11 +559,6 @@ fp_check_queues (void)
 		if (status & 0x04)
 			dbox2_fp_handle_ir_mouse(defdata);
 
-		if (status & 0x08)
-			fp_handle_ir_rc(defdata);
-
-		if (status & 0x10)
-			fp_handle_frontpanel_button(defdata);
 #if 0
 		if (status & 0x20)
 			fp_handle_unknown(defdata);
@@ -786,7 +615,6 @@ __init fp_init (void)
 	/*int i;*/
 
 	dbox_get_info(&info);
-	init_waitqueue_head(&rcwait);
 
 	if ((res = i2c_add_driver(&fp_driver))) {
 		dprintk("fp.o: Driver registration failed, module not inserted.\n");
@@ -799,27 +627,16 @@ __init fp_init (void)
 		return -EBUSY;
 	}
 
-	devfs_handle[FP_MINOR] =
+	devfs_handle =
 		devfs_register(NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
 			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 			&fp_fops, NULL);
 
-	if (!devfs_handle[FP_MINOR]) {
+	if (!devfs_handle) {
 		i2c_del_driver(&fp_driver);
 		return -EIO;
 	}
 
-	devfs_handle[RC_MINOR] =
-		devfs_register(NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
-			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-			&rc_fops, NULL);
-
-	if (!devfs_handle[RC_MINOR]) {
-		devfs_unregister(devfs_handle[FP_MINOR]);
-		i2c_del_driver(&fp_driver);
-		return -EIO;
-	}
-	
 	ppc_md.restart			= dbox2_fp_restart;
 	ppc_md.power_off		= dbox2_fp_power_off;
 	ppc_md.halt			= dbox2_fp_power_off;
@@ -853,8 +670,7 @@ __exit fp_exit (void)
 		return;
 	}
 
-	devfs_unregister(devfs_handle[FP_MINOR]);
-	devfs_unregister(devfs_handle[RC_MINOR]);
+	devfs_unregister(devfs_handle);
 
 	if (ppc_md.restart == dbox2_fp_restart)
 		ppc_md.restart = NULL;
@@ -894,9 +710,12 @@ __exit fp_exit (void)
 	*/
 }
 
-
-
 EXPORT_SYMBOL(fp_get_info);
+EXPORT_SYMBOL(dbox2_fp_queue_alloc);
+EXPORT_SYMBOL(dbox2_fp_queue_free);
+EXPORT_SYMBOL(fp_cmd);
+EXPORT_SYMBOL(fp_sendcmd);
+EXPORT_SYMBOL(fp_get_i2c);
 
 #ifdef MODULE
 module_init(fp_init);

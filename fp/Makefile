@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS  = dbox2_fp.o dbox2_fp_napi.o
+M_OBJS  = dbox2_fp.o dbox2_fp_napi.o dbox2_fp_rc.o
 FP_OBJS	= dbox2_fp_core.o dbox2_fp_irkbd.o dbox2_fp_sec.o dbox2_fp_timer.o dbox2_fp_tuner.o dbox2_fp_reset.o
 
 # 2.4.0 Kernel Option
