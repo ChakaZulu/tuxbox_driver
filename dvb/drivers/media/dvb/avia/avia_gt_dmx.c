@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.207 2004/06/22 01:12:25 carjay Exp $
+ * $Id: avia_gt_dmx.c,v 1.208 2004/06/24 00:26:58 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -57,7 +57,7 @@ static int force_stc_reload;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 static int hw_sections = 1;
 
-/* video, audio, teletext */
+/* video, audio, teletext can be mapped to one "interested" user queue */
 static int queue_client[AVIA_GT_DMX_QUEUE_USER_START] = { -1, -1, -1 };
 
 /* Sizes are (2 ^ n) * 64 bytes. Beware of the aligning! */
@@ -74,8 +74,7 @@ static u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] = {
 
 static const u8 queue_system_map[AVIA_GT_DMX_QUEUE_USER_START] = { 2, 0, 1 };
 
-static inline
-int avia_gt_dmx_queue_is_system_queue(u8 queue_nr)
+static inline int avia_gt_dmx_queue_is_system_queue(u8 queue_nr)
 {
 	return queue_nr < AVIA_GT_DMX_QUEUE_USER_START;
 }
@@ -91,9 +90,8 @@ int avia_gt_dmx_queue_is_system_queue(u8 queue_nr)
  *   background and a software teletext decoder is running.
  * - if the driver operates in spts mode then recording the running video or
  *   audio packets separately is not possible because both pids are routed
- *   into the video queue. for now recording the video pid will deliver video
- *   and audio while recording the audio pid will not deliver data at all.
- *   this has to be filtered by the software demux.
+ *   into the video queue. For now recording either video pid/audio pid will deliver video
+ *   and audio. This has to be filtered by software.
  */
 static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 {
@@ -102,7 +100,8 @@ static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 	u8 sys_queue_nr;
 	u8 queue_nr;
 	u32 write_pos;
-
+	
+	/* first scan all user queues for the PID/mode-combination filtered in the system queues */
 	for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr < AVIA_GT_DMX_QUEUE_COUNT; queue_nr++) {
 		if (!queue_list[queue_nr].running)
 			continue;
@@ -114,6 +113,7 @@ static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 					new_queue_client[sys_queue_nr] = queue_nr;
 	}
 
+	/* second setup the queue_list with the retrieved information (1:1 mapping from system queue -> user queue) */
 	for (sys_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO; sys_queue_nr < AVIA_GT_DMX_QUEUE_USER_START; sys_queue_nr++) {
 		if ((new_queue_client[sys_queue_nr] != -1) && (queue_client[sys_queue_nr] == -1)) {
 			dprintk(KERN_INFO "avia_gt_dmx: client++ on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
@@ -125,12 +125,10 @@ static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 			queue_list[sys_queue_nr].read_pos = write_pos;
 			queue_list[sys_queue_nr].overflow_count = 0;
 			avia_gt_dmx_queue_irq_enable(sys_queue_nr);
-		}
-		else if ((new_queue_client[sys_queue_nr] == -1) && (queue_client[sys_queue_nr] != -1)) {
+		} else if ((new_queue_client[sys_queue_nr] == -1) && (queue_client[sys_queue_nr] != -1)) {
 			dprintk(KERN_INFO "avia_gt_dmx: client-- on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
 			avia_gt_dmx_queue_irq_disable(sys_queue_nr);
 		}
-
 		queue_client[sys_queue_nr] = new_queue_client[sys_queue_nr];
 	}
 }
@@ -182,7 +180,6 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	q->qim_mode = 0;
 	q->read_pos = 0;
 	q->write_pos = 0;
-//	q->info.hw_sec_index = -1;
 	q->task_struct.routine = avia_gt_dmx_bh_task;
 	q->task_struct.data = &q->info.index;
 
@@ -640,7 +637,7 @@ static void avia_gt_dmx_queue_irq(unsigned short irq)
 	if (!q->qim_mode) {
 		q->qim_irq_count++;
 
-		/* We check every secord wether irq load is too high */
+		/* We check every second whether irq load is too high */
 		if (time_after(jiffies, q->qim_jiffies + HZ)) {
 			if (q->qim_irq_count > 100) {
 				dprintk(KERN_INFO "avia_gt_dmx: detected high irq load on queue %d - enabling qim mode\n", queue_nr);
@@ -752,7 +749,7 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 	avia_gt_writew(QWPnH + 4 * mapped_queue_nr, ((write_pos >> 16) & 0x3F) | (queue_size_table[queue_nr] << 6));
 }
 
-int avia_gt_dmx_queue_start(u8 queue_nr,u8 mode, u16 pid)
+int avia_gt_dmx_queue_start(u8 queue_nr,u8 qmode, u16 pid)
 {
 	sAviaGtDmxQueue *q;
 
@@ -764,12 +761,10 @@ int avia_gt_dmx_queue_start(u8 queue_nr,u8 mode, u16 pid)
 	q = &queue_list[queue_nr];
 
 	if (queue_nr==AVIA_GT_DMX_QUEUE_VIDEO) {
-		if (mode==TS) {		/* SPTS-Mode? */
+		if (qmode==TS) {		/* implies SPTS-Mode, increase queue size */
 			queue_size_table[0] = 11;
 			printk(KERN_INFO "SPTS, queue 0 extended.\n");
-		}
-		else
-		{
+		} else {
 			printk(KERN_INFO "PES, queue 0 normal.\n");
 			queue_size_table[0] = 10;
 		}
@@ -779,7 +774,7 @@ int avia_gt_dmx_queue_start(u8 queue_nr,u8 mode, u16 pid)
 	avia_gt_dmx_queue_reset(queue_nr);
 
 	q->pid = pid;
-	q->mode = mode;
+	q->mode = qmode;
 
 	if (avia_gt_dmx_queue_is_system_queue(queue_nr))
 		avia_gt_dmx_enable_disable_system_queue_irqs();
@@ -892,6 +887,7 @@ static void avia_gt_dmx_bh_task(void *tl_data)
 		}
 	}
 
+	/* if we deal with a system queue, look up the "interested" user queue */
 	for (sys_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO; sys_queue_nr < AVIA_GT_DMX_QUEUE_USER_START; sys_queue_nr++) {
 		if ((sys_queue_nr == queue_nr) && (queue_client[sys_queue_nr] != -1)) {
 			cb_proc = queue_list[queue_client[sys_queue_nr]].cb_proc;
@@ -1012,6 +1008,19 @@ void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 	avia_gt_reg_16n(base + 6) = ((write_pos >> 16) & 0x3f) | (queue_size_table[queue_nr] << 6);
 }
 
+/* ucode can't handle 2 active feeds with the same pid and doesn't start a feed
+	in this case so we have to take care it does get started/stopped when a decoder
+	filter is removed/set.
+*/
+void avia_gt_dmx_tap (u8 queue_nr, int start)
+{
+	/* decoder feed will stop, start tap feed */
+	if (start){
+		ucode_info->start_feed (queue_list[queue_nr].info.feed_idx, 1);
+	} else {	/* decoder feed will take over, stop tap feed */
+		ucode_info->stop_feed (queue_list[queue_nr].info.feed_idx, 0);
+	}
+}
 
 static u64 avia_gt_dmx_get_pcr_base(void)
 {
@@ -1317,7 +1326,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.207 2004/06/22 01:12:25 carjay Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.208 2004/06/24 00:26:58 carjay Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
@@ -1483,6 +1492,7 @@ EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_read_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_write_pos);
+EXPORT_SYMBOL(avia_gt_dmx_tap);
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_enable_framer);
 EXPORT_SYMBOL(avia_gt_dmx_disable_framer);

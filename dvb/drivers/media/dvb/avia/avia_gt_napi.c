@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.201 2004/06/04 14:03:01 ghostrider Exp $
+ * $Id: avia_gt_napi.c,v 1.202 2004/06/24 00:26:58 carjay Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -67,7 +67,7 @@ dvb2eth_callback avia_gt_napi_dvr_send;
 static int need_audio_pts;
 static int clipmode;
 
-static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
+static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];	/* for pes when ts is already active */
 
 static u8 *section;
 static spinlock_t section_lock = SPIN_LOCK_UNLOCKED;
@@ -199,6 +199,7 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 		 * If we have more than one potential client, copy section here to avoid reading dmx-memory
 		 * multiple times.
 		 */
+
 		if ((dvbdmxfeed->filter->next) || (compare_len == section_length)) {
 			queue->get_data(queue, section, section_length, 0);
 			copied = 1;
@@ -361,7 +362,6 @@ static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, 
 			return;
 		}
 	}
-
 	dvbdmxfeed->cb.ts(gt_info->mem_addr + queue->get_buf1_ptr(queue),
 			  buf1_len,
 			  gt_info->mem_addr + queue->get_buf2_ptr(queue),
@@ -378,7 +378,7 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 	if (!queue)
 		return -EBUSY;
 
-	if (ucode_info->alloc_feed(queue->index, TS, dvbdmxfeed->pid)==0xff){ 
+	if ((queue->feed_idx=ucode_info->alloc_feed(queue->index, TS, dvbdmxfeed->pid))==0xff){ 
 		avia_gt_dmx_free_queue(queue->index);
 		return -EBUSY;
 	}
@@ -401,14 +401,14 @@ static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	if (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE)
-		queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL);
+		queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL);	/* data has already been pushed through API-layer */
 	else
 		queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes);
 
 	if (!queue)
 		return -EBUSY;
 
-	if (ucode_info->alloc_feed(queue->index, TS, dvbdmxfeed->pid)==0xff) {
+	if ((queue->feed_idx=ucode_info->alloc_feed(queue->index, TS, dvbdmxfeed->pid))==0xff) {
 		avia_gt_dmx_free_queue(queue->index);
 		return -EBUSY;
 	}
@@ -449,7 +449,7 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
 		return -EBUSY;
 
-	if (ucode_info->alloc_feed(queue->index, PES, dvbdmxfeed->pid)==0xff){
+	if ((queue->feed_idx=ucode_info->alloc_feed(queue->index, PES, dvbdmxfeed->pid))==0xff){
 		avia_gt_dmx_free_queue(queue->index);
 		return -EBUSY;
 	}
@@ -592,8 +592,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		   by the write_to_decoder function */
 		if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)
 			need_audio_pts = 1;
-	}
-	else {
+	} else {
 		if (mode == 0) {
 			/* and, in case of dual pes mode, the decoder
 			   wants to have audio and video pes instead of ts */
@@ -604,6 +603,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	}
 
 	if ((dvbdmxfeed->type == DMX_TYPE_TS) || (dvbdmxfeed->type == DMX_TYPE_PES)) {
+		int i;
 		if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (dvbdmxfeed->ts_type & TS_DECODER)) {
 			avia_gt_dmx_set_pcr_pid(1, dvbdmxfeed->pid);
 			if (!(dvbdmxfeed->ts_type & TS_PACKET))
@@ -613,6 +613,13 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 			result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
 		else
 			result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
+		
+		if ((!result)&&(dvbdmxfeed->ts_type & TS_DECODER))
+			for (i = AVIA_GT_DMX_QUEUE_USER_START; i < AVIA_GT_DMX_QUEUE_COUNT; i++)
+				if (ts_pid[i] == dvbdmxfeed->pid){
+					avia_gt_dmx_tap (i,0);
+					break;
+				}
 	}
 	else if (dvbdmxfeed->type == DMX_TYPE_SEC) {
 		result = avia_gt_napi_start_feed_section(dvbdmxfeed);
@@ -645,7 +652,8 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 			return 0;
 		}
 		
-	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER))
+	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER)){
+		int i;
 		switch (dvbdmxfeed->pes_type) {
 		case DMX_TS_PES_AUDIO:
 		case DMX_TS_PES_VIDEO:
@@ -662,7 +670,13 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		default:
 			break;
 		}
-
+		
+		for (i = AVIA_GT_DMX_QUEUE_USER_START; i < AVIA_GT_DMX_QUEUE_COUNT; i++)
+			if (ts_pid[i] == dvbdmxfeed->pid){
+				avia_gt_dmx_tap (i,1);
+				break;
+			}
+	}
 	avia_gt_dmx_queue_stop(queue->index);
 
 	ts_pid[queue->index] = 0xffff;
@@ -809,7 +823,7 @@ static int __init avia_gt_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.201 2004/06/04 14:03:01 ghostrider Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.202 2004/06/24 00:26:58 carjay Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -824,7 +838,7 @@ static int __init avia_gt_napi_init(void)
 	ucode_info = avia_gt_dmx_get_ucode_info();
 
 	memset(ts_pid, 0xff, sizeof(ts_pid));
-
+	
 	if ((section = kmalloc(4096, GFP_KERNEL)) == NULL) {
 		printk("avia_gt_napi: out of memory\n");
 		return -ENOMEM;

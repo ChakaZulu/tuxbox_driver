@@ -60,7 +60,6 @@ struct avia_gt_dmx_queue {
 typedef void (AviaGtDmxQueueProc)(struct avia_gt_dmx_queue *queue, void *priv_data);
 
 typedef struct {
-	u8 busy;
 	AviaGtDmxQueueProc *cb_proc;
 	u32 hw_read_pos;
 	u32 hw_write_pos;
@@ -68,15 +67,16 @@ typedef struct {
 	u32 irq_count;
 	AviaGtDmxQueueProc *irq_proc;
 	u32 mem_addr;
-	u8 overflow_count;
 	void *priv_data;
 	u32 qim_irq_count;
 	u32 qim_jiffies;
-	u8 qim_mode;
 	u32 read_pos;
 	u32 size;
 	u32 write_pos;
 	u16 pid;
+	u8 busy;
+	u8 overflow_count;
+	u8 qim_mode;
 	u8 mode;
 	u8 running;
 	struct tq_struct task_struct;
@@ -102,6 +102,7 @@ u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr);
 void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos);
 void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos);
 void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos);
+void avia_gt_dmx_tap (u8 queue_nr, int start);
 
 void avia_gt_dmx_force_discontinuity(void);
 void avia_gt_dmx_enable_framer(void);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.h,v 1.4 2004/05/21 12:23:55 derget Exp $
+ * $Id: avia_gt_ucode.h,v 1.5 2004/06/24 00:26:58 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -124,7 +124,9 @@ struct avia_gt_ucode_info {
 	u8 (*alloc_feed)(u8 queue_nr, u8 type, u16 pid);
 	u8 (*alloc_section_feed)(u8 queue_nr, sAviaGtSection *section, u16 pid);
 	
-	void (*start_feed)(u8 feed_idx);
+	/* if "tap_feed" is true, unique feed check is disabled 
+			(for seamless switchover to/from a decoder feed) */
+	void (*start_feed)(u8 feed_idx,u8 tap_feed);
 	void (*start_queue_feeds)(u8 queue_nr);
 
 	void (*stop_feed)(u8 feed_idx,u8 remove);

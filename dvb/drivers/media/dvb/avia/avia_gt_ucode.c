@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.13 2004/05/28 17:06:28 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.14 2004/06/24 00:26:58 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -53,8 +53,8 @@ static char *ucode;
 /* all feeds */
 #define AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER	32
 
-/* for double PID setup workaround */
-#define AVIA_GT_UCODE_INVALID_PID	0x2000
+/* for tap feed setup */
+#define AVIA_GT_UCODE_TAP_PID	0x2000
 
 static sAviaGtFeed ucode_feed[AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER];
 /* chosen by both prop ucodes and c-ucodes */
@@ -717,13 +717,13 @@ static u8 prop_ucode_alloc_generic_feed(u8 queue_nr, u8 type, sAviaGtSection *se
 	}
 	ucode_feed[feed_idx].dest_queue=queue_nr;
 	local_irq_restore(flags);
-	ucode_feed[feed_idx].pid=AVIA_GT_UCODE_INVALID_PID;
+	ucode_feed[feed_idx].pid=AVIA_GT_UCODE_TAP_PID;
 	ucode_feed[feed_idx].type=type;
-	/* FIXME: the DVB-API shouldn't allow this to happen, verify why it does */
-	if (!pid2feedidx(pid,NULL)){	/* check for pid already setup inside the RISCRAM */
-		ucode_feed[feed_idx].pid=pid;
+	if ((!pid2feedidx(pid,NULL))||(queue_nr<AVIA_GT_DMX_QUEUE_USER_START)){	/* mark user tap feeds only */
+		ucode_feed[feed_idx].pid&=~AVIA_GT_UCODE_TAP_PID;
 		prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,1,pid);
 	}
+	ucode_feed[feed_idx].pid|=pid;
 	return feed_idx;
 }
 
@@ -743,7 +743,7 @@ static u8 prop_ucode_alloc_feed(u8 queue_nr, u8 type, u16 pid)
 	return prop_ucode_alloc_generic_feed(queue_nr, type, NULL, pid);
 }
 
-static void prop_ucode_start_feed(u8 feed_idx)
+static void prop_ucode_start_feed(u8 feed_idx, u8 tap_feed)
 {
 //printk ("prop_start_feed %d\n",feed_idx);
 	if (ucode_feed[feed_idx].dest_queue==-1){
@@ -753,9 +753,9 @@ static void prop_ucode_start_feed(u8 feed_idx)
 	prop_ucode_set_pid_control_table(feed_idx,ucode_feed[feed_idx].dest_queue,ucode_info.queue_mode[ucode_feed[feed_idx].type],
 								0,0,0,0,1,ucode_feed[feed_idx].section_idx,
 								(ucode_feed[feed_idx].type==SECTION)?1:0,ucode_feed[feed_idx].filtercount);
-	/* FIXME: see above (double PID setup workaround) */
-	if (ucode_feed[feed_idx].pid != AVIA_GT_UCODE_INVALID_PID)
-		prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,0,ucode_feed[feed_idx].pid);
+	if (tap_feed||(!(ucode_feed[feed_idx].pid&AVIA_GT_UCODE_TAP_PID)))	/* only set tap pid if explicitly requested */
+		prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,0,
+																(ucode_feed[feed_idx].pid&~AVIA_GT_UCODE_TAP_PID));
 }
 
 static void prop_ucode_start_queue_feeds(u8 queue_nr)
@@ -766,7 +766,7 @@ static void prop_ucode_start_queue_feeds(u8 queue_nr)
 	for (feed_idx=0;feed_idx<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;feed_idx++){
 		if (ucode_feed[feed_idx].dest_queue==queue_nr){
 			fd=1;
-			prop_ucode_start_feed(feed_idx);
+			prop_ucode_start_feed(feed_idx, 0);
 		}
 	}
 	if (!fd) printk(KERN_CRIT "avia_gt_ucode_start_queue_feeds: trying to start queue with no active feeds\n");
@@ -901,7 +901,7 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 			/* reset not needed here, ucode handles this error well */
 			//if (avia_gt_chip(ENX)) avia_gt_dmx_risc_reset(1); // TODO: GTX  
 			queue->flush(queue);
-			ucode_info.start_feed(feedidx);
+			ucode_info.start_feed(feedidx, 0);
 		}
 		local_irq_restore(flags);
 		dprintk (KERN_DEBUG "avia_gt_ucode: ccerr: pid 0x%04x in %d\n",ccerr.pid,feedidx);
