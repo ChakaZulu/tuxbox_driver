@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.17  2001/07/23 21:03:28  tmbinc
+    fixed double-init, wrong sync at startup
+
     Revision 1.16  2001/06/24 11:25:45  gillem
     - sync with cvs
 
@@ -46,7 +49,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.16 $
+    $Revision: 1.17 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -209,9 +212,11 @@ int init(struct i2c_client *client)
         ves->srate=0;
         ves->reg0=Init1820PTab[0];
 	ves->ber = 0xFFFFFFFF;
-	ves->sync = 0;
+	ves->sync=readreg(dclient, 0x33);
 	ves->uncp = 0;
 
+	/* enable interrupts: */
+	writereg(client, 0x32 , 0x80 | 1 | (1<<1) | (1<<2) | (1<<3) | (1<<6));
         writereg(client, 0x34, ves->pwm);
         return 0;
 }
@@ -389,12 +394,9 @@ int attach_adapter(struct i2c_adapter *adap)
         printk("ves1820.o: attaching VES1820 at 0x%02x\n", (client->addr)<<1);
         i2c_attach_client(client);
         
-        init(client);
-
+	
 	if (register_demod(&ves1820))
  		printk("ves1820.o: can't register demod.\n");
-	/* mask interrupt */
-	writereg(client, 0x32 , 0x80 | 1 | (1<<1) | (1<<2) | (1<<3));
 
 	ves_tasklet.data = (void*)client->data;
 
@@ -435,7 +437,7 @@ void ves_set_frontend(struct frontend *front)
 //  if (front->flags&FRONT_FREQ_CHANGED)
 	ClrBit1820(dclient);
 	SetQAM(dclient, front->qam, front->flags&7);
-	SetSymbolrate(dclient, front->srate, front->flags&7);
+	SetSymbolrate(dclient, front->srate, 1);
 }
 
 void ves_get_frontend(struct frontend *front)
@@ -448,17 +450,11 @@ void ves_get_frontend(struct frontend *front)
 	front->type=FRONT_DVBC;
 	front->afc=(int)((char)(readreg(dclient,0x19)));
 	front->afc=(front->afc*(int)(front->srate/8))/128;
-	front->agc=(readreg(dclient,0x17)<<8);
+	front->agc=((255-readreg(dclient,0x17))<<8);
 	front->nest=0;
 
 	front->sync = ves->sync;
 	front->vber = ves->ber;
-/*
-	front->sync=readreg(dclient,0x11);
-	front->vber = readreg(dclient,0x14);
-	front->vber|=(readreg(dclient,0x15)<<8);
-	front->vber|=(readreg(dclient,0x16)<<16);
-*/
 } 
 
 int ves_get_unc_packet(u32 *uncp)
@@ -547,6 +543,11 @@ static void ves_task(void*data)
 		ves->ber = readreg(dclient,0x14);
 		ves->ber|=(readreg(dclient,0x15)<<8);
 		ves->ber|=(readreg(dclient,0x16)<<16);
+	}
+	
+	if (status&(1<<6))
+	{
+		dprintk("AGC: %x\n", readreg(dclient, 0x17));
 	}
 
 	enable_irq(VES_INTERRUPT);
