@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.h,v $
+ *   Revision 1.5  2001/03/15 22:20:23  Hunz
+ *   nothing important...
+ *
  *   Revision 1.4  2001/03/12 01:15:28  kwon
  *   cosmetics
  *
@@ -34,7 +37,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -42,3 +45,5 @@
 int cxa2126_init(struct i2c_client *client);
 int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg);
 #endif
+inline int cxa2126_set_volume( struct i2c_client *client, int vol );
+inline int cxa2126_get_volume( struct i2c_client *client );

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.19  2001/03/15 22:20:23  Hunz
+ *   nothing important...
+ *
  *   Revision 1.18  2001/03/14 14:35:58  Hunz
  *   fixed DiSEqC timing
  *
@@ -57,7 +60,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -874,7 +877,7 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((2300+(len * 300))/HZ);
 	
-	for (c=0;c<5;c++) {
+	for (c=1;c<=5;c++) {
 	  fp_cmd(defdata->client, 0x2D, msg, 1);
 	  if ( !msg[0] )
 	    break;
@@ -882,16 +885,16 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 	  schedule_timeout(300/HZ);
 	}
 
-	if (c>=5) {
+	if (c==5) {
 	  dprintk("fp.o: DiSEqC TIMEOUT (could have worked anyway)\n");
 	}
 	else {
-	  dprintk("fp.o: DiSEqC sent after %d polls\n", c);
+	  dprintk("fp.o: DiSEqC sent after %d poll(s)\n", c);
 	}
 
 	sec_bus_status=0;
 
-	if (c>=5)
+	if (c==5)
 	  return -1;
 	else
 	  return 0;

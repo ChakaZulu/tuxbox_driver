@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.17 2001/03/12 22:03:41 Hunz Exp $
+ * $Id: dvb.c,v 1.18 2001/03/15 22:20:23 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -56,7 +56,7 @@
 #include "dvbdev.h"
 #include "dmxdev.h"
 
-/* dirty - gotta do that better... */
+/* dirty - gotta do that better... -Hunz */
 #define EBUSOVERLOAD -6
 #define EINTERNAL    -5
 
@@ -340,8 +340,8 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
  // case DVB_DEVICE_AUDIO:
  //   AV_Stop(dvb, RP_AUDIO);
  //   break;
- // case DVB_DEVICE_SEC:
- //   break;
+  case DVB_DEVICE_SEC:
+    break;
   case DVB_DEVICE_FRONTEND:
     break;
   case DVB_DEVICE_DEMUX:
@@ -533,12 +533,49 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     switch (cmd)
     {
     case OST_SELFTEST:
+      if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	return -EPERM;
+      if(dvb->front.type==FRONT_DVBS)
+	return fp_sec_status(); // anyone a better idea ? 
+      else 
+	return -ENOSYS;
       break;
     case OST_SET_POWER_STATE:
-      return -ENOSYS;
+      {
+	uint32_t pwr,old;
+	int res;
+	
+	if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	  return -EPERM;
+	if (copy_from_user(&pwr, parg, sizeof(pwr))) //FIXME!! -Hunz
+	  return -EFAULT;
+	if(dvb->front.type==FRONT_DVBS) {
+	  if (fp_sec_status() < 0)
+	    return -EINVAL;
+	  old=dvb->front.power;
+	  if(pwr == OST_POWER_OFF)
+	    dvb->front.power=OST_POWER_OFF;
+	  else
+	    dvb->front.power=OST_POWER_ON;
+	  res=SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
+	  if (res < 0)
+	    dvb->front.power=old;
+	  return res;
+	}
+	else 
+	  return -ENOSYS;
+      }
       break;
     case OST_GET_POWER_STATE:
-      return -ENOSYS;
+      {
+	uint32_t pwr;
+	
+	if ((file->f_flags&O_ACCMODE)==O_WRONLY)
+	  return -EPERM;
+	pwr=dvb->front.power;
+	if(copy_to_user(parg, &pwr, sizeof(pwr)))
+	  return -EFAULT;
+      }
       break;
     case FE_READ_STATUS:
     {
@@ -560,7 +597,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     case FE_READ_BER:
     {
       uint32_t ber;
-
+      
       ves_get_frontend(&dvb->front);
       if (!dvb->front.power)
         return -ENOSIGNAL;
@@ -674,6 +711,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	struct secStatus status;
 	int ret;
 
+	if ((file->f_flags&O_ACCMODE)==O_WRONLY)
+	  return -EPERM;
 	ret=fp_sec_status();
 	if (ret == 0)
 	  status.busMode=SEC_BUS_IDLE;

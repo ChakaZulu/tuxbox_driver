@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.9  2001/03/15 22:20:23  Hunz
+ *   nothing important...
+ *
  *   Revision 1.8  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -43,7 +46,7 @@
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -51,3 +54,5 @@
 int cxa2092_init(struct i2c_client *client);
 int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg );
 #endif
+inline int cxa2092_set_volume( struct i2c_client *client, int vol );
+inline int cxa2092_get_volume( struct i2c_client *client );

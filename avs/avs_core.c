@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.5  2001/03/15 22:20:23  Hunz
+ *   nothing important...
+ *
  *   Revision 1.4  2001/03/03 17:13:37  waldi
  *   complete move to devfs; doesn't compile without devfs
  *
@@ -34,7 +37,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -51,6 +54,8 @@
 #include <linux/poll.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
+#include <linux/sound.h>
+#include <linux/soundcard.h>
 
 #include "avs_core.h"
 
@@ -127,6 +132,8 @@ static int debug = 0;
 static int addr  = 0;
 static int type  = CXA2092;
 
+/* --------------------------------------------------------------------- */
+
 #ifdef MODULE
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
@@ -134,6 +141,123 @@ MODULE_PARM(type,"i");
 #endif
 
 /* ---------------------------------------------------------------------- */
+
+/* TODO -Hunz
+
+static loff_t avs_llseek_mixdev(struct file *file, loff_t offset, int origin)
+{
+	return -ESPIPE;
+}
+
+static int mixer_ioctl(unsigned int cmd, unsigned long arg)
+{
+  unsigned int i,l;
+  int val;
+
+  if (_SIOC_DIR(cmd) == _SIOC_READ) {
+    switch (_IOC_NR(cmd)) {
+    case SOUND_MIXER_RECSRC:
+      return put_user(0,(int *)arg);
+    case SOUND_MIXER_DEVMASK:
+      return put_user(1,(int *)arg);
+    case SOUND_MIXER_RECMASK:
+      return put_user(0,(int *)arg);
+    case SOUND_MIXER_STEREODEVS:
+      return put_user(0,(int *)arg);
+    case SOUND_MIXER_CAPS:
+      return put_user(0,(int *)arg);
+    case SOUND_MIXER_IMIX:
+      return put_user(0,(int *)arg);
+    default:
+      switch (type)
+      {
+      case CXA2092:
+	l=cxa2092_get_volume(&client_template );
+	break;
+      case CXA2126:
+	l=cxa2126_get_volume(&client_template );
+	break;
+      default:
+	return -EINVAL;
+      }
+      l=(100/63)*(63-l);
+      return put_user(l,(int *)arg);
+    }
+  }
+  if (_SIOC_DIR(cmd) != (_SIOC_READ|_SIOC_WRITE)) 
+    return -EINVAL;
+  switch (_IOC_NR(cmd)) {
+    
+  case SOUND_MIXER_IMIX:
+    return -EINVAL;
+    
+  case SOUND_MIXER_RECSRC:
+    return -EINVAL;
+    
+  default:
+    i = _IOC_NR(cmd);
+    if (i > 1)
+      return -EINVAL;
+    if(get_user(val, (int *)arg))
+      return -EFAULT;
+    l = val & 0xff;
+    if (l > 100)
+      l = 100;
+    l=63-(int)((63/100)*l);
+    switch (type)
+      {
+      case CXA2092:
+	return cxa2092_set_volume(&client_template, l );
+	break;
+      case CXA2126:
+	return cxa2126_set_volume(&client_template, l );
+	break;
+      default:
+	return -EINVAL;
+      }
+  }
+}
+
+static int avs_open_mixdev(struct inode *inode, struct file *file)
+{
+
+  	MOD_INC_USE_COUNT;
+	return 0;
+}
+
+static int avs_release_mixdev(struct inode *inode, struct file *file)
+{
+  	MOD_DEC_USE_COUNT;
+	return 0;
+}
+
+static int avs_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return mixer_ioctl(cmd, arg);
+}
+
+static int avs_mixerdev;
+
+static struct file_operations avs_mixer_fops = {
+	&avs_llseek_mixdev,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	&avs_ioctl_mixdev,
+	NULL,
+	&avs_open_mixdev,
+	NULL,
+	&avs_release_mixdev,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+};
+*/
+
+/* --------------------------------------------------------------------- */
 
 static int avs_attach(struct i2c_adapter *adap, int addr,
 			unsigned short flags, int kind)
@@ -247,7 +371,7 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 				return cxa2092_command(&client_template, cmd, (void*)arg );
 				break;
 			case CXA2126:
-				return cxa2092_command(&client_template, cmd, (void*)arg );
+				return cxa2126_command(&client_template, cmd, (void*)arg );
 				break;
 			default:
 				return -EINVAL;
@@ -347,12 +471,15 @@ int i2c_avs_init(void)
     return -EIO;
   }
 
+  //  avs_mixerdev=register_sound_mixer(&avs_mixer_fops, -1);
+
 	return 0;
 }
 
 #ifdef MODULE
 void cleanup_module(void)
 {
+  // unregister_sound_mixer(avs_mixerdev);
 	i2c_del_driver(&driver);
 
 //	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
