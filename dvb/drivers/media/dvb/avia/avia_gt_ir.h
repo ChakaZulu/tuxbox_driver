@@ -24,9 +24,37 @@
 #ifndef AVIA_GT_IR_H
 #define AVIA_GT_IR_H
 
+#define AVIA_GT_IR_MAX_PULSE_COUNT	(128 + 1)
+
+#define USEC_TO_CWP(period)			((period) * frequency / 1000000)
+
+#define WAIT_IR_UNIT_READY(unit)	if (unit##_unit_busy) { 												\
+																											\
+										if (block) {														\
+																											\
+											if (wait_event_interruptible(unit##_wait, !unit##_unit_busy))	\
+									               return -ERESTARTSYS;										\
+																											\
+										} else {															\
+																											\
+											return -EWOULDBLOCK;											\
+																											\
+										}																	\
+																											\
+									}
+
+typedef struct {
+
+	u8 MSPR;
+	u8 MSPL;
+
+} sAviaGtIrPulse;
+
+extern int avia_gt_ir_queue_pulse(unsigned short period_high, unsigned short period_low, u8 block);
+extern int avia_gt_ir_send_buffer(u8 block);
+extern int avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low, u8 block);
 extern void avia_gt_ir_set_duty_cycle(u32 new_duty_cycle);
 extern void avia_gt_ir_set_frequency(u32 new_frequency);
-extern int avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low, u8 block);
 extern int avia_gt_ir_init(void);
 extern void avia_gt_ir_exit(void);
 	    
