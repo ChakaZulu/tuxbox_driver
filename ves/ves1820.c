@@ -43,7 +43,7 @@ EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
 
-#define TUNER_INTERRUPT		14
+#define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
 
 #ifdef MODULE
@@ -78,14 +78,11 @@ u8 Init1820PTab[] =
   0x00, 0x00, 0x00, 0x00, 0x40
 };
 */
-int tuner_task(void*);
-static wait_queue_head_t tuner_wait;
-DECLARE_WAIT_QUEUE_HEAD(thr_wq);
-DECLARE_MUTEX_LOCKED(cam_busy);
+int ves_task(void*);
 
-struct tq_struct tuner_tasklet=
+struct tq_struct ves_tasklet=
 {
-	routine: tuner_task,
+	routine: ves_task,
 	data: 0
 };
 
@@ -340,23 +337,15 @@ int attach_adapter(struct i2c_adapter *adap)
         
         printk("VES1820: attached to adapter %s\n", adap->name);
 
-//		save_flags(flags);cli();
+		/* mask interrupt */
+		writereg(client, 0x32 , 0x80 | (1<<3));
 
-//		init_waitqueue_head(&tuner_wait);
-//		kernel_thread(tuner_task,&cam_busy,0);
-/*
-		if (request_8xxirq(TUNER_INTERRUPT, ves_interrupt, SA_ONESHOT, "tuner", NULL) != 0)
+		if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "ves1820", NULL) != 0)
 		{
 			i2c_del_driver(&dvbt_driver);
 			dprintk("VES1820: can't request interrupt\n");
 	        return -EBUSY;
 		}
-*/
-//        schedule_task(&tuner_tasklet);
-
-
-//		disable_irq(TUNER_INTERRUPT);
-//		restore_flags(flags);
 
         return 0;
 }
@@ -437,104 +426,37 @@ static struct i2c_client client_template = {
         NULL
 };
 
-int tuner_task(void*dummy)
+/* ---------------------------------------------------------------------- */
+
+int ves_task(void*dummy)
 {
-	struct semaphore * tunerw;
-	struct task_struct *tsk = current;
-	DECLARE_WAITQUEUE(wait,tsk);
+	u8 status;
+	u32 vber;
 
-	tunerw = (struct semaphore *)dummy;
+	status = readreg(dclient, 0x33);
 
-	tsk->session = 1;
-	tsk->pgrp = 1;
-
-	tsk->flags |= PF_MEMALLOC;
-	strcpy(tsk->comm, "tuner");
-	tsk->tty = NULL;
-	spin_lock_irq(&tsk->sigmask_lock);
-	sigfillset(&tsk->blocked);
-	recalc_sigpending(tsk);
-	spin_unlock_irq(&tsk->sigmask_lock);
-	exit_mm(tsk);
-	exit_files(tsk);
-	exit_sighand(tsk);
-	exit_fs(tsk);
-
-	for(;;)
+	/* read ber */
+	if (status&(1<<3))
 	{
-		add_wait_queue(&thr_wq,&wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-
-//		spin_lock_irq(&io_request_lock);
-//		spin_unlock_irq(&io_request_lock);
-
-		printk("task\n");
-
-//		down(tunerw);
-
-//		save_flags(flags);cli();
-//		restore_flags(flags);
-		schedule();
-
-		remove_wait_queue(&thr_wq, &wait);
-
-//		udelay(1000*1000);
-//		interruptible_sleep_on(tunerw);
-
-//		schedule();
+//		printk("READ BER\n");
+		vber = readreg(dclient,0x14);
+		vber|=(readreg(dclient,0x15)<<8);
+		vber|=(readreg(dclient,0x16)<<16);
 	}
+
+	enable_irq(VES_INTERRUPT);
 
 	return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
-	u8 status;
-	unsigned long flags;
-    int     bit, word, stat;
-
-//	wake_up_interruptible(&tuner_wait);
-
-//	status = readreg(dclient, 0x33);
-
-//	eieio();
-//	disable_irq(TUNER_INTERRUPT);
-
-//bit =  TUNER_INTERRUPT & 0x1f;
-//word = TUNER_INTERRUPT >> 5;
-//ppc_cached_irq_mask[word] &= ~(1 << (31-bit));
-
-//	printk("IRQ start\n");
-
-//	request_8xxirq(TUNER_INTERRUPT, NULL, 0, "tuner", NULL);
-
-//save_flags(flags);cli();
-//((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask |= (1 << (31-bit));
-//((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sipend = (1 << (31-bit));
-//restore_flags(flags);
-
-//ppc_cached_irq_mask[word];}
-
-//	m8xx_mask_irq(TUNER_INTERRUPT);
-//	unmask_irq(TUNER_INTERRUPT);
-//	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sipend = (1 << (31-bit));
-//	cli();
-//	sti();
-
-	/* new ber */
-/*	if (status&(1<<3))
-	{
-		// TODO: !? EVENT !?
-	}
-*/
-//	printk("IRQ end\n");
-
-
-//	up(&cam_busy);
-
-//	udelay(100);
-	return ;
+	schedule_task(&ves_tasklet);
 }
+
+/* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
 int init_module(void) {
@@ -565,7 +487,7 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
 
-//		free_irq(TUNER_INTERRUPT, NULL);
+		free_irq(VES_INTERRUPT, NULL);
 
         dprintk("VES1820: cleanup\n");
 }
