@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.123 $
+ *   $Revision: 1.124 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.124  2002/09/14 22:04:56  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.123  2002/09/14 18:15:48  Jolt
  *   HW CRC for SW sections
  *
@@ -861,6 +864,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	u8 ts_header[4];
 	u8 adaption_len;
 	u8 next_sec_offs;
+	u32 buf_len;
+	u32 chunk1;
 
 			if (gtxfeed->state!=DMX_STATE_GO)
 			{
@@ -868,82 +873,10 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 			}
 			else
 			{
-//				if (gtxfeed->output&TS_PACKET)
+
 				{
 
-					int i = (int)0;
-
-					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
-					size_t b1l = (size_t)0, b2l = (size_t)0;
-
-					b1 = gt_info->mem_addr + queue->read_pos;
-
-					if (queue->write_pos > queue->read_pos) {	// normal case
-
-						b1l = queue->write_pos - queue->read_pos;
-						b2 = 0;
-						b2l = 0;
-						
-					} else {
-					
-						b1l = queue->mem_addr + queue->size - queue->read_pos;
-						b2 = gt_info->mem_addr + queue->mem_addr;
-						b2l = queue->write_pos - queue->mem_addr;
-						
-					}
-
-					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
-					{
-
-						int rlen = b1l + b2l;
-
-						if (*b1 != 0x47) {
-						
-							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
-							
-							avia_gt_dmx_queue_reset(queue_nr);
-							
-							return;
-							
-						}
-
-						rlen -= rlen % 188;
-
-						if (!rlen) {
-						
-							dprintk("this SHOULDN'T happen (tm) (incomplete packet)\n");
-
-							avia_gt_dmx_queue_reset(queue_nr);
-							
-							return;
-							
-						}
-						
-						if (gtxfeed->type == DMX_TYPE_SEC) {
-						
-							padding = b1l + b2l - rlen;
-							
-						} else {
-
-							if (rlen <= b1l) {
-						
-								b1l = rlen;
-								b2l = 0;
-								queue->read_pos += b1l;
-							
-								if (queue->read_pos == (queue->mem_addr + queue->size))
-									queue->read_pos = queue->mem_addr;
-								
-							} else {
-						
-								b2l = rlen - b1l;
-								queue->read_pos = queue->mem_addr + b2l;
-							
-							}
-							
-						}
-						
-					}
+					int i;
 
 					switch (gtxfeed->type) {
 
@@ -955,10 +888,30 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								if ((gtx->feed[i].state == DMX_STATE_GO) &&
 									(gtx->feed[i].pid == gtxfeed->pid) &&
 									(gtx->feed[i].output & TS_PACKET) &&
-									(!((gtxfeed->output^gtx->feed[i].output) & TS_PAYLOAD_ONLY)))
-									gtx->feed[i].cb.ts(b1, b1l, b2, b2l, &gtx->feed[i].feed.ts, 0);
+									(!((gtxfeed->output^gtx->feed[i].output) & TS_PAYLOAD_ONLY))) {
+									
+									buf_len = queue_info->bytes_avail(queue_nr);
+									
+									buf_len -= buf_len % 188;
+
+									if ((queue->read_pos + buf_len) > (queue->mem_addr + queue->size)) {
+				
+										chunk1 = queue->mem_addr + queue->size - queue->read_pos;
+										gtx->feed[i].cb.ts(gt_info->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
+					
+									} else {
+				
+										gtx->feed[i].cb.ts(gt_info->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+						
+									}
+									
+									queue_info->move_data(queue_nr, NULL, buf_len, 0);
+									
+								}
 
 							}
+
+							return;
 
 						break;
 
@@ -1051,6 +1004,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						// handle section
 						case DMX_TYPE_SEC:
+						
+							padding = queue_info->bytes_avail(queue_nr) % 188;
 
 							// let's rock
 							while (queue_info->bytes_avail(queue_nr) - padding)
@@ -1985,7 +1940,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.123 2002/09/14 18:15:48 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.124 2002/09/14 22:04:56 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
