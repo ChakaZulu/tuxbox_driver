@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.10  2002/04/17 13:32:57  Jolt
+ *   Capture driver merge
+ *
  *   Revision 1.9  2002/04/17 05:56:17  Jolt
  *   Capture driver fixes
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -99,6 +102,9 @@ static struct file_operations capture_fops = {
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
 
+    if (capture_busy)
+	avia_gt_capture_start(NULL, NULL, NULL);
+
     while (state != 2) {
     
 	if (file->f_flags & O_NONBLOCK) {
@@ -116,18 +122,6 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 									
     printk("avia_gt_capture: ok (writing %d bytes)\n", count);
 				
-    /*done=0;
-    while (done*output_width < count) {
-    
-	if ((done+1)*output_width > count)
-	    memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, output_width);
-        else
-	    memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
-	    
-        done++;
-	
-    } */   
-    
     if (copy_to_user(buf, avia_gt_get_mem_addr() + capt_buf_addr, count))
 	return -EFAULT;
 				
@@ -138,8 +132,6 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-//    int x, y;
-    
     switch(cmd) {
     
 	case AVIA_GT_CAPTURE_START:
@@ -172,30 +164,6 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 
 	break;
     
-	/*case 1:
-    
-	    x = arg & 0xFFFF;
-	    y = (arg >> 16);
-    
-	    printk("avia_gt_capture: DEBUG - HPOS=0x%X, EVPOS=0x%X\n", x, y);
-    
-	    enx_reg_s(VCP)->HPOS = x;
-	    enx_reg_s(VCP)->EVPOS = y;
-	    
-	break;
-	
-	case 2:
-
-	    x = arg & 0xFFFF;
-	    y = (arg >> 16);
-    
-	    printk("avia_gt_capture: DEBUG - HSIZE=0x%X, VSIZE=0x%X\n", x, y);
-    
-	    enx_reg_s(VCSZ)->HSIZE = x;
-	    enx_reg_s(VCSZ)->VSIZE = y;
-	
-	break;*/
-	
     }	
     
     return 0;
@@ -220,6 +188,7 @@ void avia_gt_capture_interrupt(unsigned short irq)
 
 int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
 {
+
     unsigned short buffer_odd_offset;
     unsigned short capture_height;
     unsigned short capture_width;
@@ -248,17 +217,33 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
     printk("avia_gt_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
     printk("avia_gt_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
     
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
 #define BLANK_TIME 132
 #define VIDCAP_PIPEDELAY 2
 
-    enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x + delta_x) / 2;
-//    enx_reg_s(VCP)->OVOFFS = (scale_y - 1) / 2;
-    enx_reg_s(VCP)->OVOFFS = 0;
-    enx_reg_s(VCP)->EVPOS = 21 + ((input_y + delta_y) / 2);
+	enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x + delta_x) / 2;
+//	enx_reg_s(VCP)->OVOFFS = (scale_y - 1) / 2;
+	enx_reg_s(VCP)->OVOFFS = 0;
+	enx_reg_s(VCP)->EVPOS = 21 + ((input_y + delta_y) / 2);
 
-    enx_reg_s(VCSZ)->HDEC = scale_x - 1;
-    enx_reg_s(VCSZ)->HSIZE = input_width / 2;
+	enx_reg_s(VCSZ)->HDEC = scale_x - 1;
+	enx_reg_s(VCSZ)->HSIZE = input_width / 2;
 
+    } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	gtx_reg_s(VCSP)->HPOS = 63 + ((input_x + delta_x) / 2);
+//	gtx_reg_s(VCSP)->HPOS = hpos_delta + ((input_x + delta_x) / 2);
+//	gtx_reg_s(VCSP)->OVOFFS = (scale_y - 1) / 2;
+	gtx_reg_s(VCSP)->OVOFFS = 0;
+	gtx_reg_s(VCSP)->EVPOS = 42 + ((input_y + delta_y) / 2);
+//	gtx_reg_s(VCSP)->EVPOS = vpos_delta + ((input_y + delta_y) / 2);
+	    
+	gtx_reg_s(VCS)->HDEC = scale_x - 1;
+	gtx_reg_s(VCS)->HSIZE = input_width / 2;
+
+    }
+    
     // If scale_y is even and greater then zero we get better results if we capture only the even fields
     // than if we scale down both fields
 //    if ((scale_y > 0) && (!(scale_y & 0x01))) {
@@ -312,21 +297,16 @@ void avia_gt_capture_stop(void)
     
 	printk("avia_gt_capture: capture_stop\n");
     
-	enx_reg_s(VCSA1)->E = 0;
+	if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	    enx_reg_s(VCSA1)->E = 0;
+	else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	    gtx_reg_s(VCSA)->E = 0;
     
-	state=0;
+	state = 0;
 	capture_busy = 0;
 	
     }	
     
-}
-
-int avia_gt_capture_update_param(void)
-{
-    if (capture_busy)
-	return -EBUSY;
-
-    return 0;
 }
 
 int avia_gt_capture_set_output_size(unsigned short width, unsigned short height)
@@ -371,16 +351,23 @@ int avia_gt_capture_set_input_size(unsigned short width, unsigned short height)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.9 2002/04/17 05:56:17 Jolt Exp $\n");
+    unsigned short capture_irq;
+
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.10 2002/04/17 13:32:57 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-				    &capture_fops, NULL );
+				    &capture_fops, NULL);
 
     if (!devfs_handle)
 	return -EIO;
 
-    if (avia_gt_alloc_irq(ENX_IRQ_VL1, avia_gt_capture_interrupt) < 0) {
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	capture_irq = ENX_IRQ_VL1;
+    else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	capture_irq = GTX_IRQ_VL0;
+
+    if (avia_gt_alloc_irq(capture_irq, avia_gt_capture_interrupt) < 0) {
     
 	printk("avia_gt_capture: unable to get interrupt\n");
 	
@@ -396,20 +383,38 @@ int __init avia_gt_capture_init(void)
     
         printk("avia_gt_pcm: Unsupported chip type\n");
 
-	avia_gt_free_irq(ENX_IRQ_VL1);
+	avia_gt_free_irq(capture_irq);
 	devfs_unregister(devfs_handle);
 	    
         return -EIO;
 		    
     }
+
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
-    enx_reg_s(RSTR0)->VIDC = 1;		
-    enx_reg_s(RSTR0)->VIDC = 0;		
-    enx_reg_s(VCP)->U = 0;
-    enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
-    enx_reg_s(VCSZ)->F = 1;   				// Enable filter
-    enx_reg_h(VLI1) = 0;	
+	enx_reg_s(RSTR0)->VIDC = 1;		
+	enx_reg_s(RSTR0)->VIDC = 0;		
+	
+	enx_reg_s(VCP)->U = 0;					// Using squashed mode
+	enx_reg_s(VCSTR)->B = 0;				// Hardware double buffering
+	enx_reg_s(VCSZ)->F = 1;   				// Filter
+
+	enx_reg_s(VLI1)->E = 0;	
+	enx_reg_s(VLI1)->LINE = 0;	
     
+    } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
+	gtx_reg_s(RR0)->VCAP = 1;
+	gtx_reg_s(RR0)->VCAP = 0;
+    
+	gtx_reg_s(VCS)->B = 0;                              	// Hardware double buffering
+        gtx_reg_s(VCS)->F = 1;                              	// Filter
+
+	gtx_reg_s(VLI1)->E = 0;	
+	gtx_reg_s(VLI1)->LINE = 0;
+
+    }
+
     return 0;
     
 }
@@ -421,11 +426,22 @@ void __exit avia_gt_capture_exit(void)
 
     avia_gt_capture_stop();
 
-    avia_gt_free_irq(ENX_IRQ_VL1);
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
+	avia_gt_free_irq(ENX_IRQ_VL1);
     
-    // Reset video capture
-    enx_reg_s(RSTR0)->VIDC = 1;		
+	// Reset video capture
+	enx_reg_s(RSTR0)->VIDC = 1;		
     
+    } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	avia_gt_free_irq(GTX_IRQ_VL0);
+
+	// Reset video capture
+	gtx_reg_s(RR0)->VCAP = 1;                      
+
+    }
+        
 }
 
 #ifdef MODULE

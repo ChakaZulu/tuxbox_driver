@@ -379,10 +379,10 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char ARCH_ID;
-  unsigned char API_VERSION;
-  unsigned char VERSION;
-  unsigned char REVISION;
+  unsigned char ARCH_ID: 8;
+  unsigned char API_VERSION: 8;
+  unsigned char VERSION: 8;
+  unsigned char REVISION: 8;
   
 } sENX_REG_CRR;
 
@@ -428,7 +428,7 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char Reserved1;
+  unsigned char Reserved1: 8;
   unsigned int Addr: 22;
   unsigned char Reserved2: 2;
   
@@ -547,7 +547,7 @@ typedef struct {
 
 typedef struct {
 
-    unsigned char FRCH: 1;
+  unsigned char FRCH: 1;
   unsigned char SC2: 1;
   unsigned char SC1: 1;
   unsigned char PCM: 1;
@@ -652,7 +652,7 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char Reserved1;
+  unsigned char Reserved1: 8;
   unsigned int Addr: 22;
   unsigned char Reserved2: 1;
   unsigned char E: 1;
@@ -661,7 +661,7 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char Reserved1;
+  unsigned char Reserved1: 8;
   unsigned int Addr: 22;
   unsigned char Reserved2: 2;
   
@@ -688,6 +688,17 @@ typedef struct {
   unsigned char B: 1;
   
 } sENX_REG_VCSZ;
+
+typedef struct {
+
+  unsigned char E: 1;
+  unsigned char Reserved1: 5;
+  unsigned short LINE: 9;
+  unsigned char F: 1;
+  
+} sENX_REG_VLI1;
+
+#define sENX_REG_VLI2 sENX_REG_VLI1
 
 typedef struct {
 

@@ -165,7 +165,9 @@
 #define GTX_IRQ_IR_TX		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 8)
 #define GTX_IRQ_IR_RX		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 9)
 #define GTX_IRQ_PCM_PF		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 10)
+#define GTX_IRQ_VL0		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 11)
 #define GTX_IRQ_PCM_AD		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 12)
+#define GTX_IRQ_VL1		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 13)
 
 
 
@@ -261,6 +263,17 @@ typedef struct {
     unsigned char Reserved3: 1;
 
 } sGTX_REG_VCSP;
+
+typedef struct {
+
+  unsigned char E: 1;
+  unsigned char Reserved1: 5;
+  unsigned short LINE: 9;
+  unsigned char F: 1;
+  
+} sGTX_REG_VLI1;
+
+#define sGTX_REG_VLI2 sGTX_REG_VLI1
 
 typedef struct {
 
