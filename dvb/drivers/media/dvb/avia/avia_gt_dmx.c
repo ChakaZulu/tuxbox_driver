@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.183 2003/08/21 23:28:28 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.184 2003/08/25 18:28:42 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -60,6 +60,7 @@ static int force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 static s8 section_filter_umap[32];
 static sFilter_Definition_Entry filter_definition_table[32];
+static struct avia_gt_ucode_info ucode_info;
 
 /* video, audio, teletext */
 static int queue_client[AVIA_GT_DMX_QUEUE_USER_START] = { -1, -1, -1 };
@@ -1000,6 +1001,7 @@ void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
 int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter)
 {
 	sPID_Parsing_Control_Entry ppc_entry;
+	struct avia_gt_ucode_info *ucode_info;
 	u8 target_queue_nr;
 	u32 flags;
 
@@ -1007,6 +1009,8 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 		printk(KERN_CRIT "avia_gt_dmx: pid control table entry out of bounds (entry=%d)!\n", queue_nr);
 		return -EINVAL;
 	}
+
+	ucode_info = avia_gt_dmx_get_ucode_info();
 
 	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_control_table, entry %d, type %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
 		queue_nr, type, fork, cw_offset, cc, start_up, pec, filt_tab_idx, _psh);
@@ -1017,8 +1021,7 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 	else
 		target_queue_nr = queue_nr;
 
-	if (riscram[DMX_VERSION_NO] < 0x001A)
-		target_queue_nr++;
+	target_queue_nr += ucode_info->qid_offset;
 
 	ppc_entry.type = type;
 	ppc_entry.QID = target_queue_nr;
@@ -1972,33 +1975,49 @@ int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid)
 	return -EINVAL;
 }
 
-u32 avia_gt_dmx_ucode_capabilities(void)
+void avia_gt_dmx_set_ucode_info(void)
 {
-	u32 caps;
+	u16 version_no = riscram[DMX_VERSION_NO];
 
-	switch (riscram[DMX_VERSION_NO]) {
+	switch (version_no) {
 	case 0x0013:
 	case 0x0014:
-		caps = (AVIA_GT_UCODE_CAP_ECD |
-			AVIA_GT_UCODE_CAP_PES |
-			AVIA_GT_UCODE_CAP_SEC |
-			AVIA_GT_UCODE_CAP_TS);
-		break;
+ 		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+ 			AVIA_GT_UCODE_CAP_PES |
+ 			AVIA_GT_UCODE_CAP_SEC |
+ 			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 1;
+		ucode_info.queue_mode_pes = 3;
+ 		break;
 	case 0x001a:
-		caps = (AVIA_GT_UCODE_CAP_TS);
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+			AVIA_GT_UCODE_CAP_PES |
+			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 1;
 		break;
 	case 0xb102:
 	case 0xb107:
 	case 0xb121:
-		caps = (AVIA_GT_UCODE_CAP_PES |
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_PES |
 			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 3;
 		break;
 	default:
-		caps = 0;
+		ucode_info.caps = 0;
+		if (version_no < 0xa000)
+			ucode_info.qid_offset = 1;
+		else 
+			ucode_info.qid_offset = 0;
+		ucode_info.queue_mode_pes = 3;
 		break;
 	}
+}
 
-	return caps;
+struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void)
+{
+	return &ucode_info;
 }
 
 int __init avia_gt_dmx_init(void)
@@ -2008,7 +2027,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.183 2003/08/21 23:28:28 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.184 2003/08/25 18:28:42 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2025,6 +2044,9 @@ int __init avia_gt_dmx_init(void)
 
 	if ((result = avia_gt_dmx_risc_init()))
 		return result;
+
+	/* fill ucode info struct */
+	avia_gt_dmx_set_ucode_info();
 
 	if (avia_gt_chip(ENX)) {
 		enx_reg_set(RSTR0, AVI, 0);
@@ -2178,4 +2200,4 @@ EXPORT_SYMBOL(avia_gt_dmx_queue_nr_get_bytes_free);
 EXPORT_SYMBOL(avia_gt_dmx_ecd_reset);
 EXPORT_SYMBOL(avia_gt_dmx_ecd_set_key);
 EXPORT_SYMBOL(avia_gt_dmx_ecd_set_pid);
-EXPORT_SYMBOL(avia_gt_dmx_ucode_capabilities);
+EXPORT_SYMBOL(avia_gt_dmx_get_ucode_info);

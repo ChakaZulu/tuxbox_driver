@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.184 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.185 2003/08/25 18:28:42 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -56,9 +56,6 @@ static struct dmxdev dmxdev;
 static dmx_frontend_t fe_hw;
 static dmx_frontend_t fe_mem;
 static int hw_crc = 1;
-static int hw_dmx_pes = 0;
-static int hw_dmx_sec = 0;
-static int hw_dmx_ts = 0;
 static int mode = 0;
 
 /* only used for playback */
@@ -323,8 +320,11 @@ int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct avia_gt_dmx_queue *queue;
+	struct avia_gt_ucode_info *ucode_info;
 
-	if (!hw_dmx_ts)
+	ucode_info = avia_gt_dmx_get_ucode_info();
+
+	if (!(ucode_info->caps & AVIA_GT_UCODE_CAP_TS))
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	if (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE)
@@ -358,10 +358,13 @@ int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 static
 int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 {
+	struct avia_gt_ucode_info *ucode_info;
 	struct avia_gt_dmx_queue *queue;
 	int i;
 
-	if (!hw_dmx_pes)
+	ucode_info = avia_gt_dmx_get_ucode_info();
+
+	if (!(ucode_info->caps & AVIA_GT_UCODE_CAP_PES))
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	/* use software ts to pes demux if pid is already active in ts mode */
@@ -378,7 +381,7 @@ int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 			avia_av_napi_decoder_start(dvbdmxfeed);
 
-	return avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0, 0, 0);
+	return avia_gt_dmx_queue_start(queue->index, ucode_info->queue_mode_pes, dvbdmxfeed->pid, 0, 0, 0);
 }
 
 static
@@ -386,8 +389,11 @@ int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 {
 	int filter_index;
 	struct avia_gt_dmx_queue *queue;
+	struct avia_gt_ucode_info *ucode_info;
 
-	if (!hw_dmx_sec)
+	ucode_info = avia_gt_dmx_get_ucode_info();
+
+	if (!(ucode_info->caps & AVIA_GT_UCODE_CAP_SEC))
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	/* Try to allocate hardware section filters */
@@ -694,9 +700,9 @@ static struct dvb_device avia_gt_napi_ecd_dev = {
 int __init avia_gt_napi_init(void)
 {
 	int result;
-	u32 ucode_caps;
+	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.184 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.185 2003/08/25 18:28:42 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -708,7 +714,7 @@ int __init avia_gt_napi_init(void)
 	if (!adapter)
 		return -EINVAL;
 
-	ucode_caps = avia_gt_dmx_ucode_capabilities();
+	ucode_info = avia_gt_dmx_get_ucode_info();
 
 	memset(ts_pid, 0xff, sizeof(ts_pid));
 
@@ -783,23 +789,19 @@ int __init avia_gt_napi_init(void)
 		goto init_failed_remove_frontend_notifier;
 	}
 
-	if (ucode_caps & AVIA_GT_UCODE_CAP_ECD) {
+	if (ucode_info->caps & AVIA_GT_UCODE_CAP_ECD) {
 		if ((result = dvb_register_device(adapter, &ca_dev, &avia_gt_napi_ecd_dev, NULL, DVB_DEVICE_CA)) < 0) {
 			printk(KERN_ERR "avia_gt_napi: dvb_register_device failed (errno=%d)\n", result);
 			goto init_failed_release_net;
 		}
 	}
 
-	if (ucode_caps & AVIA_GT_UCODE_CAP_PES)
-		hw_dmx_pes = 1;
+	if ((!(ucode_info->caps & AVIA_GT_UCODE_CAP_PES)) && (mode != 1)) {
+		printk(KERN_INFO "avia_gt_napi: forcing spts mode.\n");
+		mode = 1;
+	}
 
-	if (ucode_caps & AVIA_GT_UCODE_CAP_SEC)
-		hw_dmx_sec = 1;
-
-	if (ucode_caps & AVIA_GT_UCODE_CAP_TS)
-		hw_dmx_ts = 1;
-
-	if (hw_dmx_sec)
+	if (ucode_info->caps & AVIA_GT_UCODE_CAP_SEC)
 		printk(KERN_INFO "avia_gt_napi: hw section filtering enabled.\n");
 
 	return 0;

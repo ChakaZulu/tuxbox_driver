@@ -37,7 +37,10 @@
 #define AVIA_GT_DMX_SYSTEM_QUEUES		0xff	/* alias for video+audio+teletext queues */
 
 #define AVIA_GT_DMX_QUEUE_MODE_TS		0
+#define AVIA_GT_DMX_QUEUE_MODE_PRIVATE		2
+/* depends on ucode version
 #define AVIA_GT_DMX_QUEUE_MODE_PES		3
+*/
 #define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
 #define AVIA_GT_DMX_QUEUE_MODE_SEC16		5
 
@@ -45,6 +48,12 @@
 #define AVIA_GT_UCODE_CAP_PES			0x0002
 #define AVIA_GT_UCODE_CAP_SEC			0x0004
 #define AVIA_GT_UCODE_CAP_TS			0x0008
+
+struct avia_gt_ucode_info {
+	u32 caps;
+	u8 qid_offset;
+	u8 queue_mode_pes;
+};
 
 struct avia_gt_dmx_queue {
 	u8 index;
@@ -251,7 +260,7 @@ void avia_gt_dmx_ecd_reset(void);
 int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *key);
 int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid);
 
-u32 avia_gt_dmx_ucode_capabilities(void);
+struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void);
 
 int avia_gt_dmx_init(void);
 void avia_gt_dmx_exit(void);
