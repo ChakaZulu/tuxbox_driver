@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.3  2001/04/30 21:51:38  tmbinc
+ *   fixed setcolreg for eNX
+ *
  *   Revision 1.2  2001/04/22 13:56:35  tmbinc
  *   other philips- (and maybe sagem?) fixes
  *
@@ -42,7 +45,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -544,11 +547,12 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   if (regno>255)
     return 0;
   
+
+#ifdef GTX
+
   red>>=11;
   green>>=11;
   blue>>=11;
-
-#ifdef GTX
   
   transp=!!transp;
   rh(CLTA)=regno;
@@ -558,9 +562,20 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 #endif // GTX
 
 #ifdef ENX
+
+  red>>=8;
+  green>>=8;
+  blue>>=8;
+  transp>>=8;
+  
   enx_reg_h(CLUTA) = regno;
   mb();
-  enx_reg_w(CLUTD) = ((transp << 24) | (red << 16) | (green << 8) | (blue));
+  enx_reg_w(CLUTD) = ((transp << 24) | (blue << 16) | (green << 8) | (red));
+
+  red>>=3;
+  green>>=3;
+  blue>>=3;
+
 #endif // ENX
   
 #ifdef FBCON_HAS_CFB16
