@@ -52,7 +52,7 @@ EXPORT_SYMBOL(ves_write_reg);
 EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
-
+EXPORT_SYMBOL(ves_get_unc_packet);
 EXPORT_SYMBOL(ves_reset);
 EXPORT_SYMBOL(ves_read_reg);
 
@@ -386,6 +386,12 @@ void ves_get_frontend(struct frontend *front)
   if ((front->fec==8) && ((front->sync&0x1f) == 0x1f))
     front->fec=(readreg(dclient, 0x0d)>>4)&0x07;
 } 
+
+int ves_get_unc_packet(u32 *uncp)
+{
+  *uncp=0;
+  return -1;
+}
 
 static void inc_use (struct i2c_client *client)
 {
