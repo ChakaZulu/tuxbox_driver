@@ -377,6 +377,13 @@ typedef struct {
   unsigned char Reserved1: 8;
   unsigned int Addr: 24;
 
+} sENX_REG_CPCDST;
+
+typedef struct {
+
+  unsigned char Reserved1: 8;
+  unsigned int Addr: 24;
+
 } sENX_REG_CPCSRC1;
 
 typedef struct {
