@@ -3,12 +3,12 @@
 
 typedef struct {
 
-	u32 sx;	/* screen-relative */
-	u32 sy;
-	u32 width;
-	u32 height;
-	u32 dx;
-	u32 dy;
+	uint32_t sx;	/* screen-relative */
+	uint32_t sy;
+	uint32_t width;
+	uint32_t height;
+	uint32_t dx;
+	uint32_t dy;
 	
 } fb_copyarea;
 
