@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.172 2003/01/12 17:39:37 wjoost Exp $
+ * $Id: avia_gt_napi.c,v 1.173 2003/01/14 23:59:32 jolt Exp $
  * 
  * AViA GTX demux driver (dbox-II-project)
  *
@@ -67,7 +67,7 @@ static dmx_frontend_t fe_mem;
 static int hw_crc = 1;
 static int hw_dmx_ts = 1;
 static int hw_dmx_pes = 1;
-static int hw_dmx_sec = 0;
+static int hw_dmx_sec = 1;
 
 static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
@@ -213,7 +213,7 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 
 		compare_len = (section_length < DVB_DEMUX_MASK_MAX) ? section_length : DVB_DEMUX_MASK_MAX;
 		dvbdmxfilter = dvbdmxfeed->filter;
-		crc = queue->crc32(queue,section_length,0);
+		crc = queue->crc32(queue,section_length, ~0);
 		chunk1 = queue->get_buf1_size(queue);
 
 		/*
@@ -234,9 +234,12 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 
 		while (dvbdmxfilter)
 		{
-			if ( (dvbdmxfilter->feed->feed.sec.check_crc) && crc)
-			{
+			if ( (dvbdmxfilter->feed->feed.sec.check_crc) && crc) {
+			
+				dprintk("avia_gt_napi: crc invalid (0x%08X)\n", crc);
+				
 				goto next_client;
+				
 			}
 
 			/*
@@ -610,7 +613,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.172 2003/01/12 17:39:37 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.173 2003/01/14 23:59:32 jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -648,10 +651,8 @@ int __init avia_gt_napi_init(void)
 
 	}
 	
-	if ((hw_dmx_sec = avia_gt_dmx_get_hw_sec_filt_avail()))
-	{
+	if ((hw_dmx_sec) && ((hw_dmx_sec = avia_gt_dmx_get_hw_sec_filt_avail())))
 		printk(KERN_INFO "avia_gt_napi: hw section filtering enabled.\n");
-	}
 
 	if (dvb_dmx_init(&demux)) {
 

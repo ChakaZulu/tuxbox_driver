@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_accel.c,v 1.14 2003/01/14 22:37:58 jolt Exp $
+ * $Id: avia_gt_accel.c,v 1.15 2003/01/14 23:59:32 jolt Exp $
  *
  * AViA eNX/GTX accelerator driver (dbox-II-project)
  *
@@ -102,7 +102,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 
 	} else if (avia_gt_chip(GTX)) {
 
-		if (seed) {
+		if (seed != (~0)) {
 
 			gtx_reg_set(RCRC, CRC, seed ^ 0xFFFFFFFF);
 
@@ -171,7 +171,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-	printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.14 2003/01/14 22:37:58 jolt Exp $\n");
+	printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.15 2003/01/14 23:59:32 jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
