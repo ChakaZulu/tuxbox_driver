@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.4  2001/04/23 00:24:45  fnbrd
+ *   /proc/bus/dbox.sh an die sh der BusyBox angepasst.
+ *
  *   Revision 1.3  2001/04/04 17:43:58  fnbrd
  *   /proc/bus/dbox.sh implementiert.
  *
@@ -31,7 +34,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -153,7 +156,8 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
-	return sprintf(buf, "#!/bin/sh\nexport mID=%02x feID=%02x fpID=%02x enxID=%02x gtxID=%02x hwREV=%02x fpREV=%02x DEMOD=%s\n\n",
+	return sprintf(buf, "#!/bin/sh\nexport mID=%02x\nexport feID=%02x\nexport fpID=%02x\nexport enxID=%02x\nexport gtxID=%02x\nexport hwREV=%02x\nexport fpREV=%02x\nexport DEMOD=%s\n",
+//	return sprintf(buf, "#!/bin/sh\nexport mID=%02x feID=%02x fpID=%02x enxID=%02x gtxID=%02x hwREV=%02x fpREV=%02x DEMOD=%s\n\n",
 //	return sprintf(buf, "#!/bin/sh\nmID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nexport mID feID fpID enxID gtxID hwREV fpREV DEMOD\n\n",
 		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod]);
 }
