@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.6  2001/01/16 19:39:15  gillem
+ *   some new ioctls
+ *
  *   Revision 1.5  2001/01/15 19:50:08  gillem
  *   - bug fix
  *   - add test appl.
@@ -31,7 +34,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -50,7 +53,7 @@
 #include "cxa2092.h"
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] 				= {I2C_CLIENT_END};
+static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
 static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x90>>1,I2C_CLIENT_END};
 static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
@@ -77,10 +80,8 @@ static int avs_set(void);
 
 static struct file_operations avs_fops = {
 	owner:		THIS_MODULE,
-//	read:		lcd_read,
-//	write:		lcd_write,
 	ioctl:		avs_ioctl,
-	open:			avs_open,
+	open:		avs_open,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,6 +177,16 @@ int avs_set_mute( int type )
 	return avs_set();
 }
 
+int avs_set_zcd( int type )
+{
+	if ((type<0) || (type>1))
+		return -EINVAL;
+
+	avs_data[0] = (avs_data[0]&(~1)) | type;
+
+	return avs_set();
+}
+
 int avs_set_fblk( int type )
 {
 	if (type<0 || type>3)
@@ -232,9 +243,59 @@ int avs_set_asw( int sw, int type )
 	return avs_set();
 }
 
-int avs_set_logic( int type )
+int avs_set_logic( int sw, int type )
 {
-	return -EINVAL;
+	if(type<0 || type>1)
+		return -EINVAL;
+
+	avs_data[4] = (avs_data[4]&(~(1<<(sw-1)))) | type<<(sw-1);
+
+	return avs_set();
+}
+
+int avs_get_volume(void)
+{
+ return 0;
+}
+
+int avs_get_mute(void)
+{
+ return (avs_data[0]&3);
+}
+
+int avs_get_zcd(void)
+{
+ return (avs_data[0]&1);
+}
+
+int avs_get_fblk(void)
+{
+ return ((avs_data[1]&AVS_FBLK)>>6);
+}
+
+int avs_get_fnc(void)
+{
+ return ((avs_data[2]&AVS_FNC)>>6);
+}
+
+int avs_get_ycm(void)
+{
+ return ((avs_data[3]&AVS_YCM)>>7);
+}
+
+int avs_get_vsw( int sw )
+{
+ return ((avs_data[sw+1]&AVS_VSW1)>>3);
+}
+
+int avs_get_asw( int sw )
+{
+ return (avs_data[sw+1]&AVS_ASW1);
+}
+
+int avs_get_logic( int sw )
+{
+ return ((avs_data[4]>>(sw-1))&1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -361,28 +422,88 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 			/* set vol & mute */
 			case AVSIOSVOL:		return avs_set_volume(val);
 			case AVSIOSMUTE:	return avs_set_mute(val);
+			/* set video fast blanking */
+			case AVSIOSFBLK:	return avs_set_fblk(val);
+			/* set video function switch control */
+			case AVSIOSFNC:		return avs_set_fnc(val);
+			/* set output throgh vout 8 */
+			case AVSIOSYCM:		return avs_set_ycm(val);
+			/* set zero cross detector */
+			case AVSIOSZCD:		return avs_set_zcd(val);
+			/* set logic outputs */
+			case AVSIOSLOG1:	return avs_set_logic(1,val);
+			case AVSIOSLOG2:	return avs_set_logic(2,val);
+			case AVSIOSLOG3:	return avs_set_logic(3,val);
+			case AVSIOSLOG4:	return avs_set_logic(4,val);
 
-			default:					return -EINVAL;
+			default:                return -EINVAL;
 		}
 	} else
 	{
 		switch (cmd)
 		{
-			/* get video */
-			case AVSIOGVSW1:
-			case AVSIOGVSW2:
-			case AVSIOGVSW3:
-			/* get audio */
-			case AVSIOGASW1:
-			case AVSIOGASW2:
-			case AVSIOGASW3:
-			/* get vol & mute */
-			case AVSIOGVOL:
-			case AVSIOGMUTE:
-				break;
+			/* set video */
+			case AVSIOSVSW1:
+                                val = avs_get_vsw(0);
+                                break;
+			case AVSIOSVSW2:
+                                val = avs_get_vsw(1);
+                                break;
+			case AVSIOSVSW3:
+                                val = avs_get_vsw(2);
+                                break;
+			/* set audio */
+			case AVSIOSASW1:
+                                val = avs_get_asw(0);
+                                break;
+			case AVSIOSASW2:
+                                val = avs_get_asw(1);
+                                break;
+			case AVSIOSASW3:
+                                val = avs_get_asw(2);
+                                break;
+			/* set vol & mute */
+			case AVSIOSVOL:
+                                val = avs_get_volume();
+                                break;
+			case AVSIOSMUTE:
+                                val = avs_get_mute();
+                                break;
+			/* set video fast blanking */
+			case AVSIOGFBLK:
+                                val = avs_get_fblk();
+                                break;
+			/* set video function switch control */
+			case AVSIOGFNC:
+                                val = avs_get_fnc();
+                                break;
+			/* set output throgh vout 8 */
+			case AVSIOGYCM:
+                                val = avs_get_ycm();
+                                break;
+			/* set zero cross detector */
+			case AVSIOGZCD:
+                                val = avs_get_zcd();
+                                break;
+			/* set logic outputs */
+			case AVSIOGLOG1:
+                                val = avs_get_logic(1);
+                                break;
+			case AVSIOGLOG2:
+                                val = avs_get_logic(2);
+                                break;
+			case AVSIOGLOG3:
+                                val = avs_get_logic(3);
+                                break;
+			case AVSIOGLOG4:
+                                val = avs_get_logic(4);
+                                break;
 
-			default:					return -EINVAL;
+			default:
+                                return -EINVAL;
 		}
+
+        	return put_user(val,(int*)arg);
 	}
 
 	return 0;
@@ -452,7 +573,7 @@ int i2c_avs_init(void)
 	if ( 5 != i2c_master_send(&client_template, avs_data, 5))
 		return -EFAULT;
 
-//	avs_status = avs_getstatus(&client_template);
+        //avs_status = avs_getstatus(&client_template);
 
 	return 0;
 }
