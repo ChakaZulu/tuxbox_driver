@@ -37,6 +37,9 @@
  *	Based on rtc driver from Paul Gortmaker
  *
  *	$Log: rtc.c,v $
+ *	Revision 1.4  2002/01/10 18:02:21  obi
+ *	replaced CONFIG_NOKIADBOX2 by CONFIG_DBOX2 as in kernel
+ *	
  *	Revision 1.3  2001/12/16 11:32:07  gillem
  *	- more work on rtc
  *	
@@ -44,7 +47,7 @@
  *	- initial release
  *	
  *
- *	$Revision: 1.3 $
+ *	$Revision: 1.4 $
  *
  */
 
@@ -66,7 +69,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_NOKIADBOX2
+#ifdef CONFIG_DBOX2
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/time.h>
@@ -359,7 +362,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		spin_lock_irq(&rtc_lock);
 
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) ||
 		    RTC_ALWAYS_BCD)
 		{
@@ -420,7 +423,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)
 		    || RTC_ALWAYS_BCD) {
 			if (yrs > 169) {
@@ -488,7 +491,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 		rtc_freq = arg;
 		val = CMOS_READ(RTC_FREQ_SELECT) & 0xf0;
 		val |= (16 - tmp);
@@ -566,7 +569,7 @@ static int rtc_release(struct inode *inode, struct file *file)
 	unsigned char tmp;
 
 	spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	tmp = CMOS_READ(RTC_CONTROL);
 	tmp &=  ~RTC_PIE;
 	tmp &=  ~RTC_AIE;
@@ -759,7 +762,7 @@ static int rtc_proc_output (char *buf)
 	unsigned long freq;
 
 	spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	batt = CMOS_READ(RTC_VALID) & RTC_VRT;
 	ctrl = CMOS_READ(RTC_CONTROL);
 #else
@@ -853,7 +856,7 @@ static inline unsigned char rtc_is_updating(void)
 	unsigned char uip;
 
 	spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
 #else
 	uip = 0;
@@ -888,7 +891,7 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
 	 * by the RTC when initially set to a non-zero value.
 	 */
 	spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
 	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
 	rtc_tm->tm_hour = CMOS_READ(RTC_HOURS);
@@ -904,7 +907,7 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
 #endif
 	spin_unlock_irq(&rtc_lock);
 
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
 		BCD_TO_BIN(rtc_tm->tm_sec);
@@ -919,7 +922,7 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
 	 * Account for differences between how the RTC uses the values
 	 * and how they are defined in a struct rtc_time;
 	 */
-#ifdef CONFIG_NOKIADBOX2
+#ifdef CONFIG_DBOX2
 	rtc_tm->tm_year -= epoch;
 #endif
 
@@ -937,7 +940,7 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
 	 * means only tm_hour, tm_min, and tm_sec.
 	 */
 	spin_lock_irq(&rtc_lock);
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	alm_tm->tm_sec = CMOS_READ(RTC_SECONDS_ALARM);
 	alm_tm->tm_min = CMOS_READ(RTC_MINUTES_ALARM);
 	alm_tm->tm_hour = CMOS_READ(RTC_HOURS_ALARM);
@@ -949,7 +952,7 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
 #endif
 	spin_unlock_irq(&rtc_lock);
 
-#ifndef CONFIG_NOKIADBOX2
+#ifndef CONFIG_DBOX2
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
 		BCD_TO_BIN(alm_tm->tm_sec);
