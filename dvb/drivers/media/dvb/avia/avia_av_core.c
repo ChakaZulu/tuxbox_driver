@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.14  2001/04/27 19:46:59  fnbrd
+ *   Unterscheidung von enx/gtx.
+ *
  *   Revision 1.13  2001/04/21 00:32:01  TripleDES
  *   final "new resolution" fix
  *   -user fifo fix
@@ -86,7 +89,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -117,6 +120,7 @@
 
 #include "dbox/fp.h"
 #include "dbox/avia.h"
+#include "dbox/info.h"
 
 /* ---------------------------------------------------------------------- */
 
@@ -650,6 +654,7 @@ void avia_flush_pcr(void)
 
 /* ---------------------------------------------------------------------- */
 
+/*
 static int wait_audio_sequence(void)
 {
 	while(rDR(AUDIO_SEQUENCE_ID));
@@ -669,7 +674,7 @@ static int new_audio_sequence( u32 val )
 	wDR(NEW_AUDIO_SEQUENCE, 2);
 	return wait_audio_sequence();
 }
-
+*/
 /* ---------------------------------------------------------------------- */
 
 static void avia_audio_init(void)
@@ -728,6 +733,7 @@ static void avia_audio_init(void)
 void avia_set_default(void)
 {
 	u32 val;
+	struct dbox_info_struct *dinfo;
 
 	val  = 0;
 	val |= (0<<2);	// 1: tristate
@@ -767,7 +773,15 @@ void avia_set_default(void)
 	wDR(BITSTREAM_SOURCE, 0);
 
 	/* */
-	wDR(TM_MODE, 0x0a);
+	dbox_get_info_ptr(&dinfo);
+	if(dinfo->enxID==-1) {
+		wDR(TM_MODE, 0x0a); //gtx
+//		dprintk("AVIA: GTX\n");
+        }
+	else {
+		wDR(TM_MODE, 0x18); // eNX
+//		dprintk("AVIA: eNX\n");
+        }
 
 	wDR(AV_SYNC_MODE, 0x06);
 
