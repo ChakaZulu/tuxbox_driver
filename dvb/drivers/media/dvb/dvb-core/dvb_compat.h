@@ -95,7 +95,7 @@ extern struct page * vmalloc_to_page(void *addr);
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,22)
 #include <linux/tqueue.h>
 #define work_struct tq_struct
 #define INIT_WORK(wq,routine,data) INIT_TQUEUE(wq,routine,data)
