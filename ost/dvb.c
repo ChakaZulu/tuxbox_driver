@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.50 2001/10/16 19:17:28 Hunz Exp $
+ * $Id: dvb.c,v 1.51 2001/12/15 20:33:08 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -1229,7 +1229,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					int32_t snr;
 					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power==OST_POWER_ON)
+					if (dvb->front.power!=OST_POWER_ON)
 						return -ENOSIGNAL;
 					snr=dvb->front.nest;
 					if (copy_to_user(parg, &snr, sizeof(snr)))
