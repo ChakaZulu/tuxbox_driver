@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.11 2001/04/24 01:56:36 fnbrd Exp $
+    $Id: at76c651.c,v 1.12 2001/04/24 20:36:16 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,6 +33,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.12  2001/04/24 20:36:16  fnbrd
+    Kleinere Aenderungen.
+
     Revision 1.11  2001/04/24 01:56:36  fnbrd
     Koennte jetzt funktionieren.
 
@@ -65,6 +68,8 @@
 
 #include <dbox/ves.h>
 
+#define DONT_USE_IRQ // Wir brauchen die IRQ-Routine nicht
+
 static void ves_write_reg(int reg, int val) {
   return; // dummy, andere koennen/sollen mit den Registern nichts anfangen
 }
@@ -77,7 +82,8 @@ static int ves_get_unc_packet(u32 *uncp);
 static int tuner_set_freq(int freq);
 static int tuner_initialized=0;
 static int attach_adapter(struct i2c_adapter *adap);
-int detach_client(struct i2c_client *client);
+static int detach_client(struct i2c_client *client);
+static void at_restart(void);
 
 struct demod_function_struct at76c651={
 	write_reg:		ves_write_reg,
@@ -91,8 +97,10 @@ struct demod_function_struct at76c651={
 	sec_status:		0
 };
 
-#define VES_INTERRUPT		14
-static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
+#ifndef DONT_USE_IRQ
+  #define VES_INTERRUPT		14
+  static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
+#endif // DONT_USE_IRQ
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -102,7 +110,6 @@ static int debug = 9;
 #define dprintk	if (debug) printk
 
 static struct i2c_client *dclient=0;
-//static void at_write_reg(int reg, int val);
 
 // ------------------------------------ Tuner ---------------------------------------
 
@@ -110,7 +117,7 @@ static struct i2c_client *dclient=0;
 
 static int tuner_detach_client(struct i2c_client *tuner_client);
 static int tuner_attach_adapter(struct i2c_adapter *adapter);
-int set_tuner_dword(u32 tw);
+static int set_tuner_dword(u32 tw);
 static struct i2c_client *dclient_tuner=0;
 
 struct tuner_data
@@ -155,7 +162,7 @@ static int tuner_detach_client(struct i2c_client *tuner_client)
 	return 0;
 }
 
-int tuner_attach_adapter(struct i2c_adapter *adap)
+static int tuner_attach_adapter(struct i2c_adapter *adap)
 {
         struct i2c_client *client;
 
@@ -220,7 +227,7 @@ static int tuner_close(void)
 	return 0;
 }
 
-int set_tuner_dword(u32 tw)
+static int set_tuner_dword(u32 tw)
 {
 	char msg[4];
 	int len=4;
@@ -302,6 +309,7 @@ static int tuner_set_freq(int freq)
   }
   if(dw) {
     set_tuner_dword(dw);
+    at_restart(); // Und den AT neu starten
     return 0;
   }
   else
@@ -310,41 +318,7 @@ static int tuner_set_freq(int freq)
 
 //-------------------------------------------------------------------------
 
-/* VES1820:
-u8 Init1820PTab[] =
-{
-  0x49, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,               // changed by tmbinc, according to sniffed i2c-stuff. not validated at all.
-  0x43, 0x6A, 0x1A, 0x61, 0x19, 0xA1, 0x63, 0x00,
-  0xB8, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x32, 0xc8, 0x00, 0x00
-};
-*/
-
-/*
-u8 Init1820PTab[] =
-{
-  0x69, 0x6A, 0x9B, 0x0A, 0x52, 0x46, 0x26, 0x1A,
-  0x43, 0x6A, 0xAA, 0xAA, 0x1E, 0x85, 0x43, 0x28,
-  0xE0, 0x00, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x40
-};
-*/
-
-void ves_task(void*);
-
-struct tq_struct ves_tasklet=
-{
-	routine: ves_task,
-	data: 0
-};
-
-typedef struct ves1820 {
+typedef struct at76c651 {
 //        int inversion;
         u32 srate;
 	u32 ber;
@@ -352,10 +326,10 @@ typedef struct ves1820 {
 	u8 sync;
 	u32 uncp; /* uncorrectable packet */
 //        u8 reg0;
-} ves1820_t;
+} at76c651_t;
 
 
-int writereg(struct i2c_client *client, u8 reg, u8 data)
+static int writereg(struct i2c_client *client, u8 reg, u8 data)
 {
         int ret;
         u8 msg[2];
@@ -369,7 +343,7 @@ int writereg(struct i2c_client *client, u8 reg, u8 data)
         return ret;
 }
 
-u8 readreg(struct i2c_client *client, u8 reg)
+static u8 readreg(struct i2c_client *client, u8 reg)
 {
         struct i2c_adapter *adap=client->adapter;
         unsigned char mm1[1];
@@ -400,10 +374,16 @@ static void ves_tuner_i2c(int an)
   }
 }
 
-int init(struct i2c_client *client)
+// Und ein Restart
+static void at_restart(void)
+{
+	writereg(dclient, 0x07, 0x01);
+}
+
+static int init(struct i2c_client *client)
 {
 
-        struct ves1820 *ves=(struct ves1820 *) client->data;
+        struct at76c651 *ves=(struct at76c651 *) client->data;
 
         dprintk("AT76C651: init chip\n");
 
@@ -411,10 +391,8 @@ int init(struct i2c_client *client)
 	writereg(client, 0x04, 0x3f);
 	writereg(client, 0x05, 0xee);
 
-dprintk("Tuner set_dword\n");
 	set_tuner_dword(0x19628e06); // (370000)
 
-dprintk("SYMRATE\n");
 	// SYMRATE 6900000
 	writereg(client, 0x00, 0xf4);
 	writereg(client, 0x01, 0x7c);
@@ -435,14 +413,18 @@ dprintk("SYMRATE\n");
 	writereg(client, 0x30, 0x90);
 //	writereg(client, 0x30, 0x94);
 
-        // Und ein Reset
-	writereg(client, 0x07, 0x01);
+        // Und ein Restart
+	at_restart();
+//	writereg(client, 0x07, 0x01);
 
         /* mask interrupt */
 	// Moegliche Trigger: Pins LOCK1/LOCK2, singal loss, frame rate lost und per frame-timer
         // Wird auch im ves_task gemacht, um den IRQ zurueckzusetzen
+#ifndef DONT_USE_IRQ
 	writereg(client, 0x0b, 0x0c); // signal input loss und frame lost
-
+#else
+	writereg(client, 0x0b, 0x0); // keine IRQs
+#endif // DONT_USE_IRQ
 	ves->uncp = 0;
 	ves->ber=0;
 
@@ -522,7 +504,7 @@ dprintk("SYMRATE\n");
 */
 }
 
-int init0(struct i2c_client *client)
+static int init0(struct i2c_client *client)
 {
   if(tuner_initialized)
 	return init(client);
@@ -552,9 +534,9 @@ u32 expTab[] = {
 };
 */
 
-int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
+static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
 {
-        struct ves1820 *ves=(struct ves1820 *) client->data;
+        struct at76c651 *ves=(struct at76c651 *) client->data;
 #define FREF 57800000UL
 //#define FREF 69600000UL
         u32 mantisse;
@@ -594,7 +576,7 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
  	}
  	else
           exp=6;
-	dprintk("AT76C651: exp: %02x mantisse: %x\n", exp, mantisse);
+	dprintk("AT76C651: exp: %02x mantisse: %x <- someone should correct this\n", exp, mantisse);
 	dprintk("AT76C651: Not changed, fixed to 6900000 (exp 0x06, mantisse 0x1E8f80).\n");
 return 0;
         // Exponent und Mantisse Bits 0-4 setzen
@@ -608,69 +590,6 @@ return 0;
 	// Und ein reset um das Dingens richtig einzustellen
   	writereg(client, 0x07, 0x01);
   	return 0;
-
-/* VES1820:
-
-// #define XIN 57840000UL
-// #define FIN (57840000UL>>4)
-        // the dbox seems to use another crystal, 69.6 Mhz.
-//#define XIN 69600000UL
-//#define FIN (XIN>>4)
-        s32 BDR;
-        s32 BDRI;
-        s16 SFIL=0;
-        s16 NDEC = 0;
-        u32 tmp, ratio;
-
-        if (Symbolrate > XIN/2)
-                Symbolrate=XIN/2;
-        if (Symbolrate < 500000)
-                Symbolrate=500000;
-        ves->srate=Symbolrate;
-
-        if (Symbolrate < XIN/16) NDEC = 1;
-        if (Symbolrate < XIN/32) NDEC = 2;
-        if (Symbolrate < XIN/64) NDEC = 3;
-
-        if (Symbolrate < (u32)(XIN/12.3)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/16))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/14.6)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/32))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/49.2)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/64))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/98.4)) SFIL = 1;
-
-        Symbolrate<<=NDEC;
-        ratio=(Symbolrate<<4)/FIN;
-        tmp=((Symbolrate<<4)%FIN)<<8;
-        ratio=(ratio<<8)+tmp/FIN;
-        tmp=(tmp%FIN)<<8;
-        ratio=(ratio<<8)+(tmp+FIN/2)/FIN;
-
-        BDR= ratio;
-        BDRI= (((XIN<<5) / Symbolrate)+1)/2;
-
-        if (BDRI > 0xFF)
-                BDRI = 0xFF;
-
-        SFIL = (SFIL << 4) | Init1820PTab[0x0E];
-
-        NDEC = (NDEC << 6) | Init1820PTab[0x03];	// Building the Regs
-
-        writereg(client, 0x03, NDEC);
-        writereg(client, 0x0a, BDR&0xff);
-        writereg(client, 0x0b, (BDR>> 8)&0xff);
-        writereg(client, 0x0c, (BDR>>16)&0x3f);
-
-        writereg(client, 0x0d, BDRI);
-        writereg(client, 0x0e, SFIL);
-
-        SetPWM(client);
-
-        if (DoCLB) ClrBit1820(client);
-
-        return 0;
-*/
 }
 
 typedef enum QAM_TYPE
@@ -681,69 +600,48 @@ typedef enum QAM_TYPE
 	QAM_256
 } QAM_TYPE, *PQAM_TYPE;
 
-/*
-typedef struct {
-        QAM_TYPE        QAM_Mode;
-        int             NoOfSym;
-        unsigned char   Reg1;
-        unsigned char   Reg5;
-        unsigned char   Reg8;
-        unsigned char   Reg9;
-} QAM_SETTING;
-
-
-QAM_SETTING QAM_Values[] = {
-        {QAM_16 ,  16, 145, 164, 162, 145},
-        {QAM_32 ,  32, 150, 120, 116, 150},
-        {QAM_64 ,  64, 106,  70,  67, 106},
-        {QAM_128, 128, 126,  54,  52, 126},
-        {QAM_256, 256, 107,  38,  35, 107}
+static const char *qamstr[5]= {
+	"QAM 16",
+	"QAM 32",
+	"QAM 64",
+	"QAM 128",
+	"QAM 256"
 };
-*/
 
-int SetQAM(struct i2c_client* client, QAM_TYPE QAM_Mode, int DoCLB)
+static int SetQAM(struct i2c_client* client, QAM_TYPE QAM_Mode)
 {
-	u8 qamsel;
-return 0;
-dprintk("AT76C651: set QAM (not supported -> 64)\n");
-// Was ist DoCLB?
+  u8 qamsel;
+  if(QAM_Mode<0 || QAM_Mode>4) {
+    dprintk("AT76C651: set QAM unknow type: %d\n", (int)QAM_Mode);
+    return -1;
+  }
+  dprintk("AT76C651: set QAM %s\n", qamstr[QAM_Mode]);
+
+//dprintk("AT76C651: set QAM (not supported, fixed to QAM 64)\n");
+//return 0;
 
 	// Read QAMSEL
-//	qamsel=readreg(client, 0x03); 	// Nur weil ich keine Ahnung
-//	qamsel &= 0xf0;			// von der Bedeutung der 4 anderen Bits habe
-//        qamsel |= QAM_Mode+4; // 4 = QAM-16
+	qamsel=readreg(client, 0x03);
+	qamsel &= 0xf0;
+        qamsel |= QAM_Mode+4; // 4 = QAM-16
+/*
         qamsel=QAM_Mode+4; // 4 = QAM-16
-        qamsel|=1; // IF
         // coherent modulation und Maptyp DVB
+*/
         writereg(client, 0x03, qamsel);
 	// Und ein reset um das Dingens richtig einzustellen
-  	writereg(client, 0x07, 0x01);
+//  	writereg(client, 0x07, 0x01);
   	return 0;
-
-/* VES1820:
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-
-        ves->reg0=(ves->reg0 & 0xe3) | (QAM_Mode << 2);
-
-        writereg(client, 0x01, QAM_Values[QAM_Mode].Reg1);
-        writereg(client, 0x05, QAM_Values[QAM_Mode].Reg5);
-        writereg(client, 0x08, QAM_Values[QAM_Mode].Reg8);
-        writereg(client, 0x09, QAM_Values[QAM_Mode].Reg9);
-
-        if (DoCLB)
-                ClrBit1820(client);
-        return 0;
-*/
 }
 
-void inc_use (struct i2c_client *client)
+static void inc_use (struct i2c_client *client)
 {
 #ifdef MODULE
         MOD_INC_USE_COUNT;
 #endif
 }
 
-void dec_use (struct i2c_client *client)
+static void dec_use (struct i2c_client *client)
 {
 #ifdef MODULE
         MOD_DEC_USE_COUNT;
@@ -775,7 +673,18 @@ static struct i2c_client client_template = {
 };
 
 
-int attach_adapter(struct i2c_adapter *adap)
+#ifndef DONT_USE_IRQ
+
+static void ves_task(void*);
+
+struct tq_struct ves_tasklet=
+{
+	routine: ves_task,
+	data: 0
+};
+#endif // DONT_USE_IRQ
+
+static int attach_adapter(struct i2c_adapter *adap)
 {
         struct ves1893 *ves;
         struct i2c_client *client;
@@ -808,7 +717,7 @@ int attach_adapter(struct i2c_adapter *adap)
         memcpy(client, &client_template, sizeof(struct i2c_client));
         dclient=client;
 
-        client->data=ves=kmalloc(sizeof(struct ves1820),GFP_KERNEL);
+        client->data=ves=kmalloc(sizeof(struct at76c651),GFP_KERNEL);
 
         if (ves==NULL) {
                 kfree(client);
@@ -818,34 +727,26 @@ int attach_adapter(struct i2c_adapter *adap)
         printk("AT76C651: attaching AT76C651 at 0x%02x\n", (client->addr)<<1);
         i2c_attach_client(client);
 
-//        init(client);
-
         printk("AT76C651: attached to adapter %s\n", adap->name);
 
+#ifndef DONT_USE_IRQ
 	ves_tasklet.data = (void*)client->data;
-
-        /* mask interrupt */
-	// Moegliche Trigger: Pins LOCK1/LOCK2, singal loss, frame rate lost und per frame-timer
-        // Wird auch im ves_task gemacht, um den IRQ zurueckzusetzen
-//	writereg(client, 0x0b, 0x0c); // signal input loss und frame lost
-
-//dprintk("Test1\n");
-//tuner_init();      Haengt sich hier auf
+#endif // DONT_USE_IRQ
 
 	if (register_demod(&at76c651))
  		printk("at76c651.o: can't register demod.\n");
-
+#ifndef DONT_USE_IRQ
 	if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "at76c651", NULL) != 0)
 	{
 		i2c_del_driver(&dvbt_driver);
 		dprintk("AT76C651: can't request interrupt\n");
 	       return -EBUSY;
 	}
-
+#endif // DONT_USE_IRQ
   return 0;
 }
 
-int detach_client(struct i2c_client *client)
+static int detach_client(struct i2c_client *client)
 {
         printk("AT76C651: detach_client\n");
         // IRQs abschalten
@@ -858,32 +759,24 @@ int detach_client(struct i2c_client *client)
         return 0;
 }
 
-/*
-static void at_write_reg(int reg, int val)
-{
-  writereg(dclient, reg, val);
-}
-*/
-
-void ves_init(void)
+static void ves_init(void)
 {
   init0(dclient);
 }
 
-void ves_set_frontend(struct frontend *front)
+static void ves_set_frontend(struct frontend *front)
 {
 //  if (front->flags&FRONT_FREQ_CHANGED)
   dprintk("AT76C651: ves_set_frontend\n");
-//  SetQAM(dclient, front->qam, front->flags&7);
-//  SetSymbolrate(dclient, front->srate, front->flags&7);
+  SetQAM(dclient, front->qam);
+  SetSymbolrate(dclient, front->srate);
+  at_restart();
 }
 
-void ves_get_frontend(struct frontend *front)
+static void ves_get_frontend(struct frontend *front)
 {
-  ves1820_t *ves = (ves1820_t*)dclient->data;
-//  dprintk("AT76C651: ves_get_frontend\n");
-//  if(!ves)
-//    return; // Kann eigentlich nicht vorkommen
+  at76c651_t *ves = (at76c651_t*)dclient->data;
+  dprintk("AT76C651: ves_get_frontend\n");
   front->type=FRONT_DVBC;
   ves->ber=readreg(dclient, 0x83);
   ves->ber|=(readreg(dclient, 0x82)<<8);
@@ -895,14 +788,6 @@ void ves_get_frontend(struct frontend *front)
   // AGC1 Lock fuer analog AGC ist hier immer 0, daher setzen wir das mal, wenn AGC2 (digital) 1 ist
   if(front->sync&0x08)
     front->sync|=0x04;
-//  front->sync=readreg(dclient, 0x80); // Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
-//  if(front->sync>0x80)
-//    dprintk("AT76C651: ves_get_frontend: SYNC: 0x%02x\n", front->sync);
-/*
-  front->vber=readreg(dclient, 0x83);
-  front->vber|=(readreg(dclient, 0x82)<<8);
-  front->vber|=((readreg(dclient, 0x81)&0x0f)<<16);
-*/
 
 /* VES1820:
   front->type=FRONT_DVBC;
@@ -918,25 +803,24 @@ void ves_get_frontend(struct frontend *front)
 */
 }
 
-int ves_get_unc_packet(u32 *uncp)
+static int ves_get_unc_packet(u32 *uncp)
 {
-  ves1820_t *ves = (ves1820_t*)dclient->data;
+//  at76c651_t *ves = (at76c651_t*)dclient->data;
   dprintk("AT76C651: ves_get_unc_packet\n");
-  *uncp=ves->uncp;
+  *uncp=readreg(dclient, 0x85);
   return 0;
-//  *uncp=0;
-//  return -1;
 }
 
 /* ---------------------------------------------------------------------- */
 
+#ifndef DONT_USE_IRQ
 
-void ves_task(void *data)
+static void ves_task(void *data)
 {
         u8 ber2;
-	ves1820_t *ves = (ves1820_t*)data;
+	at76c651_t *ves = (at76c651_t*)data;
 
-        dprintk("AT76C651: ves_task\n");
+        dprintk("AT76C651: task (IRQ)\n");
 
         // Kein Register zur Unterscheidung der IRQ-Quelle gefunden
         // Evtl. LOCK (0x80) benutzen
@@ -958,12 +842,11 @@ void ves_task(void *data)
 	return;
 }
 
-/* ---------------------------------------------------------------------- */
-
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
 	schedule_task(&ves_tasklet);
 }
+#endif // DONT_USE_IRQ
 
 /* ---------------------------------------------------------------------- */
 
@@ -971,6 +854,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
+        dprintk("AT76C651: $Id: at76c651.c,v 1.12 2001/04/24 20:36:16 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
@@ -982,10 +866,8 @@ int init_module(void) {
                 printk("AT76C651: not found.\n");
                 return -EBUSY;
         }
-dprintk("Test1\n");
 	tuner_init();
 	tuner_initialized=1;
-dprintk("Test2\n");
 	ves_init();
 	return 0;
 }
@@ -1000,7 +882,7 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
 
-	free_irq(VES_INTERRUPT, NULL);
+//	free_irq(VES_INTERRUPT, NULL);
 
         dprintk("AT76C651: cleanup\n");
 	tuner_close();
