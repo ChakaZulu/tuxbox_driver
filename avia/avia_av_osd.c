@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.7  2001/03/06 21:49:50  gillem
+ *   - some rewrites
+ *
  *   Revision 1.6  2001/03/04 22:17:46  gillem
  *   - add read function ... avia500 multiframe not work
  *
@@ -40,7 +43,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -64,6 +67,29 @@
 #include <asm/uaccess.h>
 
 #include "dbox/avia.h"
+#include "dbox/avia_osd.h"
+
+#include <linux/devfs_fs_kernel.h>
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+/* ---------------------------------------------------------------------- */
+
+static int osd_ioctl (struct inode *inode, struct file *file,
+                         unsigned int cmd, unsigned long arg);
+static int osd_open (struct inode *inode, struct file *file);
+
+/* ---------------------------------------------------------------------- */
+
+static devfs_handle_t devfs_handle;
+
+static struct file_operations osd_fops = {
+	owner:		THIS_MODULE,
+	ioctl:		osd_ioctl,
+	open:		osd_open,
+};
 
 /* ---------------------------------------------------------------------- */
 
@@ -146,24 +172,6 @@ u32 osds,osde;
 
 /* ---------------------------------------------------------------------- */
 
-static void rgb2crycb( int r, int g, int b, int blend, u32 * pale )
-{
-	int cr,y,cb;
-
-	if(!pale)
-		return;
-
-	y  = ((257*r  + 504*g + 98*b)/1000 + 16)&0x7f;
-	cr = ((439*r  - 368*g - 71*b)/1000 + 128)&0x7f;
-	cb = ((-148*r - 291*g + 439*b)/1000 + 128)&0x7f;
-
-	*pale = (y<<16)|(cr<<9)|(cb<<2)|(blend&3);
-
-	printk("OSD DATA: %d %d %d\n",cr,y,cb);
-}
-
-/* ---------------------------------------------------------------------- */
-
 static void osd_set_font( unsigned char * font, int width, int height )
 {
 }
@@ -171,26 +179,26 @@ static void osd_set_font( unsigned char * font, int width, int height )
 /* ---------------------------------------------------------------------- */
 
 static int osd_show_frame( struct osd_frame * frame, u32 * palette, \
-						u32* bitmap, int bmsize )
+						int psize, u32* bitmap, int bmsize )
 {
     int i;
 
 	frame->odd.bmsize1 = frame->even.bmsize1 = (bmsize>>9);
 	frame->odd.bmsize2 = frame->even.bmsize2 = (bmsize&0x1ff);
 
-	frame->odd.palette = frame->even.palette = (osds+0x5000)>>2;
-	frame->odd.bmp = frame->even.bmp = (osds+0x5100)>>2;
+	frame->odd.palette = frame->even.palette = (osds+0x1000)>>2;
+	frame->odd.bmp = frame->even.bmp = (osds+0x2000)>>2;
 
 	/* copy palette */
-	for(i=0;i<16;i++)
+	for(i=0;i<psize;i++)
 	{
-		wDR( osds+0x5000+(i*4), palette[i] );
+		wDR( osds+0x1000+(i*4), palette[i] );
 	}
 
 	/* copy bitmap */
 	for(i=0;i<bmsize;i++)
 	{
-		wDR( osds+0x5100+(i*4), bitmap[i] );
+		wDR( osds+0x2000+(i*4), bitmap[i] );
 	}
 
 	return 0;
@@ -209,11 +217,19 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 	frame->odd.colstop  = frame->even.colstop  = x+w;
 
 	/* pal rulez */
-	frame->even.rowstart = 22+(y/2);
-	frame->even.rowstop  = 22+((y+h)/2);
+	frame->even.rowstart = 22+((y/2));
+	frame->even.rowstop  = 22+(((y+h)/2));
 
-	frame->odd.rowstart = 335+(y-1)/2;
-	frame->odd.rowstop  = 335+((y+h)-1)/2;
+	frame->odd.rowstart = 335+((y-2)/2);
+	frame->odd.rowstop  = 335+(((y+h)-2)/2);
+
+	printk("OSD COL/ROW: %d %d %d %d %d %d\n",
+		frame->odd.colstart,
+		frame->odd.colstop,
+		frame->even.rowstart,
+		frame->even.rowstop,
+		frame->odd.rowstart,
+		frame->odd.rowstop);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -284,7 +300,7 @@ static void osd_init_frame( struct osd_frame * frame, int framenr )
 	frame->odd.n4 = 1;
 	frame->odd.n5 = 1;
 
-	if ( framenr < 15 )
+	if ( framenr < 1 )
 	{
 		frame->even.next = (osds+(OSDH_SIZE*2*(framenr+1)))>>2;
 		frame->odd.next  = (osds+(OSDH_SIZE*2*(framenr+1))+OSDH_SIZE)>>2;
@@ -302,6 +318,41 @@ static void osd_init_frames( struct osd_frames * frames )
 		osd_init_frame(&frames->frame[i],i);
 		osd_write_frame(&frames->frame[i]);
 	}
+}
+
+/* ---------------------------------------------------------------------- */
+
+int osd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
+                  unsigned long arg)
+{
+
+	struct sosd_create_frame osdf;
+
+	switch(cmd)
+	{
+		case OSD_IOCTL_CREATE_FRAME:
+			if (copy_from_user( &osdf, (void*)arg, sizeof(sosd_create_frame)))
+				return -EFAULT;
+
+			osd_create_frame( &frames.frame[osdf.framenr], osdf.x, osdf.y, osdf.w, osdf.h, osdf.gbf, osdf.pel );
+			osd_show_frame( &frames.frame[osdf.framenr], osdf.palette, osdf.psize, osdf.bitmap, osdf.bsize );
+			osd_write_frame( &frames.frame[osdf.framenr] );
+
+			break;
+		case OSD_IOCTL_DESTROY_FRAME:
+			break;
+		default:
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int osd_open (struct inode *inode, struct file *file)
+{
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -328,28 +379,14 @@ static int init_avia_osd(void)
 
     osd_init_frames(&frames);
 
-	rgb2crycb( 100, 0, 100, 3, &pale );
-	palette[0] = pale;
-	rgb2crycb( 1000, 100, 100, 3, &pale );
-
-	/* set palette */
-	for(i=1;i<16;i++)
-	{
-		palette[i] = pale;
-	}
-
-	/* set bitmap */
-	for(i=0;i<0x1000;i++)
-	{
-		bitmap[i] = 0x11111111;
-	}
-
+/*
 	for(i=0;i<16;i++)
 	{
 		osd_create_frame( &frames.frame[i], 60+(i*22), 60+(i*22), 20, 20, 0x1f, 1 );
-		osd_show_frame( &frames.frame[i], palette, bitmap, 20*20*4/8 );
+		osd_show_frame( &frames.frame[i], palette, 16, bitmap, 20*20*4/8 );
 		osd_write_frame( &frames.frame[i] );
 	}
+*/
 
 	/* enable osd */
 	wDR(OSD_ODD_FIELD, osds+OSDH_SIZE );
@@ -364,6 +401,16 @@ static int init_avia_osd(void)
 	udelay(1000*100);
 
 	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
+
+	devfs_handle = devfs_register ( NULL, "dbox/osd0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                                  &osd_fops, NULL );
+
+	if ( ! devfs_handle )
+	{
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -384,6 +431,8 @@ void cleanup_module(void)
 {
 	wDR(OSD_EVEN_FIELD, 0 );
 	wDR(OSD_ODD_FIELD, 0 );
+
+	devfs_unregister ( devfs_handle );
 
 	return;
 }
