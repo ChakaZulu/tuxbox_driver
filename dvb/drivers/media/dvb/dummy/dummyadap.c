@@ -1,5 +1,5 @@
 /*
- * $Id: dummyadap.c,v 1.3 2002/10/29 21:19:10 Jolt Exp $
+ * $Id: dummyadap.c,v 1.4 2002/10/30 18:22:29 Jolt Exp $
  *
  * Dummy Adapter Driver 
  *
@@ -56,14 +56,14 @@ static int dummyadap_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msg
 static void dummyadap_before_after_tune(fe_status_t fe_status, void *data)
 {
 
-	printk("dummyadap: before_after_tune\n");
+//	printk("dummyadap: before_after_tune\n");
 
 }
 
 static int dummyadap_after_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
 
-	printk("dummyadap: after_ioctl\n");
+//	printk("dummyadap: after_ioctl\n");
 
 	return 0;
 
@@ -72,7 +72,7 @@ static int dummyadap_after_ioctl(struct dvb_frontend *fe, unsigned int cmd, void
 static int dummyadap_before_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
 
-	printk("dummyadap: before_ioctl\n");
+//	printk("dummyadap: before_ioctl\n");
 
 	// Returning 0 will skip the fe ioctl
 	return -ENODEV;
@@ -82,6 +82,8 @@ static int dummyadap_before_ioctl(struct dvb_frontend *fe, unsigned int cmd, voi
 static int dummyadap_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, u8 *buf, size_t count)
 {
 
+	printk("dummyadap: write_to_decoder\n");
+
 	return 0;
 
 }
@@ -89,12 +91,80 @@ static int dummyadap_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, u8 *buf
 static int dummyadap_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 
+	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
+
+	printk("dummyadap: start_feed\n");
+	
+	if (!dvbdmx->dmx.frontend)
+		return -EINVAL;
+
+	printk("  pid: 0x%04X\n", dvbdmxfeed->pid);
+		
+	switch(dvbdmxfeed->type) {
+	
+		case DMX_TYPE_TS:
+			printk("  type: DMX_TYPE_TS\n");
+			break;
+			
+		case DMX_TYPE_SEC:
+			printk("  type: DMX_TYPE_SEC\n");
+			break;
+			
+		default:
+			printk("  type: unknown (%d)\n", dvbdmxfeed->type);
+			return -EINVAL;
+
+	}
+	
+	printk("  ts_type:");
+
+	if (dvbdmxfeed->ts_type & TS_DECODER)
+		printk(" TS_DECODER");
+	
+	if (dvbdmxfeed->ts_type & TS_PACKET)
+		printk(" TS_PACKET");
+
+	if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
+		printk(" TS_PAYLOAD_ONLY");
+		
+	printk("\n");
+	
+	switch(dvbdmxfeed->pes_type) {
+	
+		case DMX_TS_PES_VIDEO:
+			printk("  pes_type: DMX_TS_PES_VIDEO\n");
+			break;
+			
+		case DMX_TS_PES_AUDIO:
+			printk("  pes_type: DMX_TS_PES_AUDIO\n");
+			break;
+			
+		case DMX_TS_PES_TELETEXT:
+			printk("  pes_type: DMX_TS_PES_TELETEXT\n");
+			break;
+			
+		case DMX_TS_PES_PCR:
+			printk("  pes_type: DMX_TS_PES_PCR\n");
+			break;
+			
+		case DMX_TS_PES_OTHER:
+			printk("  pes_type: DMX_TS_PES_OTHER\n");
+			break;
+			
+		default:
+			printk("  pes_type: unknown (%d)\n", dvbdmxfeed->pes_type);
+			return -EINVAL;
+
+	}
+	
 	return 0;
 
 }
 
 static int dummyadap_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
+
+	printk("dummyadap: stop_feed\n");
 
 	return 0;
 
@@ -105,7 +175,7 @@ static int __init dummyadap_init(void)
 
 	int result;
 
-	printk("$Id: dummyadap.c,v 1.3 2002/10/29 21:19:10 Jolt Exp $\n");
+	printk("$Id: dummyadap.c,v 1.4 2002/10/30 18:22:29 Jolt Exp $\n");
 
 	if ((result = dvb_register_adapter(&adap, "dummy adapter")) < 0) {
 	
@@ -118,6 +188,8 @@ static int __init dummyadap_init(void)
 	if (!(i2c_bus = dvb_register_i2c_bus(dummyadap_i2c_master_xfer, NULL, adap, 0))) {
 
 		printk("dummyadap: dvb_register_i2c_bus failed\n");
+
+		dvb_unregister_adapter(adap);
 	
 		return -ENOMEM;
 	
@@ -141,6 +213,7 @@ static int __init dummyadap_init(void)
 	
 		printk("dummyadap: dvb_dmx_init failed (errno = %d)\n", result);
 
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -157,6 +230,7 @@ static int __init dummyadap_init(void)
 		printk("dummyadap: dvb_dmxdev_init failed (errno = %d)\n", result);
 
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -174,6 +248,7 @@ static int __init dummyadap_init(void)
 
 		dvb_dmxdev_release(&dmxdev);
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -192,6 +267,7 @@ static int __init dummyadap_init(void)
 		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 		dvb_dmxdev_release(&dmxdev);
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -206,13 +282,13 @@ static int __init dummyadap_init(void)
 		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 		dvb_dmxdev_release(&dmxdev);
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
 		
 	}
 
-/*
 	if ((result = dvb_add_frontend_notifier(adap, dummyadap_before_after_tune, NULL)) < 0) {
 	
 		printk("dummyadap: dvb_add_frontend_notifier failed (errno = %d)\n", result);
@@ -222,6 +298,7 @@ static int __init dummyadap_init(void)
 		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 		dvb_dmxdev_release(&dmxdev);
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -238,12 +315,13 @@ static int __init dummyadap_init(void)
 		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 		dvb_dmxdev_release(&dmxdev);
 		dvb_dmx_release(&demux);
+		dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
 		
 	}
-*/
+
 
 //FIXME	dvb_net_register();
 
@@ -256,13 +334,14 @@ static void __exit dummyadap_exit(void)
 
 //FIXME	dvb_net_release(&net);
 
-//FIXME	dvb_remove_frontend_ioctls(adap, dummyadap_before_ioctl, dummyadap_after_ioctl);
-//FIXME	dvb_remove_frontend_notifier(adap, dummyadap_before_after_tune);
+	dvb_remove_frontend_ioctls(adap, dummyadap_before_ioctl, dummyadap_after_ioctl);
+	dvb_remove_frontend_notifier(adap, dummyadap_before_after_tune);
 	demux.dmx.close(&demux.dmx);
 	demux.dmx.remove_frontend(&demux.dmx, &fe_mem);
 	demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
 	dvb_dmxdev_release(&dmxdev);
 	dvb_dmx_release(&demux);
+	dvb_unregister_i2c_bus(dummyadap_i2c_master_xfer, adap, 0);
 	dvb_unregister_adapter(adap);
 
 }
