@@ -112,19 +112,18 @@ gtx_validate_color (GTXDriverData *gdrv,
                                                               state->color.b));
           break;
         case DSPF_ARGB1555:
-          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
-			  (state->color.a << 24) |
-			  (state->color.r << 16) |
-			  (state->color.g << 8) |
-			  state->color.b);
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_ARGB1555(state->color.a,
+								state->color.r,
+								state->color.g,
+								state->color.b));
           break;
         case DSPF_RGB16:
 	  BUG("DSPF_RGB16");
-          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
+/*          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
 			  (state->color.r << 16) |
 		          (state->color.g << 8) |
 			  state->color.b);
-          break;
+*/          break;
 	case DSPF_RGB32:
 	  BUG("DSPF_RGB32 not implemented");
 	  break;
@@ -151,8 +150,8 @@ gtx_validate_dst (GTXDeviceData *gdev, CardState *state)
     return;
 
   gdev->pixelwidth = DFB_BYTES_PER_PIXEL (dest->format);
-  gdev->dst_offset = dest->front_buffer->video.offset;
-  gdev->dst_pitch  = dest->front_buffer->video.pitch;
+  gdev->dst_offset = dest->back_buffer->video.offset;
+  gdev->dst_pitch  = dest->back_buffer->video.pitch;
 
   gdev->v_dst = 1;
 }
@@ -165,8 +164,8 @@ gtx_validate_src (GTXDeviceData *gdev, CardState *state)
   if (gdev->v_src)
     return;
 
-  gdev->src_offset = source->front_buffer->video.offset;
-  gdev->src_pitch  = source->front_buffer->video.pitch;
+  gdev->src_offset = source->back_buffer->video.offset;
+  gdev->src_pitch  = source->back_buffer->video.pitch;
 
   gdev->v_src = 1;
 }
@@ -268,19 +267,19 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
 
   int   pw     = gdev->pixelwidth;
   int   pitch  = gdev->dst_pitch;
-  int   width  = rect->w * pw;
+  int   width  = rect->w;
   int   height = rect->h;
-  __u32 data   = pw == 2 ? 0x55555555UL : 0xFFFFFFFFUL;
+  __u32 data   = 0xFFFFFFFFUL;
   __u32 addr   = gdev->mem_offset + gdev->dst_offset + rect->x * pw + rect->y * pitch;
 
   if (gtx) {
-  
     gtx_out16 (mmio, GTX_BPO, 0x8000); /* Set Mode */
+    if (pw==2) data = 0x55555555UL;
+    width *= pw;
 
     while (height--)
       {
         int w,i;
-
         gtx_out32 (mmio, GTX_BDST, addr); /* Set destination address */
 
         /* If the rectangle is greater than 240 pixels wide, break it up
@@ -306,22 +305,28 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
 
         /* Flush the blitter internal registers by writing 16 masked pixels */
         gtx_out16 (mmio, GTX_BMR, 0);
+        gtx_out16 (mmio, GTX_BDR, 0);
 
         addr += pitch; /* Do next scanline */
     }
   }
   else if (enx) {
 
-    gtx_out16 (mmio, ENX_BPO, 0x00000); /* Set Mode */
+#define BMODE_SIXTEEN_BIT (1<<3)
+
+	gtx_out16 (mmio, ENX_BMODE, 0x00000 | (pw>=2?BMODE_SIXTEEN_BIT:0)); /* Set Mode */
+	if (pw==4){
+		width*=2;	// NB: 32-Bit not supported yet
+		data=0x55555555UL;
+	}
+	gtx_out32 (mmio, ENX_BDST, addr); /* Set destination address */
 
     while (height--)
       {
         int w,i;
 
-	gtx_out32 (mmio, ENX_BDST, addr); /* Set destination address */
-
-	/* If the rectangle is greater than 240 pixels wide, break it up
-         * into a series of 240-pixel wide blits
+	/* If the rectangle is greater than 1023 pixels wide, break it up
+         * into a series of 1023-pixel wide blits
          */
         for (w = width; w > 0x3ff; w -= 0x3ff)
           {
@@ -341,10 +346,10 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
           gtx_out32 (mmio, ENX_BDR, data);
         }
 
-        /* Flush the blitter internal registers by writing 16 masked pixels */
-        gtx_out32 (mmio, ENX_BMR, 0);
-
+        /* Flush the remaining pixels to DRAM by writing the next address here */
         addr += pitch; /* Do next scanline */
+	gtx_out32 (mmio, ENX_BDST, addr);
+
     }
   }
 
