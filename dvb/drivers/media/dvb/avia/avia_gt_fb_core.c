@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.35  2002/08/11 13:07:34  waldi
+ *   color 0 is transparent if
+ *   - console in text mode
+ *   - enabled
+ *
  *   Revision 1.34  2002/08/11 11:33:24  TheDOC
  *   whoever did this crap, shame on you! 4 and 8 bit-modes are fixed now, 16 bit needs to be fixed, can't test this right now...
  *
@@ -149,7 +154,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.34 $
+ *   $Revision: 1.35 $
  *
  */
 
@@ -186,11 +191,19 @@
 #include "dbox/fb.h"
 #include "dbox/avia_gt.h"
 #include "dbox/avia_gt_gv.h"
+#include <linux/kd.h>
+#include <linux/vt_kern.h>
 
 #define RES_X	   720
 #define RES_Y	   576
 
 static sAviaGtInfo *gt_info;
+
+#ifdef MODULE
+MODULE_PARM(console_transparent, "i");
+#endif
+
+static int console_transparent = 0;
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */	       // TODO: NTSC
@@ -461,22 +474,30 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue, u_i
 
 static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int transp, struct fb_info *info)
 {
+	unsigned short vc_text = 0;
 
 	if (regno > 255)
 		return 1;
 
-	//printk ("avia_gt_fb: gtx_setcolreg: bpp: %d, regno: %d, red %x, green %x, blue %x, trans %x\n", current_par.bpp, regno, red, green, blue, transp);
+	if (info->display_fg)
+		vc_text = (vt_cons[info->display_fg->vc_num]->vc_mode == KD_TEXT);
 
 	switch (current_par.bpp) {
 #ifdef FBCON_HAS_CFB4
 		case 4:
-			avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			if (regno == 0 && console_transparent && vc_text)
+				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
+			else
+				avia_gt_gv_set_clut(regno, transp, red, green, blue);
 			break;
 #endif
 
 #ifdef FBCON_HAS_CFB8
 		case 8:
-			avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			if (regno == 0 && console_transparent && vc_text)
+				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
+			else
+				avia_gt_gv_set_clut(regno, transp, red, green, blue);
 			break;
 #endif
 
@@ -487,7 +508,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int 
 			blue >>= 11;
 			transp >>= 15;
 
-			if (!regno) // WHY?!?!??!?!?!?!? TELL ME!!!!!!!!!!!!!
+			if (regno == 0 && console_transparent && vc_text)
 				fbcon_cfb16_cmap[0] = 0xfc0f;
 			if (regno < 16)
 				fbcon_cfb16_cmap[regno] = (transp << 15) | (red << 10) | (green << 5) | (blue);
@@ -611,7 +632,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.34 2002/08/11 11:33:24 TheDOC Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.35 2002/08/11 13:07:34 waldi Exp $\n");
 
     gt_info = avia_gt_get_info();
 
