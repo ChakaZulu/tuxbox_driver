@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dvr.h,v 1.2 2003/04/12 11:08:50 alexw Exp $
+ * $Id: avia_gt_dvr.h,v 1.3 2003/04/12 17:02:12 obi Exp $
  *
  * (C) 2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -19,15 +19,12 @@
  *
  */
 
-#ifndef AVIA_GT_DVR_H
-#define AVIA_GT_DVR_H
+#ifndef _AVIA_GT_DVR_H
+#define _AVIA_GT_DVR_H
 
 void avia_gt_dvr_queue_irq(struct avia_gt_dmx_queue *queue, void *priv_data);
 ssize_t avia_gt_dvr_write(const char *buf, size_t count);
 void avia_gt_dvr_enable(void);
 void avia_gt_dvr_disable(void);
 
-extern int avia_gt_dvr_module_init(void);
-extern void avia_gt_dvr_module_exit(void);
-	    
 #endif
