@@ -39,7 +39,7 @@
 #include <linux/devfs_fs_kernel.h>
 
 #include <dbox/avia_gt_ir.h>
-#include "lirc.h"
+#include <dbox/lirc.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -63,31 +63,31 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 	int result;
 
 	switch(cmd) {
-	
+
 		case LIRC_GET_FEATURES:
 
 			result = put_user(/*LIRC_CAN_REC_MODE2 |*/ LIRC_CAN_SEND_PULSE | LIRC_CAN_SET_SEND_CARRIER | LIRC_CAN_SET_SEND_DUTY_CYCLE, (unsigned long *)arg);
-			
+
 			if (result)
-				return result; 
-				
+				return result;
+
 		break;
-		
+
 /*		case LIRC_GET_REC_MODE:
-		
+
 			result = put_user(LIRC_MODE_MODE2, (unsigned long *)arg);
 
 			if (result)
-				return result; 
+				return result;
 
 		break;*/
 
 		case LIRC_GET_SEND_MODE:
-		
+
 			result = put_user(LIRC_MODE_PULSE, (unsigned long *)arg);
 
 			if (result)
-				return result; 
+				return result;
 
 		break;
 
@@ -97,12 +97,12 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 
 			if (result)
 				return result;
-				
+
 			if (value != LIRC_MODE_MODE2)
 				return -EINVAL;
 
 		break;*/
-		
+
 		case LIRC_SET_SEND_CARRIER:
 
 			result = get_user(value, (unsigned long *)arg);
@@ -110,39 +110,39 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 			if (result)
 				return result;
 
-			avia_gt_ir_set_frequency(value);				
-				
+			avia_gt_ir_set_frequency(value);
+
 		break;
-		
+
 		case LIRC_SET_SEND_DUTY_CYCLE:
 
 			result = get_user(value, (unsigned long *)arg);
 
 			if (result)
 				return result;
-				
+
 			avia_gt_ir_set_duty_cycle(value);
 
 		break;
-		
+
 		case LIRC_SET_SEND_MODE:
 
 			result = get_user(value, (unsigned long *)arg);
 
 			if (result)
 				return result;
-				
+
 			if (value != LIRC_MODE_PULSE)
 				return -EINVAL;
 
 		break;
-		
+
 		default:
 
 			return -ENOIOCTLCMD;
-			
+
 		break;
-			
+
 	}
 
 	return 0;
@@ -171,14 +171,14 @@ static ssize_t avia_gt_lirc_write(struct file *file, const char *buf, size_t cou
 
 	if (copy_from_user(pulse_buffer, buf, count))
 		return -EFAULT;
-	
+
 	pulse_count = count / sizeof(lirc_t);
 
 	for (pulse_nr = 0; pulse_nr < pulse_count; pulse_nr += 2) {
-	
+
 		if ((result = avia_gt_ir_queue_pulse(pulse_buffer[pulse_nr], pulse_buffer[pulse_nr + 1], !(file->f_flags & O_NONBLOCK))))
 			return result;
-			
+
 	}
 
 	return avia_gt_ir_send_buffer(!(file->f_flags & O_NONBLOCK));
@@ -197,7 +197,7 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.1 2002/05/11 20:23:22 Jolt Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.2 2002/05/11 21:09:26 obi Exp $\n");
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 
@@ -209,7 +209,7 @@ static int __init avia_gt_lirc_init(void)
 
 	}
 
-	avia_gt_ir_set_frequency(38000);				
+	avia_gt_ir_set_frequency(38000);
 	avia_gt_ir_set_duty_cycle(33);
 
 	return 0;
