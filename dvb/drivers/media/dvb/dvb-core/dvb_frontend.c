@@ -300,8 +300,6 @@ int dvb_frontend_set_parameters (struct dvb_frontend_data *fe,
 	struct dvb_frontend *frontend = &fe->frontend;
 	int err;
 
-	dvb_bend_frequency (fe, 0);
-
 	if (first_trial) {
 		fe->timeout_count = 0;
 		fe->lost_sync_count = 0;
@@ -312,6 +310,8 @@ int dvb_frontend_set_parameters (struct dvb_frontend_data *fe,
 		memcpy (&fe->parameters, param,
 			sizeof (struct dvb_frontend_parameters));
 	}
+
+	dvb_bend_frequency (fe, 0);
 
 	dprintk ("%s: f == %i, drift == %i\n",
 		 __FUNCTION__, param->frequency, fe->lnb_drift);
@@ -417,7 +417,7 @@ int dvb_frontend_is_exiting (struct dvb_frontend_data *fe)
 	if (fe->exit)
 		return 1;
 
-	if (fe->dvbdev->users == 1)
+	if (fe->dvbdev->writers == 1)
 		if (jiffies - fe->release_jiffies > dvb_shutdown_timeout * HZ)
 			return 1;
 
@@ -589,9 +589,6 @@ unsigned int dvb_frontend_poll (struct file *file, struct poll_table_struct *wai
 	struct dvb_frontend_data *fe = dvbdev->priv;
 
 	dprintk ("%s\n", __FUNCTION__);
-
-	if (fe->events.eventw != fe->events.eventr)
-		return (POLLIN | POLLRDNORM | POLLPRI);
 
 	poll_wait (file, &fe->events.wait_queue, wait);
 

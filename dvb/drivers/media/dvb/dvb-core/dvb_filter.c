@@ -1,5 +1,4 @@
 #include <linux/module.h>
-#include <linux/videodev.h>
 #include "dvb_filter.h"
 
 unsigned int bitrates[3][16] =

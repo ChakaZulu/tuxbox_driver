@@ -24,9 +24,9 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/poll.h>
-#include <linux/videodev.h>
 #include <asm/uaccess.h>
 
+#include "compat.h"
 #include "dmxdev.h"
 
 
@@ -986,47 +986,42 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 static int dvb_demux_ioctl(struct inode *inode, struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, dvb_demux_do_ioctl);
+	return dvb_usercopy(inode, file, cmd, arg, dvb_demux_do_ioctl);
 }
 
 
-static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
+static
+unsigned int dvb_demux_poll (struct file *file, poll_table *wait)
 {
-	dmxdev_filter_t *dmxdevfilter=dvb_dmxdev_file_to_filter(file);
+	dmxdev_filter_t *dmxdevfilter = dvb_dmxdev_file_to_filter(file);
+	unsigned int mask = 0;
 
 	if (!dmxdevfilter)
 		return -EINVAL;
 
-	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
-		return 0;
-
-	if (dmxdevfilter->buffer.error)
-		return (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
-
-	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-		return (POLLIN | POLLRDNORM | POLLPRI);
-
-	if (dmxdevfilter->state!=DMXDEV_STATE_GO)
-		return 0;
-
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
-		
-	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
+
+	if (dmxdevfilter->state != DMXDEV_STATE_GO)
+		return 0;
+
+	if (dmxdevfilter->state == DMXDEV_STATE_FREE)
 		return 0;
 
 	if (dmxdevfilter->buffer.error)
-		return (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
+		mask |= (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
-	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-		return (POLLIN | POLLRDNORM | POLLPRI);
+	if (dmxdevfilter->buffer.pread != dmxdevfilter->buffer.pwrite)
+		mask |= (POLLIN | POLLRDNORM | POLLPRI);
 
-	return 0;
+	return mask;
 }
 
-static int dvb_demux_release(struct inode *inode, struct file *file)
+
+static
+int dvb_demux_release(struct inode *inode, struct file *file)
 {
-	dmxdev_filter_t *dmxdevfilter=dvb_dmxdev_file_to_filter(file);
-	dmxdev_t *dmxdev=dmxdevfilter->dev;
+	dmxdev_filter_t *dmxdevfilter = dvb_dmxdev_file_to_filter(file);
+	dmxdev_t *dmxdev = dmxdevfilter->dev;
 
 	return dvb_dmxdev_filter_free(dmxdev, dmxdevfilter);
 }
@@ -1074,45 +1069,43 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 static int dvb_dvr_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, dvb_dvr_do_ioctl);
+	return dvb_usercopy(inode, file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
 
-static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
+static
+unsigned int dvb_dvr_poll (struct file *file, poll_table *wait)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	dmxdev_t *dmxdev=(dmxdev_t *) dvbdev->priv;
+	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
+	dmxdev_t *dmxdev = (dmxdev_t *) dvbdev->priv;
+	unsigned int mask = 0;
 
 	dprintk ("function : %s\n", __FUNCTION__);
 
-	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
+	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
+
+	if ((file->f_flags&O_ACCMODE) == O_RDONLY) {
 		if (dmxdev->dvr_buffer.error)
-			return (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
+			mask |= (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
 		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-			return (POLLIN | POLLRDNORM | POLLPRI);
-		
-		poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
-		
-		if (dmxdev->dvr_buffer.error)
-			return (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
-
-		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-			return (POLLIN | POLLRDNORM | POLLPRI);
-		
-		return 0;
+			mask |= (POLLIN | POLLRDNORM | POLLPRI);
 	} else 
-		return (POLLOUT | POLLWRNORM | POLLPRI);
+		mask |= (POLLOUT | POLLWRNORM | POLLPRI);
+
+	return mask;
 }
 
-static struct file_operations dvb_dvr_fops = {
+
+static
+struct file_operations dvb_dvr_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dvb_dvr_read,
 	.write		= dvb_dvr_write,
 	.ioctl		= dvb_dvr_ioctl,
 	.open		= dvb_dvr_open,
 	.release	= dvb_dvr_release,
-	.poll		=dvb_dvr_poll,
+	.poll		= dvb_dvr_poll,
 };
 
 static struct dvb_device dvbdev_dvr = {
