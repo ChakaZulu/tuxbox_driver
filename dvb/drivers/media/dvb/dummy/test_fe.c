@@ -95,7 +95,7 @@ int FEDumpInfo(struct dvb_frontend_info *info)
 int FEDumpSignalStrength(int fd)
 { 
 
-	signed int sig_str;
+	unsigned short sig_str;
 	int result; 
 	
 	if ((result = ioctl(fd, FE_READ_SIGNAL_STRENGTH, &sig_str) < 0)) { 
@@ -115,7 +115,7 @@ int FEDumpSignalStrength(int fd)
 int FEDumpSNR(int fd)
 { 
 
-	signed int snr;
+	unsigned short snr;
 	int result; 
 	
 	if ((result = ioctl(fd, FE_READ_BER, &snr) < 0)) { 
