@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.35 2002/10/21 11:38:59 obi Exp $
+   $Id: ves1820.c,v 1.36 2002/10/21 18:43:16 Jolt Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 
 #include <dbox/dvb_frontend.h>
-#include <dbox/fp.h>
 
 
 static int debug = 0;
@@ -166,9 +165,28 @@ u8 ves1820_readreg (struct i2c_client *i2c, u8 reg)
         return b1[0];
 }
 
+static
+int tuner_write (struct i2c_client *i2c, u8 *buf, u8 len)
+{
+	u8 msg_buf [len + 3];
+	struct i2c_msg msg = { addr: 0x60 >> 1, flags: 0, buf: msg_buf, len: len + 3};
+
+	msg_buf[0] = 0x00;
+	msg_buf[1] = 0x07;
+	msg_buf[2] = 0xc0;
+
+	memcpy(msg_buf + 3, buf, len);
+
+	len += 3;
+
+	if (i2c_transfer(i2c->adapter, &msg, 1) != len)
+		return -1;
+
+	return 0;
+}
 
 static
-int tuner_set_tv_freq (u32 freq)
+int tuner_set_tv_freq (struct i2c_client *i2c, u32 freq)
 {
         u32 div = (freq + 36125) / 125;
 
@@ -176,7 +194,7 @@ int tuner_set_tv_freq (u32 freq)
                         0x80 | (((div >> 15) & 0x03) << 6) | 0x04,
                         div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01 };
 
-        return dbox2_fp_tuner_write(buf, sizeof(buf));
+        return tuner_write(i2c, buf, sizeof(buf));
 }
 
 
@@ -471,7 +489,7 @@ static int ves1820_ioctl (struct i2c_client *i2c, unsigned int cmd, void *arg)
                 return ves1820_reset (i2c);
 
         case FE_SETFREQ:
-                return tuner_set_tv_freq (*(u32*)arg);
+                return tuner_set_tv_freq (i2c, *(u32*)arg);
 
 	case FE_SET_INVERSION:
 		return ves1820_setup_reg0 (i2c, (GET_REG0(i2c) >> 2) & 0x07, (SpectralInversion) arg);
@@ -592,7 +610,7 @@ int __init init_ves1820(void)
 {
         int res;
 
-	printk("$Id: ves1820.c,v 1.35 2002/10/21 11:38:59 obi Exp $\n");
+	printk("$Id: ves1820.c,v 1.36 2002/10/21 18:43:16 Jolt Exp $\n");
 
         if ((res = i2c_add_driver(&ves1820_i2c_driver)))
         {
