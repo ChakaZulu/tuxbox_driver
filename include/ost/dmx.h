@@ -1,4 +1,4 @@
-/* 
+/*
  * dmx.h
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
@@ -58,9 +58,10 @@ typedef enum
 	DMX_OUT_DECODER, /* Streaming directly to decoder. */
 	DMX_OUT_TAP,     /* Output going to a memory buffer */
 	                 /* (to be retrieved via the read command).*/
-	DMX_OUT_TS_TAP   /* Output multiplexed into a new TS  */
+	DMX_OUT_TS_TAP,  /* Output multiplexed into a new TS  */
 	                 /* (to be retrieved by reading from the */
 	                 /* logical DVR device).                 */
+	DMX_OUT_NET	 /* send data over network */
 } dmxOutput_t;
 
 typedef enum
@@ -145,6 +146,8 @@ struct dmxPesFilterParams
 	dmxInput_t                   input;
 	dmxOutput_t                  output;
 	uint32_t                     flags;
+	uint32_t                     ip;
+	uint16_t                     port;
 };
 
 

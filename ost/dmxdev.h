@@ -101,6 +101,9 @@ typedef struct dmxdev_filter_s {
         uint8_t secheader[3];
 
         u16 pid;
+
+	// for sending over network
+	struct socket *s;
 } dmxdev_filter_t;
 
 

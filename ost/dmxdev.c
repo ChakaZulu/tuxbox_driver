@@ -24,6 +24,9 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/net.h>
+#include <linux/in.h>
+#include <linux/string.h>
 #include <asm/uaccess.h>
 
 #include <mtdriver/ostErrors.h>
@@ -475,6 +478,7 @@ DmxDevFilterAlloc(dmxdev_t *dmxdev, struct file *file)
 	dmxdevfilter->type=0;
 	DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	dmxdevfilter->feed.ts=0;
+	dmxdevfilter->s = NULL;
 	init_timer(&dmxdevfilter->timer);
 
 	up(&dmxdev->mutex);
@@ -502,6 +506,10 @@ DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 		dmxdevfilter->buffer.data=0;
 		spin_unlock_irq(&dmxdev->lock);
 		vfree(mem);
+	}
+	if (dmxdevfilter->s) {
+		sock_release(dmxdevfilter->s);
+		dmxdevfilter->s = NULL;
 	}
 	DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_FREE);
 	wake_up(&dmxdevfilter->buffer.queue);
@@ -624,6 +632,7 @@ DmxDevInit(dmxdev_t *dmxdev)
 	for (i=0; i<dmxdev->filternum; i++) {
 		dmxdev->filter[i].dev=dmxdev;
 		dmxdev->filter[i].buffer.data=0;
+		dmxdev->filter[i].s = NULL;
 		DmxDevFilterStateSet(&dmxdev->filter[i], DMXDEV_STATE_FREE);
 		dmxdev->dvr[i].dev=dmxdev;
 		dmxdev->dvr[i].buffer.data=0;
@@ -646,6 +655,61 @@ DmxDevRelease(dmxdev_t *dmxdev)
 	MOD_DEC_USE_COUNT;
 }
 
+static void
+DmxNetSend(__u8 *b1, size_t l_b1, __u8 *b2, size_t l_b2,struct socket *s)
+{
+	unsigned len;
+	struct msghdr msg;
+	struct iovec iov[2];
+
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags = MSG_DONTWAIT|MSG_NOSIGNAL;
+
+	iov->iov_base = b1;
+	iov->iov_len = 1472;
+	while (l_b1 >= 1472)
+	{
+		sock_sendmsg(s,&msg,1472);
+		l_b1 -= 1472;
+		(__u8 *) iov->iov_base += 1472;
+	}
+	if ( (l_b1 > 0) && (l_b2 == 0) )
+	{
+		iov->iov_len = l_b1;
+		sock_sendmsg(s,&msg,l_b1);
+		return;
+	}
+	if (l_b1 > 0) {
+		iov->iov_len = l_b1;
+		msg.msg_iovlen = 2;
+		if ( (len = l_b1 + l_b2) > 1472) {
+			len = 1472;
+		}
+		iov[1].iov_base = b2;
+		iov[1].iov_len = len - l_b1;
+		sock_sendmsg(s,&msg,len);
+		iov->iov_base = b2 + len - l_b1;
+		l_b2 -= len - l_b1;
+		msg.msg_iovlen = 1;
+	}
+	else
+	{
+		iov->iov_base = b2;
+	}
+	while (l_b2 > 0)
+	{
+		iov->iov_len = (l_b2 > 1472) ? 1472 : l_b2;
+		sock_sendmsg(s,&msg,iov->iov_len);
+		l_b2 -= iov->iov_len;
+		(__u8 *) iov->iov_base += iov->iov_len;
+	}
+}
+
 static int
 DmxDevTSCallback(__u8 *buffer1, size_t buffer1_len,
 		 __u8 *buffer2, size_t buffer2_len,
@@ -658,6 +722,11 @@ DmxDevTSCallback(__u8 *buffer1, size_t buffer1_len,
 
 	if (dmxdevfilter->params.pes.output==DMX_OUT_DECODER)
 		return 0;
+
+	if (dmxdevfilter->params.pes.output==DMX_OUT_NET) {
+		DmxNetSend(buffer1,buffer1_len,buffer2,buffer2_len,dmxdevfilter->s);
+		return 0;
+	}
 
 	if (dmxdevfilter->params.pes.output==DMX_OUT_TAP)
 		buffer=&dmxdevfilter->buffer;
@@ -682,11 +751,12 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 		   dmxdev_filter_t *dmxdevfilter,
 		   struct dmxPesFilterParams *npara)
 {
-	struct timespec timeout = {0 };
+	struct timespec timeout = { 0 };
 	struct dmxPesFilterParams *para=&dmxdevfilter->params.pes;
 	dmxOutput_t otype;
 	int ret;
 	int ts_type;
+	struct sockaddr_in saddr;
 	dmx_ts_pes_t ts_pes;
 	dmx_ts_feed_t **tsfeed=&dmxdevfilter->feed.ts;
 
@@ -729,8 +799,23 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 	if (otype==DMX_OUT_TS_TAP)
 		ts_type|=TS_PACKET;
 
-	if (otype==DMX_OUT_TAP)
+	if ( (otype==DMX_OUT_TAP) || (otype==DMX_OUT_NET) )
 		ts_type|=TS_PAYLOAD_ONLY|TS_PACKET;
+
+	if (otype==DMX_OUT_NET) {
+		if ( (ret = sock_create(PF_INET,SOCK_DGRAM,IPPROTO_UDP,&dmxdevfilter->s)) < 0) {
+			return ret;
+		}
+		memset(saddr.__pad,0,sizeof(saddr.__pad));
+		saddr.sin_family = AF_INET;
+		saddr.sin_port = para->port;
+		saddr.sin_addr.s_addr = para->ip;
+		if ( (ret = dmxdevfilter->s->ops->connect(dmxdevfilter->s,(struct sockaddr *) &saddr,sizeof(saddr),0)) < 0) {
+			sock_release(dmxdevfilter->s);
+			dmxdevfilter->s = NULL;
+			return ret;
+		}
+	}
 
 	ret=dmxdev->demux->allocate_ts_feed(dmxdev->demux,
 					    tsfeed,
@@ -866,8 +951,13 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 		if(copy_from_user(&dmxdevfilter->params.sec,
 				  parg, sizeof(struct dmxSctFilterParams)))
 			ret=-EFAULT;
-		else
+		else {
+			if (dmxdevfilter->s != NULL) {
+				sock_release(dmxdevfilter->s);
+				dmxdevfilter->s = NULL;
+			}
 			ret=DmxDevFilterSet(dmxdev, dmxdevfilter);
+		}
 		break;
 
 	case DMX_SET_PES_FILTER:
@@ -878,6 +968,10 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 			ret=-EFAULT;
 		else
 		{
+			if (dmxdevfilter->s != NULL) {
+				sock_release(dmxdevfilter->s);
+				dmxdevfilter->s = NULL;
+			}
 			ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
 		}
 		break;
