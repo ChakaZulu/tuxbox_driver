@@ -480,14 +480,14 @@ int init_module(void) {
 void cleanup_module(void)
 {
         int res;
-        
+
+		free_irq(VES_INTERRUPT, NULL);        
+
         if ((res = i2c_del_driver(&dvbt_driver))) 
         {
                 printk("dvb-tuner: Driver deregistration failed, "
                        "module not removed.\n");
         }
-
-		free_irq(VES_INTERRUPT, NULL);
 
         dprintk("VES1820: cleanup\n");
 }
