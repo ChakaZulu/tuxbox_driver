@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.181 2003/08/01 17:31:21 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.182 2003/08/08 16:59:57 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -340,7 +340,7 @@ void avia_gt_dmx_load_ucode(void)
 	fs = get_fs();
 	set_fs(get_ds());
 
-	if ((fd = open(ucode, 0, 0)) >= 0) {
+	if ((ucode) && ((fd = open(ucode, 0, 0)) >= 0)) {
 		file_size = lseek(fd, 0, 2);
 		lseek(fd, 0, 0);
 
@@ -2005,7 +2005,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.181 2003/08/01 17:31:21 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.182 2003/08/08 16:59:57 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
