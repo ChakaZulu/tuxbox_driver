@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.131  2002/09/18 14:13:58  obi
+ *   enable hw sections for ucode_0013
+ *
  *   Revision 1.130  2002/09/18 13:17:28  Ghostrider
  *   fix Jolts fix
  *
@@ -200,7 +203,7 @@
  *
  *
  *
- *   $Revision: 1.130 $
+ *   $Revision: 1.131 $
  *
  */
 
@@ -401,11 +404,18 @@ u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 
 	printk("avia_gt_dmx: hw_sections=%d\n", hw_sections);
 
-	if (hw_sections == 1)
-		return ((risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14));
+	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00))
+		switch (risc_mem_map->Version_no[1]) {
+		case 0x13:
+		case 0x14:
+			return 1;
+		default:
+			return 0;
+		}
+
 	else if (hw_sections == 2)
 		return 1;
-		
+
 	return 0;
 
 }
@@ -1818,7 +1828,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.130 2002/09/18 13:17:28 Ghostrider Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.131 2002/09/18 14:13:58 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
