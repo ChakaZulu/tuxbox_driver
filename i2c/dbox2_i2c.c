@@ -19,7 +19,7 @@
 #include "commproc.h"
 #include <linux/i2c.h>
 
-static int debug;
+static int debug = 0;
 
 #define PDEBUG(level, fmt, args...) if (debug>=level) printk("[" __PRETTY_FUNCTION__ ":%d]" fmt, __LINE__ )
 
@@ -176,13 +176,13 @@ int i2c_init(int speed)
   // Set SDMA bus arbitration level to 5 (SDCR)
   immap->im_siu_conf.sc_sdcr = 0x0001 ;
 
-  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc(16); //align(8) ;
+  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc(16);
   iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + sizeof(I2C_BD);
   
   rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
   txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
 
-  PDEBUG("RBASE = %04x\n", iip->iic_rbase);
+  printk("RBASE = %04x\n", iip->iic_rbase);
   printk("TBASE = %04x\n", iip->iic_tbase);
   printk("RXBD1 = %08x\n", (int)rxbd);
   printk("TXBD1 = %08x\n", (int)txbd);
