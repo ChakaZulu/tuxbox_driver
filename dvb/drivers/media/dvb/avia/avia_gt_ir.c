@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.7  2002/05/09 19:18:05  Jolt
+ *   IR stuff
+ *
  *   Revision 1.6  2002/05/08 13:26:58  Jolt
  *   Disable ir-dos :)
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -74,7 +77,15 @@ static void avia_gt_ir_tx_irq(unsigned short irq)
 {
 
   //  printk("avia_gt_ir: tx irq\n");
-    printk("I");
+    printk("T");
+
+}
+
+static void avia_gt_ir_rx_irq(unsigned short irq)
+{
+
+  //  printk("avia_gt_ir: rx irq\n");
+    printk("R");
 
 }
 
@@ -127,7 +138,8 @@ void avia_gt_ir_set_queue(unsigned int addr)
 {
 
     enx_reg_s(IRQA)->Addr = addr >> 9;
-    enx_reg_s(IRRO)->Offset = 0;
+    enx_reg_s(IRRO)->Offset = 0 >> 1;
+    enx_reg_s(IRTO)->Offset = 0 >> 1;
     
     rx_buf_offs = 0;
     tx_buf_offs = 256;
@@ -145,7 +157,10 @@ void avia_gt_ir_transmit_pulse(unsigned short period, unsigned char duty_cycle)
 int __init avia_gt_ir_init(void)
 {
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.6 2002/05/08 13:26:58 Jolt Exp $\n");
+	u16 rx_irq;
+	u16 tx_irq;
+
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.7 2002/05/09 19:18:05 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		
@@ -156,16 +171,40 @@ int __init avia_gt_ir_init(void)
 		return -EIO;
 							
 	}
-	
+
+	// REMOVE THIS IF GTX SUPPORT IS AVAILIBLE!!!!!!	
 	if (avia_gt_chip(GTX))
 		return 0;
 	
-	avia_gt_free_irq(ENX_IRQ_IR_TX);							
-    if (avia_gt_alloc_irq(ENX_IRQ_IR_TX, avia_gt_ir_tx_irq) != 0) {
+	if (avia_gt_chip(ENX)) {
+	
+		rx_irq = ENX_IRQ_IR_RX;
+		tx_irq = ENX_IRQ_IR_TX;
+	
+	} else if (avia_gt_chip(GTX)) {
+
+		rx_irq = GTX_IRQ_IR_RX;
+		tx_irq = GTX_IRQ_IR_TX;
+	
+	}
+
+	// For testing only
+	avia_gt_free_irq(rx_irq);	
+	avia_gt_free_irq(tx_irq);	
+	
+    if (avia_gt_alloc_irq(rx_irq, avia_gt_ir_rx_irq)) {
+
+		printk("avia_gt_ir: unable to get rx interrupt\n");
+
+		return -EIO;
+	
+    }
+	
+    if (avia_gt_alloc_irq(tx_irq, avia_gt_ir_tx_irq)) {
 
 		printk("avia_gt_ir: unable to get tx interrupt\n");
 
-		avia_gt_free_irq(ENX_IRQ_IR_RX);
+		avia_gt_free_irq(rx_irq);
 	
 		return -EIO;
 	
@@ -190,10 +229,17 @@ int __init avia_gt_ir_init(void)
 void __exit avia_gt_ir_exit(void)
 {
 
-	if (avia_gt_chip(ENX))
+	if (avia_gt_chip(ENX)) {
+	
 		avia_gt_free_irq(ENX_IRQ_IR_TX);
-//	else if (avia_gt_chip(GTX))
-//		avia_gt_free_irq(GTX_IRQ_IR_TX);
+		avia_gt_free_irq(ENX_IRQ_IR_RX);
+		
+	} else if (avia_gt_chip(GTX)) {
+
+		avia_gt_free_irq(GTX_IRQ_IR_TX);
+		avia_gt_free_irq(GTX_IRQ_IR_RX);
+
+	}
     
 	avia_gt_ir_reset(0);
 
