@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.61 2002/02/01 08:27:15 gillem Exp $
+ * $Id: dvb.c,v 1.62 2002/02/01 15:44:13 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -65,6 +65,9 @@
 /* dirty - gotta do that better... -Hunz */
 #define EBUSOVERLOAD -6
 //#define EINTERNAL		-5
+
+static int debug = 0;
+#define dprintk if (debug) printk
 
 typedef struct dvb_struct
 {
@@ -921,6 +924,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 			{
 				case VIDEO_STOP:
 				{
+					dprintk("DVB: VIDEO_STOP\n");
+
 					dvb->videostate.playState=VIDEO_STOPPED;
 					if (dvb->videostate.streamSource==VIDEO_SOURCE_MEMORY) {
                                 		//AV_Stop(dvb, RP_VIDEO);
@@ -933,6 +938,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_PLAY:
 				{
+					dprintk("DVB: VIDEO_PLAY\n");
+
 					dvb->trickmode=TRICK_NONE;
 					if (dvb->videostate.playState==VIDEO_FREEZED) {
 						dvb->videostate.playState=VIDEO_PLAYING;
@@ -953,6 +960,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_FREEZE:
 				{
+					dprintk("DVB: VIDEO_FREEZE\n");
+
 					dvb->videostate.playState=VIDEO_FREEZED;
                         		if (dvb->playing&RP_VIDEO) {
 						//
@@ -964,6 +973,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_CONTINUE:
 				{
+					dprintk("DVB: VIDEO_CONTINUE\n");
+
                         		if (dvb->playing&RP_VIDEO) {
 						//
 					}
@@ -977,6 +988,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_SELECT_SOURCE:
 				{
+					dprintk("DVB: VIDEO_SELECT_SOURCE\n");
 					if (((videoStreamSource_t) arg)!=VIDEO_SOURCE_DEMUX)
 						return -EINVAL;
 
@@ -1225,7 +1237,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					switch(arg)
 					{
 						case 1:	
-							printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
+							dprintk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
 							avia_command(SelectStream,2,0x1FFF);
 							avia_command(SelectStream,3,0);
 							wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
@@ -1233,7 +1245,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 							break;
 
 						case 0:
-							printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
+							dprintk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
 							avia_command(SelectStream,3,0x1FFF);
 							avia_command(SelectStream,2,0);
 							wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
@@ -2021,6 +2033,8 @@ void __exit dvb_cleanup_module (void)
 {
 	return dvb_unregister(&dvb);
 }
+
+MODULE_PARM(debug,"i");
 
 module_init ( dvb_init_module );
 module_exit ( dvb_cleanup_module );
