@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_osd.c,v $
+ *   Revision 1.5  2001/03/04 20:04:41  gillem
+ *   - show 16 frames ... avia600 only ????
+ *
  *   Revision 1.4  2001/03/04 17:57:13  gillem
  *   - add more frames, not work !
  *
@@ -34,7 +37,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -140,20 +143,20 @@ u32 osds,osde;
 
 /* ---------------------------------------------------------------------- */
 
-static void rgb2crycb( int r, int g, int b, int blend, u32 * pal )
+static void rgb2crycb( int r, int g, int b, int blend, u32 * pale )
 {
 	int cr,y,cb;
 
-	if(!pal)
+	if(!pale)
 		return;
 
 	y  = ((257*r  + 504*g + 98*b)/1000 + 16)&0x7f;
 	cr = ((439*r  - 368*g - 71*b)/1000 + 128)&0x7f;
 	cb = ((-148*r - 291*g + 439*b)/1000 + 128)&0x7f;
 
-	*pal = (y<<16)|(cr<<9)|(cb<<2)|(blend&3);
+	*pale = (y<<16)|(cr<<9)|(cb<<2)|(blend&3);
 
-	printk("DATA: %d %d %d\n",cr,y,cb);
+	printk("OSD DATA: %d %d %d\n",cr,y,cb);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -220,7 +223,7 @@ static void osd_copy_frame( struct osd_frame * frame )
 
 	osdsp = osds+(OSDH_SIZE*2*frame->framenr);
 
-	printk("FP: %08X\n",osdsp);
+	printk("OSD FP: %08X\n",osdsp);
 
 	/* copy header */
 	even = (u32*)&frame->even;
@@ -232,7 +235,7 @@ static void osd_copy_frame( struct osd_frame * frame )
 		wDR(osdsp+(i*4)+OSDH_SIZE,*(odd+i));
 	}
 
-	printk("FNR: %d E: %08X O: %08X\n",frame->framenr,frame->even.next<<2,frame->odd.next<<2);
+	printk("OSD FNR: %d E: %08X O: %08X\n",frame->framenr,frame->even.next<<2,frame->odd.next<<2);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -255,7 +258,7 @@ static void osd_init_frame( struct osd_frame * frame, int framenr )
 	frame->odd.n4 = 1;
 	frame->odd.n5 = 1;
 
-	if ( framenr < 1 )
+	if ( framenr < 15 )
 	{
 		frame->even.next = (osds+(OSDH_SIZE*2*(framenr+1)))>>2;
 		frame->odd.next  = (osds+(OSDH_SIZE*2*(framenr+1))+OSDH_SIZE)>>2;
@@ -312,16 +315,15 @@ static int init_avia_osd(void)
 	/* set bitmap */
 	for(i=0;i<0x1000;i++)
 	{
-		bitmap[i] = 0x1111;
+		bitmap[i] = 0x11111111;
 	}
 
-	osd_create_frame( &frames.frame[0], 40, 40, 50, 50, 0x1f, 1 );
-	osd_show_frame( &frames.frame[0], palette, bitmap, 0x1000 );
-	osd_copy_frame( &frames.frame[0] );
-
-	osd_create_frame( &frames.frame[1], 340, 340, 150, 150, 0x1f, 1 );
-	osd_show_frame( &frames.frame[1], palette, bitmap, 0x1000 );
-	osd_copy_frame( &frames.frame[1] );
+	for(i=0;i<16;i++)
+	{
+		osd_create_frame( &frames.frame[i], 60+(i*22), 60+(i*22), 20, 20, 0x1f, 1 );
+		osd_show_frame( &frames.frame[i], palette, bitmap, 0x1000 );
+		osd_copy_frame( &frames.frame[i] );
+	}
 
 	/* enable osd */
 	wDR(OSD_ODD_FIELD, osds+OSDH_SIZE );
