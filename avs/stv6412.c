@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.8  2001/07/23 20:05:06  gillem
+ *   - change default value
+ *
  *   Revision 1.7  2001/07/23 19:57:49  gillem
  *   - more fixes (thx to SQUelcher for testing)
  *
@@ -43,7 +46,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -480,7 +483,7 @@ int stv6412_init(struct i2c_client *client)
 //	stv6412_data.t_cm   = 1;
 	stv6412_data.v_vsc  = 1;
 //	stv6412_data.v_cm   = 1;
-	stv6412_data.t_vsc  = 0;
+	stv6412_data.t_vsc  = 1;
 	/* Data 3 */
 	stv6412_data.rgb_tri  = 1;
 	stv6412_data.rgb_gain = 2;
