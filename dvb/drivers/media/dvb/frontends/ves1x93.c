@@ -27,6 +27,7 @@
 
 #include "compat.h"
 #include "dvb_frontend.h"
+#include "dvb_i2c.h"
 #ifdef DBOX2
 #include <dbox/fp.h>
 #endif
@@ -478,7 +479,7 @@ int ves1x93_set_tone (struct dvb_i2c_bus *i2c, fe_sec_tone_mode_t tone)
 static
 int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
-	struct dvb_i2c_bus *i2c = fe->i2c;
+	struct dvb_i2c_bus *i2c = (struct dvb_i2c_bus *) fe->data;
  
         switch (cmd) {
         case FE_GET_INFO:
@@ -605,7 +606,7 @@ int ves1x93_attach (struct dvb_i2c_bus *i2c)
 	if ((ves1x93_readreg (i2c, 0x1e) & 0xf0) != 0xd0)
 		return -ENODEV;
 
-	dvb_register_frontend (ves1x93_ioctl, i2c, NULL, &ves1x93_info);
+	dvb_register_frontend (ves1x93_ioctl, i2c->adapter, NULL, &ves1x93_info);
 
 	return 0;
 }
@@ -614,7 +615,7 @@ int ves1x93_attach (struct dvb_i2c_bus *i2c)
 static
 void ves1x93_detach (struct dvb_i2c_bus *i2c)
 {
-	dvb_unregister_frontend (ves1x93_ioctl, i2c);
+	dvb_unregister_frontend (ves1x93_ioctl, i2c->adapter);
 }
 
 

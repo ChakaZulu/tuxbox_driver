@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.33 2002/10/21 14:22:49 Jolt Exp $
+ * $Id: at76c651.c,v 1.34 2002/10/29 18:32:26 obi Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -32,7 +32,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include "../dvb-core/dvb_frontend.h"
+#include "dvb_frontend.h"
+#include "dvb_i2c.h"
 
 static int debug = 0;
 
@@ -321,7 +322,7 @@ static int at76c651_set_defaults(struct dvb_i2c_bus *i2c)
 static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
 
-	struct dvb_i2c_bus *i2c = fe->i2c;
+	struct dvb_i2c_bus *i2c = (struct dvb_i2c_bus *) fe->data;
 
 	switch (cmd) {
 
@@ -445,7 +446,7 @@ static int at76c651_attach(struct dvb_i2c_bus *i2c)
 
 	at76c651_set_defaults(i2c);
 
-	dvb_register_frontend(at76c651_ioctl, i2c, NULL, &at76c651_info);
+	dvb_register_frontend(at76c651_ioctl, i2c->adapter, NULL, &at76c651_info);
 
 	return 0;
 
@@ -455,7 +456,7 @@ static
 void at76c651_detach(struct dvb_i2c_bus *i2c)
 {
 
-	dvb_unregister_frontend(at76c651_ioctl, i2c);
+	dvb_unregister_frontend(at76c651_ioctl, i2c->adapter);
 
 	at76c651_disable_interrupts(i2c);
 
@@ -465,7 +466,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.33 2002/10/21 14:22:49 Jolt Exp $\n");
+	printk("$Id: at76c651.c,v 1.34 2002/10/29 18:32:26 obi Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
