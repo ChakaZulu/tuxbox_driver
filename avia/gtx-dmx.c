@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.31  2001/03/27 14:41:49  tmbinc
+ *   CRC check now optional.
+ *
  *   Revision 1.30  2001/03/21 15:30:25  tmbinc
  *   Added SYNC-delay for avia, resulting in faster zap-time.
  *
@@ -91,7 +94,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.30 $
+ *   $Revision: 1.31 $
  *
  */
 
@@ -551,7 +554,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
     if (ok)
 		{
-			if ( crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0 )
+			if ( (!gtxfeed->check_crc) || (crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0) )
 	      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
 			else
 				dprintk("gtx_dmx: CRC Problem !!!\n");
@@ -1095,6 +1098,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
     return -EINVAL;
 
   gtxfeed->pid=pid;
+  gtxfeed->check_crc=check_crc;
 
   filter->pid=pid;
   filter->queue=gtxfeed->index;

@@ -116,6 +116,7 @@ typedef struct gtx_demux_feed_s
   __u8 *sec_buffer;
   int sec_recv;
   int sec_len;
+  int check_crc;
   
   int index;
   
