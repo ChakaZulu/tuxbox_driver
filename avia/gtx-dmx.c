@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.29  2001/03/19 17:48:32  tmbinc
+ *   re-fixed a fixed fix by gillem.
+ *
  *   Revision 1.28  2001/03/19 16:24:32  tmbinc
  *   fixed section parsing bugs.
  *
@@ -85,7 +88,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.28 $
+ *   $Revision: 1.29 $
  *
  */
 
@@ -504,13 +507,13 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
     for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
 		{
-      if ( !((gtxfeed->sec_buffer[0]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i]) )
+      if ( ((gtxfeed->sec_buffer[i]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i]) )
 			{
         ok=0;
 			}
 		}
 
-    if (!ok)
+    if (ok)
 		{
 			if ( crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0 )
 	      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
