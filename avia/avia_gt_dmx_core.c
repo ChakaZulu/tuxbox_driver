@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.48 $
+ *   $Revision: 1.49 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.49  2001/07/15 17:08:45  Toerli
+ *   Flimmern bei Sagem beseitigt
+ *
  *   Revision 1.48  2001/06/25 22:27:22  gillem
  *   - start autodetect
  *
@@ -692,7 +695,7 @@ static void gtx_pcr_interrupt(int b, int r)
 
   rw(DPCR)=((-deltaClk)<<16)|0x0009; */
 
-  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*32);
+  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
 
 #ifdef enx_dmx
   enx_reg_h(DAC_PC)=deltaClk;
@@ -1791,7 +1794,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.48 2001/06/25 22:27:22 gillem Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.49 2001/07/15 17:08:45 Toerli Exp $\n");
 
 	return gtx_dmx_init();
 }
