@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.47  2002/01/19 07:58:21  Hunz
+ *   SHOULD work...
+ *
  *   Revision 1.46  2002/01/19 07:48:35  Hunz
  *   OOPS I did it again...
  *   (but that one was a really nasty one - hope it works now)
@@ -152,7 +155,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.46 $
+ *   $Revision: 1.47 $
  *
  */
 
@@ -888,15 +891,19 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
   if((scancode&0x7f)==0x49) /* Fn toggled */
     return 0;
 
-  if(irkbd_flags&IRKBD_FN) {            /* Fn + other key pressed */
+  if(irkbd_flags&IRKBD_FN) {
     *keycode=fn_keymap[scancode&0x7f];
-    fn_scan=scancode&0x7f;
+    if(scancode&0x80)                   /* Fn pressed, other key released */
+      fn_scan=0;
+    else                                /* Fn + other key pressed */
+      fn_scan=scancode&0x7f;
   }
-  /* Fn released but other key still pressed */
+  /* Fn released while other key still pressed - we release it */
   else if((!(irkbd_flags&IRKBD_FN)) && (fn_scan==(scancode&0x7f)) && (fn_scan!=0)) {
      *keycode=fn_keymap[scancode&0x7f];
      fn_scan=0;
   }
+  /* no Fn and other key pressed/released */
   else
     *keycode=keymap[scancode&0x7f];
 
