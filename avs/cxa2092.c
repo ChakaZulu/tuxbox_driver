@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.10  2001/01/20 19:18:11  gillem
+ *   - add AVSIOGSTATUS
+ *
  *   Revision 1.9  2001/01/20 19:00:48  gillem
  *   - fix set volume
  *
@@ -44,7 +47,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -365,6 +368,7 @@ static int avs_attach(struct i2c_adapter *adap, int addr,
  }
 
  i2c_attach_client(client);
+
  //MOD_INC_USE_COUNT;
 
  return 0;
@@ -509,6 +513,11 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                                 break;
 			case AVSIOGLOG4:
                                 val = avs_get_logic(4);
+                                break;
+
+            case AVSIOGSTATUS:
+                                // TODO: error handling
+                                val = avs_getstatus(&client_template);
                                 break;
 
 			default:

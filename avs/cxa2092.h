@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.6  2001/01/20 19:18:11  gillem
+ *   - add AVSIOGSTATUS
+ *
  *   Revision 1.5  2001/01/16 19:39:15  gillem
  *   some new ioctls
  *
@@ -34,7 +37,7 @@
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -219,3 +222,4 @@ after vol or mute */
 #define AVSIOGLOG2 (30|AVSIOGET)
 #define AVSIOGLOG3 (31|AVSIOGET)
 #define AVSIOGLOG4 (32|AVSIOGET)
+#define AVSIOGSTATUS (33|AVSIOGET)
