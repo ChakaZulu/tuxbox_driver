@@ -323,7 +323,7 @@ void enx_pig_init(void)
     enx_pig_set_size(pig_nr, PIG_WIDTH, PIG_HEIGHT, 0);
     enx_pig_set_stack(pig_nr, 2);
     
-    enx_pig_show(pig_nr);
+    //enx_pig_show(pig_nr);
 }
 
 void enx_pig_cleanup(void)
@@ -338,7 +338,7 @@ void enx_pig_cleanup(void)
 
 static int init_enx_pig(void)
 {
-    printk("$Id: enx_pig.c,v 1.5 2001/12/01 06:37:06 gillem Exp $\n");
+    printk("$Id: enx_pig.c,v 1.6 2001/12/05 16:22:58 derget Exp $\n");
 
     devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &enx_pig_fops, NULL);
     if (!devfs_handle[0])
