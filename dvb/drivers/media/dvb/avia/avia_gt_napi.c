@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.121 $
+ *   $Revision: 1.122 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.122  2002/09/14 18:03:38  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.121  2002/09/14 14:43:21  Jolt
  *   NAPI cleanup
  *
@@ -973,7 +976,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 								if (gtxfeed->sec_len > 4096) {
 								
-									printk(KERN_ERR "avia_gt_napi: section length %d > 4096!\n", gtxfeed->sec_len);
+									dprintk(KERN_ERR "avia_gt_napi: section length %d > 4096!\n", gtxfeed->sec_len);
 
 									gtxfeed->filter->invalid = 1;
 									dmx_set_filter(gtxfeed->filter);
@@ -995,7 +998,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 								if ((gtxfeed->check_crc) && (queue_info->crc32(queue_nr, gtxfeed->sec_len, 0))) {
 
-									printk("avia_gt_napi: section CRC invalid\n");
+									dprintk("avia_gt_napi: section CRC invalid\n");
 									
 									queue_info->move_data(queue_nr, NULL, gtxfeed->sec_len, 0);
 									
@@ -1043,33 +1046,39 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						case DMX_TYPE_SEC:
 						{
 							static __u8 tsbuf[188];
+							u8 adaption_len;
+							u8 next_sec_offs;
 
 							// let's rock
 							while (queue_info->bytes_avail(queue_nr) - padding)
 							{
-								int tr, r=0, p=4;
-
-								tr=188;
+								int tr = 188, r = 0;
 
 								// check header & sync
-								if (((queue_info->bytes_avail(queue_nr) - padding) % 188) || (((char*)b1)[0] != 0x47))
-								{
+								if (((queue_info->bytes_avail(queue_nr) - padding) % 188) || (queue_info->get_data8(queue_nr, 1) != 0x47)) {
+								
 									dprintk("gtx_dmx: there's a BIG out of sync problem\n");
+									
+									queue->read_pos = queue->write_pos;
+									
 									return;
+									
 								}
 								
-								queue_info->move_data(queue_nr, tsbuf, tr, 0);
+								queue_info->move_data(queue_nr, tsbuf, 4, 0);
 
 								// TODO: handle CC
 
 								// no payload
-								if (!(tsbuf[3]&0x10))							// adaption control field
-								{
+								if (!(tsbuf[3] & 0x10)) {					// adaption control field
+
 									dprintk("a packet with no payload. sachen gibt's.\n");
+
 									continue;
+									
 								}
 
-								ccn=tsbuf[3]&0x0f;								// continuity counter
+								ccn = tsbuf[3] & 0x0F;					// continuity counter
 
 								if (ccn == gtxfeed->sec_ccn)			// doppelt hält besser, hmm?
 									continue;
@@ -1085,97 +1094,133 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 								gtxfeed->sec_ccn = ccn;
 
-								tr-=4;														// 4 Byte fixe Headerlänge
+								tr -= 4;								// 4 Byte fixe Headerlänge
 
 
 								// af + pl
-								if (tsbuf[3]&0x20)								// adaption field
-								{
-									dprintk("nen adaption field! HIER! (%d bytes aber immerhin) (report to tmb plz)\n", tsbuf[4]);
+								if (tsbuf[3] & 0x20) {								// adaption field
+
+									adaption_len = queue_info->get_data8(queue_nr, 0);
+									
+									dprintk("nen adaption field! HIER! (%d bytes aber immerhin) (report to tmb plz)\n", adaption_len);
+
 									// go home paket !
-									if ( tsbuf[4] > 182 )
-									{
-										dprintk("gtx_dmx: warning afle=%d (ignore)\n",tsbuf[4]);
+									if (adaption_len > 182)	{
+									
+										dprintk("gtx_dmx: warning afle=%d (ignore)\n", adaption_len);
+										
 										continue;
+										
 									}
 
-									tr-=tsbuf[4]+1;
-									p+=tsbuf[4]+1;
+									tr -= adaption_len + 1;
+									
+									queue_info->move_data(queue_nr, NULL, adaption_len, 0);
+									
 								}
 
-								if (tsbuf[1] & 0x40)							// Start einer neuen Section
-								{
-									if (tsbuf[p] != 0)							// neues Paket fängt mittendrin an
-									{
-										if (gtxfeed->sec_recv)				// haben wir den Anfang des vorherigen Paketes ?
-										{
+								if (tsbuf[1] & 0x40) {							// Start einer neuen Section
+								
+									next_sec_offs = queue_info->get_data8(queue_nr, 0);
+
+									if (next_sec_offs) {								// neues Paket fängt mittendrin an
+
+										if (gtxfeed->sec_recv) {				// haben wir den Anfang des vorherigen Paketes ?
+
 											r = gtxfeed->sec_len - gtxfeed->sec_recv;
-											if (r > tsbuf[p])					// wenn eine neue Section kommt muß die vorherige abgeschlossen werden
-											{
+											
+											if (r > next_sec_offs) {					// wenn eine neue Section kommt muß die vorherige abgeschlossen werden
+											
 												dprintk("gtx_dmx: dropping section because length-confusion.\n");
-											}
-											else {
-												memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv,tsbuf+p+1,r);
-												gtxfeed->sec_recv+=r;
+												
+											} else {
+											
+												queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 1);
+
+												gtxfeed->sec_recv += r;
+												
 												gtx_handle_section(gtxfeed);
+												
 											}
+											
 										}
-										tr -= tsbuf[p] + 1;
-										p += tsbuf[p] + 1;
+										
+										tr -= next_sec_offs + 1;
+										
+										queue_info->move_data(queue_nr, NULL, next_sec_offs, 1);
+										
+									} else {
+									
+										tr--;
+										
 									}
-									else {
-									 tr--;
-									 p++;
-									}
+									
 									gtxfeed->sec_recv = 0;
 									gtxfeed->sec_len = 0;
+									
 								}
 
-								while (tr)
-								{
+								while (tr) {
+								
 									if (gtxfeed->sec_recv) {				// haben bereits einen Anfang
+
 										r = gtxfeed->sec_len - gtxfeed->sec_recv;
+
 										if (r > tr)										// ein kleines Teilstück kommt hinzu
-										{
 											r = tr;
-										}
-										memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv,tsbuf+p,r);
+										
+										queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 0);
+										
 										gtxfeed->sec_recv += r;
-										if ( gtxfeed->sec_len == gtxfeed->sec_recv)
-										{
+										
+										if (gtxfeed->sec_len == gtxfeed->sec_recv)
 											gtx_handle_section(gtxfeed);
-										}
-									}
-									else {													// neue Section
-										if (tsbuf[p] == 0xFF)					// Rest padding ?
-										{
+										
+									} else {													// neue Section
+
+										if ((queue_info->get_data8(queue_nr, 1) == 0xFF) || (tr < 3)) {
+
+											// Get rid of padding bytes									
+											if (tr)
+												queue_info->move_data(queue_nr, NULL, tr, 0);
+
 											break;
+											
 										}
-										if (tr < 3)										// eine neue Section mit weniger als 3 Bytes...
-										{
-											break;											// Wenn wir hier kopieren gibt's oben wegen der fehlenden Länge ein Problem
-										}
-										r = ((tsbuf[p+1] & 0x0F) << 8) + tsbuf[p+2] + 3;
+
+										queue_info->move_data(queue_nr, section_header, sizeof(section_header), 1);
+									
+										r = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
+
 										if (r <= 4096) {							// größer darf nicht
+										
 											gtxfeed->sec_len = r;
+											
 											if (r > tr)									// keine komplette Section
-											{
 												r = tr;
-											}
-											memcpy(gtxfeed->sec_buffer,tsbuf+p,r);
+
+											queue_info->move_data(queue_nr, gtxfeed->sec_buffer, r, 0);
+											
 											gtxfeed->sec_recv += r;
-											if ( gtxfeed->sec_len == gtxfeed->sec_recv)
-											{
+											
+											if (gtxfeed->sec_len == gtxfeed->sec_recv)
 												gtx_handle_section(gtxfeed);
-											}
+												
 										}
+										
 									}
+									
 									tr -= r;
-									p += r;
+
+									
 								}
+								
 							}
+							
 						}
+						
 						break;
+						
 						case DMX_TYPE_PES:
 	//					gtx->feed[queue_nr].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0);
 							break;
@@ -1929,7 +1974,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.121 2002/09/14 14:43:21 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.122 2002/09/14 18:03:38 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
