@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.11  2001/04/24 12:54:58  fnbrd
+ *   vout5mute war falsch, gehort laut Spec nach data3 nicht data2.
+ *
  *   Revision 1.10  2001/04/16 22:10:13  Jolt
  *   cxa2126 init fixed
  *
@@ -52,7 +55,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -87,12 +90,12 @@ typedef struct s_cxa2126_data {
  unsigned char tvmute1 : 1;
  unsigned char zcd : 1;
  /* Data 2 */
- unsigned char vo5mute : 1;
- unsigned char res1 : 1;
+ unsigned char res1 : 2;
  unsigned char vsw1 : 3;
  unsigned char asw1 : 3;
  /* Data 3 */
- unsigned char res2 : 2;
+ unsigned char vo5mute : 1;
+ unsigned char res2 : 1;
  unsigned char vsw2 : 3;
  unsigned char asw2 : 3;
  /* Data 4 */
