@@ -203,11 +203,13 @@ DmxDevDVROpen(dmxdev_t *dmxdev, struct file *file)
 	}
 
 	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
-	      DmxDevBufferInit(&dmxdev->dvr_buffer);
-	      dmxdev->dvr_buffer.size=DVR_BUFFER_SIZE;
-	      dmxdev->dvr_buffer.data=vmalloc(DVR_BUFFER_SIZE);
-	      if (!dmxdev->dvr_buffer.data)
-		      return -ENOMEM;
+		if (dmxdev->dvr_buffer.data == NULL)
+		{
+			dmxdev->dvr_buffer.size=DVR_BUFFER_SIZE;
+			dmxdev->dvr_buffer.data=vmalloc(DVR_BUFFER_SIZE);
+			if (!dmxdev->dvr_buffer.data)
+				return -ENOMEM;
+		}
 	}
 
 	if ((file->f_flags&O_ACCMODE)==O_WRONLY) {
@@ -235,6 +237,7 @@ DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 		dmxdev->demux->connect_frontend(dmxdev->demux,	dmxdev->dvr_orig_fe);
 	}
 	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
+#if 0
 		if (dmxdev->dvr_buffer.data) {
 			void *mem=dmxdev->dvr_buffer.data;
 			mb();
@@ -243,6 +246,7 @@ DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 			spin_unlock_irq(&dmxdev->lock);
 			vfree(mem);
 		}
+#endif
 	}
 	up(&dmxdev->mutex);
 	return 0;
@@ -656,11 +660,14 @@ DmxDevRelease(dmxdev_t *dmxdev)
 }
 
 static void
-DmxNetSend(__u8 *b1, size_t l_b1, __u8 *b2, size_t l_b2,struct socket *s)
+DmxNetSend(__u8 *b1, size_t l_b1, __u8 *b2, size_t l_b2,struct socket *s, dmxOutput_t otype,dmxdev_buffer_t *dvrbuf)
 {
 	unsigned len;
 	struct msghdr msg;
-	struct iovec iov[2];
+	struct iovec iov[4];
+	int avail;
+	unsigned split;
+	unsigned iov_index;
 
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
@@ -670,43 +677,137 @@ DmxNetSend(__u8 *b1, size_t l_b1, __u8 *b2, size_t l_b2,struct socket *s)
 	msg.msg_controllen = 0;
 	msg.msg_flags = MSG_DONTWAIT|MSG_NOSIGNAL;
 
-	iov->iov_base = b1;
-	iov->iov_len = 1472;
-	while (l_b1 >= 1472)
+	/* send ES-pakets with max. UDP packet size
+	   send 7 TS-pakets in one UDP packet. uses dvr-buffer. */
+	if (otype == DMX_OUT_ES_NET)
 	{
-		sock_sendmsg(s,&msg,1472);
-		l_b1 -= 1472;
-		(__u8 *) iov->iov_base += 1472;
-	}
-	if ( (l_b1 > 0) && (l_b2 == 0) )
-	{
-		iov->iov_len = l_b1;
-		sock_sendmsg(s,&msg,l_b1);
-		return;
-	}
-	if (l_b1 > 0) {
-		iov->iov_len = l_b1;
-		msg.msg_iovlen = 2;
-		if ( (len = l_b1 + l_b2) > 1472) {
-			len = 1472;
+		iov->iov_base = b1;
+		iov->iov_len = 1472;
+		while (l_b1 >= 1472)
+		{
+			sock_sendmsg(s,&msg,1472);
+			l_b1 -= 1472;
+			(__u8 *) iov->iov_base += 1472;
 		}
-		iov[1].iov_base = b2;
-		iov[1].iov_len = len - l_b1;
-		sock_sendmsg(s,&msg,len);
-		iov->iov_base = b2 + len - l_b1;
-		l_b2 -= len - l_b1;
-		msg.msg_iovlen = 1;
+		if ( (l_b1 > 0) && (l_b2 == 0) )
+		{
+			iov->iov_len = l_b1;
+			sock_sendmsg(s,&msg,l_b1);
+			return;
+		}
+		if (l_b1 > 0) {
+			iov->iov_len = l_b1;
+			msg.msg_iovlen = 2;
+			if ( (len = l_b1 + l_b2) > 1472) {
+				len = 1472;
+			}
+			iov[1].iov_base = b2;
+			iov[1].iov_len = len - l_b1;
+			sock_sendmsg(s,&msg,len);
+			iov->iov_base = b2 + len - l_b1;
+			l_b2 -= len - l_b1;
+			msg.msg_iovlen = 1;
+		}
+		else
+		{
+			iov->iov_base = b2;
+		}
+		while (l_b2 > 0)
+		{
+			iov->iov_len = (l_b2 > 1472) ? 1472 : l_b2;
+			sock_sendmsg(s,&msg,iov->iov_len);
+			l_b2 -= iov->iov_len;
+			(__u8 *) iov->iov_base += iov->iov_len;
+		}
 	}
-	else
+	else	/* DMX_OUT_TS_NET */
 	{
-		iov->iov_base = b2;
-	}
-	while (l_b2 > 0)
-	{
-		iov->iov_len = (l_b2 > 1472) ? 1472 : l_b2;
-		sock_sendmsg(s,&msg,iov->iov_len);
-		l_b2 -= iov->iov_len;
-		(__u8 *) iov->iov_base += iov->iov_len;
+		if ( (avail = dvrbuf->pwrite - dvrbuf->pread) < 0)
+		{
+			avail += dvrbuf->size;
+			split = dvrbuf->size - dvrbuf->pread;
+		}
+		else
+		{
+			split = avail;
+		}
+		if (avail > 0)
+		{
+			if (avail + l_b1 + l_b2 >= 7 * 188)
+			{
+				iov[0].iov_base = dvrbuf->data + dvrbuf->pread;
+				iov[0].iov_len = split;
+				if (split < avail)
+				{
+					iov[1].iov_base = dvrbuf->data;
+					iov[1].iov_len = avail - split;
+					iov_index = 2;
+				}
+				else
+				{
+					iov_index = 1;
+				}
+				if (l_b1 > 0)
+				{
+					iov[iov_index].iov_base = b1;
+					len = (l_b1 > 7 * 188 - avail) ? 7 * 188 - avail : l_b1;
+					iov[iov_index++].iov_len = len;
+					l_b1 -= len;
+					b1 += len;
+				}
+				else
+				{
+					len = 0;
+				}
+				if (avail + len < 7 * 188)
+				{
+					iov[iov_index].iov_base = b2;
+					len = 7 * 188 - avail - len;
+					iov[iov_index++].iov_len = len;
+					l_b2 -= len;
+					b2 += len;
+				}
+				msg.msg_iovlen = iov_index;
+				sock_sendmsg(s,&msg,7*188);
+				dvrbuf->pread = 0;
+				dvrbuf->pwrite = 0;
+			}
+		}
+		while (l_b1 + l_b2 >= 7 * 188)
+		{
+			if (l_b1 > 0)
+			{
+				iov[0].iov_base = b1;
+				len = (l_b1 > 7 * 188) ? 7 * 188 : l_b1;
+				iov[0].iov_len = len;
+				iov_index = 1;
+				l_b1 -= len;
+				b1 += len;
+			}
+			else
+			{
+				len = 0;
+				iov_index = 0;
+			}
+			if ( len < 7 * 188 )
+			{
+				iov[iov_index].iov_base = b2;
+				len = 7 * 188 - len;
+				iov[iov_index++].iov_len = len;
+				b2 += len;
+				l_b2 -= len;
+			}
+			msg.msg_iovlen = iov_index;
+			sock_sendmsg(s,&msg,7*188);
+		}
+		if (l_b1)
+		{
+			DmxDevBufferWrite(dvrbuf,b1,l_b1);
+		}
+		if (l_b2)
+		{
+			DmxDevBufferWrite(dvrbuf,b2,l_b2);
+		}
 	}
 }
 
@@ -723,8 +824,9 @@ DmxDevTSCallback(__u8 *buffer1, size_t buffer1_len,
 	if (dmxdevfilter->params.pes.output==DMX_OUT_DECODER)
 		return 0;
 
-	if (dmxdevfilter->params.pes.output==DMX_OUT_NET) {
-		DmxNetSend(buffer1,buffer1_len,buffer2,buffer2_len,dmxdevfilter->s);
+	if ( (dmxdevfilter->params.pes.output==DMX_OUT_ES_NET) ||
+	     (dmxdevfilter->params.pes.output==DMX_OUT_TS_NET) ) {
+		DmxNetSend(buffer1,buffer1_len,buffer2,buffer2_len,dmxdevfilter->s,dmxdevfilter->params.pes.output,&dmxdevfilter->dev->dvr_buffer);
 		return 0;
 	}
 
@@ -796,13 +898,13 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 	else
 		ts_type=0;
 
-	if (otype==DMX_OUT_TS_TAP)
+	if ( (otype==DMX_OUT_TS_TAP) || (otype == DMX_OUT_TS_NET) )
 		ts_type|=TS_PACKET;
 
-	if ( (otype==DMX_OUT_TAP) || (otype==DMX_OUT_NET) )
+	if ( (otype==DMX_OUT_TAP) || (otype==DMX_OUT_ES_NET) )
 		ts_type|=TS_PAYLOAD_ONLY|TS_PACKET;
 
-	if (otype==DMX_OUT_NET) {
+	if ( (otype==DMX_OUT_ES_NET) || (otype == DMX_OUT_TS_NET) ) {
 		if ( (ret = sock_create(PF_INET,SOCK_DGRAM,IPPROTO_UDP,&dmxdevfilter->s)) < 0) {
 			return ret;
 		}
@@ -815,6 +917,11 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 			dmxdevfilter->s = NULL;
 			return ret;
 		}
+	}
+	if ( (otype == DMX_OUT_TS_NET) && (dmxdev->dvr_buffer.data == NULL) )
+	{
+			dmxdev->dvr_buffer.size=DVR_BUFFER_SIZE;
+			dmxdev->dvr_buffer.data=vmalloc(DVR_BUFFER_SIZE);
 	}
 
 	ret=dmxdev->demux->allocate_ts_feed(dmxdev->demux,

@@ -61,7 +61,8 @@ typedef enum
 	DMX_OUT_TS_TAP,  /* Output multiplexed into a new TS  */
 	                 /* (to be retrieved by reading from the */
 	                 /* logical DVR device).                 */
-	DMX_OUT_NET	 /* send data over network */
+	DMX_OUT_ES_NET,  /* send elementary stream over network */
+	DMX_OUT_TS_NET   /* send transport stream over network */
 } dmxOutput_t;
 
 typedef enum
