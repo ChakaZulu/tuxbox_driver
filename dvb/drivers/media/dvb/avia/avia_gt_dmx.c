@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.142  2002/11/03 18:26:35  Jolt
+ *   Queue handling changes part1
+ *
  *   Revision 1.141  2002/11/01 22:36:35  Jolt
  *   Basic Soft DMX support
  *
@@ -233,7 +236,7 @@
  *
  *
  *
- *   $Revision: 1.141 $
+ *   $Revision: 1.142 $
  *
  */
 
@@ -292,6 +295,7 @@ static u8 force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
+u32 avia_gt_dmx_queue_get_bytes_avail(u8 queue_nr);
 
 static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 																// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
@@ -997,16 +1001,6 @@ sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr)
 	
 }
 
-u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
-{
-
-	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
-		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
-	else
-		return (queue_list[queue_nr].size - queue_list[queue_nr].read_pos + queue_list[queue_nr].write_pos);
-
-}
-
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 {
 
@@ -1146,7 +1140,7 @@ u32 avia_gt_dmx_queue_crc32(u8 queue_nr, u32 count, u32 seed)
 u32 avia_gt_dmx_queue_data_get(u8 queue_nr, void *dest, u32 count, u8 peek)
 {
 
-	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
+	u32 bytes_avail = avia_gt_dmx_queue_get_bytes_avail(queue_nr);
 	u32	done = 0;
 	u32 read_pos;
 
@@ -1272,6 +1266,50 @@ u32 avia_gt_dmx_queue_data_put(u8 queue_nr, void *src, u32 count, u8 src_is_user
 	}
 
 	return count;
+
+}
+
+u32 avia_gt_dmx_queue_get_buf1_ptr(u8 queue_nr)
+{
+
+	return queue_list[queue_nr].mem_addr + queue_list[queue_nr].read_pos;
+
+}
+
+u32 avia_gt_dmx_queue_get_buf2_ptr(u8 queue_nr)
+{
+
+	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
+		return 0;
+	else
+		return queue_list[queue_nr].mem_addr;
+
+}
+
+u32 avia_gt_dmx_queue_get_buf1_size(u8 queue_nr)
+{
+
+	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
+		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
+	else
+		return (queue_list[queue_nr].size - queue_list[queue_nr].read_pos);
+
+}
+
+u32 avia_gt_dmx_queue_get_buf2_size(u8 queue_nr)
+{
+
+	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
+		return 0;
+	else
+		return queue_list[queue_nr].write_pos;
+
+}
+
+u32 avia_gt_dmx_queue_get_bytes_avail(u8 queue_nr)
+{
+
+	return (avia_gt_dmx_queue_get_buf1_size(queue_nr) + avia_gt_dmx_queue_get_buf2_size(queue_nr));
 
 }
 
@@ -2004,7 +2042,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.141 2002/11/01 22:36:35 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.142 2002/11/03 18:26:35 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2101,13 +2139,17 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].mem_addr = queue_addr;
 		queue_addr += queue_list[queue_nr].size;
 		
-		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_get_queue_bytes_avail;
+		queue_list[queue_nr].info.index = queue_nr;
+		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_queue_get_bytes_avail;
 		queue_list[queue_nr].info.crc32 = avia_gt_dmx_queue_crc32;
+		queue_list[queue_nr].info.get_buf1_ptr = avia_gt_dmx_queue_get_buf1_ptr;
+		queue_list[queue_nr].info.get_buf2_ptr = avia_gt_dmx_queue_get_buf2_ptr;
+		queue_list[queue_nr].info.get_buf1_size = avia_gt_dmx_queue_get_buf1_size;
+		queue_list[queue_nr].info.get_buf2_size = avia_gt_dmx_queue_get_buf2_size;
 		queue_list[queue_nr].info.get_data = avia_gt_dmx_queue_data_get;
 		queue_list[queue_nr].info.get_data8 = avia_gt_dmx_queue_data_get8;
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;
-		queue_list[queue_nr].info.nr = queue_nr;
 		queue_list[queue_nr].info.put_data = avia_gt_dmx_queue_data_put;
 
 		if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
