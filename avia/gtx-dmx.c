@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.21  2001/03/11 21:34:29  gillem
+ *   - fix af parser
+ *
  *   Revision 1.20  2001/03/10 02:46:14  tmbinc
  *   Fixed section support.
  *
@@ -60,7 +63,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -459,7 +462,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 {
   gtx_demux_secfilter_t *secfilter;
   if (gtxfeed->sec_recv != gtxfeed->sec_len)
-    printk("have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+    dprintk("have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
   if (!gtxfeed->sec_recv)
     return;
   for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
@@ -528,6 +531,7 @@ static void gtx_task(void *data)
             while (b1l || b2l)
             {
               int tr=b1l, r=0, p=4;
+
               if (tr>188)
                 tr=188;
               memcpy(tsbuf, b1, tr);
@@ -542,25 +546,39 @@ static void gtx_task(void *data)
               
               tr=184;
               
-              if (!(tsbuf[3]&0x10))             // no payload
+			  // no payload
+              if (!(tsbuf[3]&0x10))
+			  {
                 continue;
+			  }
 
+			  // af + pl
               if (tsbuf[3]&0x20)                // adaption field
               {
+				// go home paket !
+				if ( tsbuf[4] > 182 )
+				{
+					dprintk("WARNING !!! DoS ATTACKE detect [AF+PL] ;-) (ignore): %d\n",tsbuf[4]);
+	                continue;
+				}
                 tr-=tsbuf[4]+1;
                 p+=tsbuf[4]+1;
-              }
-              
+              } else
+
               if (tsbuf[1]&0x40)                // PUSI
               {
+				int op;
                 // rest kopieren
                 r=gtxfeed->sec_len-gtxfeed->sec_recv;
                 if (r>tsbuf[p])
                   r=tsbuf[p];
                 memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
                 gtxfeed->sec_recv+=r;
+				op = p;
                 p+=tsbuf[p]+1;
-                dprintk("special case: %d / %d read, pointer is %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p);
+
+                dprintk("special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
+
                 gtx_handle_section(gtxfeed);
 
                 gtxfeed->sec_len=(((tsbuf[p+1]&0xF)<<8)|(tsbuf[p+2])) + 3;
