@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.14  2002/02/21 17:48:07  gillem
+ *   - fix get audio switch & mute settings (stv sucks)
+ *
  *   Revision 1.13  2002/02/21 17:42:14  gillem
  *   - more fixes (save old mute/aroute values for correct audio routing)
  *
@@ -61,7 +64,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -270,7 +273,7 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 	switch(sw)
 	{
 		case 0:
-			if (type<0 || type>3)
+			if (type<=0 || type>3)
 			{
 				return -EINVAL;
 			}
@@ -284,7 +287,7 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 			break;
 		case 1:
 		case 2:
-			if (type<0 || type>4)
+			if (type<=0 || type>4)
 			{
 				return -EINVAL;
 			}
@@ -413,10 +416,17 @@ inline int stv6412_get_asw( int sw )
 	switch(sw)
 	{
 		case 0:
-			return stv6412_data.v_asc;
+			// muted ? yes: return tmp values
+			if ( v_asc == 0 )
+				return stv6412_data.v_asc;
+			else
+				return v_asc;
 		case 1:
 		case 2:
-			return stv6412_data.tc_asc;
+			if ( tc_asc == 0 )
+				return stv6412_data.tc_asc;
+			else
+				return tc_asc;
 			break;
 		default:
 			return -EINVAL;
