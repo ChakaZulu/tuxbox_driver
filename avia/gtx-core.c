@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: gtx-core.c,v $
+ *   Revision 1.3  2002/03/06 09:04:10  gillem
+ *   - clean module unload
+ *
  *   Revision 1.2  2001/12/12 17:20:38  obi
  *   version history was gone
  *
@@ -87,7 +90,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -352,8 +355,8 @@ init_gtx (void)
         /* set bcd */
         rh (PCMC) |= 2;
 
-		// enable teletext
-		rh(TTCR) |= (1 << 9);
+	// enable teletext
+	rh(TTCR) |= (1 << 9);
 
         return 0;
 }
@@ -458,7 +461,7 @@ gtx_intialize_interrupts (void)
         rh (ISR1) = 0;
         rh (ISR2) = 0;
         rh (ISR3) = 0;
-        rh (RR0) &= 1 << 4;
+        rh (RR0) &= ~(1 << 4);
 
         rh (IMR0) = 0xFFFF;
         rh (IMR1) = 0xFFFF;
@@ -476,6 +479,23 @@ gtx_intialize_interrupts (void)
 static int
 gtx_close_interrupts(void)
 {
+	rh (RR0) |= (1 << 4);
+
+        rh (IMR0) = 0;
+        rh (IMR1) = 0;
+        rh (IMR2) = 0;
+        rh (IMR3) = 0;
+
+        rh (IPR0) = -1;
+        rh (IPR1) = -1;
+        rh (IPR2) = -1;
+        rh (IPR3) = -1;
+
+        rh (ISR0) = 0;
+        rh (ISR1) = 0;
+        rh (ISR2) = 0;
+        rh (ISR3) = 0;
+
         free_irq (GTX_INTERRUPT, 0);
 
         return 0;
@@ -485,15 +505,29 @@ gtx_close_interrupts(void)
 static void
 gtx_close (void)
 {
+	gtx_proc_cleanup ();
+
 #ifndef MODULE
         gtx_dmx_close ();
         gtxfb_close ();
 #endif
         gtx_close_interrupts ();
-        if (gtxmem)
-                iounmap (gtxmem);
 
-        gtx_proc_cleanup ();
+	rh (CR0) = 0x0030;
+	rh (CR1) = 0x0000;
+
+	// take modules in reset state
+        rh(RR0) = 0xFBFF;
+        rh(RR1) = 0x00FF;
+
+	// disable dram module, don't work :-/ why ????
+//	rh(RR0) |= (1<<10);
+
+	if (gtxmem)
+	{
+		iounmap(gtxmem);
+		gtxmem = 0;
+	}
 }
 
 #ifdef CONFIG_PROC_FS
