@@ -837,7 +837,12 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 		if(copy_from_user(&npara, parg, sizeof(npara)))
 			ret=-EFAULT;
 		else
-			ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
+		{
+			if (npara.pid == 0x1500 || npara.pid == 0x1000)
+				break;
+			else
+				ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
+		}
 		break;
 	}
 	case DMX_SET_BUFFER_SIZE: 
