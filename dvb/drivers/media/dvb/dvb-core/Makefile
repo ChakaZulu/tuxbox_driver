@@ -2,12 +2,16 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS = dmxdev.o dvb_i2c.o dvb_demux.o dvb_filter.o dvb_frontend.o dvb_net.o dvbdev.o dvb_copy.o
+M_OBJS = dvb-core.o
+
+DVB_CORE = dvbdev.o dmxdev.o dvb_demux.o dvb_filter.o \
+	   dvb_frontend.o dvb_i2c.o dvb_net.o dvb_ksyms.o \
+	   compat.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../../../../include -DEXPORT_SYMTAB -D__DVB_PACK__ -MD -Werror
+EXTRA_CFLAGS=-I../../../../include -DEXPORT_SYMTAB -MD -Werror
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
@@ -17,6 +21,9 @@ install:
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
+
+dvb-core.o: $(DVB_CORE)
+	$(LD) -m elf32ppclinux -r -o $@ $(DVB_CORE)
 
 include $(KERNEL_LOCATION)/Rules.make
 
