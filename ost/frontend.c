@@ -94,9 +94,9 @@ static struct file_operations ost_frontend_fops =
 
 int __init frontend_init_module ()
 {
-  devfs_handle = devfs_register ( NULL, "ost/frontend0", DEVFS_FL_DEFAULT,
+  devfs_handle = devfs_register ( NULL, "ost/qpskfe0", DEVFS_FL_DEFAULT,
                                   0, 0,
-                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                                   &ost_frontend_fops, NULL );
 
   return 0;
