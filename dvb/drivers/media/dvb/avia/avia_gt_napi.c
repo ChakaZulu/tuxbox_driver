@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.195 2003/12/10 14:09:07 carjay Exp $
+ * $Id: avia_gt_napi.c,v 1.196 2003/12/22 04:09:17 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -78,7 +78,7 @@ static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, 
 static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
 {
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
-		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
+		if ((src >= gt_info->mem_addr) && (&src[len] <= &gt_info->mem_addr[0x200000]))
 			dvbdmxfeed->feed.sec.crc_val = avia_gt_accel_crc32(src - gt_info->mem_addr, len, dvbdmxfeed->feed.sec.crc_val);
 		else
 			dvbdmxfeed->feed.sec.crc_val = crc32_be(dvbdmxfeed->feed.sec.crc_val, src, len);
@@ -122,7 +122,7 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 	struct dvb_demux_feed *dvbdmxfeed = data;
 	struct dvb_demux_filter *dvbdmxfilter;
 	u32 bytes_avail;
-	u32 section_length;
+	u16 section_length;
 	u32 chunk1;
 	u8 neq;
 	u8 xor;
@@ -131,8 +131,16 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 	u8 copied;
 	u32 crc;
 	u32 flags;
+	int need_crc = 0;
 
 	spin_lock_irqsave(&section_lock, flags);
+
+	for (dvbdmxfilter = dvbdmxfeed->filter; dvbdmxfilter; dvbdmxfilter = dvbdmxfilter->next) {
+		if (dvbdmxfilter->feed->feed.sec.check_crc) {
+			need_crc = 1;
+			break;
+		}
+	}
 
 	bytes_avail = queue->bytes_avail(queue);
 
@@ -149,7 +157,7 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 
 		queue->get_data(queue, section, 3, 1);
 
-		section_length = (((section[1] & 0x0F) << 8) | section[2]) + 3;
+		section_length = (*(u16 *)(&section[1]) & 0xfff) + 3;
 
 		/*
 		 * Sections > 4096 bytes don't exist. We are out of sync.
@@ -158,6 +166,11 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 		if (section_length > 4096) {
 			printk(KERN_ERR "avia_gt_napi: pid %04x section_length %d > 4096.\n",
 					dvbdmxfeed->pid, section_length);
+			printk(KERN_DEBUG "queue dump:");
+			while (queue->bytes_avail(queue) > 0) {
+				printk(" %02x", queue->get_data8(queue, 0));
+			}
+			printk("\n");
 			avia_gt_dmx_set_pid_table(queue->index, 1, 1, dvbdmxfeed->pid);
 			avia_gt_dmx_queue_reset(queue->index);
 			avia_gt_dmx_set_pid_table(queue->index, 1, 0, dvbdmxfeed->pid);
@@ -171,8 +184,8 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 		/*
 		 * Determine who is interested in the section.
 		 */
-		compare_len = (section_length < DVB_DEMUX_MASK_MAX) ? section_length : DVB_DEMUX_MASK_MAX;
-		crc = queue->crc32_be(queue, section_length, ~0);
+		compare_len = min_t(u16, section_length, DVB_DEMUX_MASK_MAX);
+		crc = need_crc ? queue->crc32_be(queue, section_length, ~0) : 0;
 		chunk1 = queue->get_buf1_size(queue);
 
 		/*
@@ -188,14 +201,15 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 			copied = 0;
 		}
 
-		for (dvbdmxfilter = dvbdmxfeed->filter; dvbdmxfilter != NULL; dvbdmxfilter = dvbdmxfilter->next) {
-			if ((dvbdmxfilter->feed->feed.sec.check_crc) && (crc)) {
-				dprintk(KERN_ERR "avia_gt_napi: crc invalid (0x%08X)\n", crc);
+		for (dvbdmxfilter = dvbdmxfeed->filter; dvbdmxfilter; dvbdmxfilter = dvbdmxfilter->next) {
+			if ((crc) && (dvbdmxfilter->feed->feed.sec.check_crc)) {
+				dprintk(KERN_ERR "avia_gt_napi: invalid crc %08x on pid %04x\n",
+					crc, dvbdmxfeed->pid);
 				continue;
 			}
 
 			/*
-			 * Check wether filter matches.
+			 * Check whether filter matches.
 			 */
 			neq = 0;
 
@@ -239,17 +253,27 @@ static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue,
 {
 	struct dvb_demux_feed *dvbdmxfeed = data;
 	u32 bytes_avail;
+	u32 bytes_lost;
 	u32 chunk1;
 	u8 ts_buf[188];
 
 	if ((bytes_avail = queue->bytes_avail(queue)) < 188)
 		return;
 
-	if (queue->get_data8(queue, 1) != 0x47) {
-		printk(KERN_ERR "avia_gt_napi: lost sync on queue %d\n", queue->index);
-		queue->get_data(queue, NULL, bytes_avail, 0);
-		return;
+	for (bytes_lost = 0; bytes_lost < bytes_avail; bytes_lost++) {
+		if (queue->get_data8(queue, 1) == 0x47)
+			break;
+		queue->get_data(queue, NULL, 1, 0);
 	}
+
+	if (bytes_lost)
+		printk(KERN_ERR "avia_gt_napi: lost sync on queue %d (lost %d bytes)\n", queue->index, bytes_lost);
+
+	if ((bytes_avail = queue->bytes_avail(queue)) < 188)
+		return;
+
+	if (bytes_lost)
+		printk(KERN_INFO "avia_gt_napi: recovered sync\n");
 
 	/* Align size on ts paket size */
 	bytes_avail -= bytes_avail % 188;
@@ -720,7 +744,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.195 2003/12/10 14:09:07 carjay Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.196 2003/12/22 04:09:17 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -745,7 +769,7 @@ static int __init avia_gt_napi_init(void)
 
 	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_PES_FILTERING |
 		DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING |
-		DMX_CRC_CHECKING;
+		DMX_CRC_CHECKING | DMX_TS_DESCRAMBLING;
 
 	demux.priv = NULL;
 	demux.filternum = 31;
@@ -816,9 +840,6 @@ static int __init avia_gt_napi_init(void)
 		printk(KERN_INFO "avia_gt_napi: forcing spts mode.\n");
 		mode = 1;
 	}
-
-	if (ucode_info->caps & AVIA_GT_UCODE_CAP_SEC)
-		printk(KERN_INFO "avia_gt_napi: hw section filtering enabled.\n");
 
 	return 0;
 
