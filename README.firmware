@@ -100,7 +100,7 @@ avia_gt:
    ucode_0013, ucode_0014:
    Known to work and hardware section filtering is supported.
 
-   ucode_B102, ucode_B107, ucode_B121:
+   ucode_001A, ucode_B102, ucode_B107, ucode_B121:
    Known to work but hardware section filtering is not supported by the driver.
 
    All other ucode versions are currently not supported by the driver. Bugfixes
