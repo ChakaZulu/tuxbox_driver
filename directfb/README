@@ -1,0 +1,19 @@
+gtx driver for DirectFB 0.3
+---------------------------
+
+This driver currently supports RGB332 and ARGB1555 modes.
+
+for ARGB1555 mode the alpha bit toggles between half transparence and full
+opacity. 
+
+the color key for full transparecy is currently hardcoded (0x9153), this
+is the default desktop background color value in ARGB1555 mode.
+
+you can use surface->SetColor( surface, 0x24, 0x50, 0x9f, 0xff) to set 
+the color to "full transparency".
+
+
+
+
+
+

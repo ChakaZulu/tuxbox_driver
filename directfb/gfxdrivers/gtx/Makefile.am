@@ -1,5 +1,3 @@
-## Makefile.am for DFBox2/gfxdrivers/gtx
-
 INCLUDES = $(DFB_CFLAGS)
 
 gtx_LTLIBRARIES = libdirectfb_gtx.la
