@@ -9,7 +9,7 @@ Those are:
 - avia_gt (transport demux, C-Cube AViA-GTX/AViA-eNX, "ucode.bin")
 - cam     (conditional access module, BetaResearch SEC, "cam-alpha.bin")
 
-There are lots og different firmware versions available, but not every
+There are lots of different firmware versions available, but not every
 difference is known. In fact, almost only the version numbers are known to be
 different. See below for more about firmware versions.
 
@@ -54,7 +54,7 @@ Extraction:
 
 
 2. Some other dvb receivers are equipped with the same mpeg chipset as the
-   various version of the dbox2. Some of them offer the possibility to perform
+   various versions of the dbox2. Some of them offer the possibility to perform
    software updates using a serial interface. For those, manufacturers provide
    updates to be downloaded via internet. Examples are:
    
@@ -97,7 +97,7 @@ avia_gt:
    ucode_B102, ucode_B107, ucode_B121:
    Known to work but hardware section filtering is not supported by the driver.
 
-   All other ucode versions are currently not supported vy the driver. Bugfixes
+   All other ucode versions are currently not supported by the driver. Bugfixes
    and documentation are always welcome.
 
 cam:
