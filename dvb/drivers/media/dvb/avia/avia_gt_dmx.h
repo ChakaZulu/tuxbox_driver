@@ -34,25 +34,26 @@
 #define AVIA_GT_DMX_QUEUE_MESSAGE		31
 #define AVIA_GT_DMX_QUEUE_HIGH_SPEED	32
 
-typedef struct {
+struct avia_gt_dmx_queue {
 
 	u8 index;
 
-	u32	(*bytes_avail)(u8 queue_nr);
-	u32 (*crc32)(u8 queue_nr, u32 count, u32 seed);
-	u32	(*get_buf1_ptr)(u8 queue_nr);
-	u32	(*get_buf2_ptr)(u8 queue_nr);
-	u32	(*get_buf1_size)(u8 queue_nr);
-	u32	(*get_buf2_size)(u8 queue_nr);
-	u32	(*get_data)(u8 queue_nr, void *dest, u32 count, u8 peek);
-	u8 (*get_data8)(u8 queue_nr, u8 peek);
-	u16 (*get_data16)(u8 queue_nr, u8 peek);
-	u32 (*get_data32)(u8 queue_nr, u8 peek);
-	u32	(*put_data)(u8 queue_nr, void *src, u32 count, u8 src_is_user_space);
+	u32	(*bytes_avail)(struct avia_gt_dmx_queue *queue);
+	u32	(*bytes_free)(struct avia_gt_dmx_queue *queue);
+	u32 (*crc32)(struct avia_gt_dmx_queue *queue, u32 count, u32 seed);
+	u32	(*get_buf1_ptr)(struct avia_gt_dmx_queue *queue);
+	u32	(*get_buf2_ptr)(struct avia_gt_dmx_queue *queue);
+	u32	(*get_buf1_size)(struct avia_gt_dmx_queue *queue);
+	u32	(*get_buf2_size)(struct avia_gt_dmx_queue *queue);
+	u32	(*get_data)(struct avia_gt_dmx_queue *queue, void *dest, u32 count, u8 peek);
+	u8 (*get_data8)(struct avia_gt_dmx_queue *queue, u8 peek);
+	u16 (*get_data16)(struct avia_gt_dmx_queue *queue, u8 peek);
+	u32 (*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
+	u32	(*put_data)(struct avia_gt_dmx_queue *queue, void *src, u32 count, u8 src_is_user_space);
 
-} sAviaGtDmxQueueInfo;
+};
 
-typedef void (AviaGtDmxQueueProc)(u8 queue_nr, void *priv_data);
+typedef void (AviaGtDmxQueueProc)(struct avia_gt_dmx_queue *queue, void *priv_data);
 
 typedef struct {
 
@@ -60,7 +61,7 @@ typedef struct {
 	AviaGtDmxQueueProc *cb_proc;
 	u32 hw_read_pos;
 	u32 hw_write_pos;
-	sAviaGtDmxQueueInfo info;
+	struct avia_gt_dmx_queue info;
 	u32 irq_count;
 	AviaGtDmxQueueProc *irq_proc;
 	u32 mem_addr;
@@ -211,7 +212,6 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
-u32 avia_gt_dmx_queue_get_bytes_free(u8 queue_nr);
 u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);

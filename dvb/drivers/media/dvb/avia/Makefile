@@ -5,8 +5,8 @@
 DEBUG = 0
 STANDALONE = 0
 
-M_OBJS   = avia_napi.o avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_dvr.o
-obj-m    = avia_napi.o avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o avia_gt_dvr.o
+M_OBJS   = avia_napi.o avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o
+obj-m    = avia_napi.o avia_av.o avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_lirc.o
 
 FB_GEN = $(KERNEL_LOCATION)/drivers/video/fbgen.o
 

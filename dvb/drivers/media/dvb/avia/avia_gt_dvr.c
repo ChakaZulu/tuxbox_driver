@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.11  2002/11/03 19:11:12  Jolt
+ *   Queue handling changes part3
+ *
  *   Revision 1.10  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -359,7 +362,7 @@ static ssize_t iframe_write (struct file *file, const char *buf, size_t count,lo
 		
 	}
 	
-	count = video_queue->info.put_data(video_queue_nr, (void *)buf, count, 1);
+	count = video_queue->info.put_data(&video_queue->info, (void *)buf, count, 1);
 
 	if (!video_pre_buffer)
 		avia_gt_dmx_system_queue_set_write_pos(video_queue_nr, video_queue->write_pos);
@@ -443,7 +446,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 int __init avia_gt_dvr_init(void)
 {
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.10 2002/10/20 20:38:26 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.11 2002/11/03 19:11:12 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 		
