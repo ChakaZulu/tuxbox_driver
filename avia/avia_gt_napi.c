@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.110 $
+ *   $Revision: 1.111 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.111  2002/09/09 17:46:30  Jolt
+ *   Compile fix
+ *
  *   Revision 1.110  2002/09/05 12:42:51  Jolt
  *   DMX/NAPI cleanup
  *
@@ -577,10 +580,12 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
-void avia_gt_napi_message_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data, void *qdata)
+void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 {
 
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
+	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
+	sAviaGtDmxQueueInfo *queue_info = &queue->info;
 	static char sync_lost = 0;
 	sCC_ERROR_MESSAGE msg;
 	sSECTION_COMPLETED_MESSAGE comp_msg;
@@ -735,10 +740,10 @@ void avia_gt_napi_message_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info,
 						
 }
 
-void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data, void *qdata)
+void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 {
 
-	sAviaGtDmxQueue *queue = (sAviaGtDmxQueue *)qdata;
+	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int ccn = (int)0;
 
@@ -1835,7 +1840,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.110 2002/09/05 12:42:51 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.111 2002/09/09 17:46:30 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
