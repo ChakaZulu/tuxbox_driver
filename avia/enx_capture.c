@@ -137,14 +137,16 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 					continue;
 				}
 				
-				done=0;
+				/*done=0;
 				while (done*output_width < count) {
 				    if ((done+1)*output_width > count)
 					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, output_width);
 				    else
 					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
 				    done++;
-				}    
+				} */   
+				memcpy(buf, enx_mem+capt_buf_addr, count);
+				
 				read=count;
 				
 				//enable_capture();
@@ -245,7 +247,7 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     printk("enx_capture: capture_start\n");
     
     scale_x = input_width / output_width;
-    scale_y = input_height / output_height;
+    scale_y = input_height / output_height / 2;
     delta_x = ((input_width / scale_x) - output_width) / 2;
     delta_y = ((input_height / scale_y) - output_height) / 2;
     line_stride = ((input_width / scale_x) + 3) & ~3;
@@ -259,12 +261,14 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x + delta_x) / 2;
     enx_reg_s(VCP)->EVPOS = 21 + input_y + delta_y;
 
-    enx_reg_s(VCSZ)->HDEC = (input_width / output_width) - 1;
+    enx_reg_s(VCSZ)->HDEC = scale_x - 1;
     enx_reg_s(VCSZ)->HSIZE = input_width / 2;
-    enx_reg_s(VCSZ)->VDEC = (input_height / output_height) - 1;		
+    enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
     enx_reg_s(VCSZ)->VSIZE = input_height / 2;
 
     enx_reg_s(VCSTR)->STRIDE = line_stride / 4;
+
+    enx_reg_s(VCOFFS)->Offset = 512 * 1024 / 4;
     
     enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
     enx_reg_s(VCSA2)->Addr = (capt_buf_addr + ((input_width / scale_x) * (input_height / scale_y))) >> 2;
@@ -338,13 +342,10 @@ int enx_capture_init(void)
     
     enx_reg_w(RSTR0) &= ~(1 << 10);		// take video capture out of reset
 
-    enx_reg_w(VCOFFS) = 0;
-//    enx_reg_w(VCOFFS) |= ((SCALED_HSIZE * SCALED_VSIZE / 4) & 0x1FFFFC);
-
     enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
 
-    enx_reg_s(VCSZ)->F = 1;   
-    enx_reg_s(VCSZ)->B = 0;   
+    enx_reg_s(VCSZ)->F = 1;   				// Enable filter
+    enx_reg_s(VCSZ)->B = 1;   				// Both / even-only field(s)
     
     if (enx_allocate_irq(0, 5, enx_capture_interrupt) < 0)	// VL1
     {
@@ -367,7 +368,7 @@ void enx_capture_cleanup(void)
 
 static int init_capture(void)
 {
-    printk("$Id: enx_capture.c,v 1.1 2001/10/23 08:49:35 Jolt Exp $\n");
+    printk("$Id: enx_capture.c,v 1.2 2001/10/23 20:37:08 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
