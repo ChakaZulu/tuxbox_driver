@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.97  2002/08/25 22:14:54  Jolt
+ *   Sync logic is broken :(
+ *
  *   Revision 1.96  2002/08/25 20:33:19  Jolt
  *   Enabled basic sync mode
  *
@@ -92,7 +95,7 @@
  *
  *
  *
- *   $Revision: 1.96 $
+ *   $Revision: 1.97 $
  *
  */
 
@@ -1120,7 +1123,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	local_diff = (s64)PCR_VALUE(stc) - (s64)PCR_VALUE(l_stc);
 	remote_diff = (s64)PCR_VALUE(tp_pcr) - (s64)PCR_VALUE(stc);
 
-#if 1
+#if 0
 
 	if (PCR_VALUE(tp_pcr) > PCR_VALUE(stc)) {
 
@@ -1172,7 +1175,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.96 2002/08/25 20:33:19 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.97 2002/08/25 22:14:54 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
