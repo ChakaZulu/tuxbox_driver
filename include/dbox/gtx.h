@@ -1811,15 +1811,22 @@ extern void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 extern void avia_gt_gtx_init(void);
 extern void avia_gt_gtx_exit(void);
 
-#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + GTX_REG_ ## register))))
-#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
-#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + GTX_REG_ ## register))))
-#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
+#define gtx_reg_16(register) ((volatile unsigned short)(*((unsigned short*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_16n(offset) ((volatile unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
+#define gtx_reg_32(register) ((volatile unsigned int)(*((unsigned int*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_32o(register, offset) ((volatile unsigned int)(*((unsigned int*)(gt_info->reg_addr + GTX_REG_ ## register + offset))))
+#define gtx_reg_32n(offset) ((volatile unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
 #define gtx_reg_o(offset) (gt_info->reg_addr + offset)
-#define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
-#define gtx_reg_sn(register, offset) ((sGTX_REG_##register *)(gtx_reg_o(offset)))
-#define gtx_reg_so(register, offset) ((sGTX_REG_##register *)(&gtx_reg_32(register + (offset))))
-#define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
-#define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
+#define gtx_reg_s(register) ((volatile sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_sn(register, offset) ((volatile sGTX_REG_##register *)(gtx_reg_o(offset)))
+#define gtx_reg_so(register, offset) ((volatile sGTX_REG_##register *)(&gtx_reg_32o(register, offset)))
+#define gtx_reg_32s(register) ((volatile sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_16s(register) ((volatile sGTX_REG_##register *)(&gtx_reg_16(register)))
+
+#define gtx_reg_set_32s(register, field, value) { u32 tmp_reg_val = gtx_reg_32(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_32(register) = tmp_reg_val; }
+#define gtx_reg_set_16s(register, field, value) { u16 tmp_reg_val = gtx_reg_16(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_16(register) = tmp_reg_val; }
+#define gtx_reg_set(register, field, value) do { if (sizeof(sGTX_REG_##register) == 4) gtx_reg_set_32(register, field, value) else if (sizeof(sGTX_REG_##register ) == 2) gtx_reg_set_16(register, field, value) else printk("ERROR: struct size is %d\n", sizeof(sGTX_REG_##register)); } while(0)
+#define gtx_reg_set_bit(register, bit) gtx_reg_set(register, bit, 1)
+#define gtx_reg_clear_bit(register, bit) gtx_reg_set(register, bit, 0)
 
 #endif /* __GTX_H__ */
