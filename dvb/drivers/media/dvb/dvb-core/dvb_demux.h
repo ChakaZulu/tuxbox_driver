@@ -130,5 +130,6 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux);
 int dvb_dmx_release(struct dvb_demux *dvbdemux);
 void dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf);
 void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, int count);
+u32 dvb_crc32(u8 *data, size_t len, u32 seed);
 
 #endif /* _DVB_DEMUX_H_ */

@@ -155,11 +155,16 @@ dvb_crc_table[256] = {
 	0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
 	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
-u32 dvb_crc32(u8 *data, int len)
+u32 dvb_crc32(u8 *data, size_t len, u32 seed)
 {
 	int i;
-	u32 crc = 0xffffffff;
-
+	u32 crc;
+	
+	if (seed)
+		crc = seed;
+	else
+		crc = 0xffffffff;
+	
 	for (i=0; i<len; i++)
                 crc = (crc << 8) ^ dvb_crc_table[((crc >> 24) ^ *data++) & 0xff];
 	return crc;
@@ -169,7 +174,7 @@ void dvb_set_crc32(u8 *data, int length)
 {
         u32 crc;
 
-        crc=dvb_crc32(data,length);
+        crc=dvb_crc32(data,length,0);
         data[length]   = (crc>>24)&0xff;
         data[length+1] = (crc>>16)&0xff;
         data[length+2] = (crc>>8)&0xff;
@@ -240,6 +245,9 @@ dvb_dmx_swfilter_section_feed(struct dvb_demux_feed *dvbdmxfeed)
                 return 0;
         if (!(f=dvbdmxfeed->filter))
                 return 0;
+        if ((dvbdmxfeed->check_crc) && 
+	    (dvb_crc32(dvbdmxfeed->secbuf, dvbdmxfeed->seclen, 0)))
+		return -1;
         do 
                 if (dvb_dmx_swfilter_sectionfilter(dvbdmxfeed, f)<0)
                         return -1;
