@@ -651,7 +651,6 @@ dvb_add_frontend_ioctls (struct dvb_adapter *adapter,
 {
 	struct dvb_frontend_ioctl_data *ioctl;
         struct list_head *entry;
-	int frontend_count = 0;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -684,13 +683,12 @@ dvb_add_frontend_ioctls (struct dvb_adapter *adapter,
 			fe->frontend.before_ioctl = before_ioctl;
 			fe->frontend.after_ioctl = after_ioctl;
 			fe->frontend.before_after_data = before_after_data;
-			frontend_count++;
 		}
 	}
 
 	up (&frontend_mutex);
 
-	return frontend_count;
+	return 0;
 }
 
 
@@ -749,7 +747,6 @@ dvb_add_frontend_notifier (struct dvb_adapter *adapter,
 {
 	struct dvb_frontend_notifier_data *notifier;
 	struct list_head *entry;
-	int frontend_count = 0;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -779,13 +776,12 @@ dvb_add_frontend_notifier (struct dvb_adapter *adapter,
 		{
 			fe->frontend.notifier_callback = callback;
 			fe->frontend.notifier_data = data;
-			frontend_count++;
 		}
 	}
 
 	up (&frontend_mutex);
 
-	return frontend_count;
+	return 0;
 }
 
 
