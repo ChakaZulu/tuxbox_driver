@@ -1,5 +1,5 @@
 /*
- *   avia_pcm.h - pcm driver for AViA (dbox-II-project)
+ *   avia_gt_pcm.h - pcm driver for AViA (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,25 +21,19 @@
  *
  */
 
-#ifndef AVIA_PCM_H
-#define AVIA_PCM_H
+#ifndef AVIA_GT_PCM_H
+#define AVIA_GT_PCM_H
 
-#define IM_AVIA_PCM_OPS "im_avia_pcm_ops"
-
-typedef struct {
-
-    char *name;
-    int (*play_buffer)(void *buffer, unsigned int buffer_size, unsigned char block);
-    int (*set_rate)(unsigned short rate);
-    int (*set_width)(unsigned char width);
-    int (*set_channels)(unsigned char channels);
-    int (*set_signed)(unsigned char signed_samples);
-    int (*set_endian)(unsigned char be);
-    void (*set_mpeg_attenuation)(unsigned char left, unsigned char right);
-    void (*set_pcm_attenuation)(unsigned char left, unsigned char right);
-    void (*stop)(void);
-	    
-} sAviaPcmOps;
+unsigned int avia_gt_pcm_get_block_size(void);
+void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right);
+void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right);
+int avia_gt_pcm_set_rate(unsigned short rate);
+int avia_gt_pcm_set_width(unsigned char width);
+int avia_gt_pcm_set_channels(unsigned char channels);
+int avia_gt_pcm_set_signed(unsigned char signed_samples);
+int avia_gt_pcm_set_endian(unsigned char be);
+int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block);
+void avia_gt_pcm_stop(void);
 	    
 #endif
 	    
