@@ -8,7 +8,7 @@ AVS_OBJS     = stv6412.o cxa2092.o cxa2126.o avs_core.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I../include -I$(KERNEL_LOCATION)/arch/ppc -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

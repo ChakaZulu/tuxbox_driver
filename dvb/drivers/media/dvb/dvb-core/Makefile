@@ -11,7 +11,7 @@ DVB_CORE = dvbdev.o dmxdev.o dvb_demux.o dvb_filter.o \
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../../../../include -DEXPORT_SYMTAB -MD -Werror
+EXTRA_CFLAGS=-I../../../../include -I$(KERNEL_LOCATION)/arch/ppc -DEXPORT_SYMTAB -MD -Werror
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

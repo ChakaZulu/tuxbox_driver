@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.9 2002/12/18 19:07:03 Zwen Exp $
+ * $Id: dbox2_fp_timer.c,v 1.10 2002/12/29 15:05:36 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -83,7 +83,7 @@ int
 dbox2_fp_timer_get (void)
 {
 	u8 id [] ={ 0x00, 0x00 };
-	u8 cmd;
+	u8 cmd = 0;
 
 	switch (manufacturer_id) {
 	case DBOX_MID_NOKIA:

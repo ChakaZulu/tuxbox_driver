@@ -9,7 +9,7 @@ INPUT_OBJS	= dbox2_fp_input_core.o dbox2_fp_rc.o dbox2_fp_keyboard.o dbox2_fp_bu
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -I../dvb/include -I../dvb/drivers/media/dvb -DEXPORT_SYMTAB -Werror
+EXTRA_CFLAGS=-I../include -I../dvb/include -I../dvb/drivers/media/dvb -I$(KERNEL_LOCATION)/arch/ppc -DEXPORT_SYMTAB -Werror
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

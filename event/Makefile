@@ -7,7 +7,7 @@ M_OBJS       = event.o
 # 2.4.x Kernel Option
 obj-m        = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -I$(KERNEL_LOCATION)/arch/ppc/8xx_io -I$(KERNEL_LOCATION)/include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I../include -I$(KERNEL_LOCATION)/arch/ppc/8xx_io -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
