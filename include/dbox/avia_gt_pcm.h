@@ -21,13 +21,19 @@
  *
  */
 
+#include "avia_gt.h"
+
 #ifndef AVIA_GT_PCM_H
 #define AVIA_GT_PCM_H
 
-#define AVIA_GT_PCM_BUFFER_COUNT	5
+#define AVIA_GT_PCM_BUFFER_COUNT	25
 #define AVIA_GT_PCM_MAX_SAMPLES		1023
 #define AVIA_GT_PCM_MAX_BPS		4
 #define AVIA_GT_PCM_BUFFER_SIZE		(AVIA_GT_PCM_MAX_SAMPLES * AVIA_GT_PCM_MAX_BPS)
+
+#if (AVIA_GT_PCM_BUFFER_SIZE * AVIA_GT_PCM_BUFFER_COUNT) > AVIA_GT_MEM_PCM_SIZE
+#error AViA pcm buffer exceeds AViA pcm memory pool!
+#endif
 
 unsigned int avia_gt_pcm_get_block_size(void);
 void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right);
