@@ -193,6 +193,16 @@ static int fp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 		else
 			return fp_sendcmd(defdata->client, 0x06, val & 0xff);
 
+	case FP_IOCTL_LCD_AUTODIMM:
+		/* only works on Sagem and Philips */
+		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
+			return -EFAULT;
+
+		if (fp_revision >= 0x80)
+			return 0;
+		else
+			return fp_sendcmd(defdata->client, 0x08, val & 0x01);
+
 	case FP_IOCTL_LED:
 		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 			return -EFAULT;
