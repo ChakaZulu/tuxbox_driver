@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.6 2002/11/11 02:56:27 obi Exp $
+ * $Id: avia_napi.c,v 1.7 2002/11/11 06:29:41 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -29,28 +29,12 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-#include "../dvb-core/dmxdev.h"
 #include "../dvb-core/dvbdev.h"
-#include "../dvb-core/dvb_demux.h"
-#include "../dvb-core/dvb_frontend.h"
-#include "../dvb-core/dvb_i2c.h"
 
 #include "avia_av_napi.h"
 #include "avia_gt_napi.h"
 
 static struct dvb_adapter *adap;
-static struct dvb_i2c_bus *i2c_bus;
-
-int i2c_dbox2_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num);
-
-static int avia_napi_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msgs[], int num)
-{
-
-//	printk("avia_napi: i2c_master_xfer\n");
-	
-	return i2c_dbox2_xfer(NULL, msgs, num);
-
-}
 
 struct dvb_adapter *avia_napi_get_adapter(void)
 {
@@ -64,7 +48,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.6 2002/11/11 02:56:27 obi Exp $\n");
+	printk("$Id: avia_napi.c,v 1.7 2002/11/11 06:29:41 Jolt Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
@@ -74,21 +58,10 @@ static int __init avia_napi_init(void)
 		
 	}
 
-	if (!(i2c_bus = dvb_register_i2c_bus(avia_napi_i2c_master_xfer, NULL, adap, 0))) {
-
-		printk("avia_napi: dvb_register_i2c_bus failed\n");
-
-		dvb_unregister_adapter(adap);
-	
-		return -ENOMEM;
-	
-	}
-
 	if ((result = avia_av_napi_register(adap, NULL)) < 0) {
 	
 		printk("avia_napi: avia_av_napi_register failed (errno = %d)\n", result);
 
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
@@ -107,7 +80,6 @@ static void __exit avia_napi_exit(void)
 //FIXME	dvb_net_release(&net);
 
 	avia_av_napi_unregister();
-	dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 	dvb_unregister_adapter(adap);
 
 }
