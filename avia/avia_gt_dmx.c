@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.114  2002/09/05 13:00:30  Jolt
+ *   DMX sanity checks
+ *
  *   Revision 1.113  2002/09/05 12:42:51  Jolt
  *   DMX/NAPI cleanup
  *
@@ -146,7 +149,7 @@
  *
  *
  *
- *   $Revision: 1.113 $
+ *   $Revision: 1.114 $
  *
  */
 
@@ -1202,6 +1205,34 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 	for (queue_nr = 31; queue_nr >= 0; queue_nr--) {	// msg queue must have priority
 
+		// can happen if a queue has been reset but an interrupt is pending
+		if (queue_list[queue_nr].write_pos == queue_list[queue_nr].read_pos)
+			continue;
+
+		if (queue_list[queue_nr].write_pos < queue_list[queue_nr].mem_addr)	{
+		
+			printk(KERN_CRIT "avia_gt_dmx: write_pos < base (is: %x, base is %x, queue %d)!\n", queue_list[queue_nr].write_pos, queue_list[queue_nr].mem_addr, queue_nr);
+
+#ifdef DEBUG
+			BUG();
+#endif
+
+			continue;
+
+		}
+
+		if (queue_list[queue_nr].write_pos >= (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
+		
+			printk(KERN_CRIT "avia_gt_napi: write_pos out of bounds! (is %x)\n", queue_list[queue_nr].write_pos);
+			
+#ifdef DEBUG
+			BUG();
+#endif
+	
+			continue;
+			
+		}
+
 		if ((queue_list[queue_nr].info.irq_count) && (queue_list[queue_nr].cb_proc))
 			queue_list[queue_nr].cb_proc(queue_nr, &queue_list[queue_nr].info, queue_list[queue_nr].cb_data, &queue_list[queue_nr]);
 
@@ -1595,7 +1626,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.113 2002/09/05 12:42:51 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.114 2002/09/05 13:00:30 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
