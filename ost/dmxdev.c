@@ -377,7 +377,7 @@ DmxDevSectionCallback(u8 *buffer1, size_t buffer1_len,
 	        dmxdevfilter->buffer.error=-EBUFFEROVERFLOW;
 	}
 	if (dmxdevfilter->params.sec.flags&DMX_ONESHOT)
-	        dmxdevfilter->state=DMXDEV_STATE_DONE;
+		DmxDevFilterStop(dmxdevfilter); // dmxdevfilter->state=DMXDEV_STATE_DONE;
 	spin_unlock(&dmxdevfilter->dev->lock);
 	wake_up(&dmxdevfilter->buffer.queue);
 	return 0;
