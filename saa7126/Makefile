@@ -3,7 +3,7 @@
 # when compiling module(s)
 
 M_OBJS    = saa7126.o
-SAA_OBJS  = saa7126_core.o saa7126_calc.o
+SAA_OBJS  = saa7126_core.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
