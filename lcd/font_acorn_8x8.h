@@ -276,3 +276,4 @@ struct fbcon_font_desc font_acorn_8x8 = {
 #endif
 };
 */
+
