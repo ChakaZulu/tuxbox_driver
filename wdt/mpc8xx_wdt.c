@@ -21,6 +21,9 @@
  *
  *
  *   $Log: mpc8xx_wdt.c,v $
+ *   Revision 1.3  2003/02/20 21:45:17  waldi
+ *   fix warnings
+ *
  *   Revision 1.2  2002/10/18 13:59:58  Jolt
  *   Tweaks for in-kernel compile
  *
@@ -28,7 +31,7 @@
  *   WDT API driver
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -47,7 +50,6 @@
 #include <asm/8xx_immap.h>
 #include <asm/irq.h>
 
-static int wdt_irq_dev;
 static struct semaphore wdt_sem;
 static u32 wdt_status = 0;
 static u32 wdt_timeout = 0;
@@ -277,7 +279,7 @@ static struct miscdevice mpc8xx_wdt_miscdev = {
 static int __init mpc8xx_wdt_init(void)
 {
 
-	printk("mpc8xx_wdt: $Id: mpc8xx_wdt.c,v 1.2 2002/10/18 13:59:58 Jolt Exp $\n");
+	printk("mpc8xx_wdt: $Id: mpc8xx_wdt.c,v 1.3 2003/02/20 21:45:17 waldi Exp $\n");
 
 	sema_init(&wdt_sem, 1);
 

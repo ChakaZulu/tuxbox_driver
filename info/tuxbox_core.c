@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_core.c,v 1.1 2003/02/19 16:38:05 waldi Exp $
+ * $Id: tuxbox_core.c,v 1.2 2003/02/20 21:45:17 waldi Exp $
  */
 
 #include <linux/module.h>
@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <tuxbox/tuxbox_info.h>
+#include <tuxbox/tuxbox_hardware.h>
 
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
