@@ -400,7 +400,7 @@ at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			if (sync & 0x40)	/* CAR */
 				*status |= FE_HAS_SYNC;
 
-			if ((sync & (0xF0)) == 0xF0)	/* TIM && EQU && CAR && FEC && !AGC1 */
+			if ((sync & 0xF0) == 0xF0)	/* TIM && EQU && CAR && FEC */
 				*status |= FE_HAS_LOCK;
 
 			break;
