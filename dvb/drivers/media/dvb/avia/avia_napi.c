@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.3 2002/11/05 18:50:00 Jolt Exp $
+ * $Id: avia_napi.c,v 1.4 2002/11/08 01:26:55 obi Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -45,6 +45,7 @@ static dmx_frontend_t fe_hw;
 static dmx_frontend_t fe_mem;
 static struct dvb_i2c_bus *i2c_bus;
 
+int cam_napi_register(struct dvb_adapter *adapter, void *priv);
 int i2c_dbox2_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num);
 
 static int avia_napi_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msgs[], int num)
@@ -87,7 +88,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.3 2002/11/05 18:50:00 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.4 2002/11/08 01:26:55 obi Exp $\n");
 	
 	demux = avia_gt_napi_get_demux();
 	
@@ -224,6 +225,27 @@ static int __init avia_napi_init(void)
 		return result;
 		
 	}
+
+	if ((result = cam_napi_register(adap, NULL)) < 0) {
+
+		printk("avia_napi: cam_napi_register failed (errno = %d)\n", result);
+
+		avia_av_napi_unregister();
+		dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
+		dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
+		demux->dmx.close(&demux->dmx);
+		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
+		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
+		dvb_dmxdev_release(&dmxdev);
+		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
+		dvb_unregister_adapter(adap);
+		
+		return result;
+		
+	}
+
+
+
 
 //FIXME	dvb_net_register();
 
