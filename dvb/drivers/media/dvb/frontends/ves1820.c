@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.19  2001/12/01 06:28:18  gillem
+    - add get/set stdby bit
+
     Revision 1.18  2001/07/30 19:10:21  tmbinc
     work-around for sync. (does not work properly in interrupt)
 
@@ -52,7 +55,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.18 $
+    $Revision: 1.19 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -357,6 +360,31 @@ int SetQAM(struct i2c_client* client, QAM_TYPE QAM_Mode, int DoCLB)
         if (DoCLB) 
                 ClrBit1820(client);
         return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* read and write STDBY bit */
+int SetStdby(struct i2c_client* client, int DoStdby)
+{
+        ves1820_t *ves=(ves1820_t *) client->data;
+
+	if(DoStdby)
+		ves->reg0 |= 0x80;
+	else
+		ves->reg0 &= ~0x80;
+
+        writereg(client, 0x00, ves->reg0 );
+
+	return 0;
+}
+
+int GetStdby(struct i2c_client* client)
+{
+	u8 status;
+
+	status = readreg(client,0);
+
+	return ((status>>7)&1);
 }
 
 /* ---------------------------------------------------------------------- */
