@@ -363,7 +363,7 @@ int gtx_capture_set_input(unsigned short x, unsigned short y, unsigned short wid
 
 int gtx_capture_init(void)
 {
-    gtx_mem = gtx_get_mem_addr();
+    gtx_mem = avia_gt_get_mem_addr();
     
     gtx_reg_16(RR0) &= ~(1 << 14);			// Take video capture out of reset
 
@@ -391,7 +391,7 @@ void gtx_capture_cleanup(void)
 
 static int init_capture(void)
 {
-    printk("$Id: gtx_capture.c,v 1.3 2001/12/01 06:37:06 gillem Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.4 2002/04/12 18:59:29 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
 

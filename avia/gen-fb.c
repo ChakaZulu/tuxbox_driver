@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.17  2002/04/12 18:59:29  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.16  2002/03/29 19:16:29  obi
  *   - simplify gtx blev code
  *   - ioctl return value fix
@@ -93,7 +96,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -883,8 +886,8 @@ int __init gtxfb_init(void)
 #endif
 
 #ifdef ENX
-	gtxmem=enx_get_mem_addr();
-	gtxreg=enx_get_reg_addr();
+	gtxmem=avia_gt_get_mem_addr();
+	gtxreg=avia_gt_get_reg_addr();
 
 	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
 	fb_info.offset=ENX_FB_OFFSET;
@@ -938,7 +941,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: gen-fb.c,v 1.16 2002/03/29 19:16:29 obi Exp $\n");
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.17 2002/04/12 18:59:29 Jolt Exp $\n");
 	
 	return gtxfb_init();
 }

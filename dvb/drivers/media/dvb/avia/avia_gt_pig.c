@@ -21,12 +21,15 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.9  2002/04/12 18:59:29  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.8  2002/04/12 14:28:13  Jolt
  *   eNX/GTX merge
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 	
@@ -57,14 +60,6 @@
 #include <dbox/avia_gt_pig.h>
 
 #define ENX_PIG_COUNT 2
-
-extern void avia_gt_pig_cleanup(void);
-extern int avia_gt_pig_hide(unsigned char pig_nr);
-extern void avia_gt_pig_init(void);
-extern int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y);
-extern int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short height, unsigned char stretch);
-extern int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order);
-extern int avia_gt_pig_show(unsigned char pig_nr);
 
 //#define CAPTURE_WIDTH 720
 #define CAPTURE_WIDTH 640
@@ -226,7 +221,7 @@ int avia_gt_pig_hide(unsigned char pig_nr)
 
 	enx_reg_w(VPSA1) |= 1;
 
-	enx_capture_stop();
+	avia_gt_capture_stop();
     
 	pig_busy[pig_nr] = 0;
 	
@@ -266,7 +261,7 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
     if (pig_busy[pig_nr])
 	return -EBUSY;
 	
-    result = enx_capture_set_output(width, height);
+    result = avia_gt_capture_set_output(width, height);
     
     if (result < 0)
 	return result;
@@ -290,8 +285,8 @@ int avia_gt_pig_show(unsigned char pig_nr)
     if (pig_busy[pig_nr])
 	return -EBUSY;
 
-    enx_capture_set_input(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-    enx_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], &odd_offset);
+    avia_gt_capture_set_input(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
+    avia_gt_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], &odd_offset);
 
     printk("avia_gt_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
@@ -317,11 +312,17 @@ int avia_gt_pig_show(unsigned char pig_nr)
     return 0;
 }
 
-void avia_gt_pig_init(void)
+int __init avia_gt_pig_init(void)
 {
+
     unsigned char pig_nr = 0;
-    
-    printk("avia_gt_pig: init\n");
+
+    printk("$Id: avia_gt_pig.c,v 1.9 2002/04/12 18:59:29 Jolt Exp $\n");
+
+    devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_pig_fops, NULL);
+
+    if (!devfs_handle[0])
+	return -EIO;
     
     enx_reg_w(RSTR0) &= ~(1 << 7);							// Take video pig out of reset
 
@@ -330,38 +331,23 @@ void avia_gt_pig_init(void)
     avia_gt_pig_set_stack(pig_nr, 1);
     
     //avia_gt_pig_show(pig_nr);
+
+    return 0;
+    
 }
 
-void avia_gt_pig_cleanup(void)
+void __exit avia_gt_pig_exit(void)
 {
-    printk("avia_gt_pig: cleanup\n");
-    
+
+    devfs_unregister(devfs_handle[0]);
+
     avia_gt_pig_hide(0);
     
     enx_reg_w(RSTR0) |= (1 << 7);
-}
-
-static int init_avia_gt_pig(void)
-{
-    printk("$Id: avia_gt_pig.c,v 1.8 2002/04/12 14:28:13 Jolt Exp $\n");
-
-    devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_pig_fops, NULL);
-    if (!devfs_handle[0])
-	return -EIO;
-
-    avia_gt_pig_init();
-
-    return 0;
-}
-
-static void __exit cleanup_avia_gt_pig(void)
-{
-    avia_gt_pig_cleanup();
     
-    devfs_unregister(devfs_handle[0]);
 }
 
-#ifdef MODULE
-module_init(init_avia_gt_pig);
-module_exit(cleanup_avia_gt_pig);
+#if defined(MODULE) && defined(STANDALONE)
+module_init(avia_gt_pig_init);
+module_exit(avia_gt_pig_exit);
 #endif

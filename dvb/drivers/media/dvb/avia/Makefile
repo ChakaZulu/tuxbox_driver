@@ -8,7 +8,7 @@ obj-m    = gtx_core.o gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 
-AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_pcm.o avia_gt_capture.o
+AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
 
 GTX_CORE  = gtx-core.o
 GTX_DMX   = gtx-dmx.o crc32.o

@@ -43,9 +43,9 @@
 #error no devfs
 #endif
 
-#include <dbox/gtx.h>
+#include <dbox/avia_gt.h>
 #include <dbox/gtx_capture.h>
-#include <dbox/avia_pig.h>
+#include <dbox/avia_gt_pig.h>
 
 #define GTX_PIG_COUNT 1
 
@@ -169,7 +169,7 @@ static ssize_t gtx_pig_write(struct file *file, const char *buf, size_t count, l
 	todo = 0;
     }
     
-    kbuf = gtx_get_mem_addr();
+    kbuf = avia_gt_get_mem_addr();
     kbuf = (unsigned char *)(((unsigned int)kbuf) + ((unsigned int)(pig_buffer[pig_nr])) + (pig_offset[pig_nr]));
     
     if (copy_from_user(kbuf, buf, count)) {
@@ -183,7 +183,7 @@ static ssize_t gtx_pig_write(struct file *file, const char *buf, size_t count, l
         pig_offset[pig_nr] = 0;
 	count = todo;
 	
-        kbuf = gtx_get_mem_addr();
+        kbuf = avia_gt_get_mem_addr();
 	kbuf = (unsigned char *)(((unsigned int)kbuf) + ((unsigned int)(pig_buffer[pig_nr])) + (pig_offset[pig_nr]));
     
 	if (copy_from_user(kbuf, buf, count)) {
