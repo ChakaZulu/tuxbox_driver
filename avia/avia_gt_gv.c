@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.19  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.18  2002/05/30 00:39:03  obi
  *   fixed 640x480 fullscreen console
  *
@@ -77,7 +80,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -110,7 +113,7 @@ void avia_gt_gv_cursor_hide(void)
 {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(GMR1)->C = 0;
+		enx_reg_set(GMR1, C, 0);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(GMR)->C = 0;
 
@@ -120,7 +123,7 @@ void avia_gt_gv_cursor_show(void)
 {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(GMR1)->C = 1;
+		enx_reg_set(GMR1, C, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(GMR)->C = 1;
 
@@ -236,7 +239,7 @@ void avia_gt_gv_hide(void)
 {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+		enx_reg_set(GMR1, GMD, AVIA_GT_GV_INPUT_MODE_OFF);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(GMR)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
 
@@ -254,14 +257,14 @@ void avia_gt_gv_set_blevel(unsigned char class0, unsigned char class1)
 	if (avia_gt_chip(ENX)) {
 
 		if (class0 == 0x0F)
-			enx_reg_s(GBLEV1)->BLEV10 = 0xFF;
+			enx_reg_set(GBLEV1, BLEV10, 0xFF);
 		else
-			enx_reg_s(GBLEV1)->BLEV10 = class0 << 4;
+			enx_reg_set(GBLEV1, BLEV10, class0 << 4);
 
 		if (class1 == 0x0F)
-			enx_reg_s(GBLEV1)->BLEV11 = 0xFF;
+			enx_reg_set(GBLEV1, BLEV11, 0xFF);
 		else
-			enx_reg_s(GBLEV1)->BLEV11 = class1 << 4;
+			enx_reg_set(GBLEV1, BLEV11, class1 << 4);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -343,8 +346,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(GMR1)->L = 0;
-			enx_reg_s(GMR1)->F = 0;
+			enx_reg_set(GMR1, L, 0);
+			enx_reg_set(GMR1, F, 0);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -363,8 +366,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(GMR1)->L = 0;
-			enx_reg_s(GMR1)->F = 0;
+			enx_reg_set(GMR1, L, 0);
+			enx_reg_set(GMR1, F, 0);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -377,8 +380,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(GMR1)->L = 1;
-			enx_reg_s(GMR1)->F = 0;
+			enx_reg_set(GMR1, L, 1);
+			enx_reg_set(GMR1, F, 0);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -391,8 +394,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(GMR1)->L = 1;
-			enx_reg_s(GMR1)->F = 1;
+			enx_reg_set(GMR1, L, 1);
+			enx_reg_set(GMR1, F, 1);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -410,14 +413,14 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 	if ((height == 576) || (height == 480)) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(GMR1)->I = 0;
+			enx_reg_set(GMR1, I, 0);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(GMR)->I = 0;
 
 	} else if ((height == 288) || (height == 240)) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(GMR1)->I = 1;
+			enx_reg_set(GMR1, I, 1);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(GMR)->I = 1;
 
@@ -460,9 +463,9 @@ int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(GVP1)->SPP = (((BLANK_TIME - ENX_VID_PIPEDELAY) + x) * 8) % input_div;
-		enx_reg_s(GVP1)->XPOS = ((((BLANK_TIME - ENX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY;
-		enx_reg_s(GVP1)->YPOS = 42 + y;
+		enx_reg_set(GVP1, SPP, (((BLANK_TIME - ENX_VID_PIPEDELAY) + x) * 8) % input_div);
+		enx_reg_set(GVP1, XPOS, ((((BLANK_TIME - ENX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY);
+		enx_reg_set(GVP1, YPOS, 42 + y);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -484,9 +487,9 @@ void avia_gt_gv_set_size(unsigned short width, unsigned short height) {
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(GVSZ1)->IPP = 0;
-		enx_reg_s(GVSZ1)->XSZ = width;
-		enx_reg_s(GVSZ1)->YSZ = height;
+		enx_reg_set(GVSZ1, IPP, 0);
+		enx_reg_set(GVSZ1, XSZ, width);
+		enx_reg_set(GVSZ1, YSZ, height);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -528,7 +531,7 @@ void avia_gt_gv_set_stride(void) {
 	}
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(GMR1)->STRIDE = ((input_width * input_bpp) + 3) >> 2;
+		enx_reg_set(GMR1, STRIDE, ((input_width * input_bpp) + 3) >> 2);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(GMR)->STRIDE = ((input_width * input_bpp) + 1) >> 1;
 
@@ -541,7 +544,7 @@ int avia_gt_gv_show(void) {
 		case AVIA_GT_GV_INPUT_MODE_OFF:
 
 			if (avia_gt_chip(ENX))
-				enx_reg_s(GMR1)->GMD = 0x00;
+				enx_reg_set(GMR1, GMD, 0x00);
 			else if (avia_gt_chip(GTX))
 				gtx_reg_s(GMR)->GMD = 0x00;
 
@@ -549,7 +552,7 @@ int avia_gt_gv_show(void) {
 		case AVIA_GT_GV_INPUT_MODE_RGB4:
 
 			if (avia_gt_chip(ENX))
-				enx_reg_s(GMR1)->GMD = 0x02;
+				enx_reg_set(GMR1, GMD, 0x02);
 			else if (avia_gt_chip(GTX))
 				gtx_reg_s(GMR)->GMD = 0x01;
 
@@ -557,7 +560,7 @@ int avia_gt_gv_show(void) {
 		case AVIA_GT_GV_INPUT_MODE_RGB8:
 
 			if (avia_gt_chip(ENX))
-				enx_reg_s(GMR1)->GMD = 0x06;
+				enx_reg_set(GMR1, GMD, 0x06);
 			else if (avia_gt_chip(GTX))
 				gtx_reg_s(GMR)->GMD = 0x02;
 
@@ -565,7 +568,7 @@ int avia_gt_gv_show(void) {
 		case AVIA_GT_GV_INPUT_MODE_RGB16:
 
 			if (avia_gt_chip(ENX))
-				enx_reg_s(GMR1)->GMD = 0x03;
+				enx_reg_set(GMR1, GMD, 0x03);
 			else if (avia_gt_chip(GTX))
 				gtx_reg_s(GMR)->GMD = 0x03;
 
@@ -573,7 +576,7 @@ int avia_gt_gv_show(void) {
 		case AVIA_GT_GV_INPUT_MODE_RGB32:
 
 			if (avia_gt_chip(ENX))
-				enx_reg_s(GMR1)->GMD = 0x07;
+				enx_reg_set(GMR1, GMD, 0x07);
 			else if (avia_gt_chip(GTX))
 				return -EINVAL;
 
@@ -593,7 +596,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.18 2002/05/30 00:39:03 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.19 2002/06/07 17:53:45 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -607,8 +610,8 @@ int avia_gt_gv_init(void)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(RSTR0)->GFIX = 1;
-		enx_reg_s(RSTR0)->GFIX = 0;
+		enx_reg_set(RSTR0, GFIX, 1);
+		enx_reg_set(RSTR0, GFIX, 0);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -625,43 +628,43 @@ int avia_gt_gv_init(void)
 
 	if (avia_gt_chip(ENX)) {
 
-		//enx_reg_s(GMR1)->P = 1;
-		enx_reg_s(GMR1)->S = 1;
-		enx_reg_s(GMR1)->B = 0;
-		//enx_reg_s(GMR1)->BANK = 1;
+		//enx_reg_set(GMR1, P, 1);
+		enx_reg_set(GMR1, S, 1);
+		enx_reg_set(GMR1, B, 0);
+		//enx_reg_set(GMR1, BANK, 1);
 
-		enx_reg_s(BALP)->AlphaOut = 0x00;
-		enx_reg_s(BALP)->AlphaIn = 0x00;
+		enx_reg_set(BALP, AlphaOut, 0x00);
+		enx_reg_set(BALP, AlphaIn, 0x00);
 
-		enx_reg_s(G1CFR)->CFT = 0x1;
-		enx_reg_s(G2CFR)->CFT = 0x1;
+		enx_reg_set(G1CFR, CFT, 0x1);
+		enx_reg_set(G2CFR, CFT, 0x1);
 
-		enx_reg_s(GBLEV1)->BLEV11 = 0x00;
-		enx_reg_s(GBLEV1)->BLEV10 = 0x20;
+		enx_reg_set(GBLEV1, BLEV11, 0x00);
+		enx_reg_set(GBLEV1, BLEV10, 0x20);
 
 		// schwarzer consolen hintergrund nicht transpartent
-		enx_reg_s(TCR1)->E = 0x1;
-		enx_reg_s(TCR1)->Red = 0xFF;
-		enx_reg_s(TCR1)->Green = 0x00;
-		enx_reg_s(TCR1)->Blue = 0x7F;
+		enx_reg_set(TCR1, E, 0x1);
+		enx_reg_set(TCR1, Red, 0xFF);
+		enx_reg_set(TCR1, Green, 0x00);
+		enx_reg_set(TCR1, Blue, 0x7F);
 
 		// disabled - we don't need since we have 7bit true alpha
-		enx_reg_s(TCR2)->E = 0x0;
-		enx_reg_s(TCR2)->Red = 0xFF;
-		enx_reg_s(TCR2)->Green = 0x00;
-		enx_reg_s(TCR2)->Blue = 0x7F;
+		enx_reg_set(TCR2, E, 0x0);
+		enx_reg_set(TCR2, Red, 0xFF);
+		enx_reg_set(TCR2, Green, 0x00);
+		enx_reg_set(TCR2, Blue, 0x7F);
 
-		enx_reg_s(VBR)->E = 0x0;
-		enx_reg_s(VBR)->Y = 0x00;
-		enx_reg_s(VBR)->Cr = 0x00;
-		enx_reg_s(VBR)->Cb = 0x00;
+		enx_reg_set(VBR, E, 0x0);
+		enx_reg_set(VBR, Y, 0x00);
+		enx_reg_set(VBR, Cr, 0x00);
+		enx_reg_set(VBR, Cb, 0x00);
 
-		enx_reg_s(VCR)->D = 0x1;
-		enx_reg_s(VCR)->C = 0x1;
+		enx_reg_set(VCR, D, 0x1);
+		enx_reg_set(VCR, C, 0x1);
 
-		enx_reg_s(VMCR)->FFM = 0x0;
+		enx_reg_set(VMCR, FFM, 0x0);
 
-		enx_reg_s(GVSA1)->Addr = AVIA_GT_MEM_GV_OFFS >> 2;
+		enx_reg_set(GVSA1, Addr, AVIA_GT_MEM_GV_OFFS >> 2);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -713,7 +716,7 @@ void __exit avia_gt_gv_exit(void)
 //	avia_gt_gv_hide();
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(RSTR0)->GFIX = 1;
+		enx_reg_set(RSTR0, GFIX, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(RR0)->GV = 1;
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.17  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.16  2002/05/20 21:09:11  Jolt
  *   IR RX support
  *
@@ -71,7 +74,7 @@
  *
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -157,10 +160,10 @@ void avia_gt_ir_enable_rx_dma(unsigned char enable, unsigned char offset)
 
 	if (avia_gt_chip(ENX)) {
 	
-    	enx_reg_s(IRRO)->Offset = 0;
+    	enx_reg_set(IRRO, Offset, 0);
 		
-    	enx_reg_s(IRRE)->Offset = offset >> 1;
-	    enx_reg_s(IRRE)->E = enable;
+    	enx_reg_set(IRRE, Offset, offset >> 1);
+	    enx_reg_set(IRRE, E, enable);
 		
 	} else if (avia_gt_chip(GTX)) {
 
@@ -178,11 +181,11 @@ void avia_gt_ir_enable_tx_dma(unsigned char enable, unsigned char length)
 
 	if (avia_gt_chip(ENX)) {
 	
-		enx_reg_s(IRTO)->Offset = 0;
+		enx_reg_set(IRTO, Offset, 0);
 	
-		enx_reg_s(IRTE)->Offset = length - 1;
-		enx_reg_s(IRTE)->C = 0;
-		enx_reg_s(IRTE)->E = enable;
+		enx_reg_set(IRTE, Offset, length - 1);
+		enx_reg_set(IRTE, C, 0);
+		enx_reg_set(IRTE, E, enable);
 		
 	} else if (avia_gt_chip(GTX)) {
 
@@ -278,14 +281,14 @@ void avia_gt_ir_reset(unsigned char reenable)
 {
 
 	if (avia_gt_chip(ENX))
-        enx_reg_s(RSTR0)->IR = 1;
+        enx_reg_set(RSTR0, IR, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(RR0)->IR = 1;
 						
     if (reenable) {
 
 		if (avia_gt_chip(ENX))
-	        enx_reg_s(RSTR0)->IR = 0;
+	        enx_reg_set(RSTR0, IR, 0);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(RR0)->IR = 0;
 
@@ -351,7 +354,7 @@ void avia_gt_ir_set_duty_cycle(u32 new_duty_cycle)
 	duty_cycle = new_duty_cycle;
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_ENX_IR_CLOCK * duty_cycle) / (frequency * 100)) - 1;
+		enx_reg_set(CWPH, WavePulseHigh, ((AVIA_GT_ENX_IR_CLOCK * duty_cycle) / (frequency * 100)) - 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(CWPH)->WavePulseHigh = ((AVIA_GT_GTX_IR_CLOCK * duty_cycle) / (frequency * 100)) - 1;
 
@@ -363,7 +366,7 @@ void avia_gt_ir_set_frequency(u32 new_frequency)
 	frequency = new_frequency;
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_ENX_IR_CLOCK / frequency) - 1;
+		enx_reg_set(CWP, CarrierWavePeriod, (AVIA_GT_ENX_IR_CLOCK / frequency) - 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(CWP)->CarrierWavePeriod = (AVIA_GT_GTX_IR_CLOCK / frequency) - 1;
 
@@ -376,10 +379,10 @@ void avia_gt_ir_set_filter(u8 enable, u8 low, u8 high)
 
 	if (avia_gt_chip(ENX)) {
 	
-	    enx_reg_s(RFR)->Filt_H = high;
-	    enx_reg_s(RFR)->Filt_L = low;
+	    enx_reg_set(RFR, Filt_H, high);
+	    enx_reg_set(RFR, Filt_L, low);
     
-	    enx_reg_s(RTC)->S = enable;
+	    enx_reg_set(RTC, S, enable);
 	
 	} else if (avia_gt_chip(GTX)) {
 
@@ -396,7 +399,7 @@ void avia_gt_ir_set_polarity(u8 polarity)
 {
 
 	if (avia_gt_chip(ENX))
-	    enx_reg_s(RFR)->P = polarity;
+	    enx_reg_set(RFR, P, polarity);
 	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(RFR)->P = polarity;
 
@@ -407,7 +410,7 @@ void avia_gt_ir_set_tick_period(u32 tick_period)
 {
 
 	if (avia_gt_chip(ENX))
-	    enx_reg_s(RTP)->TickPeriod = (1000 * 1000 * 1000 / tick_period) - 1;
+	    enx_reg_set(RTP, TickPeriod, (1000 * 1000 * 1000 / tick_period) - 1);
 	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(RTP)->TickPeriod = (1000 * 1000 * 1000 / tick_period) - 1;
 
@@ -417,7 +420,7 @@ void avia_gt_ir_set_queue(unsigned int addr)
 {
 
 	if (avia_gt_chip(ENX))
-	    enx_reg_s(IRQA)->Addr = addr >> 9;
+	    enx_reg_set(IRQA, Addr, addr >> 9);
 	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(IRQA)->Address = addr >> 9;
 
@@ -432,7 +435,7 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq;
 	u16 tx_irq;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.16 2002/05/20 21:09:11 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.17 2002/06/07 17:53:45 Jolt Exp $\n");
 
     do_gettimeofday(&last_timestamp);
 	

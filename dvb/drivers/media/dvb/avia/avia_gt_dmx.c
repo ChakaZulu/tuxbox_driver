@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.87  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.86  2002/05/09 07:29:21  waldi
  *   add correct license
  *
@@ -58,7 +61,7 @@
  *
  *
  *
- *   $Revision: 1.86 $
+ *   $Revision: 1.87 $
  *
  */
 
@@ -112,9 +115,9 @@ unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 	if (avia_gt_chip(ENX)) {
 
 		if (queue_nr >= 16)
-			enx_reg_s(CFGR0)->UPQ = 1;
+			enx_reg_set(CFGR0, UPQ, 1);
 		else
-			enx_reg_s(CFGR0)->UPQ = 0;
+			enx_reg_set(CFGR0, UPQ, 0);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -256,9 +259,9 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 
 	if (avia_gt_chip(ENX)) {
 
-		//enx_reg_s(PCR_PID)->E = 0;
-		//enx_reg_s(PCR_PID)->PID = pid;
-		//enx_reg_s(PCR_PID)->E = 1;
+		//enx_reg_set(PCR_PID, E, 0);
+		//enx_reg_set(PCR_PID, PID, pid);
+		//enx_reg_set(PCR_PID, E, 1);
 
 		enx_reg_16(PCR_PID) = (1 << 13) | pid;
 
@@ -385,7 +388,7 @@ void avia_gt_dmx_reset(unsigned char reenable)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(RSTR0)->TDMP = 1;
+		enx_reg_set(RSTR0, TDMP, 1);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -397,7 +400,7 @@ void avia_gt_dmx_reset(unsigned char reenable)
 	{
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(RSTR0)->TDMP = 0;
+			enx_reg_set(RSTR0, TDMP, 0);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -514,8 +517,8 @@ static void gtx_set_pcr(Pcr_t pcr)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(STC_COUNTER_2)->STC_Count = (pcr.hi >> 16);
-		enx_reg_s(STC_COUNTER_1)->STC_Count = (pcr.hi & 0xFFFF);
+		enx_reg_set(STC_COUNTER_2, STC_Count, (pcr.hi >> 16));
+		enx_reg_set(STC_COUNTER_1, STC_Count, (pcr.hi & 0xFFFF));
 		enx_reg_16(STC_COUNTER_0) = pcr.lo & 0x81FF;
 
 	} else if (avia_gt_chip(GTX)) {
@@ -666,7 +669,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.86 2002/05/09 07:29:21 waldi Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.87 2002/06/07 17:53:45 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

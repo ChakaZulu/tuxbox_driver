@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.19  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.18  2002/05/01 21:51:35  Jolt
  *   Merge
  *
@@ -65,7 +68,7 @@
  *
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -244,16 +247,16 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 #define BLANK_TIME 132
 #define VIDCAP_PIPEDELAY 2
 
-		enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x) / 2;
-		enx_reg_s(VCP)->OVOFFS = (scale_y - 1) / 2;
-		enx_reg_s(VCP)->EVPOS = 21 + (input_y / 2);
+		enx_reg_set(VCP, HPOS, ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x) / 2);
+		enx_reg_set(VCP, OVOFFS, (scale_y - 1) / 2);
+		enx_reg_set(VCP, EVPOS, 21 + (input_y / 2));
 
-		enx_reg_s(VCSZ)->HDEC = scale_x - 1;
-		enx_reg_s(VCSZ)->HSIZE = input_width / 2;
-		enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
-        enx_reg_s(VCSZ)->VSIZE = input_height / 2;
+		enx_reg_set(VCSZ, HDEC, scale_x - 1);
+		enx_reg_set(VCSZ, HSIZE, input_width / 2);
+		enx_reg_set(VCSZ, VDEC, scale_y - 1);		
+        enx_reg_set(VCSZ, VSIZE, input_height / 2);
 
-        enx_reg_s(VCOFFS)->Offset = line_stride >> 2;
+        enx_reg_set(VCOFFS, Offset, line_stride >> 2);
 
     } else if (avia_gt_chip(GTX)) {
 
@@ -275,8 +278,8 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
 		if (avia_gt_chip(ENX)) {
 	
-			enx_reg_s(VCSZ)->B = 0;   								// Even-only fields
-			enx_reg_s(VCSTR)->STRIDE = line_stride >> 2;
+			enx_reg_set(VCSZ, B, 0);   								// Even-only fields
+			enx_reg_set(VCSTR, STRIDE, line_stride >> 2);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -288,8 +291,8 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(VCSZ)->B = 1;   								// Both fields
-			enx_reg_s(VCSTR)->STRIDE = (line_stride * 2) >> 2;
+			enx_reg_set(VCSZ, B, 1);   								// Both fields
+			enx_reg_set(VCSTR, STRIDE, (line_stride * 2) >> 2);
 	    
 		} else if (avia_gt_chip(GTX)) {
 	
@@ -304,10 +307,10 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
     if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
-		//enx_reg_s(VCSA2)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 2;
+		enx_reg_set(VCSA1, Addr, capt_buf_addr >> 2);
+		//enx_reg_set(VCSA2, Addr, (capt_buf_addr + (capture_width * capture_height)) >> 2);
 
-		enx_reg_s(VCSA1)->E = 1;
+		enx_reg_set(VCSA1, E, 1);
     
 		dprintk("avia_gt_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
 		dprintk("avia_gt_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
@@ -347,7 +350,7 @@ void avia_gt_capture_stop(void)
 		dprintk("avia_gt_capture: capture_stop\n");
     
 		if (avia_gt_chip(ENX))
-			enx_reg_s(VCSA1)->E = 0;
+			enx_reg_set(VCSA1, E, 0);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(VCSA)->E = 0;
 
@@ -402,14 +405,14 @@ void avia_gt_capture_reset(unsigned char reenable)
 {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(RSTR0)->VIDC = 1;		
+		enx_reg_set(RSTR0, VIDC, 1);		
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(RR0)->VCAP = 1;
 
     if (reenable) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(RSTR0)->VIDC = 0;		
+			enx_reg_set(RSTR0, VIDC, 0);		
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(RR0)->VCAP = 0;
 
@@ -420,7 +423,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.18 2002/05/01 21:51:35 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.19 2002/06/07 17:53:45 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 
@@ -448,13 +451,13 @@ int __init avia_gt_capture_init(void)
 
     if (avia_gt_chip(ENX)) {
 	
-		enx_reg_s(VCP)->U = 0;					// Using squashed mode
-		enx_reg_s(VCSTR)->B = 0;				// Hardware double buffering
-		enx_reg_s(VCSZ)->F = 1;   				// Filter
+		enx_reg_set(VCP, U, 0);					// Using squashed mode
+		enx_reg_set(VCSTR, B, 0);				// Hardware double buffering
+		enx_reg_set(VCSZ, F, 1);   				// Filter
 
-		enx_reg_s(VLI1)->F = 1;	
-		enx_reg_s(VLI1)->E = 1;	
-		enx_reg_s(VLI1)->LINE = 0;	
+		enx_reg_set(VLI1, F, 1);	
+		enx_reg_set(VLI1, E, 1);	
+		enx_reg_set(VLI1, LINE, 0);	
     
     } else if (avia_gt_chip(GTX)) {
     

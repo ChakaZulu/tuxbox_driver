@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.11  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.10  2002/04/25 22:10:38  Jolt
  *   FB cleanup
  *
@@ -109,7 +112,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -187,7 +190,7 @@ void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 void enx_dac_init(void)
 {
 
-    enx_reg_s(RSTR0)->DAC = 0;	// Get dac out of reset state
+    enx_reg_set(RSTR0, DAC, 0);	// Get dac out of reset state
     enx_reg_16(DAC_PC) = 0x0000;
     enx_reg_16(DAC_CP) = 0x0009;
 	
@@ -196,7 +199,7 @@ void enx_dac_init(void)
 void enx_video_init(void)
 {
 
-    enx_reg_s(RSTR0)->VDEO = 0;		// Get video out of reset state
+    enx_reg_set(RSTR0, VDEO, 0);		// Get video out of reset state
     enx_reg_16(VHT) = 857 | 0x5000;
     enx_reg_16(VLT) = (623 | (21 << 11));
 
@@ -253,7 +256,7 @@ void enx_reset(void) {
 void enx_sdram_ctrl_init(void) {
 
   enx_reg_32(SCSC) = 0x00000000;	// Set sd-ram start address
-  enx_reg_s(RSTR0)->SDCT = 0;		// Get sd-ram controller out of reset state
+  enx_reg_set(RSTR0, SDCT, 0);		// Get sd-ram controller out of reset state
   enx_reg_32(MC) = 0x00001011;		// Write memory configuration
   enx_reg_32n(0x88) |= 0x3E << 4;
   
@@ -262,7 +265,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.10 2002/04/25 22:10:38 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.11 2002/06/07 17:53:45 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
     

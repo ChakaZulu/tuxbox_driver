@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.13  2002/06/07 17:53:45  Jolt
+ *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
+ *
  *   Revision 1.12  2002/05/08 12:56:41  obi
  *   export avia_gt_pcm_set_mpeg_attenuation
  *   plus some cleanup
@@ -61,7 +64,7 @@
  *
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -186,9 +189,9 @@ void avia_gt_pcm_queue_buffer(void)
 
 			if (avia_gt_chip(ENX)) {
 
-				enx_reg_s(PCMS)->NSAMP = pcm_buffer->sample_count;
-				enx_reg_s(PCMA)->Addr = pcm_buffer->offset >> 1;
-				enx_reg_s(PCMA)->W = 0;
+				enx_reg_set(PCMS, NSAMP, pcm_buffer->sample_count);
+				enx_reg_set(PCMA, Addr, pcm_buffer->offset >> 1);
+				enx_reg_set(PCMA, W, 0);
 
 			} else if (avia_gt_chip(GTX)) {
 
@@ -268,8 +271,8 @@ void avia_gt_pcm_reset(unsigned char reenable)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(RSTR0)->PCMA = 1;
-		enx_reg_s(RSTR0)->PCM = 1;
+		enx_reg_set(RSTR0, PCMA, 1);
+		enx_reg_set(RSTR0, PCM, 1);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -282,8 +285,8 @@ void avia_gt_pcm_reset(unsigned char reenable)
 
 		if (avia_gt_chip(ENX)) {
 
-			enx_reg_s(RSTR0)->PCM = 0;
-			enx_reg_s(RSTR0)->PCMA = 0;
+			enx_reg_set(RSTR0, PCM, 0);
+			enx_reg_set(RSTR0, PCMA, 0);
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -301,8 +304,8 @@ void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(PCMN)->MPEGAL = left >> 1;
-		enx_reg_s(PCMN)->MPEGAR = right >> 1;
+		enx_reg_set(PCMN, MPEGAL, left >> 1);
+		enx_reg_set(PCMN, MPEGAR, right >> 1);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -318,8 +321,8 @@ void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(PCMN)->PCMAL = left >> 1;
-		enx_reg_s(PCMN)->PCMAR = right >> 1;
+		enx_reg_set(PCMN, PCMAL, left >> 1);
+		enx_reg_set(PCMN, PCMAR, right >> 1);
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -360,7 +363,7 @@ int avia_gt_pcm_set_rate(unsigned short rate)
 	}
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(PCMC)->R = divider_mode;
+		enx_reg_set(PCMC, R, divider_mode);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(PCMC)->R = divider_mode;
 
@@ -374,7 +377,7 @@ int avia_gt_pcm_set_width(unsigned char width)
 	if ((width == 8) || (width == 16)) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(PCMC)->W = (width == 16);
+			enx_reg_set(PCMC, W, (width == 16));
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(PCMC)->W = (width == 16);
 
@@ -394,7 +397,7 @@ int avia_gt_pcm_set_channels(unsigned char channels)
 	if ((channels == 1) || (channels == 2)) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(PCMC)->C = (channels == 2);
+			enx_reg_set(PCMC, C, (channels == 2));
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(PCMC)->C = (channels == 2);
 
@@ -414,7 +417,7 @@ int avia_gt_pcm_set_signed(unsigned char signed_samples)
 	if ((signed_samples == 0) || (signed_samples == 1)) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(PCMC)->S = (signed_samples == 1);
+			enx_reg_set(PCMC, S, (signed_samples == 1));
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(PCMC)->S = (signed_samples == 1);
 
@@ -528,7 +531,7 @@ void avia_gt_pcm_stop(void)
 {
 /*
 	if (avia_gt_chip(ENX))
-		enx_reg_s(PCMC)->T = 1;
+		enx_reg_set(PCMC, T, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(PCMC)->T = 1;
 */
@@ -541,7 +544,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad;
 	unsigned short irq_pf;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.12 2002/05/08 12:56:41 obi Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.13 2002/06/07 17:53:45 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -596,7 +599,7 @@ int avia_gt_pcm_init(void)
 
 	// Use external clock from AViA 500/600
 	if (avia_gt_chip(ENX))
-		enx_reg_s(PCMC)->I = 0;
+		enx_reg_set(PCMC, I, 0);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(PCMC)->I = 0;
 

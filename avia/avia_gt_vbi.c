@@ -67,14 +67,14 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(RSTR0)->TTX = 1;
+		enx_reg_set(RSTR0, TTX, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(RR1)->TTX = 1;
 
 	if (reenable) {
 
 		if (avia_gt_chip(ENX))
-			enx_reg_s(RSTR0)->TTX = 0;
+			enx_reg_set(RSTR0, TTX, 0);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_s(RR1)->TTX = 0;
 
@@ -131,7 +131,7 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 	avia_gt_vbi_reset(1);
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(TCNTL)->GO = 1;
+		enx_reg_set(TCNTL, GO, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(TTCR)->GO = 1;
 
@@ -188,7 +188,7 @@ static int __init avia_gt_vbi_init(void)
 
 	struct list_head *dmx_list;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.10 2002/05/06 02:18:18 obi Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.11 2002/06/07 17:53:45 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -201,7 +201,7 @@ static int __init avia_gt_vbi_init(void)
 	}
 
 	if (avia_gt_chip(ENX))
-		enx_reg_s(CFGR0)->TCP = 0;
+		enx_reg_set(CFGR0, TCP, 0);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_s(CR1)->TCP = 0;
 
