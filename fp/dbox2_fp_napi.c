@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.12 2003/09/30 05:45:38 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.13 2004/01/14 21:23:29 derget Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -179,6 +179,9 @@ int dbox2_fp_napi_sec_ioctl(struct dvb_frontend *frontend, unsigned int cmd, voi
 		case SEC_VOLTAGE_18:
 			dbox2_fp_sec_set_voltage(1);
 			break;
+		case SEC_VOLTAGE_OFF:
+			dbox2_fp_sec_set_power(0);
+			break;		
 		default:
 			return -EINVAL;
 		}
