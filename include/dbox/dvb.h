@@ -40,7 +40,7 @@ struct frontend {
 	int volt;              /* 14/18V (V=0/H=1) */
 	int ttk;               /* 22KHz */
 	int diseqc;            /* Diseqc input select */
-        
+
 
 	/* cable line control */
 
@@ -56,11 +56,11 @@ struct frontend {
 	int fec;               /* Forward Error Correction */
 
         /* channel info */
-	__u16 video_pid;        
+	__u16 video_pid;
 	__u16 audio_pid;
         __u16 tt_pid;          /* Teletext PID */
         __u16 pnr;             /* Program number = Service ID */
-        int channel_flags;             
+        int channel_flags;
 #define DVB_CHANNEL_FTA        0
 #define DVB_CHANNEL_CA         1
 
@@ -82,7 +82,7 @@ struct frontend {
         __u32 vber;            /* viterbi bit error rate */
 
 	int flags;
-#define FRONT_TP_CHANGED  1 
+#define FRONT_TP_CHANGED  1
 #define FRONT_FREQ_CHANGED 2
 #define FRONT_RATE_CHANGED 4
 };

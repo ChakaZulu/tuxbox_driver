@@ -1,5 +1,5 @@
-/* 
- * $Id: dvb_frontend.h,v 1.3 2002/02/24 16:09:56 woglinde Exp $
+/*
+ * $Id: dvb_frontend.h,v 1.4 2002/06/16 19:49:35 Homar Exp $
  *
  * dvb_frontend.h
  *
@@ -21,6 +21,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  * $Log: dvb_frontend.h,v $
+ * Revision 1.4  2002/06/16 19:49:35  Homar
+ * AutoInversion eingefügt
+ *
  * Revision 1.3  2002/02/24 16:09:56  woglinde
  * 2 files for new-api, were not added
  *
@@ -35,6 +38,7 @@
 
 #include <ost/frontend.h>
 #include <ost/sec.h>
+#include <dbox/dvb.h>
 
 #include <linux/sched.h>
 #include <linux/i2c.h>
@@ -45,11 +49,11 @@
 #define I2C_DRIVERID_STV0299 I2C_DRIVERID_EXP0
 #endif
 
-#ifndef I2C_DRIVERID_TDA8083 
+#ifndef I2C_DRIVERID_TDA8083
 #define I2C_DRIVERID_TDA8083 I2C_DRIVERID_EXP1
 #endif
 
-#ifndef I2C_DRIVERID_L64781 
+#ifndef I2C_DRIVERID_L64781
 #define I2C_DRIVERID_L64781 I2C_DRIVERID_EXP2
 #endif
 
@@ -97,7 +101,7 @@ typedef struct dvb_frontend {
 #define DVB_C    2
 #define DVB_T    3
 	int capabilities;
-	
+
 	void *priv;
 	void (*complete_cb)(void *);
 
@@ -115,7 +119,7 @@ typedef struct dvb_frontend {
 #define DVB_DEMOD_VES1993 6
 #define DVB_DEMOD_TDA8044 7
 #define DVB_DEMOD_AT76C651 8
-	
+
 	struct task_struct     *thread;
 	wait_queue_head_t       wait;
 	struct semaphore        sem;
@@ -136,6 +140,7 @@ typedef struct dvb_frontend {
 #define FE_WRITEREG  _IOR('v',  BASE_VIDIOCPRIVATE+0x14, u8 *)
 #define FE_READREG   _IOR('v',  BASE_VIDIOCPRIVATE+0x15, u8 *)
 #define FE_READ_AFC  _IOR('v',  BASE_VIDIOCPRIVATE+0x16, s32 *)
+#define FE_SET_INVERSION  _IOR('v',  BASE_VIDIOCPRIVATE+0x17, u32 *)
 
 int dvb_frontend_init(dvb_front_t *fe);
 void dvb_frontend_exit(dvb_front_t *fe);
