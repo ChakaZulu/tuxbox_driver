@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.89 2004/02/27 22:17:44 obi Exp $
+ * $Id: avia_av_core.c,v 1.90 2004/03/17 10:44:15 diemade Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1186,9 +1186,9 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 
 	case AVIA_AV_PLAY_STATE_PLAYING:
 		dprintk("avia_av: audio play (apid=0x%04X)\n", pid_audio);
-		avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
+//		avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
 		avia_av_cmd(SelectStream, 0x03 - bypass_mode, pid_audio);
-		avia_av_cmd(SelectStream, 0x00, pid_video);
+//		avia_av_cmd(SelectStream, 0x00, pid_video);
 		if (aviarev && bypass_mode_changed) {
 			avia_av_cmd(SelectStream, 0x00, (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF);
 			avia_av_cmd(Play, 0x00, (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF, pid_audio);
@@ -1237,8 +1237,8 @@ int avia_av_play_state_set_video(const u8 new_play_state)
 			avia_av_cmd(Resume);
 		else {
 			dprintk("avia_av: video play (vpid=0x%04X)\n", pid_video);
-			avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
-			avia_av_cmd(SelectStream, 0x03 - bypass_mode, pid_audio);
+//			avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
+//			avia_av_cmd(SelectStream, 0x03 - bypass_mode, pid_audio);
 			avia_av_cmd(SelectStream, 0x00, pid_video);
 		}
 		break;
@@ -1442,7 +1442,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.89 2004/02/27 22:17:44 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.90 2004/03/17 10:44:15 diemade Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
