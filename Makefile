@@ -1,3 +1,17 @@
+KERNELRELEASE 	:= \
+	$(shell \
+	for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION FLAVOUR ; do \
+		eval `sed -ne "/^$$TAG/s/[   ]//gp" $(KERNEL_LOCATION)/Makefile` ; \
+	done ; \
+	echo $$VERSION.$$PATCHLEVEL.$$SUBLEVEL$$EXTRAVERSION$${FLAVOUR:+-$$FLAVOUR})
+
+CONFIG_SHELL 	:= $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+		else if [ -x /bin/bash ]; then echo /bin/bash; \
+		else echo sh; fi ; fi)
+TOPDIR		:= $(KERNEL_LOCATION)
+
+HPATH		:= $(shell pwd)/include
+
 CROSS_COMPILE =
 
 AS		= $(CROSS_COMPILE)as
@@ -11,36 +25,36 @@ OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
 MODFLAGS	= -DMODULE
 
-CPPFLAGS := -D__KERNEL__ -I$(shell pwd)/include -I$(shell pwd)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
-CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
-AFLAGS := -D__ASSEMBLY__ $(CPPFLAGS)
+CPPFLAGS	:= -D__KERNEL__ -I$(shell pwd)/include -I$(shell pwd)/dvb/include -I$(KERNEL_LOCATION)/include -I$(KERNEL_LOCATION)/arch/ppc
+CFLAGS		:= $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer
+AFLAGS		:= -D__ASSEMBLY__ $(CPPFLAGS)
 
-HPATH = $(shell pwd)/include
+MODLIB		:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 
-KERNELRELEASE := \
-	$(shell \
-	for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION FLAVOUR ; do \
-		eval `sed -ne "/^$$TAG/s/[   ]//gp" $(KERNEL_LOCATION)/Makefile` ; \
-	done ; \
-	echo $$VERSION.$$PATCHLEVEL.$$SUBLEVEL$$EXTRAVERSION$${FLAVOUR:+-$$FLAVOUR})
+ifeq ($(HARDWARE),dbox2)
+CONFIG_HARDWARE_DBOX2		:= m
+else
+ifeq ($(HARDWARE),dreambox)
+CONFIG_HARDWARE_DREAMBOX	:= m
+else
+CONFIG_HARDWARE_DBOX2		:= m
+endif
+endif
 
-TOPDIR := $(KERNEL_LOCATION)
+export	VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION KERNELRELEASE ARCH \
+	CONFIG_SHELL TOPDIR HPATH CROSS_COMPILE AS LD CC \
+	CPP AR NM \
+	CPPFLAGS CFLAGS CFLAGS_KERNEL AFLAGS AFLAGS_KERNEL \
+	MODLIB CONFIG_HARDWARE_DBOX2 CONFIG_HARDWARE_DREAMBOX
 
-MODLIB := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
-
-CONFIG_MODULES	:= y
-
-export AS LD CC CPP AR NM CFLAGS AFLAGS HPATH KERNELRELEASE TOPDIR MODLIB CONFIG_MODULES
-
-SUBDIRS		:= avs cam dvb event fp i2c info lcd saa7126 wdt
-
-all: do-it-all
+subdir-m			:= dvb info
+subdir-$(CONFIG_HARDWARE_DBOX2)	+= avs cam event fp i2c lcd saa7126 wdt
 
 ifeq (.depend,$(wildcard .depend))
 include .depend
-do-it-all: modules
+all: modules
 else
-do-it-all: depend
+all: depend modules
 endif
 
 .PHONY: modules
@@ -50,9 +64,7 @@ modules: $(patsubst %, _mod_%, $(SUBDIRS))
 $(patsubst %, _mod_%, $(SUBDIRS)):
 	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
 
-depend dep: dep-files
-
-dep-files: $(KERNEL_LOCATION)/scripts/mkdep
+depend dep: $(KERNEL_LOCATION)/scripts/mkdep
 	touch .depend
 	$(KERNEL_LOCATION)/scripts/mkdep -- `find . \( -name CVS -o -name .svn \) -prune -o -follow -name \*.h -print` > .hdepend
 	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)" TOPDIR=$(KERNEL_LOCATION)
@@ -69,15 +81,7 @@ distclean: mrproper
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print`
 
-.PHONY: modules_install
-modules_install: _modinst_ $(patsubst %, _modinst_%, $(SUBDIRS))
-
-.PHONY: _modinst_
-_modinst_:
-	@mkdir -p $(MODLIB)/misc
-
-.PHONY: $(patsubst %, _modinst_%, $(SUBDIRS))
-$(patsubst %, _modinst_%, $(SUBDIRS)):
-	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install_misc
+.PHONY: install
+install: modules_install_misc
 
 include Rules.make
