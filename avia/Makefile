@@ -2,13 +2,14 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o
-obj-m  = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o
+M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o
+obj-m  = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o
 AVIA_OBJS = avia_core.o
 AVIA_OSD = avia_osd.o
 GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o
 GTX_CORE  = gtx-core.o
+ENX_CORE  = enx-core.o
 
 EXTRA_CFLAGS=-I../../include
 
@@ -28,6 +29,9 @@ clean:
 gtx_core.o: $(GTX_CORE)
 	$(LD) -m elf32ppclinux -r -o $@ $(GTX_CORE)
     
+enx_core.o: $(ENX_CORE)
+	$(LD) -m elf32ppclinux -r -o $@ $(ENX_CORE)
+
 gtx_dmx.o: $(GTX_DMX)
 	$(LD) -m elf32ppclinux -r -o $@ $(GTX_DMX)
 
