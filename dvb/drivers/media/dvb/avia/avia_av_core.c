@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.87 2004/01/30 08:24:42 zwen Exp $
+ * $Id: avia_av_core.c,v 1.88 2004/02/23 22:43:46 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -767,7 +767,7 @@ void avia_av_set_default(void)
 	avia_av_dram_write(INTERPRET_USER_DATA_MASK, 0);
 
 	/* osd */
-	avia_av_dram_write(DISABLE_OSD, 0);
+	avia_av_dram_write(DISABLE_OSD, 3);
 
 	/* disable osd */
 	avia_av_dram_write(OSD_EVEN_FIELD, 0);
@@ -1438,7 +1438,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.87 2004/01/30 08:24:42 zwen Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.88 2004/02/23 22:43:46 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
