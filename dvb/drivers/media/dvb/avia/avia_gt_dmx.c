@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.206 2004/06/04 14:21:00 diemade Exp $
+ * $Id: avia_gt_dmx.c,v 1.207 2004/06/22 01:12:25 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -95,8 +95,7 @@ int avia_gt_dmx_queue_is_system_queue(u8 queue_nr)
  *   and audio while recording the audio pid will not deliver data at all.
  *   this has to be filtered by the software demux.
  */
-static
-void avia_gt_dmx_enable_disable_system_queue_irqs(void)
+static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 {
 	/* video, audio, teletext */
 	int new_queue_client[AVIA_GT_DMX_QUEUE_USER_START] = { -1, -1, -1 };
@@ -136,8 +135,7 @@ void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 	}
 }
 
-static
-u8 avia_gt_dmx_map_queue(u8 queue_nr)
+static u8 avia_gt_dmx_map_queue(u8 queue_nr)
 {
 	avia_gt_reg_set(CFGR0, UPQ, queue_nr >= 16);
 
@@ -146,8 +144,7 @@ u8 avia_gt_dmx_map_queue(u8 queue_nr)
 	return queue_nr & 0x0f;
 }
 
-static
-void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block)
+static void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block)
 {
 	if (!qim)
 		block = 0;
@@ -157,8 +154,7 @@ void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block)
 	avia_gt_writew(QnINT + queue_nr * 2, (qim << 15) | ((block & 0x1F) << 10));
 }
 
-static
-struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
+static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
 	sAviaGtDmxQueue *q;
 
@@ -302,8 +298,7 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 	schedule_task(&q->task_struct);
 }
 
-static
-u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed)
+static u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed)
 {
 	sAviaGtDmxQueue *q;
 
@@ -332,8 +327,7 @@ u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed
 	}
 }
 
-static
-u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 count, u8 peek)
+static u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 count, u8 peek)
 {
 	sAviaGtDmxQueue *q;
 
@@ -373,8 +367,7 @@ u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 
 	return count;
 }
 
-static
-u8 avia_gt_dmx_queue_data_get8(struct avia_gt_dmx_queue *queue, u8 peek)
+static u8 avia_gt_dmx_queue_data_get8(struct avia_gt_dmx_queue *queue, u8 peek)
 {
 	u8 data;
 
@@ -383,8 +376,7 @@ u8 avia_gt_dmx_queue_data_get8(struct avia_gt_dmx_queue *queue, u8 peek)
 	return data;
 }
 
-static
-u16 avia_gt_dmx_queue_data_get16(struct avia_gt_dmx_queue *queue, u8 peek)
+static u16 avia_gt_dmx_queue_data_get16(struct avia_gt_dmx_queue *queue, u8 peek)
 {
 	u16 data;
 
@@ -393,8 +385,7 @@ u16 avia_gt_dmx_queue_data_get16(struct avia_gt_dmx_queue *queue, u8 peek)
 	return data;
 }
 
-static
-u32 avia_gt_dmx_queue_data_get32(struct avia_gt_dmx_queue *queue, u8 peek)
+static u32 avia_gt_dmx_queue_data_get32(struct avia_gt_dmx_queue *queue, u8 peek)
 {
 	u32 data;
 
@@ -403,8 +394,7 @@ u32 avia_gt_dmx_queue_data_get32(struct avia_gt_dmx_queue *queue, u8 peek)
 	return data;
 }
 
-static
-u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, const void *src, u32 count, u8 src_is_user_space)
+static u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, const void *src, u32 count, u8 src_is_user_space)
 {
 	sAviaGtDmxQueue *q;
 
@@ -446,16 +436,14 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, const void *src,
 	return count;
 }
 
-static
-u32 avia_gt_dmx_queue_get_buf1_ptr(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_buf1_ptr(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue->index];
 
 	return q->mem_addr + q->read_pos;
 }
 
-static
-u32 avia_gt_dmx_queue_get_buf2_ptr(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_buf2_ptr(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue->index];
 
@@ -465,8 +453,7 @@ u32 avia_gt_dmx_queue_get_buf2_ptr(struct avia_gt_dmx_queue *queue)
 		return q->mem_addr;
 }
 
-static
-u32 avia_gt_dmx_queue_get_buf1_size(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_buf1_size(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue->index];
 
@@ -476,8 +463,7 @@ u32 avia_gt_dmx_queue_get_buf1_size(struct avia_gt_dmx_queue *queue)
 		return q->size - q->read_pos;
 }
 
-static
-u32 avia_gt_dmx_queue_get_buf2_size(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_buf2_size(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue->index];
 
@@ -487,14 +473,12 @@ u32 avia_gt_dmx_queue_get_buf2_size(struct avia_gt_dmx_queue *queue)
 		return q->write_pos;
 }
 
-static
-u32 avia_gt_dmx_queue_get_bytes_avail(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_bytes_avail(struct avia_gt_dmx_queue *queue)
 {
 	return avia_gt_dmx_queue_get_buf1_size(queue) + avia_gt_dmx_queue_get_buf2_size(queue);
 }
 
-static
-u32 avia_gt_dmx_queue_get_bytes_free(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_bytes_free(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q;
 
@@ -517,8 +501,7 @@ u32 avia_gt_dmx_queue_get_bytes_free(struct avia_gt_dmx_queue *queue)
 		return (q->hw_read_pos - q->write_pos) - 1;
 }
 
-static
-u32 avia_gt_dmx_queue_get_size(struct avia_gt_dmx_queue *queue)
+static u32 avia_gt_dmx_queue_get_size(struct avia_gt_dmx_queue *queue)
 {
 	return queue_list[queue->index].size;
 }
@@ -579,8 +562,7 @@ u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
 	return write_pos - q->mem_addr;
 }
 
-static
-void avia_gt_dmx_queue_flush(struct avia_gt_dmx_queue *queue)
+static void avia_gt_dmx_queue_flush(struct avia_gt_dmx_queue *queue)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue->index];
 
@@ -607,8 +589,7 @@ u32 rnd_div(u32 a, u32 b)
 	return (a + (b / 2)) / b;
 }
 
-static
-void avia_gt_dmx_queue_qim_mode_update(u8 queue_nr)
+static void avia_gt_dmx_queue_qim_mode_update(u8 queue_nr)
 {
 	sAviaGtDmxQueue *q = &queue_list[queue_nr];
 
@@ -617,8 +598,7 @@ void avia_gt_dmx_queue_qim_mode_update(u8 queue_nr)
 	avia_gt_dmx_set_queue_irq(queue_nr, 1, ((block_pos + 2) % 16) * 2);
 }
 
-static
-void avia_gt_dmx_queue_irq(unsigned short irq)
+static void avia_gt_dmx_queue_irq(unsigned short irq)
 {
 	sAviaGtDmxQueue *q;
 
@@ -827,8 +807,7 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 	return 0;
 }
 
-static
-void avia_gt_dmx_bh_task(void *tl_data)
+static void avia_gt_dmx_bh_task(void *tl_data)
 {
 	u8 queue_nr = *(u8 *)tl_data;
 	u8 sys_queue_nr;
@@ -1034,8 +1013,7 @@ void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 }
 
 
-static
-u64 avia_gt_dmx_get_pcr_base(void)
+static u64 avia_gt_dmx_get_pcr_base(void)
 {
 	u64 pcr2 = avia_gt_readw(TP_PCR_2);
 	u64 pcr1 = avia_gt_readw(TP_PCR_1);
@@ -1044,8 +1022,7 @@ u64 avia_gt_dmx_get_pcr_base(void)
 	return (pcr2 << 17) | (pcr1 << 1) | (pcr0 >> 15);
 }
 
-static
-u64 avia_gt_dmx_get_latched_stc_base(void)
+static u64 avia_gt_dmx_get_latched_stc_base(void)
 {
 	u64 l_stc2 = avia_gt_readw(LC_STC_2);
 	u64 l_stc1 = avia_gt_readw(LC_STC_1);
@@ -1054,8 +1031,7 @@ u64 avia_gt_dmx_get_latched_stc_base(void)
 	return (l_stc2 << 17) | (l_stc1 << 1) | (l_stc0 >> 15);
 }
 
-static
-u64 avia_gt_dmx_get_stc_base(void)
+static u64 avia_gt_dmx_get_stc_base(void)
 {
 	u64 stc2 = avia_gt_readw(STC_COUNTER_2);
 	u64 stc1 = avia_gt_readw(STC_COUNTER_1);
@@ -1075,8 +1051,7 @@ int avia_gt_dmx_get_stc( struct dmx_demux* demux, unsigned int num,
 	return 0;
 }
 
-static
-void avia_gt_dmx_set_dac(s16 pulse_count)
+static void avia_gt_dmx_set_dac(s16 pulse_count)
 {
 	avia_gt_writel(DAC_PC, (pulse_count << 16) | 9);
 }
@@ -1087,8 +1062,7 @@ void avia_gt_dmx_set_dac(s16 pulse_count)
 #define MAX_DIFF	200
 #define GAIN		50
 
-static
-void avia_gt_pcr_irq(unsigned short irq)
+static void avia_gt_pcr_irq(unsigned short irq)
 {
 	u64 pcr;
 	u64 lstc;
@@ -1233,8 +1207,7 @@ void avia_gt_dmx_force_discontinuity(void)
 	avia_gt_reg_set(FC, FD, 1);
 }
 
-static
-void avia_gt_dmx_enable_disable_framer(u8 enable)
+static void avia_gt_dmx_enable_disable_framer(u8 enable)
 {
 	enable = !!enable;
 
@@ -1254,8 +1227,7 @@ void avia_gt_dmx_disable_framer(void)
 	return avia_gt_dmx_enable_disable_framer(0);
 }
 
-static
-int avia_gt_dmx_enable_disable_clip_mode(u8 queue_nr, u8 enable)
+static int avia_gt_dmx_enable_disable_clip_mode(u8 queue_nr, u8 enable)
 {
 	enable = !!enable;
 
@@ -1345,7 +1317,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.206 2004/06/04 14:21:00 diemade Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.207 2004/06/22 01:12:25 carjay Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
