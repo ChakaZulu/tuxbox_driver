@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.4  2001/03/03 17:13:37  waldi
+ *   complete move to devfs; doesn't compile without devfs
+ *
  *   Revision 1.3  2001/03/03 11:09:21  gillem
  *   - bugfix
  *
@@ -31,7 +34,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -53,6 +56,14 @@
 
 #include "cxa2092.h"
 #include "cxa2126.h"
+
+#include <linux/devfs_fs_kernel.h>
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+static devfs_handle_t devfs_handle;
 
 /* ---------------------------------------------------------------------- */
 
@@ -318,12 +329,23 @@ int i2c_avs_init(void)
 			return -EIO;
 	}
 
-	if (register_chrdev(AVS_MAJOR,"avs",&avs_fops))
-	{
-		printk("[AVS]: unable to get major %d\n", AVS_MAJOR);
-		i2c_del_driver(&driver);
-		return -EIO;
-	}
+//	if (register_chrdev(AVS_MAJOR,"avs",&avs_fops))
+//	{
+//		printk("[AVS]: unable to get major %d\n", AVS_MAJOR);
+//		i2c_del_driver(&driver);
+//		return -EIO;
+//	}
+
+  devfs_handle = devfs_register ( NULL, "dbox/avs0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                                  &avs_fops, NULL );
+
+  if ( ! devfs_handle )
+  {
+    i2c_del_driver ( &driver );
+    return -EIO;
+  }
 
 	return 0;
 }
@@ -333,9 +355,11 @@ void cleanup_module(void)
 {
 	i2c_del_driver(&driver);
 
-	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
-		printk("[AVS]: unable to release major %d\n", AVS_MAJOR);
-	}
+//	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
+//		printk("[AVS]: unable to release major %d\n", AVS_MAJOR);
+//	}
+
+  devfs_unregister ( devfs_handle );
 }
 #endif
 
