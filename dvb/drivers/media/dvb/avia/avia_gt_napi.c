@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.134 $
+ *   $Revision: 1.135 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.135  2002/10/06 19:26:23  wjoost
+ *   bug--;
+ *
  *   Revision 1.134  2002/10/06 18:53:13  wjoost
  *   Debug-Code raus ;)
  *
@@ -928,6 +931,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 			// handle TS
 			case DMX_TYPE_TS:
 
+				buf_len = queue_info->bytes_avail(queue_nr);
+				need_payload = 0;
 
 				/* Wir können bei den TS-Queues aus der Synchronisation kommen,
 				   die zur Dekodierung an den AVIA weitergeleitet aber
@@ -935,29 +940,28 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				   SPTS-Modus).
 				 */
 
-				buf_len = queue_info->bytes_avail(queue_nr);
-				queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 1);
+				if (!(gtxfeed->output & TS_PAYLOAD_ONLY)) {
+					queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 1);
 
-				while ( buf_len >= 188 ) {
-					if ( (ts_header[0] != 0x47) ||
-						 ( (ts_header[1] & 0x1F) != (gtxfeed->pid >> 8) ) ||
-						 ( ts_header[2] != (gtxfeed->pid & 0xFF)) ) {
-						queue_info->get_data(queue_nr,NULL,1,0);
-						queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 1);
-						buf_len--;
+					while ( buf_len >= 188 ) {
+						if ( (ts_header[0] != 0x47) ||
+							 ( (ts_header[1] & 0x1F) != (gtxfeed->pid >> 8) ) ||
+							 ( ts_header[2] != (gtxfeed->pid & 0xFF)) ) {
+							queue_info->get_data(queue_nr,NULL,1,0);
+							queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 1);
+							buf_len--;
+						}
+						else {
+							break;
+						}
 					}
-					else {
-						break;
+
+					if (buf_len < 188) {
+						return;
 					}
+
+					buf_len -= buf_len % 188;
 				}
-
-				if (buf_len < 188) {
-					return;
-				}
-
-				need_payload = 0;
-
-				buf_len -= buf_len % 188;
 
 				for (i = USER_QUEUE_START - 1; i < LAST_USER_QUEUE; i++) {
 
@@ -2069,7 +2073,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.134 2002/10/06 18:53:13 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.135 2002/10/06 19:26:23 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
