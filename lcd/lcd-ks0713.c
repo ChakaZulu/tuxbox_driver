@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.9  2001/01/28 19:47:12  gillem
+ *   - fix setpos ...
+ *
  *   Revision 1.8  2001/01/28 18:49:08  gillem
  *   add ioctl
  *   LCD_IOCTL_CLEAR
@@ -36,7 +39,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -546,18 +549,21 @@ static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 
 void lcd_set_pos( int row, int col )
 {
-//	f_vars.pos = row*col;
+//todo: save io
+	f_vars.pos = row*col;
 
-	if ( (f_vars.row != row) && (row>=0) ) {
-        f_vars.row = row;
-    	lcd_send_cmd( LCD_CMD_SPAGE, row );
-    }
+//	if ( (f_vars.row != row) && (row>=0) ) {
+//    }
 
-	if ( (f_vars.col != col) && (col>=0) ) {
-        f_vars.col = col;
-        lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
-    	lcd_send_cmd( 0x00, col&0x0F );
-    }
+    f_vars.row = row;
+  	lcd_send_cmd( LCD_CMD_SPAGE, row );
+
+//	if ( (f_vars.col != col) && (col>=0) ) {
+//    }
+
+    f_vars.col = col;
+    lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
+  	lcd_send_cmd( 0x00, col&0x0F );
 }
 
 ///////////////////////////////////////////////////////////////////////////////

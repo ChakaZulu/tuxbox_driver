@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.7  2001/01/28 19:47:12  gillem
+ *   - fix setpos ...
+ *
  *   Revision 1.6  2001/01/28 18:49:08  gillem
  *   add ioctl
  *   LCD_IOCTL_CLEAR
@@ -33,7 +36,7 @@
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -54,12 +57,17 @@
 
 #define INITSTRING "@lcd:\x0a"
 
+static int row,col;
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void lcd_init_console(void)
 {
 	lcd_init_font(0);
 	lcd_clear();
+
+    row = 0;
+    col = 0;
 
 	lcd_console_put_data(INITSTRING,strlen(INITSTRING));
 }
@@ -83,18 +91,18 @@ void lcd_console_put_data( unsigned char *data, int len )
                     break;
 		}
 
-    	if (f_vars.col == MAX_COL) {
-			f_vars.col=0;
-			f_vars.row++;
+    	if (col == MAX_COL) {
+			col=0;
+			row++;
 		}
 
-		if ( f_vars.row == MAX_ROW ) {
+		if ( row == MAX_ROW ) {
 			lcd_console_new_line();
-			f_vars.row--;
+			row--;
 		}
 
 		lcd_console_put_char( data[i] );
-		f_vars.col++;
+		col++;
 	}
 }
 
@@ -108,7 +116,7 @@ void lcd_console_put_char( unsigned char data )
 	// load font to b
 	lcd_convert_to_font( b, &data, 1 );
 
-	lcd_set_pos( f_vars.row, f_vars.col*8 );
+	lcd_set_pos( row, col*8 );
 
 	for(i=0;i<8;i++) {
 		lcd_write_byte( b[i] );
@@ -119,21 +127,21 @@ void lcd_console_put_char( unsigned char data )
 
 void lcd_console_new_line()
 {
-	for(;f_vars.col<=MAX_COL;f_vars.col++) {
+	for(;col<=MAX_COL;col++) {
 		lcd_console_put_char(0x20);
 	}
 
-    if ( f_vars.row == MAX_ROW ) {
-		f_vars.row--;
+    if ( row == MAX_ROW ) {
+		row--;
 		lcd_console_scroll_down( 1 );
 
-		for(f_vars.col=0;f_vars.col<=MAX_COL;f_vars.col++) {
+		for(col=0;col<=MAX_COL;col++) {
 			lcd_console_put_char(0x20);
 		}
 	}
 
-	f_vars.row++;
-	f_vars.col=0;
+	row++;
+	col=0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
