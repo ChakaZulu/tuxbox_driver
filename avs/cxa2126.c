@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.15  2001/04/28 02:10:56  fnbrd
+ *   Nicht erwaehnenswert.
+ *
  *   Revision 1.14  2001/04/28 00:46:08  fnbrd
  *   Default auf Scart-TV.
  *
@@ -64,7 +67,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -145,14 +148,6 @@ int cxa2126_set(struct i2c_client *client)
 {
 /*
 int i;
-((unsigned char*)&cxa2126_data)[0]=0x00;
-//((unsigned char*)&cxa2126_data)[0]=0x01;
-((unsigned char*)&cxa2126_data)[1]=0x00;
-((unsigned char*)&cxa2126_data)[2]=0x80;
-((unsigned char*)&cxa2126_data)[3]=0x00;
-((unsigned char*)&cxa2126_data)[4]=0x0e;
-((unsigned char*)&cxa2126_data)[5]=0x2f;
-((unsigned char*)&cxa2126_data)[6]=0x00;
 dprintk("CXA2126: write ");
 for(i=0; i<CXA2126_DATA_SIZE; i++)
   dprintk("%02x ", (unsigned)((unsigned char*)&cxa2126_data)[i]);
@@ -203,7 +198,7 @@ inline int cxa2126_set_mute( struct i2c_client *client, int type )
 	}
 
     // (Un-)mute immediately, 1 -> Mute
-    cxa2126_data.tvmute1 = type&1;
+    cxa2126_data.tvmute1 = cxa2126_data.tvamute = type&1;
     cxa2126_data.zcd     = 0;
 //    cxa2126_data.tvmute1 = cxa2126_data.tvamute = (type>>1)&1;
 //    cxa2126_data.zcd     = type&1;
@@ -498,7 +493,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 int cxa2126_init(struct i2c_client *client)
 {
 
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.14 2001/04/28 00:46:08 fnbrd Exp $\n");
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.15 2001/04/28 02:10:56 fnbrd Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
