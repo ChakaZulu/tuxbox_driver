@@ -3,12 +3,11 @@
 # when compiling module(s)
 
 M_OBJS   = ves1820.o ves1893.o ves1993.o tda8044h.o at76c651.o
-# at76c651.o tda8044h.o 
 obj-m  = $(M_OBJS)
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
-EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB -D__DVB_PACK__
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
