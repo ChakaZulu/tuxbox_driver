@@ -20,8 +20,14 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.62 $
+ *   $Revision: 1.63 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.63  2001/12/19 13:19:17  derget
+ *   debugoutput entfernt
+ *   CHCH [DEMUX] START
+ *   CHCH [DEMUX] STOP
+ *   wer braucht das schon ..
+ *
  *   Revision 1.62  2001/12/17 19:29:51  gillem
  *   - sync with includes
  *
@@ -1480,7 +1486,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   feed->is_filtering=1;
   
   dprintk(KERN_DEBUG "gtx_dmx: STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
-  printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
+  //printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
   
   if (gtxfeed->output&TS_PACKET)
 #ifdef enx_dmx
@@ -1531,7 +1537,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 	  gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
 #endif  
   }
-  printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
+  //printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
   gtx_reset_queue(gtxfeed);
   gtxfeed->state=DMX_STATE_READY;
@@ -1993,7 +1999,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.62 2001/12/17 19:29:51 gillem Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.63 2001/12/19 13:19:17 derget Exp $\n");
 
 	return gtx_dmx_init();
 }
