@@ -95,15 +95,23 @@ extern struct page * vmalloc_to_page(void *addr);
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <linux/tqueue.h>
-#define work_struct tq_struct
-#define INIT_WORK(wq,routine,data) INIT_TQUEUE(wq,routine,data)
-#define schedule_work(wq) schedule_task(wq)
-#define flush_scheduled_work() flush_scheduled_tasks()
-#else
-#include <linux/workqueue.h>
-#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) 
+#include <linux/tqueue.h> 
+#ifndef work_struct 
+#define work_struct tq_struct 
+#endif 
+#ifndef INIT_WORK 
+#define INIT_WORK(wq,routine,data) INIT_TQUEUE(wq,routine,data) 
+#endif 
+#ifndef schedule_work 
+#define schedule_work(wq) schedule_task(wq) 
+#endif 
+#ifndef flush_scheduled_work 
+#define flush_scheduled_work() flush_scheduled_tasks() 
+#endif 
+#else 
+#include <linux/workqueue.h> 
+#endif 
 
 #endif
 
