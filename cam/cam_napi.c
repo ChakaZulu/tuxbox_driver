@@ -1,5 +1,5 @@
 /*
- * $Id: cam_napi.c,v 1.4 2002/12/03 20:58:57 obi Exp $
+ * $Id: cam_napi.c,v 1.5 2003/01/14 08:43:17 jolt Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -160,7 +160,7 @@ int cam_napi_init(void)
 
 	int result;
 
-	printk("$Id: cam_napi.c,v 1.4 2002/12/03 20:58:57 obi Exp $\n");
+	printk("$Id: cam_napi.c,v 1.5 2003/01/14 08:43:17 jolt Exp $\n");
 	
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0)
 		printk("cam_napi: cam_napi_register failed (errno = %d)\n", result);
@@ -180,10 +180,6 @@ void cam_napi_exit(void)
 module_init(cam_napi_init);
 module_exit(cam_napi_exit);
 
-#ifdef MODULE
 MODULE_DESCRIPTION("dbox2 cam dvb api driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif

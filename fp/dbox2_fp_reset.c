@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_reset.c,v 1.1 2002/10/21 11:38:58 obi Exp $
+ * $Id: dbox2_fp_reset.c,v 1.2 2003/01/14 08:43:18 jolt Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -78,15 +78,24 @@ dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
 {
 	u8 msg [] = { 0x05, 0xef };
 
-	if (i2c_master_send(fp_i2c_client, msg, sizeof(msg)) != sizeof(msg))
-		return -1;
+	if (manufacturer_id == DBOX_MID_NOKIA) {
+	
+		return dbox2_fp_reset(0xAF);
+		
+	} else {
 
-	msg[1] = 0xff;
+		if (i2c_master_send(fp_i2c_client, msg, sizeof(msg)) != sizeof(msg))
+			return -1;
 
-	if (i2c_master_send(fp_i2c_client, msg, sizeof(msg)) != sizeof(msg))
-		return -1;
+		msg[1] = 0xff;
 
-	return 0;
+		if (i2c_master_send(fp_i2c_client, msg, sizeof(msg)) != sizeof(msg))
+			return -1;
+
+		return 0;
+			
+	}
+
 }
 
 
@@ -109,7 +118,5 @@ dbox2_fp_reset (u8 type)
 	return 0;
 }
 
-#ifdef MODULE
 EXPORT_SYMBOL(dbox2_fp_reset);
 EXPORT_SYMBOL(dbox2_fp_reset_cam);
-#endif

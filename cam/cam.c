@@ -21,6 +21,11 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.20  2003/01/14 08:43:17  jolt
+ *   - Removed old CAM interface
+ *   - Unified FP CAM reset
+ *   - Small cleanups
+ *
  *   Revision 1.19  2002/11/08 01:25:52  obi
  *   make cam work with dvb api v3 drivers
  *
@@ -74,11 +79,9 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
-
-/* ---------------------------------------------------------------------- */
 
 #define __KERNEL_SYSCALLS__
 
@@ -114,12 +117,8 @@
 
 static struct dbox_info_struct info;
 
-/* ---------------------------------------------------------------------- */
-
-#ifdef MODULE
 static int debug=0;
 static char *firmware=0;
-#endif
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
@@ -131,8 +130,6 @@ static char *firmware=0;
 #define CAM_CODE_SIZE		0x20000
 
 #define CAM_QUEUE_SIZE		0x800
-
-/* ---------------------------------------------------------------------- */
 
 static int attach_adapter(struct i2c_adapter *adap);
 static int detach_client(struct i2c_client *client);
@@ -159,37 +156,6 @@ static struct i2c_client client_template = {
 	&cam_driver,
 	NULL
 };
-
-/* ---------------------------------------------------------------------- */
-
-#ifndef CONFIG_DEVFS_FS
-#error no devfs
-#endif
-
-#define CAM_MINOR 0
-
-static devfs_handle_t devfs_handle[1];
-
-static int f_cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
-static int f_cam_open (struct inode *inode, struct file *file);
-static ssize_t f_cam_write (struct file *file, const char *buf, size_t count, loff_t *offset);
-static ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset);
-static int f_cam_release(struct inode *inode, struct file *file);
-static unsigned int f_cam_poll(struct file *file, poll_table *wait);
-
-static struct file_operations cam_fops = {
-	owner:	  THIS_MODULE,
-	read:	   f_cam_read,
-	write:	  f_cam_write,
-	ioctl:	  f_cam_ioctl,
-	open:	   f_cam_open,
-				release:				f_cam_release,
-				poll:						f_cam_poll,
-};
-
-static DECLARE_MUTEX_LOCKED(cam_open);
-
-/* ---------------------------------------------------------------------- */
 
 static DECLARE_MUTEX_LOCKED(cam_busy);
 static void cam_task(void *);
@@ -225,8 +191,6 @@ static int attach_adapter(struct i2c_adapter *adap)
 	return 0;
 }
 
-/* ---------------------------------------------------------------------- */
-
 static int detach_client(struct i2c_client *client)
 {
 	printk("CAM: detach_client\n");
@@ -235,15 +199,11 @@ static int detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* ---------------------------------------------------------------------- */
-
 struct tq_struct cam_tasklet=
 {
 	routine: cam_task,
 	data: 0
 };
-
-/* ---------------------------------------------------------------------- */
 
 static void cam_task(void *data)
 {
@@ -336,33 +296,22 @@ static void cam_task(void *data)
 	enable_irq(CAM_INTERRUPT);
 }
 
-/* ---------------------------------------------------------------------- */
-
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 {
 	schedule_task(&cam_tasklet);
 }
 
-/* ---------------------------------------------------------------------- */
-
 int cam_reset()
 {
-	if (info.mID==DBOX_MID_NOKIA)
-		return dbox2_fp_reset(0xAF);
-	else
-		return dbox2_fp_reset_cam();
+	return dbox2_fp_reset_cam();
 }
-
-/* ---------------------------------------------------------------------- */
 
 int cam_write_message( char * buf, size_t count )
 {
 	int res;
 
-	if ((res=down_interruptible(&cam_busy)))
-	{
+	if ((res = down_interruptible(&cam_busy)))
 		return res;
-	}
 
 	res = i2c_master_send(dclient, buf, count);
 
@@ -370,8 +319,6 @@ int cam_write_message( char * buf, size_t count )
 	up(&cam_busy);
 	return res;
 }
-
-/* ---------------------------------------------------------------------- */
 
 int cam_read_message( char * buf, size_t count )
 {
@@ -400,8 +347,6 @@ int cam_read_message( char * buf, size_t count )
 	return cb;
 }
 
-/* ---------------------------------------------------------------------- */
-
 static void do_firmwrite( u32 *buffer )
 {
 	int size,i;
@@ -411,8 +356,6 @@ static void do_firmwrite( u32 *buffer )
 
 	base = (void*)buffer;
 	size=CAM_CODE_SIZE;
-
-	printk("der moment ist gekommen...\n");
 
 	cp->cp_pbpar&=~15;  // GPIO (not cpm-io)
 	cp->cp_pbodr&=~15;  // driven output (not tristate)
@@ -444,8 +387,6 @@ static void do_firmwrite( u32 *buffer )
 
 	cam_reset();
 }
-
-/* ---------------------------------------------------------------------- */
 
 static int errno;
 
@@ -500,8 +441,6 @@ static int do_firmread(const char *fn, char **fp)
 	return (int) l;
 }
 
-/* ---------------------------------------------------------------------- */
-
 int cam_init(void)
 {
 	int res;
@@ -513,12 +452,9 @@ int cam_init(void)
 	init_waitqueue_head(&queuewait);
 
 	if (info.mID==2)	// special handling for philips
-	{
 		code_base=ioremap(CAM_CODE_BASE_02, CAM_CODE_SIZE);
-	} else
-	{
+	else
 		code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
-	}
 
 	if (!code_base)
 		panic("couldn't map CAM-io.\n");
@@ -559,26 +495,8 @@ int cam_init(void)
 	if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
 			panic("Could not allocate CAM IRQ!");
 
-	up(&cam_open);
-
-/* ---- bitte testen Sagem/Philips --- report to MHC ------- */
-//	if (info.mID!=DBOX_MID_NOKIA)
-//		cam_write_message(caminit,11);
-	devfs_handle[CAM_MINOR] =
-	devfs_register ( NULL, "dbox/cam0", DEVFS_FL_DEFAULT, 0, CAM_MINOR,
-			 S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-			 &cam_fops, NULL );
-
-	if ( ! devfs_handle[CAM_MINOR] )
-	{
-		i2c_del_driver ( &cam_driver );
-		return -EIO;
-	}
-
 	return 0;
 }
-
-/* ---------------------------------------------------------------------- */
 
 void cam_fini(void)
 {
@@ -600,176 +518,19 @@ void cam_fini(void)
 		return;
 	}
 
-	devfs_unregister ( devfs_handle[CAM_MINOR] );
-
 	cp->cp_pbdat|=0xF;
 	cp->cp_pbdat&=~2;
 	udelay(100);
 	cp->cp_pbdat|=2;
+	
 }
-
-/* ---------------------------------------------------------------------- */
-
-int f_cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-	return -ENOSYS;
-}
-
-int f_cam_open (struct inode *inode, struct file *file)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-
-	switch (minor)
-	{
-		case CAM_MINOR:
-			if (file->f_flags & O_NONBLOCK)
-			{
-				if (down_trylock(&cam_open))
-					return -EAGAIN;
-			}	else
-			{
-				if (down_interruptible(&cam_open))
-					return -ERESTARTSYS;
-			}
-			return 0;
-		default:
-			return -ENODEV;
-	}
-
-	return -EINVAL;
-}
-
-ssize_t f_cam_write (struct file *file, const char *buf, size_t count, loff_t *offset)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-
-	switch (minor)
-	{
-	case CAM_MINOR:
-	{
-		int res;
-		if ((res=down_interruptible(&cam_busy)))
-			return res;
-
-		res = i2c_master_send(dclient, buf, count);
-		up(&cam_busy);
-		return res;
-	}
-	}
-	return -EINVAL;
-}
-
-ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read;
-
-	switch (minor)
-	{
-		case CAM_MINOR:
-		{
-			int i;
-			DECLARE_WAITQUEUE(wait, current);
-			read=0;
-
-			for(;;)
-			{
-				if (cam_queuerptr==cam_queuewptr)		// queue empty?
-				{
-					if (file->f_flags & O_NONBLOCK)
-					{
-						printk("bzw. nonblock\n");
-						return read;
-					}
-
-					add_wait_queue(&queuewait, &wait);
-					set_current_state(TASK_INTERRUPTIBLE);
-					schedule();
-					current->state = TASK_RUNNING;
-					remove_wait_queue(&queuewait, &wait);
-
-					if (signal_pending(current))
-						return -ERESTARTSYS;
-				} else
-					break;
-			}
-
-			for (i=0; i<count; i++)
-			{
-				if (cam_queuerptr==cam_queuewptr)
-					break;
-
-				*((u8*)(buf+read))=cam_queue[cam_queuerptr++];
-				read++;
-
-				if (cam_queuerptr>=CAM_QUEUE_SIZE)
-					cam_queuerptr=0;
-			}
-
-			return read;
-		}
-
-		default:
-			return -EINVAL;
-	}
-
-	return -EINVAL;
-}
-
-int f_cam_release(struct inode *inode, struct file *file)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-
-	switch (minor)
-	{
-	case CAM_MINOR:
-		up(&cam_open);
-		return 0;
-	}
-	return -EINVAL;
-}
-
-unsigned int f_cam_poll(struct file *file, poll_table *wait)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-	switch (minor)
-	{
-	case CAM_MINOR:
-		poll_wait(file, &queuewait, wait);
-		if (cam_queuerptr!=cam_queuewptr)	// queue not empty
-			return POLLIN|POLLRDNORM;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-/* ---------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(cam_reset);
 EXPORT_SYMBOL(cam_write_message);
 EXPORT_SYMBOL(cam_read_message);
 
-/* ---------------------------------------------------------------------- */
-
-#ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 CAM Driver");
 MODULE_PARM(debug,"i");
 MODULE_PARM(firmware,"s");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-
-int init_module(void)
-{
-	return cam_init();
-}
-
-/* ---------------------------------------------------------------------- */
-
-void cleanup_module(void)
-{
-	cam_fini();
-}
-#endif
-
-/* ---------------------------------------------------------------------- */
