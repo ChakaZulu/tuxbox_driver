@@ -24,20 +24,22 @@
 #ifndef AVIA_GT_DMX_H
 #define AVIA_GT_DMX_H
 
-#define AVIA_GT_DMX_QUEUE_COUNT			32		// HIGH_SPEED queue isn't really a queue
+#define AVIA_GT_DMX_QUEUE_COUNT			32	/* HIGH_SPEED queue isn't really a queue */
 
 #define AVIA_GT_DMX_QUEUE_VIDEO			0
 #define AVIA_GT_DMX_QUEUE_AUDIO			1
 #define AVIA_GT_DMX_QUEUE_TELETEXT		2
-#define AVIA_GT_DMX_QUEUE_USER_START	3
+#define AVIA_GT_DMX_QUEUE_USER_START		3
 #define AVIA_GT_DMX_QUEUE_USER_END		30
 #define AVIA_GT_DMX_QUEUE_MESSAGE		31
-#define AVIA_GT_DMX_QUEUE_HIGH_SPEED	32
+#define AVIA_GT_DMX_QUEUE_HIGH_SPEED		32
+
+#define AVIA_GT_DMX_SYSTEM_QUEUES		0xff	/* alias for video+audio+teletext queues */
 
 #define AVIA_GT_DMX_QUEUE_MODE_TS		0
 #define AVIA_GT_DMX_QUEUE_MODE_PES		3
 #define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
-#define AVIA_GT_DMX_QUEUE_MODE_SEC16	5
+#define AVIA_GT_DMX_QUEUE_MODE_SEC16		5
 
 struct avia_gt_dmx_queue {
 
@@ -57,7 +59,7 @@ struct avia_gt_dmx_queue {
 	u16	(*get_data16)(struct avia_gt_dmx_queue *queue, u8 peek);
 	u32	(*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
 	void	(*flush)(struct avia_gt_dmx_queue *queue);
-	u32	(*put_data)(struct avia_gt_dmx_queue *queue, void *src, u32 count, u8 src_is_user_space);
+	u32	(*put_data)(struct avia_gt_dmx_queue *queue, const void *src, u32 count, u8 src_is_user_space);
 
 };
 
@@ -209,10 +211,24 @@ typedef struct {
 
 #pragma pack()
 
+/* offsets and size in words */
+#define DMX_MICROCODE				(0x000 >> 1)
+#define DMX_FILTER_PARAMETER_TABLE_1		(0x400 >> 1)
+#define DMX_CONTROL_WORDS_1			(0x4d0 >> 1)
+#define DMX_FILTER_PARAMETER_TABLE_2		(0x500 >> 1)
+#define DMX_CONTROL_WORDS_2			(0x5d0 >> 1)
+#define DMX_FILTER_PARAMETER_TABLE_3		(0x600 >> 1)
+#define DMX_CONTROL_WORDS_3			(0x6d0 >> 1)
+#define DMX_PID_SEARCH_TABLE			(0x700 >> 1)
+#define DMX_PID_PARSING_CONTROL_TABLE		(0x740 >> 1)
+#define DMX_FILTER_DEFINITION_TABLE		(0x7c0 >> 1)
+#define DMX_VERSION_NO				(0x7fe >> 1)
+#define DMX_RISC_RAM_SIZE			(0x800 >> 1)
+
 #define DMX_MESSAGE_CC_ERROR			0xFE
 #define DMX_MESSAGE_SYNC_LOSS			0xFD
 #define DMX_MESSAGE_ADAPTION			0xFC
-#define DMX_MESSAGE_SECTION_COMPLETED	0xCE
+#define DMX_MESSAGE_SECTION_COMPLETED		0xCE
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
@@ -234,8 +250,6 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr);
 int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter);
 int avia_gt_dmx_queue_stop(u8 queue_nr);
 void avia_gt_dmx_queue_set_write_pos(unsigned char queue_nr, unsigned int write_pointer);
-void avia_gt_dmx_risc_write(void *src, void *dst, u16 count);
-void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count);
 void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt);
@@ -250,8 +264,15 @@ int avia_gt_dmx_alloc_section_filter(void *f);
 
 void avia_gt_dmx_enable_framer(void);
 void avia_gt_dmx_disable_framer(void);
-void avia_gt_dmx_enable_clip_mode(void);
-void avia_gt_dmx_disable_clip_mode(void);
+int avia_gt_dmx_enable_clip_mode(u8 queue_nr);
+int avia_gt_dmx_disable_clip_mode(u8 queue_nr);
+int avia_gt_dmx_queue_write(u8 queue_nr, const u8 *buf, size_t count, u32 nonblock);
+int avia_gt_dmx_queue_nr_get_bytes_free(u8 queue_nr);
+
+void avia_gt_dmx_ecd_reset(void);
+int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *key);
+int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid);
+int avia_gt_dmx_ecd_ucode_present(void);
 
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void);
 int avia_gt_dmx_init(void);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.180 2003/05/11 02:42:59 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.181 2003/06/20 15:00:35 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/tqueue.h>
+#include <linux/dvb/ca.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
@@ -48,12 +49,11 @@
 
 #include "../dvb-core/compat.h"
 #include "../dvb-core/demux.h"
+#include "../dvb-core/dmxdev.h"
 #include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvb_frontend.h"
 #include "../dvb-core/dvb_net.h"
-#include "../dvb-core/dmxdev.h"
 
-#include "avia_napi.h"
 #include "avia_av.h"
 #include "avia_av_napi.h"
 #include "avia_gt.h"
@@ -61,9 +61,11 @@
 #include "avia_gt_dmx.h"
 #include "avia_gt_napi.h"
 #include "avia_gt_vbi.h"
+#include "avia_napi.h"
 
 static sAviaGtInfo *gt_info = NULL;
 static struct dvb_adapter *adapter = NULL;
+static struct dvb_device *ca_dev = NULL;
 static struct dvb_demux demux;
 static struct dvb_net net;
 static struct dmxdev dmxdev;
@@ -436,24 +438,16 @@ int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *b
 	 * so there is always exactly one ts packet in buf.
 	 */
 
-	sAviaGtDmxQueue *avi_dmx_queue;
 	struct ts_header *ts = (struct ts_header *) buf;
-	struct pes_header *pes;
-	u64 pts;
+	int pes_offset;
+	int err;
 
 	if (ts->sync_byte != 0x47)
 		return -EINVAL;
 
 	if ((dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO) || (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)) {
-		avi_dmx_queue = avia_gt_dmx_get_queue_info(AVIA_GT_DMX_QUEUE_VIDEO);
-
-		while (avi_dmx_queue->info.bytes_free(&avi_dmx_queue->info) < count) {
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(HZ / 100); /* 10 ms (TODO: optimize) */
-		}
-
-		avi_dmx_queue->info.put_data(&avi_dmx_queue->info, (void *)buf, count, 1);
-		avia_gt_dmx_system_queue_set_write_pos(AVIA_GT_DMX_QUEUE_VIDEO, avi_dmx_queue->write_pos);
+		if ((err = avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, 0)) < 0)
+			return err;
 
 		if ((!need_audio_pts) || (dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO))
 			return 0;
@@ -461,41 +455,16 @@ int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *b
 		if (!((ts->payload_unit_start_indicator) && (ts->payload)))
 			return 0;
 
-		if (ts->adaptation_field) {
-			/*
-			 * do not continue if adaption field length is greater than
-			 * ts_packet_size - (ts_header_size + pes_header_size + adaption_length_field_size)
-			 */
-			if (buf[4] > 171)
-				return 0;
+		pes_offset = sizeof(struct ts_header);
 
-			pes = (struct pes_header *) &buf[buf[4] + 5];
-		}
-		else {
-			pes = (struct pes_header *) &buf[4];
-		}
+		if (ts->adaptation_field)
+			pes_offset += buf[4] + 1;
 
-		/* beginning of a pes packet? */
-		if (pes->packet_start_code_prefix != 0x000001)
+		if (pes_offset > (184 - sizeof(struct pes_header)))
 			return 0;
 
-		/* audio pes packet? */
-		if ((pes->stream_id & 0xe0) != 0xc0)
-			return 0;
-
-		/* pts value available? */
-		if (pes->pts_flag != 1)
-			return 0;
-
-		pts = (((u64)pes->pts_hi << 30) | ((u64)pes->pts_mid << 15) | (u64)pes->pts_lo);
-
-		printk(KERN_INFO "avia_gt_napi: pts=%08llx:%08llx stream_id=%02x\n", (pts >> 1), ((pts & 1) << 15), pes->stream_id);
-
-		avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_NONE);
-		avia_av_set_stc(pts >> 1, (pts & 1) << 15);
-		avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_VIDEO);
-
-		need_audio_pts = 0;
+		if (avia_av_audio_pts_to_stc((struct pes_header *) &buf[pes_offset]) == 0)
+			need_audio_pts = 0;
 
 		return 0;
 	}
@@ -616,13 +585,14 @@ void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 static
 int avia_gt_napi_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend)
 {
-	int ret;
+	int err;
 
-	if ((ret = dvbdmx_connect_frontend(demux, frontend)) < 0)
-		return ret;
+	if ((err = dvbdmx_connect_frontend(demux, frontend)) < 0)
+		return err;
 
 	if (demux->frontend->source == DMX_MEMORY_FE)
-		avia_gt_dmx_enable_clip_mode();
+		if ((err = avia_gt_dmx_enable_clip_mode(AVIA_GT_DMX_SYSTEM_QUEUES)) < 0)
+			return err;
 
 	return 0;
 }
@@ -630,17 +600,117 @@ int avia_gt_napi_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend)
 static
 int avia_gt_napi_disconnect_frontend(dmx_demux_t *demux)
 {
+	int err;
+
 	if (demux->frontend->source == DMX_MEMORY_FE)
-		avia_gt_dmx_disable_clip_mode();
+		if ((err = avia_gt_dmx_disable_clip_mode(AVIA_GT_DMX_SYSTEM_QUEUES)) < 0)
+			return err;
 
 	return dvbdmx_disconnect_frontend(demux);
 }
+
+static const struct ca_slot_info avia_gt_napi_ecd_slot_info = {
+	.num = 0,
+	.type = CA_DESCR,
+	.flags = 0,
+};
+
+static const struct ca_descr_info avia_gt_napi_ecd_descr_info = {
+	.num = 8,
+	.type = CA_ECD,
+};
+
+static const struct ca_caps avia_gt_napi_ecd_caps = {
+	.slot_num = 1,
+	.slot_type = CA_DESCR,
+	.descr_num = 8,
+	.descr_type = CA_ECD,
+};
+
+static
+int avia_gt_napi_ecd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+{
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
+		(cmd != CA_GET_CAP) &&
+		(cmd != CA_GET_SLOT_INFO) &&
+		(cmd != CA_GET_DESCR_INFO) &&
+		(cmd != CA_GET_MSG))
+		return -EPERM;
+
+	switch (cmd) {
+	case CA_RESET:
+		avia_gt_dmx_ecd_reset();
+		break;
+
+	case CA_GET_CAP:
+		memcpy(parg, &avia_gt_napi_ecd_caps, sizeof(struct ca_caps));
+		break;
+
+	case CA_GET_SLOT_INFO:
+		memcpy(parg, &avia_gt_napi_ecd_slot_info, sizeof(struct ca_slot_info));
+		break;
+
+	case CA_GET_DESCR_INFO:
+		memcpy(parg, &avia_gt_napi_ecd_descr_info, sizeof(struct ca_descr_info));
+		break;
+
+	case CA_GET_MSG:
+	case CA_SEND_MSG:
+		return -EOPNOTSUPP;
+
+	case CA_SET_DESCR:
+	{
+		struct ca_descr *d = (struct ca_descr *)parg;
+
+		if ((d->index >= avia_gt_napi_ecd_caps.descr_num) || (d->parity > 1))
+			return -EINVAL;
+
+		return avia_gt_dmx_ecd_set_key(d->index, d->parity, d->cw);
+	}
+
+	case CA_SET_PID:
+	{
+		struct ca_pid *p = (struct ca_pid *)parg;
+
+		if ((p->index < -1) || (p->index >= (int)avia_gt_napi_ecd_caps.descr_num))
+			return -EINVAL;
+
+		if (p->pid > 0x1fff)
+			return -EINVAL;
+
+		if (p->index == -1)
+			return 0;
+
+		return avia_gt_dmx_ecd_set_pid(p->index, p->pid);
+	}
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
+}
+
+static struct file_operations avia_gt_napi_ecd_fops = {
+	.owner = THIS_MODULE,
+	.ioctl = dvb_generic_ioctl,
+	.open = dvb_generic_open,
+	.release = dvb_generic_release,
+};
+
+static struct dvb_device avia_gt_napi_ecd_dev = {
+	.priv = 0,
+	.users = ~0,
+	.writers = 1,
+	.fops = &avia_gt_napi_ecd_fops,
+	.kernel_ioctl = avia_gt_napi_ecd_ioctl,
+};
 
 int __init avia_gt_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.180 2003/05/11 02:42:59 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.181 2003/06/20 15:00:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -716,10 +786,19 @@ int __init avia_gt_napi_init(void)
 		goto init_failed_disconnect_frontend;
 	}
 
+	if (avia_gt_dmx_ecd_ucode_present()) {
+		if ((result = dvb_register_device(adapter, &ca_dev, &avia_gt_napi_ecd_dev, NULL, DVB_DEVICE_CA)) < 0) {
+			printk(KERN_ERR "avia_gt_napi: dvb_register_device failed (errno=%d)\n", result);
+			goto init_failed_remove_frontend_notifier;
+		}
+	}
+
 	net.card_num = adapter->num;
 	dvb_net_init(adapter, &net, &demux.dmx);
 	return 0;
 
+init_failed_remove_frontend_notifier:
+	dvb_remove_frontend_notifier(adapter, avia_gt_napi_before_after_tune);
 init_failed_disconnect_frontend:
 	demux.dmx.disconnect_frontend(&demux.dmx);
 init_failed_remove_mem_frontend:
@@ -752,4 +831,3 @@ module_exit(avia_gt_napi_exit);
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
 MODULE_LICENSE("GPL");
-

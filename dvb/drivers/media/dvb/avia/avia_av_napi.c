@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.17 2003/04/17 07:29:48 obi Exp $
+ * $Id: avia_av_napi.c,v 1.18 2003/06/20 15:00:35 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -32,9 +32,9 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
+#include <linux/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
@@ -47,14 +47,34 @@
 #include "avia_napi.h"
 #include "avia_av.h"
 #include "avia_av_napi.h"
+#include "avia_gt_dmx.h"
+#include "avia_gt_napi.h"
 #include "avia_gt_pcm.h"
 
 static struct dvb_device *audio_dev = NULL;
 static struct dvb_device *video_dev = NULL;
 static struct audio_status audiostate;
 static struct video_status videostate;
+static wait_queue_head_t audio_wait_queue;
+static wait_queue_head_t video_wait_queue;
 static u8 have_audio = 0;
 static u8 have_video = 0;
+
+/* used for playback from memory */
+static int need_audio_pts = 0;
+
+/*
+ * MPEG1 PES & MPEG2 PES
+ * SPTS and ES are undefined atm.
+ */
+#define AVIA_AV_VIDEO_CAPS	(VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2)
+
+/*
+ * MPEG1 PES & MPEG2 PES
+ * ES is undefined atm.
+ */
+#define AVIA_AV_AUDIO_CAPS	(AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3)
+
 
 int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 {
@@ -130,6 +150,7 @@ static
 int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
+	int err;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != VIDEO_GET_STATUS))
 		return -EPERM;
@@ -141,7 +162,7 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 		break;
 
 	case VIDEO_PLAY:
-		if (have_video)
+		if ((have_video) || (videostate.stream_source == VIDEO_SOURCE_MEMORY))
 			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
 		videostate.play_state = VIDEO_PLAYING;
 		break;
@@ -159,6 +180,18 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 	case VIDEO_SELECT_SOURCE:
 		if (videostate.play_state != VIDEO_STOPPED)
 			return -EINVAL;
+		switch ((video_stream_source_t) arg) {
+		case VIDEO_SOURCE_DEMUX:
+			if ((err = avia_gt_dmx_disable_clip_mode(AVIA_GT_DMX_QUEUE_VIDEO)) < 0)
+				return err;
+			break;
+		case VIDEO_SOURCE_MEMORY:
+			if ((err = avia_gt_dmx_enable_clip_mode(AVIA_GT_DMX_QUEUE_VIDEO)) < 0)
+				return err;
+			break;
+		default:
+			return -EINVAL;
+		}
 		videostate.stream_source = (video_stream_source_t) arg;
 		break;
 
@@ -183,42 +216,18 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 		case VIDEO_PAN_SCAN:
 			val = 1;
 			break;
-
 		case VIDEO_LETTER_BOX:
 			val = 2;
 			break;
-
 		case VIDEO_CENTER_CUT_OUT:
 			val = 0;
 			break;
-
 		default:
 			return -EINVAL;
 		}
 
 		videostate.display_format = format;
 		avia_av_dram_write(ASPECT_RATIO_MODE, val);
-		break;
-	}
-
-	case VIDEO_SET_FORMAT:
-	{
-		video_format_t format = (video_format_t) arg;
-
-		switch (format) {
-		case VIDEO_FORMAT_4_3:
-			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 2);
-			break;
-
-		case VIDEO_FORMAT_16_9:
-			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 3);
-			break;
-
-		default:
-			return -EINVAL;
-		}
-
-		videostate.video_format = format;
 		break;
 	}
 
@@ -234,11 +243,63 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 		return -EOPNOTSUPP;
 
 	case VIDEO_GET_CAPABILITIES:
-		arg = VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2 | VIDEO_CAP_SYS | VIDEO_CAP_PROG;
+		*((unsigned int *)parg) = AVIA_AV_VIDEO_CAPS;
 		break;
 
 	case VIDEO_CLEAR_BUFFER:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_ID:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_STREAMTYPE:
+		if ((!(arg & AVIA_AV_VIDEO_CAPS)) || (hweight32(arg) != 1))
+			return -EINVAL;
+		switch (arg) {
+		case VIDEO_CAP_MPEG1:
+		case VIDEO_CAP_MPEG2:
+			return avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
+		default:
+			break;
+		}
 		break;
+
+	case VIDEO_SET_FORMAT:
+	{
+		video_format_t format = (video_format_t) arg;
+
+		switch (format) {
+		case VIDEO_FORMAT_4_3:
+			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 2);
+			break;
+		case VIDEO_FORMAT_16_9:
+			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 3);
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		videostate.video_format = format;
+		break;
+	}
+
+	case VIDEO_SET_SYSTEM:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_HIGHLIGHT:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_SPU:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_SPU_PALETTE:
+		return -EOPNOTSUPP;
+
+	case VIDEO_GET_NAVI:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_ATTRIBUTES:
+		return -EOPNOTSUPP;
 
 	default:
 		return -ENOIOCTLCMD;
@@ -251,6 +312,7 @@ static
 int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
+	int err;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != AUDIO_GET_STATUS))
 		return -EPERM;
@@ -262,8 +324,9 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 		break;
 
 	case AUDIO_PLAY:
-		if (have_audio)
+		if ((have_audio) || (audiostate.stream_source == AUDIO_SOURCE_MEMORY))
 			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
+		need_audio_pts = 1;
 		audiostate.play_state = AUDIO_PLAYING;
 		break;
 
@@ -284,6 +347,18 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 	case AUDIO_SELECT_SOURCE:
 		if (audiostate.play_state != AUDIO_STOPPED)
 			return -EINVAL;
+		switch ((audio_stream_source_t) arg) {
+		case AUDIO_SOURCE_DEMUX:
+			if ((err = avia_gt_dmx_disable_clip_mode(AVIA_GT_DMX_QUEUE_AUDIO)) < 0)
+				return err;
+			break;
+		case AUDIO_SOURCE_MEMORY:
+			if ((err = avia_gt_dmx_enable_clip_mode(AVIA_GT_DMX_QUEUE_AUDIO)) < 0)
+				return err;
+			break;
+		default:
+			return -EINVAL;
+		}
 		audiostate.stream_source = (audio_stream_source_t) arg;
 		break;
 
@@ -345,14 +420,14 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 		break;
 
 	case AUDIO_GET_CAPABILITIES:
-		arg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3;
+		*((unsigned int *)parg) = AVIA_AV_AUDIO_CAPS;
 		break;
 
 	case AUDIO_CLEAR_BUFFER:
-		break;
+		return -EOPNOTSUPP;
 
 	case AUDIO_SET_ID:
-		break;
+		return -EOPNOTSUPP;
 
 	case AUDIO_SET_MIXER:
 		memcpy(&audiostate.mixer_state, parg, sizeof(struct audio_mixer));
@@ -366,6 +441,28 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 		avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1, (audiostate.mixer_state.volume_right + 1) >> 1);
 		break;
 
+	case AUDIO_SET_STREAMTYPE:
+		if ((!(arg & AVIA_AV_AUDIO_CAPS)) || (hweight32(arg) != 1))
+			return -EINVAL;
+		switch (arg) {
+		case AUDIO_CAP_MP1:
+		case AUDIO_CAP_MP2:
+		case AUDIO_CAP_AC3:
+			return avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
+		default:
+			break;
+		}
+		break;
+
+	case AUDIO_SET_EXT_ID:
+		return -EOPNOTSUPP;
+
+	case AUDIO_SET_ATTRIBUTES:
+		return -EOPNOTSUPP;
+
+	case AUDIO_SET_KARAOKE:
+		return -EOPNOTSUPP;
+
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -374,15 +471,111 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 }
 
 static
-struct file_operations avia_av_napi_video_fops = {
-	.owner = THIS_MODULE,
-	.ioctl = dvb_generic_ioctl,
-	.open = dvb_generic_open,
-	.release = dvb_generic_release,
-};
+ssize_t avia_av_napi_video_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+{
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+		(videostate.stream_source != VIDEO_SOURCE_MEMORY))
+			return -EPERM;
+
+	return avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, file->f_flags & O_NONBLOCK);
+}
 
 static
-struct dvb_device avia_av_napi_video_dev = {
+int avia_av_napi_video_open(struct inode *inode, struct file *file)
+{
+	return dvb_generic_open(inode, file);
+}
+
+static
+int avia_av_napi_video_release(struct inode *inode, struct file *file)
+{
+	avia_av_napi_video_ioctl(inode, file, VIDEO_STOP, NULL);
+	avia_av_napi_video_ioctl(inode, file, VIDEO_SELECT_SOURCE, VIDEO_SOURCE_DEMUX);
+	return dvb_generic_release(inode, file);
+}
+
+static
+unsigned int avia_av_napi_video_poll(struct file *file, poll_table *wait)
+{
+	unsigned int mask = 0;
+
+	poll_wait(file, &video_wait_queue, wait);
+
+	if (videostate.play_state == VIDEO_PLAYING) {
+		if (avia_gt_dmx_queue_nr_get_bytes_free(AVIA_GT_DMX_QUEUE_VIDEO) >= 188)
+			mask = (POLLOUT | POLLWRNORM);
+	}
+	else {
+		mask = (POLLOUT | POLLWRNORM);
+	}
+
+	return mask;
+}
+
+static
+ssize_t avia_av_napi_audio_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+{
+	size_t i = 0;
+
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+		(audiostate.stream_source != AUDIO_SOURCE_MEMORY))
+			return -EPERM;
+
+	if (need_audio_pts) {
+		while (i < count - sizeof(struct pes_header)) {
+			if (avia_av_audio_pts_to_stc((struct pes_header *)&buf[i]) == 0) {
+				need_audio_pts = 0;
+				break;
+			}
+			i++;
+		}
+	}
+
+	return avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_AUDIO, &buf[i], count - i, file->f_flags & O_NONBLOCK);
+}
+
+static
+int avia_av_napi_audio_open(struct inode *inode, struct file *file)
+{
+	return dvb_generic_open(inode, file);
+}
+
+static
+int avia_av_napi_audio_release(struct inode *inode, struct file *file)
+{
+	avia_av_napi_audio_ioctl(inode, file, AUDIO_STOP, NULL);
+	avia_av_napi_audio_ioctl(inode, file, AUDIO_SELECT_SOURCE, AUDIO_SOURCE_DEMUX);
+	return dvb_generic_release(inode, file);
+}
+
+static
+unsigned int avia_av_napi_audio_poll(struct file *file, poll_table *wait)
+{
+	unsigned int mask = 0;
+
+	poll_wait(file, &audio_wait_queue, wait);
+
+	if (audiostate.play_state == AUDIO_PLAYING) {
+		if (avia_gt_dmx_queue_nr_get_bytes_free(AVIA_GT_DMX_QUEUE_AUDIO) >= 188)
+			mask = (POLLOUT | POLLWRNORM);
+	}
+	else {
+		mask = (POLLOUT | POLLWRNORM);
+	}
+
+	return mask;
+}
+
+static struct file_operations avia_av_napi_video_fops = {
+	.owner = THIS_MODULE,
+	.write = avia_av_napi_video_write,
+	.ioctl = dvb_generic_ioctl,
+	.open = avia_av_napi_video_open,
+	.release = avia_av_napi_video_release,
+	.poll = avia_av_napi_video_poll,
+};
+
+static struct dvb_device avia_av_napi_video_dev = {
 	.priv = 0,
 	.users = 1,
 	.writers = 1,
@@ -390,16 +583,16 @@ struct dvb_device avia_av_napi_video_dev = {
 	.kernel_ioctl = avia_av_napi_video_ioctl,
 };
 
-static
-struct file_operations avia_av_napi_audio_fops = {
+static struct file_operations avia_av_napi_audio_fops = {
 	.owner = THIS_MODULE,
+	.write = avia_av_napi_audio_write,
 	.ioctl = dvb_generic_ioctl,
-	.open = dvb_generic_open,
-	.release = dvb_generic_release,
+	.open = avia_av_napi_audio_open,
+	.release = avia_av_napi_audio_release,
+	.poll = avia_av_napi_audio_poll,
 };
 
-static
-struct dvb_device avia_av_napi_audio_dev = {
+static struct dvb_device avia_av_napi_audio_dev = {
 	.priv = 0,
 	.users = 1,
 	.writers = 1,
@@ -411,7 +604,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.17 2003/04/17 07:29:48 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.18 2003/06/20 15:00:35 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -427,6 +620,9 @@ int __init avia_av_napi_init(void)
 	videostate.stream_source = VIDEO_SOURCE_DEMUX;
 	videostate.video_format = VIDEO_FORMAT_4_3;
 	videostate.display_format = VIDEO_CENTER_CUT_OUT;
+
+	init_waitqueue_head(&audio_wait_queue);
+	init_waitqueue_head(&video_wait_queue);
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &video_dev, &avia_av_napi_video_dev, NULL, DVB_DEVICE_VIDEO)) < 0) {
 		printk(KERN_ERR "%s: dvb_register_device (video) failed (errno = %d)\n", __FILE__, result);
