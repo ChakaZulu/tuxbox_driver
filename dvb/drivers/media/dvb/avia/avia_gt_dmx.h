@@ -217,7 +217,7 @@ typedef struct {
 
 #define DMX_MESSAGE_CC_ERROR			0xFE
 #define DMX_MESSAGE_SYNC_LOSS			0xFD
-#define DMX_MESSAGE_ADAPTION			0xFC
+#define DMX_MESSAGE_ADAPTATION			0xFC
 #define DMX_MESSAGE_SECTION_COMPLETED		0xCE
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
