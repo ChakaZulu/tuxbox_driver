@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.11 2003/07/24 01:14:20 homar Exp $
+ * $Id: avia_gt_lirc.c,v 1.12 2003/07/24 01:59:21 homar Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -23,18 +23,24 @@
  *
  */
 
-#include <linux/devfs_fs_kernel.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/poll.h>
+#include <linux/kernel.h>
+#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/init.h>
 #include <linux/wait.h>
-
-#ifdef DEBUG
-#define dprintk(fmt,args...) printk( fmt,## args)
-#else
-#define dprintk(...)
-#endif
+#include <linux/list.h>
+#include <linux/poll.h>
+#include <linux/random.h>
+#include <asm/irq.h>
+#include <asm/io.h>
+#include <asm/pgtable.h>
+#include <asm/bitops.h>
+#include <asm/uaccess.h>
+#include <linux/devfs_fs_kernel.h>
 
 #include "avia_gt_ir.h"
 #include <dbox/lirc.h>
@@ -110,7 +116,7 @@ static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 	else
 		return 0;
 }
-
+					
 static u32 pulse_len = 0;
 //static u8 got_next = 0;
 //static u32 next_high = 0;
@@ -129,19 +135,19 @@ static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, lof
 		return -EINVAL;
 
 	while ((done * sizeof(lirc_t)) < count) {
-
+	
 		if (got_pulse) {
 			rx_buffer[done] = pulse_len | PULSE_BIT;
 			got_pulse = 0;
 		}
 		else {
 /*			if (got_next) {
-
+			
 				period_low = next_low;
 				period_high = next_high;
-
+				
 				got_next = 0;
-
+			
 			} else {*/
 				if ((result = avia_gt_ir_receive_pulse(&period_low, &period_high, !(file->f_flags & O_NONBLOCK))))
 					return result;
@@ -164,39 +170,39 @@ static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, lof
 
 			if ((period_low > 3500) && (period_low < 5500))
 				period_low = 4500;
-*/
+*/			
 /*			if (period_low > 16000) {
-
+			
 				get_random_bytes(&rand_val, sizeof(rand_val));
 				//period_low = rand_val * 100 + 150000;
 				//period_low = 120000;
-
+				
 				if (avia_gt_ir_get_rx_read_position() == avia_gt_ir_get_rx_buffer_position())
 					udelay(7500);
-
+				
 				if (avia_gt_ir_get_rx_read_position() != avia_gt_ir_get_rx_buffer_position()) {
 
 					if ((result = avia_gt_ir_receive_pulse(&next_low, &next_high, 1)))
 						return result;
-
+					
 					got_next = 1;
-
+				
 				//	if ((next_low > 1500) && (next_low < 3000))
 				//		period_low = 95000 + ((jiffies << 3) & 0xFFF);
 
 				//	if ((next_low > 3000) && (next_low < 5500))
 				//		period_low = 600000 + ((jiffies << 2) & 0xFFFF);
-
+						
 				} else {
-
-					dprintk("avia_gt_lirc: Sigh!\n");
-
+				
+					printk("avia_gt_lirc: Sigh!\n");
+					
 				}
-
+				
 			}*/
 
 			got_pulse = 1;
-
+			
 			if (period_high & ~PULSE_MASK)
 				pulse_len = PULSE_MASK;
 			else
@@ -248,7 +254,7 @@ static struct file_operations avia_gt_lirc_fops = {
 
 static int __init avia_gt_lirc_init(void)
 {
-	dprintk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.11 2003/07/24 01:14:20 homar Exp $\n");
+	printk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.12 2003/07/24 01:59:21 homar Exp $\n");
 
 	if (avia_gt_ir_init() < 0)
 		return -EIO;
@@ -256,7 +262,7 @@ static int __init avia_gt_lirc_init(void)
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 
 	if (!devfs_handle) {
-		dprintk(KERN_ERR "avia_gt_lirc: devfs_register failed\n");
+		printk(KERN_ERR "avia_gt_lirc: devfs_register failed\n");
 		return -EIO;
 	}
 

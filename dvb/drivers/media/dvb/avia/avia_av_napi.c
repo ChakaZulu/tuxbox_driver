@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.21 2003/07/24 01:14:19 homar Exp $
+ * $Id: avia_av_napi.c,v 1.22 2003/07/24 01:59:21 homar Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -410,7 +410,7 @@ int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned in
 		default:
 			return -EINVAL;
 		}
-
+				
 		audiostate.channel_select = select;
 		break;
 	}
@@ -604,7 +604,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	dprintk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.21 2003/07/24 01:14:19 homar Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.22 2003/07/24 01:59:21 homar Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -625,12 +625,12 @@ int __init avia_av_napi_init(void)
 	init_waitqueue_head(&video_wait_queue);
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &video_dev, &avia_av_napi_video_dev, NULL, DVB_DEVICE_VIDEO)) < 0) {
-		dprintk(KERN_ERR "%s: dvb_register_device (video) failed (errno = %d)\n", __FILE__, result);
+		printk(KERN_ERR "%s: dvb_register_device (video) failed (errno = %d)\n", __FILE__, result);
 		return result;
 	}
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &audio_dev, &avia_av_napi_audio_dev, NULL, DVB_DEVICE_AUDIO)) < 0) {
-		dprintk(KERN_ERR "%s: dvb_register_device (audio) failed (errno = %d)\n", __FILE__, result);
+		printk(KERN_ERR "%s: dvb_register_device (audio) failed (errno = %d)\n", __FILE__, result);
 		dvb_unregister_device(video_dev);
 		return result;
 	}

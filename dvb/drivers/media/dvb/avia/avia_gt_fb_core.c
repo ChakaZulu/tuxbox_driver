@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.47 2003/07/24 01:14:20 homar Exp $
+ * $Id: avia_gt_fb_core.c,v 1.48 2003/07/24 01:59:21 homar Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -23,17 +23,26 @@
  *
  */
 
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/ioport.h>
+#include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/version.h>
+#include <linux/init.h>
+#include <linux/wait.h>
+#include <asm/irq.h>
+#include <asm/io.h>
+#include <asm/bitops.h>
+#include <asm/uaccess.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/vt_kern.h>
 #include <video/fbcon.h>
-#include <video/fbcon-cfb4.h>
 #include <video/fbcon-cfb8.h>
 #include <video/fbcon-cfb16.h>
 #include <video/fbcon-cfb32.h>
-#include <asm/uaccess.h>
+#include <linux/kd.h>
+#include <linux/vt_kern.h>
 
 #include <linux/dvb/avia/avia_gt_fb.h>
 #include "avia_gt.h"
@@ -285,7 +294,7 @@ void avia_gt_fb_set_par(const void *fb_par, struct fb_info_gen *info)
 		avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB32);
 		break;
 	default:
-		dprintk(KERN_CRIT "avia_gt_fb: invalid bpp: %u\n", par->bpp);
+		printk(KERN_CRIT "avia_gt_fb: invalid bpp: %u\n", par->bpp);
 		return;
 	}
 
@@ -426,7 +435,7 @@ static int avia_gt_fb_ioctl(struct inode *inode, struct file *file, unsigned int
 	case AVIA_GT_GV_COPYAREA:
 		if (copy_from_user(&copyarea, (void *)arg, sizeof(copyarea)))
 			return -EFAULT;
-
+			
 		avia_gt_gv_copyarea(copyarea.sx, copyarea.sy, copyarea.width, copyarea.height, copyarea.dx, copyarea.dy);
 		break;
 
@@ -470,12 +479,14 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	dprintk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.47 2003/07/24 01:14:20 homar Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.48 2003/07/24 01:59:21 homar Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
-	if (!avia_gt_supported_chipset(gt_info))
-		return -ENODEV;
+	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+		printk(KERN_ERR "avia_gt_fb: Unsupported chip type\n");
+		return -EIO;
+	}
 
 	avia_gt_gv_get_info(&fb_info.pvideobase, &fb_info.videobase, &fb_info.videosize);
 
@@ -506,7 +517,7 @@ int __init avia_gt_fb_init(void)
 	if (register_framebuffer(&fb_info.gen.info) < 0)
 		return -EINVAL;
 
-	dprintk(KERN_INFO "avia_gt_fb: fb%d: %s frame buffer device\n",
+	printk(KERN_INFO "avia_gt_fb: fb%d: %s frame buffer device\n",
 		GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
 	avia_gt_gv_show();

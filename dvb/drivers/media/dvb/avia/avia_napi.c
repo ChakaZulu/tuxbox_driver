@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.15 2003/07/24 01:14:20 homar Exp $
+ * $Id: avia_napi.c,v 1.16 2003/07/24 01:59:22 homar Exp $
  *
  * AViA GTX/eNX dvb api driver
  *
@@ -27,12 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#ifdef DEBUG
-#define dprintk(fmt,args...) printk( fmt,## args)
-#else
-#define dprintk(...)
-#endif
-
 #include "../dvb-core/dvbdev.h"
 #include "../dvb-core/dvb_i2c_bridge.h"
 
@@ -48,15 +42,15 @@ int __init avia_napi_init(void)
 {
 	int result;
 
-	dprintk(KERN_INFO "$Id: avia_napi.c,v 1.15 2003/07/24 01:14:20 homar Exp $\n");
-
+	printk(KERN_INFO "$Id: avia_napi.c,v 1.16 2003/07/24 01:59:22 homar Exp $\n");
+	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
-		dprintk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
+		printk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
 		return result;
 	}
 
 	if ((result = dvb_i2c_bridge_register(adap)) < 0) {
-		dprintk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
+		printk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
 		dvb_unregister_adapter(adap);
 		return result;
 	}

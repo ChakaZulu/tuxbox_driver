@@ -608,13 +608,13 @@ typedef struct {
 
 	unsigned Reserved1		: 6;
 	unsigned Q_Size			: 4;
-	unsigned QnWP			: 6;
+	unsigned Queue_n_Write_Pointer	: 6;
 
 } sENX_REG_QWPnH;
 
 typedef struct {
 
-	unsigned QnWP			: 16;
+	unsigned Queue_n_Write_Pointer	: 16;
 
 } sENX_REG_QWPnL;
 
@@ -951,35 +951,29 @@ extern void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 extern void avia_gt_enx_init(void);
 extern void avia_gt_enx_exit(void);
 
-#define enx_reg_16(register)		(*((volatile u16 *)(gt_info->reg_addr + ENX_REG_##register)))
-#define enx_reg_32(register)		(*((volatile u32 *)(gt_info->reg_addr + ENX_REG_##register)))
+#define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + ENX_REG_ ## register))))
+#define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
+#define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + ENX_REG_ ## register))))
+#define enx_reg_32o(register, offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + ENX_REG_ ## register + offset))))
+#define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
+#define enx_reg_o(offset) (gt_info->reg_addr + offset)
+#define enx_reg_s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
+//#define enx_reg_sn(register, offset) ((sENX_REG_##register *)(enx_reg_o(offset)))
+#define enx_reg_so(register, offset) ((sENX_REG_##register *)(&enx_reg_32o(register, offset)))
 
-#define enx_reg_s(register)		((volatile sENX_REG_##register *)(&enx_reg_32(register)))
-#define enx_reg_so(register, offset)	((volatile sENX_REG_##register *)(&enx_reg_32(register + (offset))))
 
-#define __enx_reg_set_16s(register, field, value)			\
-do {									\
-	u16 tmp_reg_val = enx_reg_16(register);				\
-	((sENX_REG_##register *)&tmp_reg_val)->field = (value);		\
-	enx_reg_16(register) = tmp_reg_val;				\
-} while(0)
+#define enx_reg_read16(register) ((u16)(__raw_readw(gt_info->reg_addr + ENX_REG_ ## register)))
+#define enx_reg_read16n(offset) ((u16)(__raw_readw(gt_info->reg_addr + offset)))
+#define enx_reg_read32(register) ((u32)(__raw_readl(gt_info->reg_addr + ENX_REG_ ## register)))
+#define enx_reg_read32n(offset) ((u32)(__raw_readl(gt_info->reg_addr + offset)))
+#define enx_reg_write16(register, value) { __raw_writew(value, gt_info->reg_addr + ENX_REG_ ## register); mb(); }
+#define enx_reg_write16n(offset, value) { __raw_writew(value, gt_info->reg_addr + offset); mb(); }
+#define enx_reg_write32(register, value) { __raw_writel(value, gt_info->reg_addr + ENX_REG_ ## register); mb(); }
 
-#define __enx_reg_set_32s(register, field, value)			\
-do {									\
-	u32 tmp_reg_val = enx_reg_32(register);				\
-	((sENX_REG_##register *)&tmp_reg_val)->field = (value);		\
-	enx_reg_32(register) = tmp_reg_val;				\
-} while(0)
-
-#define enx_reg_set(register, field, value)				\
-do {									\
-	if (sizeof(sENX_REG_##register) == 4)				\
-		__enx_reg_set_32s(register, field, value);		\
-	else if (sizeof(sENX_REG_##register ) == 2)			\
-		__enx_reg_set_16s(register, field, value);		\
-	else								\
-		printk(KERN_CRIT "%s: struct size is %d\n",		\
-			__FILE__, sizeof(sENX_REG_##register));		\
-} while(0)
+#define enx_reg_set_32s(register, field, value) { u32 tmp_reg_val = enx_reg_read32(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_write32(register, tmp_reg_val); }
+#define enx_reg_set_16s(register, field, value) { u16 tmp_reg_val = enx_reg_read16(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_write16(register, tmp_reg_val); }
+#define enx_reg_set(register, field, value) do { if (sizeof(sENX_REG_##register) == 4) enx_reg_set_32s(register, field, value) else if (sizeof(sENX_REG_##register ) == 2) enx_reg_set_16s(register, field, value) else printk("ERROR: struct size is %d\n", sizeof(sENX_REG_##register)); } while(0)
+#define enx_reg_set_bit(register, bit) enx_reg_set(register, bit, 1)
+#define enx_reg_clear_bit(register, bit) enx_reg_set(register, bit, 0)
 
 #endif /* __AVIA_GT_ENX_H__ */

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_osd.c,v 1.19 2003/07/24 01:14:19 homar Exp $
+ * $Id: avia_av_osd.c,v 1.20 2003/07/24 01:59:21 homar Exp $
  *
  * AViA OSD driver (dbox-II-project)
  *
@@ -197,7 +197,7 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 	frame->odd.rowstart = 335+((y-1)/2);
 	frame->odd.rowstop  = 335+(((y+h)-1)/2);
 
-	dprintk("OSD COL/ROW: %d %d %d %d %d %d\n",
+	printk("OSD COL/ROW: %d %d %d %d %d %d\n",
 		frame->odd.colstart,
 		frame->odd.colstop,
 		frame->even.rowstart,
@@ -216,9 +216,9 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 
 	osdsp = osds+(OSDH_SIZE*2*frame->framenr);
 
-	dprintk("OSD FP: %08X\n",osdsp);
+	printk("OSD FP: %08X\n",osdsp);
 
-	// copy header
+	// copy header 
 	even = (u32*)&frame->even;
 	odd  = (u32*)&frame->odd;
 
@@ -239,7 +239,7 @@ static void osd_write_frame( struct osd_frame * frame )
 
 	osdsp = osds+(OSDH_SIZE*2*frame->framenr);
 
-	dprintk("OSD FP: %08X\n",osdsp);
+	printk("OSD FP: %08X\n",osdsp);
 
 	/* copy header */
 	even = (u32*)&frame->even;
@@ -251,7 +251,7 @@ static void osd_write_frame( struct osd_frame * frame )
 		wDR(osdsp+OSDH_SIZE,*odd);
 	}
 
-	dprintk("OSD FNR: %d E: %08X O: %08X\n",frame->framenr,frame->even.next<<2,frame->odd.next<<2);
+	printk("OSD FNR: %d E: %08X O: %08X\n",frame->framenr,frame->even.next<<2,frame->odd.next<<2);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -337,7 +337,7 @@ static int init_avia_osd(void)
 //	u32 palette[16];
 //	static u32 bitmap[0x1000];
 
-	dprintk("OSD STATUS: %08X\n", rDR(OSD_VALID));
+	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
 
 	osds = (rDR(OSD_BUFFER_START)&(~3));
 	osde = rDR(OSD_BUFFER_END);
@@ -368,15 +368,15 @@ static int init_avia_osd(void)
 	wDR(OSD_ODD_FIELD, osds+OSDH_SIZE );
 	wDR(OSD_EVEN_FIELD, osds);
 
-	dprintk("OSD: %08X\n",rDR(OSD_BUFFER_IDLE_START));
-	dprintk("OSD: %08X\n",rDR(OSD_BUFFER_START));
-	dprintk("OSD: %08X\n",rDR(OSD_BUFFER_END));
-	dprintk("OSD: %08X\n",rDR(OSD_ODD_FIELD));
-	dprintk("OSD: %08X\n",rDR(OSD_EVEN_FIELD));
+	printk("OSD: %08X\n",rDR(OSD_BUFFER_IDLE_START));
+	printk("OSD: %08X\n",rDR(OSD_BUFFER_START));
+	printk("OSD: %08X\n",rDR(OSD_BUFFER_END));
+	printk("OSD: %08X\n",rDR(OSD_ODD_FIELD));
+	printk("OSD: %08X\n",rDR(OSD_EVEN_FIELD));
 
 	udelay(1000*100);
 
-	dprintk("OSD STATUS: %08X\n", rDR(OSD_VALID));
+	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
 
 	devfs_handle = devfs_register ( NULL, "dbox/osd0", DEVFS_FL_DEFAULT,
                                   0, 0,
@@ -389,7 +389,7 @@ static int init_avia_osd(void)
 	}
 
 	return 0;
-
+	
 }
 
 /* ---------------------------------------------------------------------- */

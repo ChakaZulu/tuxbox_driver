@@ -1,6 +1,9 @@
 #ifndef __GTX_H__
 #define __GTX_H__
 
+#undef CR0
+#undef CR1
+
 #define GTX_REG_BASE	0x08400000
 #define GTX_REG_SIZE	0x00003000
 #define GTX_MEM_BASE	0x08000000
@@ -96,31 +99,31 @@
 #define GTX_REG_VLI2	0x0FE
 
 /* Configuration and Control */
-#define GTX_REG_RSTR0	0x100
-#define GTX_REG_RSTR1	0x102
-#define GTX_REG_CFGR0	0x104
-#define GTX_REG_CFGR1	0x106
+#define GTX_REG_RR0	0x100
+#define GTX_REG_RR1	0x102
+#define GTX_REG_CR0	0x104
+#define GTX_REG_CR1	0x106
 #define GTX_REG_C0CR	0x10C
 #define GTX_REG_C1CR	0x10E
 
 /* DAC */
-#define GTX_REG_DAC_PC		0x110
-#define GTX_REG_DAC_CP		0x112
+#define GTX_REG_DPCR	0x110
+#define GTX_REG_DPR	0x112
 
 /* Framer */
-#define GTX_REG_PCR_PID		0x120
-#define GTX_REG_TP_PCR_2	0x122
-#define GTX_REG_TP_PCR_1	0x124
-#define GTX_REG_TP_PCR_0	0x126
-#define GTX_REG_LC_STC_2	0x128
-#define GTX_REG_LC_STC_1	0x12A
-#define GTX_REG_LC_STC_0	0x12C
-#define GTX_REG_STC_COUNTER_2	0x12E
-#define GTX_REG_STC_COUNTER_1	0x130
-#define GTX_REG_STC_COUNTER_0	0x132
-#define GTX_REG_FC		0x134
-#define GTX_REG_SYNCH		0x136
-#define GTX_REG_PFIFO		0x138
+#define GTX_REG_PCRPID	0x120
+#define GTX_REG_PCR2	0x122
+#define GTX_REG_PCR1	0x124
+#define GTX_REG_PCR0	0x126
+#define GTX_REG_LSTC2	0x128
+#define GTX_REG_LSTC1	0x12A
+#define GTX_REG_LSTC0	0x12C
+#define GTX_REG_STCC2	0x12E
+#define GTX_REG_STCC1	0x130
+#define GTX_REG_STCC0	0x132
+#define GTX_REG_FCR	0x134
+#define GTX_REG_SYNCH	0x136
+#define GTX_REG_PFIFO	0x138
 
 /* IDC Interface */
 #define GTX_REG_IDCCR	0x140
@@ -176,7 +179,7 @@
 #define GTX_REG_QWP15H	0x1BE
 
 /* Queue Interrupt */
-#define GTX_REG_QnINT	0x1C0
+#define GTX_REG_QIn	0x1C0
 #define GTX_REG_QI0	0x1C0
 #define GTX_REG_QI1	0x1C2
 #define GTX_REG_QI2	0x1C4
@@ -230,16 +233,16 @@
 #define GTX_REG_CCOM3	0x22E
 
 /* Video Plane Display */
-#define GTX_REG_VPSA1	0x240
+#define GTX_REG_VPSA	0x240
 #define GTX_REG_VPO	0x244
-#define GTX_REG_VPP1	0x248
-#define GTX_REG_VPSZ1	0x24C
+#define GTX_REG_VPP	0x248
+#define GTX_REG_VPS	0x24C
 #define GTX_REG_VPOE	0x250
 
 /* Video Capture */
-#define GTX_REG_VCSA1	0x260
-#define GTX_REG_VCP	0x264
-#define GTX_REG_VCSZ	0x268
+#define GTX_REG_VCSA	0x260
+#define GTX_REG_VCSP	0x264
+#define GTX_REG_VCS	0x268
 
 /* Semaphore */
 #define GTX_REG_SEM1	0x270
@@ -249,8 +252,8 @@
 #define GTX_REG_PTS0	0x280
 #define GTX_REG_PTS1	0x282
 #define GTX_REG_PTSO	0x284
-#define GTX_REG_TCNTL	0x286
-#define GTX_REG_TSTATUS	0x288
+#define GTX_REG_TTCR	0x286
+#define GTX_REG_TSR	0x288
 
 /* Infrared */
 #define GTX_REG_CWP	0x2A0
@@ -1077,10 +1080,10 @@ typedef struct {
 /* Configuration and Control */
 typedef struct {
 
-	unsigned PIG1: 1;	/* PIG */
-	unsigned VIDC: 1;	/* VCAP */
+	unsigned PIG: 1;
+	unsigned VCAP: 1;
 	unsigned VID: 1;
-	unsigned PCMA: 1;	/* ACLK */
+	unsigned ACLK: 1;
 	unsigned COPY: 1;
 	unsigned DRAM: 1;
 	unsigned PCM: 1;
@@ -1092,18 +1095,23 @@ typedef struct {
 	unsigned SCD: 1;
 	unsigned SRX: 1;
 	unsigned STX: 1;
-	unsigned GFIX: 1;	/* GV */
+	unsigned GV: 1;
+
+} sGTX_REG_RR0;
+
+typedef struct {
+
 	unsigned Reserved1: 8;
 	unsigned TTX: 1;
 	unsigned DAC: 1;
-	unsigned TDMP: 1;	/* RISC */
+	unsigned RISC: 1;
 	unsigned FRMR: 1;
 	unsigned CHAN: 1;
 	unsigned AVD: 1;
 	unsigned IDC: 1;
 	unsigned DESC: 1;
 
-} sGTX_REG_RSTR0;
+} sGTX_REG_RR1;
 
 typedef struct {
 
@@ -1120,6 +1128,11 @@ typedef struct {
 	unsigned RFD: 1;
 	unsigned MAP: 1;
 	unsigned RES: 1;
+
+} sGTX_REG_CR0;
+
+typedef struct {
+
 	unsigned BRD_ID: 8;
 	unsigned Reserved1: 3;
 	unsigned UPQ: 1;
@@ -1128,7 +1141,7 @@ typedef struct {
 	unsigned ACP: 1;
 	unsigned VCP: 1;
 
-} sGTX_REG_CFGR0;
+} sGTX_REG_CR1;
 
 typedef struct {
 
@@ -1153,7 +1166,7 @@ typedef struct {
 	unsigned Reserved1: 11;
 	unsigned Prescale: 5;
 
-} sGTX_REG_DAC_PC;
+} sGTX_REG_DPCR;
 
 
 
@@ -1164,7 +1177,7 @@ typedef struct {
 	unsigned E: 1;
 	unsigned PID: 13;
 
-} sGTX_REG_PCR_PID;
+} sGTX_REG_PCRPID;
 
 typedef struct {
 
@@ -1238,7 +1251,7 @@ typedef struct {
 	unsigned FD: 1;
 	unsigned SyncByte: 8;
 
-} sGTX_REG_FC;
+} sGTX_REG_FCR;
 
 typedef struct {
 
@@ -1388,13 +1401,13 @@ typedef struct {
 
 	unsigned Reserved1: 6;
 	unsigned Q_Size: 4;
-	unsigned QnWP: 6;
+	unsigned Upper_WD_n: 6;
 
 } sGTX_REG_QWPnH;
 
 typedef struct {
 
-	unsigned QnWP: 16;
+	unsigned Queue_n_Write_Pointer: 16;
 
 } sGTX_REG_QWPnL;
 
@@ -1508,7 +1521,7 @@ typedef struct {
 	unsigned BLOCK: 5;
 	unsigned Reserved1: 10;
 
-} sGTX_REG_QnINT;
+} sGTX_REG_QIn;
 
 
 
@@ -1590,7 +1603,7 @@ typedef struct {
 	unsigned Addr: 21;
 	unsigned E: 1;
 
-} sGTX_REG_VPSA1;
+} sGTX_REG_VPSA;
 
 typedef struct {
 
@@ -1609,7 +1622,7 @@ typedef struct {
 	unsigned VPOS: 9;
 	unsigned F: 1;
 
-} sGTX_REG_VPP1;
+} sGTX_REG_VPP;
 
 typedef struct {
 
@@ -1620,7 +1633,7 @@ typedef struct {
 	unsigned HEIGHT: 9;
 	unsigned P: 1;
 
-} sGTX_REG_VPSZ1;
+} sGTX_REG_VPS;
 
 typedef struct {
 
@@ -1638,7 +1651,7 @@ typedef struct {
 	unsigned Addr: 21;
 	unsigned E: 1;
 
-} sGTX_REG_VCSA1;
+} sGTX_REG_VCSA;
 
 typedef struct {
 
@@ -1650,7 +1663,7 @@ typedef struct {
 	unsigned EVPOS: 9;
 	unsigned Reserved3: 1;
 
-} sGTX_REG_VCP;
+} sGTX_REG_VCSP;
 
 typedef struct {
 
@@ -1663,7 +1676,7 @@ typedef struct {
 	unsigned VSIZE: 9;
 	unsigned B: 1;
 
-} sGTX_REG_VCSZ;
+} sGTX_REG_VCS;
 
 
 
@@ -1717,17 +1730,17 @@ typedef struct {
 	unsigned IE: 1;
 	unsigned Data_ID: 8;
 
-} sGTX_REG_TCNTL;
+} sGTX_REG_TTCR;
 
 typedef struct {
 
-	unsigned PTS: 1;
+	unsigned P: 1;
 	unsigned R: 1;
 	unsigned E: 1;
 	unsigned Reserved1: 8;
 	unsigned State: 5;
 
-} sGTX_REG_TSTATUS;
+} sGTX_REG_TSR;
 
 
 
@@ -1751,7 +1764,7 @@ typedef struct {
 typedef struct {
 
 	unsigned Reserved1: 10;
-	unsigned Addr: 13;
+	unsigned Address: 13;
 	unsigned Reserved2: 9;
 
 } sGTX_REG_IRQA;
@@ -1798,35 +1811,21 @@ extern void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 extern void avia_gt_gtx_init(void);
 extern void avia_gt_gtx_exit(void);
 
-#define gtx_reg_16(register)		(*((volatile u16 *)(gt_info->reg_addr + GTX_REG_##register)))
-#define gtx_reg_32(register)		(*((volatile u32 *)(gt_info->reg_addr + GTX_REG_##register)))
+#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
+#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
+#define gtx_reg_o(offset) (gt_info->reg_addr + offset)
+#define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_sn(register, offset) ((sGTX_REG_##register *)(gtx_reg_o(offset)))
+#define gtx_reg_so(register, offset) ((sGTX_REG_##register *)(&gtx_reg_32(register + (offset))))
+#define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
 
-#define gtx_reg_s(register)		((volatile sGTX_REG_##register *)(&gtx_reg_32(register)))
-#define gtx_reg_so(register, offset)	((volatile sGTX_REG_##register *)(&gtx_reg_32(register + (offset))))
+#define gtx_reg_set_32s(register, field, value) { u32 tmp_reg_val = gtx_reg_32(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_32(register) = tmp_reg_val; }
+#define gtx_reg_set_16s(register, field, value) { u16 tmp_reg_val = gtx_reg_16(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_16(register) = tmp_reg_val; }
+#define gtx_reg_set(register, field, value) do { if (sizeof(sGTX_REG_##register) == 4) gtx_reg_set_32s(register, field, value) else if (sizeof(sGTX_REG_##register ) == 2) gtx_reg_set_16s(register, field, value) else printk("ERROR: struct size is %d\n", sizeof(sGTX_REG_##register)); } while(0)
+#define gtx_reg_set_bit(register, bit) gtx_reg_set(register, bit, 1)
+#define gtx_reg_clear_bit(register, bit) gtx_reg_set(register, bit, 0)
 
-#define __gtx_reg_set_16s(register, field, value)			\
-do { 									\
-	u16 tmp_reg_val = gtx_reg_16(register);				\
-	((sGTX_REG_ ## register *)&tmp_reg_val)->field = (value);	\
-	gtx_reg_16(register) = tmp_reg_val;				\
-} while (0)
-
-#define __gtx_reg_set_32s(register, field, value)			\
-do {									\
-	u32 tmp_reg_val = gtx_reg_32(register); 			\
-	((sGTX_REG_ ## register *)&tmp_reg_val)->field = (value);	\
-	gtx_reg_32(register) = tmp_reg_val;				\
-} while(0)
-
-#define gtx_reg_set(register, field, value) 				\
-do {									\
-	if (sizeof(sGTX_REG_##register) == 4)				\
-		__gtx_reg_set_32s(register, field, value);		\
-	else if (sizeof(sGTX_REG_##register ) == 2)			\
-		__gtx_reg_set_16s(register, field, value);		\
-	else								\
-		printk(KERN_CRIT "%s: struct size is %d\n",		\
-			__FILE__, sizeof(sGTX_REG_##register));		\
-} while(0)
-
-#endif /* __AVIA_GT_GTX_H__ */
+#endif /* __GTX_H__ */

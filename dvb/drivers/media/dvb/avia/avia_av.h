@@ -25,12 +25,6 @@
 #ifndef AVIA_AV_H
 #define AVIA_AV_H
 
-#ifdef DEBUG
-#define dprintk(fmt,args...) printk( fmt,## args)
-#else
-#define dprintk(...)
-#endif
-
 #include "avia_gt_napi.h"	/* struct pes_header */
 
 #define AVIA_AV_PLAY_STATE_PAUSED	0x01
