@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.12 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.13 2003/09/19 15:56:46 alexw Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -41,7 +41,9 @@ dbox2_fp_timer_init (void)
 	 *     
 	 * FIXME FIXME FIXME FIXME FIXME:
 	 */
-	/* dbox2_fp_timer_clear(); */
+#if 1
+	dbox2_fp_timer_clear();
+#endif
 }
 
 
@@ -118,7 +120,7 @@ dbox2_fp_timer_clear (void)
 	boot_trigger = (id[0] & 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
 
 	/* this commands clears the hw reboot flag and also clears the status reg 0x20 */
-	if(boot_trigger == BOOT_TRIGGER_TIMER || 1)
+	if(boot_trigger == BOOT_TRIGGER_TIMER)
 	{
 		if (mid == TUXBOX_DBOX2_MID_NOKIA)
 		{
