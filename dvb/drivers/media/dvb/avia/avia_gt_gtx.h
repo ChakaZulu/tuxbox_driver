@@ -4,12 +4,12 @@
 #undef CR0
 #undef CR1
 
-#define GTX_REG_BASE		0x08400000
-#define GTX_REG_SIZE		0x00003000
-#define GTX_MEM_BASE		0x08000000
-#define GTX_MEM_SIZE		0x00200000
-#define GTX_FB_OFFSET		0x0100000
-#define GTX_INTERRUPT		SIU_IRQ1
+#define GTX_REG_BASE	0x08400000
+#define GTX_REG_SIZE	0x00003000
+#define GTX_MEM_BASE	0x08000000
+#define GTX_MEM_SIZE	0x00200000
+#define GTX_FB_OFFSET	0x0100000
+#define GTX_INTERRUPT	SIU_IRQ1
 
 /* Graphics */
 #define GTX_REG_GMR	0x000
@@ -1799,8 +1799,6 @@ typedef struct {
 
 } sGTX_REG_IRTO;
 
-
-
 #pragma pack()
 
 extern void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
@@ -1821,11 +1819,5 @@ extern void avia_gt_gtx_exit(void);
 #define gtx_reg_so(register, offset) ((sGTX_REG_##register *)(&gtx_reg_32(register + (offset))))
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
-
-#define rw(a) (*((volatile unsigned long*)(gt_info->reg_addr+g ## a)))
-#define rh(a) (*((volatile unsigned short*)(gt_info->reg_addr+g ## a)))
-
-#define rwn(a) (*((volatile unsigned long*)(gt_info->reg_addr+a)))
-#define rhn(a) (*((volatile unsigned short*)(gt_info->reg_addr+a)))
 
 #endif /* __GTX_H__ */
