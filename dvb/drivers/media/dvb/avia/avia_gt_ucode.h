@@ -1,12 +1,13 @@
 /*
- * $Id: avia_gt_ucode.h,v 1.2 2004/04/07 23:17:45 carjay Exp $
+ * $Id: avia_gt_ucode.h,v 1.3 2004/05/19 20:15:00 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
  * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
-  *
+ * Copyright (C) 2004 Carsten Juttner (carjay@gmx.net)
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -26,36 +27,123 @@
 #ifndef _AVIA_GT_UCODE
 #define _AVIA_GT_UCODE
 
-#define AVIA_GT_DMX_QUEUE_MODE_TS		0
-#define AVIA_GT_DMX_QUEUE_MODE_PRIVATE		2
-/* depends on ucode version
-#define AVIA_GT_DMX_QUEUE_MODE_PES		3
-*/
-#define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
-#define AVIA_GT_DMX_QUEUE_MODE_SEC16		5
-
-#define AVIA_GT_UCODE_CAP_ECD			0x0001
-#define AVIA_GT_UCODE_CAP_PES			0x0002
-#define AVIA_GT_UCODE_CAP_SEC			0x0004
-#define AVIA_GT_UCODE_CAP_TS				0x0008
-
-// flags for ucode
+/* filter modes */
+/* same as type except for PES */
 enum {
-	DISABLE_UCODE_SECTION_FILTERING=1	// 0x01
+		TS=0,
+		PES,	/* depends on ucode */
+		SECTION,
+};
+#define AVIA_GT_UCODE_CAP_ECD				0x0001
+#define AVIA_GT_UCODE_CAP_PES				0x0002
+#define AVIA_GT_UCODE_CAP_SEC				0x0004
+#define AVIA_GT_UCODE_CAP_TS					0x0008
+#define AVIA_GT_UCODE_CAP_MSGQ				0x0010
+#define AVIA_GT_UCODE_CAP_C_INTERFACE 		0x0020
+
+/* flags for ucode */
+enum {
+	DISABLE_UCODE_SECTION_FILTERING=1	/* 0x01 */
 };
 
 typedef struct {
 	u8 ucode_flags;
 } sAviaGtDmxRiscInit;
 
+/* 
+	The proprietary Ucodes offer 32 8-byte section 
+	filters for up to 32 feeds. They also allow to 
+	chain together filters, so you can use different
+	filters on the same feed. There is a 16-Byte section
+	filter mode but it is currently unsupported.
+
+	Each filter can be set for one queue only. 
+
+	For SPTS (or multi-PID streaming) the same queue
+	could be used in several feeds. The DVB-API doesn't
+	currently support multi-PID streaming in this way.
+*/
+
+/* proprietary interface flags */
+enum {
+	CAN_WAITPUSI=1,				/* valid bit in PID_Search_Table */
+	CAN_FORKQUEUE=2 	/* queue 0 is high speed queue (unused on dbox2 hardware) */
+};
+
+typedef struct {
+	u8 idx;
+	u8 filtercount;
+} sAviaGtSection;
+
+typedef struct {
+	s8 dest_queue;
+	u8 type;	/* TS, PES or Section */
+	u8 section_idx;	/* index into section filters */
+	u8 filtercount;
+	u16 pid;
+} sAviaGtFeed;
+
+/*
+	Kernel Ucode-API
+	All functions must be implemented!
+	2 possible views: queue or feed
+	first alloc_feed once or several times
+	then either start_feed:
+		starts only one feed
+	OR start_queue_feeds:
+		starts all feeds related to a queue
+	this could be used to enable multi-pid streaming
+	same for stop_feed and stop_queue_feeds
+
+	A section filter can be allocated once and 
+	used mutiple times but a feed can only be set up
+	once. The only way to free a section filter is to
+	remove all queues that use it (automatic 
+	destruction). Since this leads to race conditions
+	it's recommended to atomically set up multiple
+	filters.
+	
+	Note that if a section filter cannot be connected
+	to a feed for some reason it needs to be removed
+	by directly calling "free_section_filter". This 
+	function will fail if any filters are already set up.
+	
+	Trying to allocate a PID twice will fail (must be 
+	handled by higher layer) because the ucode stops
+	when it finds a valid entry in the PID table.
+	
+*/
+
 struct avia_gt_ucode_info {
 	u32 caps;
+	u8 prop_interface_flags;
 	u8 qid_offset;
-	u8 queue_mode_pes;
+	u8 queue_mode[3];
+	void (*init) (void);
+	/* return feed_idx */
+	u8 (*alloc_feed)(u8 queue_nr, u8 type, u16 pid);
+	u8 (*alloc_section_feed)(u8 queue_nr, sAviaGtSection *section, u16 pid);
+	
+	void (*start_feed)(u8 feed_idx);
+	void (*start_queue_feeds)(u8 queue_nr);
+
+	void (*stop_feed)(u8 feed_idx,u8 remove);
+	void (*stop_queue_feeds)(u8 queue_nr,u8 remove);
+	
+	/* returns 0 if error */
+	u8 (*alloc_section_filter)(void *filter, sAviaGtSection *);
+	void (*free_section_filter)(sAviaGtSection *);
+
+	void (*ecd_reset)(void);
+	int (*ecd_set_key)(u8 index, u8 parity, const u8 *cw);
+	int (*ecd_set_pid)(u8 index, u16 pid);
+	
+	void (*handle_msgq)(struct avia_gt_dmx_queue*,void *);
 };
 
 #pragma pack(1)
 
+/* Proprietary ucodes */
 typedef struct {
 	unsigned wait_pusi		: 1;
 	unsigned VALID			: 1;
@@ -151,7 +239,7 @@ typedef struct {
 	unsigned pid			: 16;
 	unsigned cc			: 8;
 	unsigned length			: 8;
-} sPRIVATE_ADAPTION_MESSAGE;
+} sPRIVATE_ADAPTATION_MESSAGE;
 
 #pragma pack()
 
@@ -174,15 +262,8 @@ typedef struct {
 #define DMX_MESSAGE_ADAPTATION			0xFC
 #define DMX_MESSAGE_SECTION_COMPLETED		0xCE
 
-int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter);
-int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
-void avia_gt_dmx_free_section_filter(u8 index);
-int avia_gt_dmx_alloc_section_filter(void *f);
-void avia_gt_dmx_ecd_reset(void);
-int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *key);
-int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid);
 struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void);
 void avia_gt_dmx_risc_reset(int reenable);
 int avia_gt_dmx_risc_init(sAviaGtDmxRiscInit *risc_info);
-
+void avia_gt_dmx_set_ucode_info(u8 ucode_flags);
 #endif

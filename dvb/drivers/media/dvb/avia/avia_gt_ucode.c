@@ -1,11 +1,12 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.5 2004/05/13 15:26:19 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.6 2004/05/19 20:15:00 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
  * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Copyright (C) 2004 Carsten Juttner (carjay@gmx.net)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,15 +45,25 @@
 #include "avia_gt_ucode.h"
 
 static sAviaGtInfo *gt_info;
+struct avia_gt_ucode_info ucode_info;
+
 static volatile sRISC_MEM_MAP *risc_mem_map;
 static volatile u16 *riscram;
+static char *ucode;
+/* all feeds */
+#define AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER	32
+
+static sAviaGtFeed ucode_feed[AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER];
+/* chosen by both prop ucodes and c-ucodes */
+#define AVIA_GT_UCODE_MAXIMUM_SECTION_FILTERS	32
+static s8 section_map[AVIA_GT_UCODE_MAXIMUM_SECTION_FILTERS];
+
+/* proprietary interface */
 static volatile u16 *pst;
 static volatile u16 *ppct;
-static char *ucode;
 static sFilter_Definition_Entry filter_definition_table[32];
-static struct avia_gt_ucode_info ucode_info;
-static s8 section_filter_umap[32];
 
+/* DRAM functions */ 
 static void avia_gt_dmx_memcpy16(volatile u16 *dest, const u16 *src, size_t n)
 {
 	while (n--) {
@@ -68,6 +79,19 @@ static void avia_gt_dmx_memset16(volatile u16 *s, const u16 c, size_t n)
 		mb();
 	}
 }
+
+static int pid2feedidx(u16 pid,u8 *feedidx){
+	u32 idx;
+	if (!feedidx) return 0;
+	for (idx=0;idx<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;idx++){
+		if (ucode_feed[idx].pid == pid){
+			*feedidx=idx;		
+			return 1;
+		}
+	}
+	return 0;
+}
+
 
 static ssize_t avia_gt_dmx_risc_write(volatile void *dest, const void *src, size_t n)
 {
@@ -87,31 +111,67 @@ static ssize_t avia_gt_dmx_risc_write(volatile void *dest, const void *src, size
 	return n;
 }
 
-void avia_gt_dmx_free_section_filter(u8 index)
-{
-	/* section_filter_umap is s8[] */
-	s8 nr = (s8)index;
+/* Ucode Interface functions */
 
-	if ((index > 31) || (section_filter_umap[index] != index)) {
+/* Proprietary Ucodes */
+
+static void prop_ucode_init(void)
+{
+	u8 queue_nr;
+
+	pst = &riscram[DMX_PID_SEARCH_TABLE];
+	ppct = &riscram[DMX_PID_PARSING_CONTROL_TABLE];
+
+	for (queue_nr = 0; queue_nr < 32; queue_nr++) {
+		filter_definition_table[queue_nr].and_or_flag = 0;
+		filter_definition_table[queue_nr].filter_param_id = queue_nr;
+		filter_definition_table[queue_nr].Reserved = 0;
+	}
+}
+
+/*
+Proprietary Design:
+	3 tables: pid->flt_def->flt_param
+	2nd table points 1:1 to 3rd table
+	3rd table is reflected by section_map
+	(its entries are the 2nd table's index)
+*/
+
+static void prop_ucode_free_section_filter(sAviaGtSection *section)
+{
+	u8 i;
+	u8 nr = section->idx;
+
+	if (!section){
+		printk (KERN_CRIT "avia_gt_ucode: trying to free invalid section filter\n");
+		return;
+	}
+	
+	if ((nr > 31) || (section_map[nr] != nr)) {
 		printk(KERN_CRIT "avia_gt_ucode: trying to free section filters with wrong index!\n");
 		return;
 	}
 
-	while (index < 32) {
-		if (section_filter_umap[index] == nr)
-			section_filter_umap[index++] = -1;
+	/* check if already setup */
+	for (i=0;i<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;i++){
+		if (ucode_feed[i].section_idx==nr){
+			printk(KERN_CRIT "avia_gt_ucode: trying to free still allocated filter\n");
+			return;
+		}
+	}
+
+	/* mark "unused" in section_map */
+	while (nr < 32) {
+		if (section_map[nr] == section->idx)
+			section_map[nr++] = -1;
 		else
 			break;
 	}
 }
 
-/*
- * Analyzes the section filters and convert them into an usable format.
- */
-
+/* Analyzes the section filters and convert them into an usable format. */
 #define MAX_SECTION_FILTERS	16
-
-int avia_gt_dmx_alloc_section_filter(void *f)
+static u8 prop_ucode_alloc_section_filter(void *f, sAviaGtSection *section)
 {
 	u8 mask[MAX_SECTION_FILTERS][8];
 	u8 value[MAX_SECTION_FILTERS][8];
@@ -153,13 +213,16 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 	 */
 
 	if (!filter)
-		return -1;
+		return 0;
 
-	while (filter && anz_filters < MAX_SECTION_FILTERS) {
+	while (filter && (anz_filters < MAX_SECTION_FILTERS)) {
 		mask[anz_filters][0]  = filter->filter.filter_mask[0];
+		/* only masked value bits have a meaning */
 		value[anz_filters][0] = filter->filter.filter_value[0] & filter->filter.filter_mask[0];
+		/* non-masked bits have no meaning, so mode is reset for them */
 		mode[anz_filters][0]  = filter->filter.filter_mode[0] | ~filter->filter.filter_mask[0];
 
+		/* a filter with no masked bits is useless, so not in_use */
 		if (mask[anz_filters][0])
 			in_use[anz_filters] = 0;
 		else
@@ -174,6 +237,11 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 
 		unchanged[anz_filters] = 1;
 
+		/* 
+		 * The ucode is able to single out the version byte as one single not-filter
+		 * so we check if there are any neg. filters requested and if so we also check if 
+		 * ALL masked bytes are used for negative filtering (if not we need additional filters)
+		 */
 		if ((mode[anz_filters][3] != 0xFF) && ((mode[anz_filters][3] & mask[anz_filters][3]) == 0)) {
 			ver_not[anz_filters] = 1;
 			not_value[anz_filters] = value[anz_filters][3];
@@ -189,7 +257,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 		 */
 
 		if (in_use[anz_filters] == -1)
-			return -1;
+			return 0;
 
 		anz_filters++;
 		filter = filter->next;
@@ -197,7 +265,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 
 	if (filter) {
 		printk(KERN_WARNING "avia_gt_ucode: too many section filters for hw-acceleration in this feed.\n");
-		return -1;
+		return 0;
 	}
 
 	i = anz_filters;
@@ -222,7 +290,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 		for (i = 0; i < 8; i++) {
 			if (mode[0][i] != 0xFF) {
 				anz_not++;
-				if (mode[0][i] & mask[0][i])
+				if (mode[0][i] & mask[0][i])	/* 0: only neg. */
 					anz_mixed++;
 			}
 			else if (mask[0][i]) {
@@ -253,7 +321,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 			}
 		}
 		/*
-		 * All relevant bits have mode-bit 0.
+		 * All relevant bits have mode-bit 0. (neg. filter only)
 		 */
 		else if (anz_not > 0) {
 			not_the_first = 1;
@@ -276,11 +344,11 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 			for (j = 0; j < 8; j++) {
 				mask[i][j] = mask[i][j] & mode[i][j];
 				value[i][j] = value[i][j] & mask[i][j];
-				if (mask[i][j])
+				if (mask[i][j])	/* pos filter bits ? */
 					in_use[i] = j;
 			}
 			if (in_use[i] == -1)
-				return -1;	// We cannot filter. Damn, thats a really bad case.
+				return 0;	// We cannot filter. Damn, thats a really bad case.
 		}
 
 		/*
@@ -340,7 +408,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 							in_use[i] = compare_len - 1;
 						}
 						if (in_use[i] == -1)
-							return -1;	// Uups, eliminated all filters...
+							return 0;	// Uups, eliminated all filters...
 					}
 					else {
 						in_use[i] = compare_len - 1;
@@ -382,6 +450,7 @@ next_check:
 							new_valid = 0;
 							break;
 						}
+
 					}
 					if (new_valid) {
 						memcpy(mask[i], new_mask, 8);
@@ -411,7 +480,7 @@ next_check:
 	new_entry = -1;
 
 	while (i < 32) {
-		if (section_filter_umap[i] == -1) {
+		if (section_map[i] == -1) {
 			if (j == 1) {
 				new_entry_len++;
 			}
@@ -438,7 +507,7 @@ next_check:
 	}
 
 	if (entry == -1)
-		return -1;
+		return 0;
 
 	/*
 	 * Mark filter_param_table as used.
@@ -447,7 +516,7 @@ next_check:
 	i = entry;
 
 	while (i < entry + anz_filters)
-		section_filter_umap[i++] = entry;
+		section_map[i++] = entry;
 
 	/*
 	 * Set filter_definition_table.
@@ -517,10 +586,21 @@ next_check:
 	local_irq_restore(flags);
 
 #if 0
+if (anz_filters>1){
+	{int c;
+	filter = (struct dvb_demux_filter *) f;
+	printk ("Value:");
+	for (c=0;c<10;c++) printk (" 0x%02x ",filter->filter.filter_value[c]);
+	printk ("\n Mask:");
+	for (c=0;c<10;c++) printk (" 0x%02x ",filter->filter.filter_mask[c]);
+	printk ("\n Mode:");
+	for (c=0;c<10;c++) printk (" 0x%02x ",filter->filter.filter_mode[c]);
+	printk ("\n");}
+
 	printk("I programmed following filters, And-Or: %d:\n",filter_definition_table[entry].and_or_flag);
 	for (j = 0; j <anz_filters; j++)
 	{
-		printk("%d: %02X %02X %02X %02X %02X %02X %02X %02X\n",j,
+	printk("%d: %02X %02X %02X %02X %02X %02X %02X %02X\n",j,
 			fpe1[j].param_0,fpe1[j].param_1,fpe1[j].param_2,
 			fpe2[j].param_3,fpe2[j].param_4,fpe2[j].param_5,
 			fpe3[j].param_6,fpe3[j].param_7);
@@ -530,19 +610,20 @@ next_check:
 			fpe3[j].mask_6,fpe3[j].mask_7);
 		printk("Not-Flag: %d, Not-Flag-Version: %d\n",fpe3[j].not_flag,fpe3[j].not_flag_ver_id_byte);
 	}
+}
 #endif
 
 	/*
-	 * Tell caller the allocated filter_definition_table entry and the amount of used filters - 1.
+	 * Tell caller the allocated filter_definition_table entry and the amount of used filters.
 	 */
-
-	return entry | ((anz_filters - 1) << 8);
+	section->idx=entry;
+	section->filtercount=anz_filters;
+	return 1;
 }
 
-int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter)
+static int prop_ucode_set_pid_control_table(u8 idx, u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter)
 {
 	sPID_Parsing_Control_Entry ppc_entry;
-	struct avia_gt_ucode_info *ucode_info;
 	u8 target_queue_nr;
 	u32 flags;
 
@@ -551,18 +632,16 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 		return -EINVAL;
 	}
 
-	ucode_info = avia_gt_dmx_get_ucode_info();
-
 	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_control_table, entry %d, type %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
 		queue_nr, type, fork, cw_offset, cc, start_up, pec, filt_tab_idx, _psh);
 
 	/* Special case for SPTS audio queue */
-	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == AVIA_GT_DMX_QUEUE_MODE_TS))
+	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == TS))
 		target_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO;
 	else
 		target_queue_nr = queue_nr;
 
-	target_queue_nr += ucode_info->qid_offset;
+	target_queue_nr += ucode_info.qid_offset;
 
 	ppc_entry.type = type;
 	ppc_entry.QID = target_queue_nr;
@@ -580,13 +659,13 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 	ppc_entry.State = 7;
 
 	local_irq_save(flags);
-	avia_gt_dmx_risc_write(&risc_mem_map->PID_Parsing_Control_Table[queue_nr], &ppc_entry, sizeof(ppc_entry));
+	avia_gt_dmx_risc_write(&risc_mem_map->PID_Parsing_Control_Table[idx], &ppc_entry, sizeof(ppc_entry));
 	local_irq_restore(flags);
 
 	return 0;
 }
 
-int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
+static int prop_ucode_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 {
 	sPID_Entry pid_entry;
 	u32 flags;
@@ -610,7 +689,122 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 	return 0;
 }
 
-void avia_gt_dmx_ecd_reset(void)
+static u8 prop_ucode_alloc_generic_feed(u8 queue_nr, u8 type, sAviaGtSection *section, u16 pid)
+{
+	u32 flags;
+	u8 feed_idx=0;
+	local_irq_save(flags);
+	for (feed_idx=0;feed_idx<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;feed_idx++){
+		if (ucode_feed[feed_idx].dest_queue==-1)
+			break;
+	}
+	if (feed_idx==AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER){
+		printk (KERN_INFO "avia_gt_ucode: out of feeds\n");
+		return 0xff;
+	}
+	if (section){
+		if (section_map[section->idx]==-1){
+			printk (KERN_CRIT "avia_gt_ucode: trying to set unallocated section filter\n");
+			return 0xff;
+		}
+		ucode_feed[feed_idx].section_idx=section->idx;
+		ucode_feed[feed_idx].filtercount=section->filtercount-1;
+	} else {
+		ucode_feed[feed_idx].section_idx=0xff;
+		ucode_feed[feed_idx].filtercount=0;
+	}
+	ucode_feed[feed_idx].dest_queue=queue_nr;
+	local_irq_restore(flags);
+	ucode_feed[feed_idx].type=type;
+	ucode_feed[feed_idx].pid=pid;
+//	prop_ucode_set_pid_control_table(feed_idx,queue_nr,ucode_info.queue_mode[type],0,0,0,0,1,ucode_feed[feed_idx].section_idx,(type==SECTION)?1:0,filtercount);
+	prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,1,pid);
+	return feed_idx;
+}
+
+static u8 prop_ucode_alloc_section_feed(u8 queue_nr, sAviaGtSection *section, u16 pid)
+{
+//printk ("prop_alloc_section_feed: q:%d sidx:%d pid:0x%04x\n",queue_nr, section->idx, pid);
+	if (!section){
+		printk (KERN_ERR "avia_gt_ucode: trying to call alloc_section_feed with invalid section\n");
+		return 0xff;
+	}
+	return prop_ucode_alloc_generic_feed(queue_nr, SECTION, section, pid);
+}
+
+static u8 prop_ucode_alloc_feed(u8 queue_nr, u8 type, u16 pid)
+{
+//printk ("prop_alloc_feed %d %d 0x%04x\n",queue_nr,type,pid);
+	return prop_ucode_alloc_generic_feed(queue_nr, type, NULL, pid);
+}
+
+static void prop_ucode_start_feed(u8 feed_idx)
+{
+//printk ("prop_start_feed %d\n",feed_idx);
+	if (ucode_feed[feed_idx].dest_queue==-1){
+			printk(KERN_CRIT "avia_gt_ucode_start_feed: trying to start unallocated feed\n");
+			return;
+	}
+	prop_ucode_set_pid_control_table(feed_idx,ucode_feed[feed_idx].dest_queue,ucode_info.queue_mode[ucode_feed[feed_idx].type],
+								0,0,0,0,1,ucode_feed[feed_idx].section_idx,
+								(ucode_feed[feed_idx].type==SECTION)?1:0,ucode_feed[feed_idx].filtercount);
+	prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,0,ucode_feed[feed_idx].pid);
+}
+
+static void prop_ucode_start_queue_feeds(u8 queue_nr)
+{
+//printk ("prop_start_queue_feeds %d\n",queue_nr);
+	u8 fd=0;
+	u8 feed_idx;
+	for (feed_idx=0;feed_idx<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;feed_idx++){
+		if (ucode_feed[feed_idx].dest_queue==queue_nr){
+			fd=1;
+			prop_ucode_start_feed(feed_idx);
+//			prop_ucode_set_pid_table(feed_idx,(ucode_info.prop_interface_flags&CAN_WAITPUSI)?1:0,0,ucode_feed[feed_idx].pid);
+		}
+	}
+	if (!fd) printk(KERN_CRIT "avia_gt_ucode_start_queue_feeds: trying to start queue with no active feeds\n");
+}
+
+
+static void prop_ucode_stop_feed(u8 feed_idx, u8 remove)
+{
+//printk("prop_stop_feed: idx:%d rem:%d\n",feed_idx,remove);
+	if (ucode_feed[feed_idx].dest_queue==-1){
+			printk(KERN_CRIT "avia_gt_ucode_start_feed: trying to stop unallocated feed\n");
+			return;
+	}
+	if (remove){
+		sAviaGtSection section; /* we only need the index part for removal */
+		ucode_feed[feed_idx].dest_queue=-1;
+		ucode_feed[feed_idx].pid=0;
+		if ((section.idx=ucode_feed[feed_idx].section_idx)!=0xff){
+			u8 i;	/* remove section_filter if it's the last one */
+			ucode_feed[feed_idx].section_idx=0xff;
+			for (i=0;i<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;i++){
+				if (ucode_feed[i].section_idx==section.idx) break;
+			}
+			if (i==AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER) prop_ucode_free_section_filter (&section);
+		}
+	}
+	prop_ucode_set_pid_table(feed_idx,1,1,ucode_feed[feed_idx].pid);
+}
+
+static void prop_ucode_stop_queue_feeds(u8 queue_nr, u8 remove)
+{
+//printk ("prop_stop_queue_feeds %d\n",queue_nr);
+	u8 fd=0;
+	u8 feed_idx;
+	for (feed_idx=0;feed_idx<AVIA_GT_UCODE_MAXIMUM_FEED_NUMBER;feed_idx++){
+		if (ucode_feed[feed_idx].dest_queue==queue_nr){
+			fd=1;
+			prop_ucode_stop_feed(feed_idx,remove);
+		}
+	}
+	if (!fd) printk(KERN_CRIT "avia_gt_ucode_start_queue_feeds: trying to stop queue with no active feeds\n");
+}
+
+static void prop_ucode_ecd_reset(void)
 {
 	u32 flags;
 
@@ -621,7 +815,7 @@ void avia_gt_dmx_ecd_reset(void)
 	local_irq_restore(flags);
 }
 
-int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *cw)
+static int prop_ucode_ecd_set_key(u8 index, u8 parity, const u8 *cw)
 {
 	u16 offset;
 	u32 flags;
@@ -635,7 +829,7 @@ int avia_gt_dmx_ecd_set_key(u8 index, u8 parity, const u8 *cw)
 	return 0;
 }
 
-int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid)
+static int prop_ucode_ecd_set_pid(u8 index, u16 pid)
 {
 	u16 offset, control;
 	u32 flags;
@@ -657,57 +851,129 @@ int avia_gt_dmx_ecd_set_pid(u8 index, u16 pid)
 	return -EINVAL;
 }
 
+void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
+{
+	u8 cmd,byte;
+	u8 feedidx;
+	u32 flags;
+	u32 bytes_avail = queue->bytes_avail(queue);
+	if (!bytes_avail) return;
+	
+	queue->get_data(queue,&cmd,1,1);
+	switch (cmd){
+	case 0xfc: /* private data */
+		{sPRIVATE_ADAPTATION_MESSAGE priv;
+		if (bytes_avail<5) return;
+		queue->get_data(queue,&priv,5,1);
+		if (bytes_avail<(5+priv.length)) return;
+		queue->get_data(queue,NULL,5+priv.length,0);
+		return;
+		}
+	case 0xfd:	/* complete sync was lost */
+		queue->get_data(queue,NULL,1,0);
+		avia_gt_dmx_risc_reset(1);
+		queue->flush(queue);
+		printk (KERN_INFO "avia_gt_ucode: framer error\n");
+		return;
+	case 0xfe: /* CC was lost, restart feed */
+		// CC_exp CC_rec PID_H PID_L
+		{sCC_ERROR_MESSAGE ccerr;
+		if (bytes_avail<5) return;
+		queue->get_data(queue,&ccerr,5,0);
+		local_irq_save(flags);
+		if (pid2feedidx(ccerr.pid,&feedidx)){
+			ucode_info.stop_feed(feedidx,0);
+			if (avia_gt_chip(ENX)) avia_gt_dmx_risc_reset(1); // TODO: GTX
+			queue->flush(queue);
+			ucode_info.start_feed(feedidx);
+		}
+		local_irq_restore(flags);
+		printk (KERN_INFO "avia_gt_ucode: sync 0x%04x %d\n",ccerr.pid,feedidx);
+		return;}
+	
+	case 0xce: /* section finished, consume */
+		{sSECTION_COMPLETED_MESSAGE comp;
+		if (bytes_avail<4) return;
+		queue->get_data(queue,&comp,4,0);
+		//printk ("sect: 0x%04x\n",comp.pid);
+		return;}
+	default:	/* print what we got */
+		queue->get_data(queue,NULL,1,0);
+		bytes_avail--;
+		printk ("cmd 0x%02x: ",cmd);
+		while (bytes_avail--){
+			queue->get_data(queue,&byte,1,0);
+			printk ("0x%02x ",byte);
+		}
+	}
+	printk ("\n");
+
+	return;
+}
+
+
+// static void set_ucode_info(u8 ucode_flags)
 void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
 {
 	u16 version_no = riscram[DMX_VERSION_NO];
-
 	switch (version_no) {
 	case 0x0013:
 	case 0x0014:
  		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
  			AVIA_GT_UCODE_CAP_PES |
  			AVIA_GT_UCODE_CAP_SEC |
- 			AVIA_GT_UCODE_CAP_TS);
+ 			AVIA_GT_UCODE_CAP_TS |
+			AVIA_GT_UCODE_CAP_MSGQ);
+		ucode_info.prop_interface_flags=CAN_WAITPUSI;
 		ucode_info.qid_offset = 1;
-		ucode_info.queue_mode_pes = 3;
+		ucode_info.queue_mode[PES] = 3;
  		break;
 	case 0x001a:
 		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
 			AVIA_GT_UCODE_CAP_PES |
 			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.prop_interface_flags=0;
 		ucode_info.qid_offset = 0;
-		ucode_info.queue_mode_pes = 5;
+		ucode_info.queue_mode[PES] = 5;
 		break;
         case 0x00F0:
+	case 0x00F1:
+	case 0x00F2:
+	case 0x00F3:
+	case 0x00F4:
                 ucode_info.caps = (
                         AVIA_GT_UCODE_CAP_PES |
                         AVIA_GT_UCODE_CAP_SEC |
                         AVIA_GT_UCODE_CAP_TS);
+		ucode_info.prop_interface_flags=CAN_WAITPUSI;
                 ucode_info.qid_offset = 1;
-                ucode_info.queue_mode_pes = 3;
+                ucode_info.queue_mode[PES] = 3;
                 break;
 	case 0xb102:
 	case 0xb107:
 	case 0xb121:
 		ucode_info.caps = (AVIA_GT_UCODE_CAP_PES |
 			AVIA_GT_UCODE_CAP_TS);
+		ucode_info.prop_interface_flags=0;
 		ucode_info.qid_offset = 0;
-		ucode_info.queue_mode_pes = 3;
+		ucode_info.queue_mode[PES] = 3;
 		break;
 	case 0xc001:
-		ucode_info.caps = (AVIA_GT_UCODE_CAP_PES |
+		ucode_info.caps = (AVIA_GT_UCODE_CAP_C_INTERFACE |
+			AVIA_GT_UCODE_CAP_PES |
 			AVIA_GT_UCODE_CAP_SEC |
-			AVIA_GT_UCODE_CAP_TS);
+			AVIA_GT_UCODE_CAP_TS |
+			AVIA_GT_UCODE_CAP_MSGQ);
 		ucode_info.qid_offset = 0;
-		ucode_info.queue_mode_pes = 2;
 		break;
 	default:
 		ucode_info.caps = 0;
+		ucode_info.prop_interface_flags=0;
 		if (version_no < 0xa000)
 			ucode_info.qid_offset = 1;
 		else 
 			ucode_info.qid_offset = 0;
-		ucode_info.queue_mode_pes = 3;
+		ucode_info.queue_mode[PES]=3;
 		break;
 	}
 
@@ -718,7 +984,32 @@ void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
 		printk(KERN_INFO "avia_gt_ucode: ucode section filters enabled.\n");
 	else
 		printk(KERN_INFO "avia_gt_ucode: ucode section filters disabled.\n");
+	
+	ucode_info.queue_mode[TS] = 0;	/* common for all */
+	if (ucode_info.caps&AVIA_GT_UCODE_CAP_C_INTERFACE){
+		ucode_info.queue_mode[PES]=1;
+		ucode_info.queue_mode[SECTION]=3;
+		} else {
+		ucode_info.queue_mode[SECTION]=4;
+		ucode_info.init = prop_ucode_init;
+		ucode_info.alloc_feed = prop_ucode_alloc_feed;
+		ucode_info.alloc_section_feed = prop_ucode_alloc_section_feed;
 
+		ucode_info.start_feed = prop_ucode_start_feed;
+		ucode_info.start_queue_feeds = prop_ucode_start_queue_feeds;
+
+		ucode_info.stop_feed = prop_ucode_stop_feed;
+		ucode_info.stop_queue_feeds = prop_ucode_stop_queue_feeds;
+
+		ucode_info.alloc_section_filter = prop_ucode_alloc_section_filter;
+		ucode_info.free_section_filter = prop_ucode_free_section_filter;
+
+		ucode_info.ecd_reset = prop_ucode_ecd_reset;
+		ucode_info.ecd_set_key = prop_ucode_ecd_set_key;
+		ucode_info.ecd_set_pid = prop_ucode_ecd_set_pid;
+		
+		ucode_info.handle_msgq = prop_ucode_handle_msgq;
+	}
 }
 
 struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void)
@@ -750,14 +1041,14 @@ void avia_gt_dmx_load_ucode(void)
 			printk(KERN_ERR "avia_gt_ucode: Failed to read firmware file '%s'\n", ucode);
 		else
 			ucode_buf = (u16 *)ucode_fs_buf;
-
 		close(fd);
 
-		/* queues should be stopped */
+		/* the proprietary firmwares seem to include already set-up tables
+		    so better make sure there are no active feeds */
 		if ((ucode_buf) && (file_size >= 0x740))
 			for (fd = DMX_PID_SEARCH_TABLE; fd < DMX_PID_PARSING_CONTROL_TABLE; fd++)
 				ucode_buf[fd] = 0xdfff;
-	}
+		}
 
 	set_fs(fs);
 
@@ -769,49 +1060,60 @@ void avia_gt_dmx_load_ucode(void)
 
 	local_irq_save(flags);
 	avia_gt_dmx_risc_write(risc_mem_map, ucode_buf, file_size);
+	if (riscram[DMX_VERSION_NO] == 0xb107)
+		avia_gt_dmx_memset16(&riscram[0x80], 0x0000, 4);
 	local_irq_restore(flags);
 
 	printk(KERN_INFO "avia_gt_ucode: loaded ucode v%04X\n", riscram[DMX_VERSION_NO]);
-
-	if (riscram[DMX_VERSION_NO] == 0xb107)
-		avia_gt_dmx_memset16(&riscram[0x80], 0x0000, 4);
 }
 
+/* 
+ * the eNX is diva-esque and wants a complete
+ * reset in case the sync is lost in the framer 
+ */
+/* TODO: verify for GTX */ 
 void avia_gt_dmx_risc_reset(int reenable)
 {
-	avia_gt_reg_set(RSTR0, TDMP, 1);
-
-	if (reenable)
-		avia_gt_reg_set(RSTR0, TDMP, 0);
+	u32 flags;
+	local_irq_save(flags);
+	if (avia_gt_chip(ENX)) enx_reg_16 (EC) |= 2;
+	avia_gt_reg_set(RSTR0,TDMP, 1);
+	if (avia_gt_chip(ENX)) avia_gt_reg_set(RSTR0,FRMR, 1);
+	if (reenable){
+		avia_gt_reg_set(RSTR0,TDMP, 0);
+		if (avia_gt_chip(ENX)){
+			avia_gt_reg_set(RSTR0,FRMR, 0);
+			enx_reg_16(SYNC_HYST) = 0x21;
+			enx_reg_16(BQ) = 0x00BC;
+			enx_reg_16(FC) = 0x9147;
+			enx_reg_16(EC) &= ~3;
+		} /* else {
+			gtx_reg_16(SYNCH) = 0x21;
+			gtx_reg_16(FC) = 0x9147;
+		} */
+	}
+	local_irq_restore(flags);
 }
 
+// info holds configuration info from the main module
 int avia_gt_dmx_risc_init(sAviaGtDmxRiscInit *risc_info)
 {
-	u8 queue_nr;
-
 	gt_info = avia_gt_get_info();
 	
 	risc_mem_map = avia_gt_reg_o(gt_info->tdp_ram);
 	riscram = (volatile u16*) risc_mem_map;
-	pst = &riscram[DMX_PID_SEARCH_TABLE];
-	ppct = &riscram[DMX_PID_PARSING_CONTROL_TABLE];
 
+	memset (section_map, 0xff, sizeof(section_map));
+	memset (ucode_feed, 0xff, sizeof(ucode_feed));
+	
 	avia_gt_dmx_risc_reset(0);
-
 	avia_gt_dmx_load_ucode();
 	avia_gt_dmx_set_ucode_info(risc_info->ucode_flags);
-
+	ucode_info.init();
 	avia_gt_dmx_risc_reset(1);
 
 	if (avia_gt_chip(ENX))
 		enx_reg_16(EC) = 0;
-
-	for (queue_nr = 0; queue_nr < 32; queue_nr++) {
-		section_filter_umap[queue_nr] = -1;
-		filter_definition_table[queue_nr].and_or_flag = 0;
-		filter_definition_table[queue_nr].filter_param_id = queue_nr;
-		filter_definition_table[queue_nr].Reserved = 0;
-	}
 
 	return 0;
 }

@@ -38,8 +38,7 @@
 
 struct avia_gt_dmx_queue {
 	u8 index;
-	s8 hw_sec_index;
-
+	u8 feed_idx;
 	u32	(*bytes_avail)(struct avia_gt_dmx_queue *queue);
 	u32	(*bytes_free)(struct avia_gt_dmx_queue *queue);
 	u32	(*size)(struct avia_gt_dmx_queue *queue);
@@ -94,7 +93,7 @@ void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 int avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 int avia_gt_dmx_queue_reset(u8 queue_nr);
 void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos);
-int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter);
+int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid);
 int avia_gt_dmx_queue_stop(u8 queue_nr);
 void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid);
 u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr);

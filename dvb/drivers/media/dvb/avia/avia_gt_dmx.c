@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.203 2004/04/07 23:17:45 carjay Exp $
+ * $Id: avia_gt_dmx.c,v 1.204 2004/05/19 20:15:00 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -51,6 +51,8 @@ static void avia_gt_pcr_irq(unsigned short irq);
 
 static int errno;
 static sAviaGtInfo *gt_info;
+static struct avia_gt_ucode_info *ucode_info;
+static struct avia_gt_dmx_queue *msgqueue;
 static int force_stc_reload;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 static int hw_sections = 1;
@@ -65,9 +67,9 @@ static u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] = {
 	9,			/* teletext	*/
 	9, 10, 11, 10, 10,	/* user 3..7	*/
 	8, 8, 8, 8, 8, 8, 8, 8,	/* user 8..15	*/
-	8, 8, 8, 8, 7, 7, 7, 7,	/* user 16..23	*/
+	8, 8, 8, 7, 7, 7, 7, 7,	/* user 16..23	*/
 	7, 7, 7, 7, 7, 7, 7,	/* user 24..30	*/
-	7			/* message	*/
+	8			/* message	*/
 };
 
 static const u8 queue_system_map[AVIA_GT_DMX_QUEUE_USER_START] = { 2, 0, 1 };
@@ -184,7 +186,7 @@ struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueuePro
 	q->qim_mode = 0;
 	q->read_pos = 0;
 	q->write_pos = 0;
-	q->info.hw_sec_index = -1;
+//	q->info.hw_sec_index = -1;
 	q->task_struct.routine = avia_gt_dmx_bh_task;
 	q->task_struct.data = &q->info.index;
 
@@ -770,7 +772,7 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 	avia_gt_writew(QWPnH + 4 * mapped_queue_nr, ((write_pos >> 16) & 0x3F) | (queue_size_table[queue_nr] << 6));
 }
 
-int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter)
+int avia_gt_dmx_queue_start(u8 queue_nr,u8 mode, u16 pid)
 {
 	sAviaGtDmxQueue *q;
 
@@ -781,8 +783,8 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt
 
 	q = &queue_list[queue_nr];
 
-	if (!queue_nr) {
-		if (!mode) {		/* SPTS-Mode? */
+	if (queue_nr==AVIA_GT_DMX_QUEUE_VIDEO) {
+		if (mode==TS) {		/* SPTS-Mode? */
 			queue_size_table[0] = 11;
 			printk(KERN_INFO "SPTS, queue 0 extended.\n");
 		}
@@ -802,9 +804,7 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt
 	if (avia_gt_dmx_queue_is_system_queue(queue_nr))
 		avia_gt_dmx_enable_disable_system_queue_irqs();
 
-	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, filt_tab_idx, (mode == AVIA_GT_DMX_QUEUE_MODE_SEC8) ? 1 : 0, no_of_filter);
-	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
-
+	ucode_info->start_queue_feeds(queue_nr);
 	return 0;
 }
 
@@ -822,7 +822,7 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 	q->pid = 0xFFFF;
 
 	avia_gt_dmx_queue_irq_disable(queue_nr);
-	avia_gt_dmx_set_pid_table(queue_nr, 0, 1, 0);
+	ucode_info->stop_queue_feeds(queue_nr,1);
 
 	return 0;
 }
@@ -867,7 +867,7 @@ void avia_gt_dmx_bh_task(void *tl_data)
 	queue_info = &q->info;
 
 	/* Resync for TS-Queues */
-	if (q->mode == AVIA_GT_DMX_QUEUE_MODE_TS) {
+	if (q->mode == TS) {
 		if (queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) {
 			if (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid != 0xFFFF) {
 				pid1 = queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid;
@@ -1333,11 +1333,11 @@ int __init avia_gt_dmx_init(void)
 	int result;
 	u32 queue_addr;
 	u8 queue_nr;
-
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.203 2004/04/07 23:17:45 carjay Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.204 2004/05/19 20:15:00 derget Exp $\n");;
 
 	gt_info = avia_gt_get_info();
+	ucode_info = avia_gt_dmx_get_ucode_info();
 	
 	if (!avia_gt_supported_chipset(gt_info))
 		return -ENODEV;
@@ -1450,11 +1450,20 @@ int __init avia_gt_dmx_init(void)
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 		avia_gt_dmx_queue_irq_disable(queue_nr);
 	}
+	if (ucode_info->caps&AVIA_GT_UCODE_CAP_MSGQ){
+		if (!(msgqueue=avia_gt_dmx_alloc_queue_message(NULL, ucode_info->handle_msgq, NULL))){
+			printk (KERN_ERR "Could not allocate message queue\n");
+		} else {
+			avia_gt_dmx_queue_irq_enable(msgqueue->index);
+		}
+	}
+
 	return 0;
 }
 
 void __exit avia_gt_dmx_exit(void)
 {
+	if (msgqueue) avia_gt_dmx_free_queue(msgqueue->index);
 	avia_gt_dmx_risc_reset(0);
 }
 
@@ -1487,14 +1496,10 @@ EXPORT_SYMBOL(avia_gt_dmx_queue_set_write_pos);
 EXPORT_SYMBOL(avia_gt_dmx_queue_start);
 EXPORT_SYMBOL(avia_gt_dmx_queue_stop);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
-EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
-EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
 
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_read_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_write_pos);
-EXPORT_SYMBOL(avia_gt_dmx_free_section_filter);
-EXPORT_SYMBOL(avia_gt_dmx_alloc_section_filter);
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_enable_framer);
 EXPORT_SYMBOL(avia_gt_dmx_disable_framer);
@@ -1502,7 +1507,5 @@ EXPORT_SYMBOL(avia_gt_dmx_enable_clip_mode);
 EXPORT_SYMBOL(avia_gt_dmx_disable_clip_mode);
 EXPORT_SYMBOL(avia_gt_dmx_queue_write);
 EXPORT_SYMBOL(avia_gt_dmx_queue_nr_get_bytes_free);
-EXPORT_SYMBOL(avia_gt_dmx_ecd_reset);
-EXPORT_SYMBOL(avia_gt_dmx_ecd_set_key);
-EXPORT_SYMBOL(avia_gt_dmx_ecd_set_pid);
 EXPORT_SYMBOL(avia_gt_dmx_get_ucode_info);
+EXPORT_SYMBOL(avia_gt_dmx_set_ucode_info);;
