@@ -124,6 +124,8 @@ typedef struct gtx_demux_feed_s
   int index, int_nr, int_bit;
 
   int base, end, size, readptr;
+  
+  int tap;
 } gtx_demux_feed_t;
 
 typedef struct gtx_demux_s
