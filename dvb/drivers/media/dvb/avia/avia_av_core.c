@@ -21,6 +21,13 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.20  2001/12/18 18:01:51  gillem
+ *   - add events
+ *   - add timer
+ *   - rewrite avia command handling
+ *   - todo: optimize
+ *   - i hope it works
+ *
  *   Revision 1.19  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
@@ -105,7 +112,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -137,6 +144,7 @@
 #include "dbox/fp.h"
 #include "dbox/avia.h"
 #include "dbox/info.h"
+#include "dbox/event.h"
 
 /* ---------------------------------------------------------------------- */
 
@@ -164,11 +172,16 @@ static int run_cmd;
 #define AVIA_INTERRUPT                  SIU_IRQ4
 #define AVIA_CMD_TIMEOUT                350
 
+static spinlock_t avia_lock;
+static spinlock_t avia_cmd_state_lock;
+static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
+static wait_queue_head_t avia_cmd_state_wait;
+static u8 cmd_state;
 
 /* mutex stuff */
-static DECLARE_MUTEX(avia_cmd_mutex);
-static DECLARE_MUTEX(avia_wait_cmd_mutex);
+//static DECLARE_MUTEX(avia_cmd_mutex);
+//static DECLARE_MUTEX(avia_wait_cmd_mutex);
 
 /* finally i got them */
 #define UX_MAGIC                        0x00
@@ -204,11 +217,35 @@ static int avia_proc_initialized = 0;
 #define avia_proc_cleanup()
 #endif /* CONFIG_PROC_FS */
 
+/* timer & event stuff */
+#define AVIA_EVENT_TIMER 1000	/* 1 KHz */
+
+struct avia_event_reg {
+	u16 hsize;
+	u16 vsize;
+	u16 aratio;
+	u16 frate;
+	u16 brate;
+	u16 vbsize;
+	u16 atype;
+};
+
+static spinlock_t avia_event_lock;
+static struct timer_list avia_event_timer;
+
+static void avia_event_init();
+static void avia_event_cleanup();
+static void avia_event_func(unsigned long data);
+
+static u32 event_delay;
+
 /* ---------------------------------------------------------------------- */
 u32
 avia_rd (int mode, int address)
 {
-        int data = 0;
+        int data;
+	
+	spin_lock_irq(&avia_register_lock);
 
         address   &= 0x3FFFFF;
         aviamem[6] = ((address >> 16) | mode) & 0xFF;
@@ -219,6 +256,8 @@ avia_rd (int mode, int address)
         data      |= aviamem[1] <<  8;
         data      |= aviamem[0];
 
+	spin_unlock_irq(&avia_register_lock);
+
         return data;
 }
 
@@ -226,6 +265,8 @@ avia_rd (int mode, int address)
 void
 avia_wr (int mode, u32 address, u32 data)
 {
+	spin_lock_irq(&avia_register_lock);
+
         address&=0x3FFFFF;
         aviamem[6] = ((address >> 16) | mode) & 0xFF;
         aviamem[5] =  (address >>  8) & 0xFF;
@@ -234,6 +275,8 @@ avia_wr (int mode, u32 address, u32 data)
         aviamem[2] = (data >> 16) & 0xFF;
         aviamem[1] = (data >>  8) & 0xFF;
         aviamem[0] = data & 0xFF;
+	
+	spin_unlock_irq(&avia_register_lock);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -375,8 +418,12 @@ LoaduCode (u32 *microcode)
 void
 avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 {
-        u32 status = rDR (0x2AC);
+        u32 status;
         u32 sem;
+
+	spin_lock(&avia_lock);
+
+	status = rDR (0x2AC);
 
         /* usr data */
         if (status & (1 << 12)) {
@@ -464,7 +511,7 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                                         "New audio emphasis is on.\n",
                                         __FILE__, __FUNCTION__); break;
                         }
-								if (sem&0xFF)
+		if (sem&0xFF)
 	                wDR (0x468, 1);
         }
 
@@ -522,36 +569,60 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
         wDR (0x2C4, 0);
         wDR (0x2AC, 0);
 
+	spin_unlock(&avia_lock);
+
         return;
+}
+
+/* ---------------------------------------------------------------------- */
+
+static u32
+avia_wait_command( u32 tries )
+{
+	int i;
+
+	spin_lock_irq(&avia_cmd_state_lock);
+
+	if (cmd_state==1)
+	{
+	    //error !
+	    printk("state allready 1\n");
+	}
+
+	cmd_state = 1;
+
+	spin_unlock_irq(&avia_cmd_state_lock);
+
+	// TODO: add tries ...
+        i = interruptible_sleep_on_timeout(&avia_cmd_state_wait, AVIA_CMD_TIMEOUT);
+
+	if(i==0)
+	    printk("sorry timeout in cmd_state ...\n");
+	    
+	spin_lock_irq(&avia_cmd_state_lock);
+	cmd_state=0;
+	spin_unlock_irq(&avia_cmd_state_lock);
+	
+	return rDR(0x5C);
 }
 
 /* ---------------------------------------------------------------------- */
 
 u32 avia_command(u32 command, ...)
 {
-        u32 stataddr, tries, i;
+        u32 state, i;
         va_list ap;
 
-        /* mutex */
-        down(&avia_cmd_mutex);
+	spin_lock_irq(&avia_lock);
 
         va_start(ap, command);
 
-        // TODO: kernel lock (DRINGEND)
-
-        tries=1000;
-
-        while (!rDR(0x5C))
-        {
-                if (! (tries--))
-                {
-                        dprintk(KERN_ERR "AVIA: timeout.\n");
-                        up(&avia_cmd_mutex);
-                        return -1;
-                }
-
-                udelay(1000);
-        }
+	// BUSY ?
+	if ( !avia_wait_command(1000) )
+	{
+		dprintk(KERN_ERR "AVIA: timeout.\n");
+		return -1;
+	}
 
         wDR(0x40, command);
 
@@ -567,28 +638,21 @@ u32 avia_command(u32 command, ...)
                 wDR(0x44+i*4, 0);
         }
 
+	// RUN
         wDR(0x5C, 0);
 
-    // TODO: host-to-decoder interrupt
+	// TODO: host-to-decoder interrupt ??? TMBINC ???
 
-        tries=100;
+	// READY
+	if ( !(state=avia_wait_command(100)) )
+	{
+		dprintk(KERN_ERR "AVIA: timeout.\n");
+		return -1;
+	}
 
-        while (!(stataddr=rDR(0x5C)))
-        {
-                if (! (tries--))
-                {
-                        dprintk(KERN_ERR "AVIA: timeout.\n");
-                        up(&avia_cmd_mutex);
-                        return -1;
-                }
+	spin_unlock_irq(&avia_lock);
 
-                udelay(1000);
-        }
-
-        /* mutex */
-        up(&avia_cmd_mutex);
-
-        return stataddr;
+        return state;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -597,11 +661,8 @@ u32 avia_wait(u32 sa)
 {
         int i;
 
-        down(&avia_wait_cmd_mutex);
-
         if (sa==-1)
         {
-                up(&avia_wait_cmd_mutex);
                 return -1;
         }
 
@@ -609,18 +670,17 @@ u32 avia_wait(u32 sa)
 
         run_cmd++;
 
-        i=interruptible_sleep_on_timeout(&avia_cmd_wait, AVIA_CMD_TIMEOUT);
-
-        dprintk(KERN_INFO "AVIA: COMMAND complete: %d.\n",AVIA_CMD_TIMEOUT-i);
+        i = interruptible_sleep_on_timeout(&avia_cmd_wait, AVIA_CMD_TIMEOUT);
 
         if (i==0)
         {
                 dprintk(KERN_ERR "AVIA: COMMAND timeout.\n");
-                up(&avia_wait_cmd_mutex);
                 return -1;
         }
-
-        up(&avia_wait_cmd_mutex);
+	else
+	{
+		dprintk(KERN_INFO "AVIA: COMMAND complete: %d.\n",AVIA_CMD_TIMEOUT-i);
+	}
 
         return(rDR(sa));
 }
@@ -717,7 +777,7 @@ static void avia_audio_init(void)
         if ( (aviarev == 0x00) && (silirev == 0x80) )
         {
                 val |= (0<<1);          // 1:256 0:384 x sampling frequ.
-    }
+	}
         else
         {
                 val |= (1<<1);          // 1:256 0:384 x sampling frequ.
@@ -791,15 +851,15 @@ void avia_set_default(void)
         wDR(VIDEO_PTS_SKIP_THRESHOLD, 0xE10);
         wDR(VIDEO_PTS_REPEAT_THRESHOLD, 0xE10);
 
-    wDR(AUDIO_PTS_DELAY, 0xe00);
+	wDR(AUDIO_PTS_DELAY, 0xe00);
         wDR(AUDIO_PTS_SKIP_THRESHOLD_1, 0xE10 );
         wDR(AUDIO_PTS_REPEAT_THRESHOLD_1, 0xE10 );
         wDR(AUDIO_PTS_SKIP_THRESHOLD_2, 0x2300 );
         wDR(AUDIO_PTS_REPEAT_THRESHOLD_2, 0x2300 );
 
         /* */
-    wDR(INTERPRET_USER_DATA,0);
-    wDR(INTERPRET_USER_DATA_MASK,0);
+	wDR(INTERPRET_USER_DATA,0);
+	wDR(INTERPRET_USER_DATA_MASK,0);
 
       //3des:Fifo dont need setup
       //3des:is done by memory_map
@@ -934,7 +994,6 @@ static int init_avia(void)
         if (!aviamem)
         {
                 dprintk(KERN_ERR "AVIA: Failed to remap memory.\n");
-                vfree(microcode);
                 return -ENOMEM;
         }
 
@@ -978,6 +1037,8 @@ static int init_avia(void)
         /* init queue */
         init_waitqueue_head(&avia_cmd_wait);
 
+        init_waitqueue_head(&avia_cmd_state_wait);
+
         /* enable host access */
         wGB(0, 0x1000);
         /* cpu reset */
@@ -997,30 +1058,30 @@ static int init_avia(void)
         dprintk(KERN_INFO "AVIA: AVIA REV: %02X SILICON REV: %02X\n",aviarev,silirev);
 
         /* AR SR CHIP FILE
-         * 00 80 600L 600...
-     * 03 00 600L 500... ???
-     * 03 00 500  500
-     */
+	 * 00 80 600L 600...
+	 * 03 00 600L 500... ???
+	 * 03 00 500  500
+	*/
 
-        switch (aviarev)
-        {
-                case 0:
-                                dprintk(KERN_INFO "AVIA: AVIA 600 found. (no support yet)\n");
-                                break;
-                case 1:
-                        dprintk(KERN_INFO "AVIA: AVIA 500 LB3 found. (no microcode)\n");
-                                break;
+	switch (aviarev)
+	{
+		case 0:
+				dprintk(KERN_INFO "AVIA: AVIA 600 found. (no support yet)\n");
+				break;
+		case 1:
+				dprintk(KERN_INFO "AVIA: AVIA 500 LB3 found. (no microcode)\n");
+				break;
 //              case 3:
 //                              dprintk("AVIA 600L found. (no support yet)\n");
 //                              break;
                 default:
-                        dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
-                        break;
-        }
+				dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
+				break;
+	}
 
         /* TODO: AVIA 600 INIT !!! */
 
-    /* D.4.3 - Initialize the SDRAM DMA Controller */
+	/* D.4.3 - Initialize the SDRAM DMA Controller */
         switch (aviarev)
         {
                 case 0:
@@ -1031,16 +1092,16 @@ static int init_avia(void)
                         wGB(0x23, 0x3a1800);
                         break;
                 default:
-                    wGB(0x22, 0xF);
-                        val = rGB(0x23) | 0x14EC;
-                    wGB(0x22, 0xF);
-                    wGB(0x23, val);
+			wGB(0x22, 0xF);
+			val = rGB(0x23) | 0x14EC;
+			wGB(0x22, 0xF);
+			wGB(0x23, val);
                         rGB(0x23);
 
-                    wGB(0x22, 0x11);
+			wGB(0x22, 0x11);
                         val = (rGB(0x23) & 0x00FFFFFF) | 1;
-                    wGB(0x22, 0x11);
-                    wGB(0x23, val);
+			wGB(0x22, 0x11);
+			wGB(0x23, val);
                         rGB(0x23);
                         break;
         }
@@ -1118,6 +1179,7 @@ static int init_avia(void)
                 return -EIO;
         }
 
+	avia_event_init();
 
         avia_proc_init();
 
@@ -1141,6 +1203,7 @@ static int init_avia(void)
 
         dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
         dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
+
 
         return 0;
 }
@@ -1193,20 +1256,140 @@ int read_bitstream_settings(char *buf, char **start, off_t offset, int len, int 
         nr += sprintf(buf+nr,"B_RATE:  %d\n",rDR(BIT_RATE)&0xFFFF);
         nr += sprintf(buf+nr,"VB_SIZE: %d\n",rDR(VBV_SIZE)&0xFFFF);
         nr += sprintf(buf+nr,"A_TYPE:  %d\n",rDR(AUDIO_TYPE)&0xFFFF);
-        return nr;
+
+	return nr;
 }
 
 int avia_proc_cleanup(void)
 {
-  if (avia_proc_initialized >= 1)
-  {
-    remove_proc_entry("bitstream", proc_bus);
-    avia_proc_initialized-=2;
-  }
-  return 0;
+	if (avia_proc_initialized >= 1)
+	{
+		remove_proc_entry("bitstream", proc_bus);
+		avia_proc_initialized-=2;
+	}
+  
+	return 0;
 }
 
 #endif /* def CONFIG_PROC_FS */
+
+/* ---------------------------------------------------------------------- */
+
+void avia_event_init()
+{
+	char * p;
+
+	spin_lock_irq(&avia_event_lock);
+
+	cmd_state   = 0;
+	event_delay = 0;
+	
+	p = kmalloc ( sizeof(struct avia_event_reg), GFP_KERNEL );
+	
+	if (p)
+	{
+		init_timer(&avia_event_timer);
+
+		avia_event_timer.function = avia_event_func;
+		avia_event_timer.expires  = jiffies + HZ/AVIA_EVENT_TIMER + 2*HZ/100;
+		avia_event_timer.data     = (unsigned long)p;
+
+		add_timer(&avia_event_timer);
+	}
+	// else -ENOMEM
+
+	spin_unlock_irq(&avia_event_lock);
+}
+
+void avia_event_cleanup()
+{
+	spin_lock_irq(&avia_event_lock);
+
+	if (avia_event_timer.data)
+	{
+		kfree((char*)avia_event_timer.data);
+		avia_event_timer.data = 0;
+	}
+
+	del_timer(&avia_event_timer);
+
+	spin_unlock_irq(&avia_event_lock);
+}
+
+void avia_event_func(unsigned long data)
+{
+	struct avia_event_reg * reg;
+	struct event_t event;
+
+	spin_lock_irq(&avia_event_lock);
+
+	spin_lock_irq(&avia_cmd_state_lock);
+
+	if (cmd_state==1)
+	{
+	    if ( rDR(0x5C) )
+	    {
+		wake_up_interruptible (&avia_cmd_state_wait);
+	    }
+	}
+
+	spin_unlock_irq(&avia_cmd_state_lock);
+
+	// TODO: optimize
+	if((++event_delay)==1000)
+	{
+		event_delay = 0;
+
+		reg = (struct avia_event_reg *)data;
+
+		if(reg)
+		{
+			if ( ( (rDR(H_SIZE)&0xFFFF) != reg->hsize ) ||
+			     ( (rDR(V_SIZE)&0xFFFF) != reg->vsize ) )
+			{
+				reg->hsize = (rDR(H_SIZE)&0xFFFF);
+				reg->vsize = (rDR(V_SIZE)&0xFFFF);
+
+				memset(&event,0,sizeof(event_t));
+				event.event = EVENT_VHSIZE_CHANGE;
+				event_write_message( &event, 1 );
+			}
+
+			if ( (rDR(ASPECT_RATIO)&0xFFFF) != reg->aratio )
+			{
+				reg->aratio = (rDR(ASPECT_RATIO)&0xFFFF);
+
+				memset(&event,0,sizeof(event_t));
+				event.event = EVENT_ARATIO_CHANGE;
+				event_write_message( &event, 1 );
+			}
+
+			if ( (rDR(FRAME_RATE)&0xFFFF) != reg->frate )
+			{
+				reg->frate = (rDR(FRAME_RATE)&0xFFFF);
+			}
+
+			if ( (rDR(BIT_RATE)&0xFFFF) != reg->brate )
+			{
+				reg->brate = (rDR(BIT_RATE)&0xFFFF);
+			}
+
+			if ( (rDR(VBV_SIZE)&0xFFFF) != reg->vbsize )
+			{
+				reg->vbsize = (rDR(VBV_SIZE)&0xFFFF);
+			}
+
+			if ( (rDR(AUDIO_TYPE)&0xFFFF) != reg->atype )
+			{
+				reg->atype = (rDR(AUDIO_TYPE)&0xFFFF);
+			}
+		}
+	}
+
+	mod_timer(&avia_event_timer, jiffies + HZ/AVIA_EVENT_TIMER + 2*HZ/100);
+
+	spin_unlock_irq(&avia_event_lock);
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -1228,7 +1411,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.19 2001/12/01 06:37:06 gillem Exp $\n");
+        dprintk ("AVIA: $Id: avia_av_core.c,v 1.20 2001/12/18 18:01:51 gillem Exp $\n");
         return init_avia ();
 }
 
@@ -1237,6 +1420,8 @@ void cleanup_module(void)
         avia_proc_cleanup();
 
         free_irq(AVIA_INTERRUPT, &dev);
+
+	avia_event_cleanup();
 
         if (aviamem)
         {
