@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.15  2002/05/03 17:31:44  obi
+ *   bugfix
+ *
  *   Revision 1.14  2002/05/03 17:04:40  obi
  *   moved some code from fb_core to gv_init
  *   replaced r*() by gtx_reg_*()
@@ -65,7 +68,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -562,7 +565,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.14 2002/05/03 17:04:40 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.15 2002/05/03 17:31:44 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -697,6 +700,7 @@ EXPORT_SYMBOL(avia_gt_gv_set_input_mode);
 EXPORT_SYMBOL(avia_gt_gv_set_input_size);
 EXPORT_SYMBOL(avia_gt_gv_set_pos);
 EXPORT_SYMBOL(avia_gt_gv_set_size);
+EXPORT_SYMBOL(avia_gt_gv_hide);
 EXPORT_SYMBOL(avia_gt_gv_show);
 #endif
 
