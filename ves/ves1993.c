@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.25 2002/06/01 11:11:10 happydude Exp $
+  $Id: ves1993.c,v 1.26 2002/10/21 11:38:59 obi Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -19,48 +19,6 @@
 		along with this program; if not, write to the Free Software
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-  $Log: ves1993.c,v $
-  Revision 1.25  2002/06/01 11:11:10  happydude
-  add module license
-
-  Revision 1.24  2002/05/12 21:22:59  derget
-  diseq solte nun gehen (untested)
-
-  Revision 1.23  2002/05/08 00:54:39  derget
-  minidiseq eingebaut (untestet)
-
-  Revision 1.22  2002/05/08 00:10:32  derget
-  support für nokia mit ves1993 und tsa5059 eingebaut
-  diseqc tut da noch nicht
-  sonst gehts *hoff*
-
-  Revision 1.21  2002/05/05 12:07:37  happydude
-  reception improvements
-
-  Revision 1.20  2002/04/30 14:54:01  happydude
-  fix ASTRA MTV-Transponder, please test thoroughly, it works on my 2 dishes
-
-  Revision 1.19  2002/04/24 12:08:38  obi
-  made framing byte hack nicer
-
-  Revision 1.18  2002/04/20 18:23:16  obi
-  added raw diseqc command
-
-  Revision 1.17  2002/04/04 06:15:41  obi
-  partially implemented FE_SEC_GET_STATUS
-
-  Revision 1.16  2002/02/24 15:32:07  woglinde
-  new tuner-api now in HEAD, not only in branch,
-  to check out the old tuner-api should be easy using
-  -r and date
-
-  Revision 1.13.2.4  2002/02/14 20:16:47  TripleDES
-  DiSEqC(tm) fix
-
-  Revision 1.13.2.3  2002/01/22 23:44:56  fnbrd
-  Id und Log reingemacht.
-
-  
 */		
 
 
@@ -234,7 +192,7 @@ int set_tuner_dword(u32 tw)
 
 	/* KILOHERTZ!!! */
 
-static int tuner_set_freq(int freq)
+static int tuner_set_freq(u32 freq)
 {
         u8 buffer[4];
         
@@ -292,8 +250,10 @@ struct ves1993 {
 	u8 ctr;
 	u8 fec;
 	u8 inv;
-	
-	int power, tone;
+
+	u8 volt;
+	u8 high;
+	u8 tone;
 	
 	dvb_front_t frontend;
 };
@@ -339,34 +299,34 @@ static int init(struct i2c_client *client)
 	//Init fuer VES1993
 
 	if(mid==1) {
-	dprintk("nokia\n");
-	writereg(client,0x3a, 0x0e); 	
+		dprintk("nokia\n");
+		writereg(client,0x3a, 0x0e); 	
 
-	for (i=0; i<0x3d; i++)
-		if (Init1993WTab[i])
-		writereg(client, i, Init1993_nokiaTab[i]);
+		for (i=0; i<0x3d; i++)
+			if (Init1993WTab[i])
+				writereg(client, i, Init1993_nokiaTab[i]);
 				
-	writereg(client,0x00, 0x01); 
+		writereg(client,0x00, 0x01); 
 			
-	ves->ctr=Init1993_nokiaTab[0x1f];
-	ves->srate=0;
-	ves->fec=9;
-	ves->inv=0;
+		ves->ctr=Init1993_nokiaTab[0x1f];
+		ves->srate=0;
+		ves->fec=9;
+		ves->inv=0;
 	}
 	else {
-        dprintk("sagem\n");
-	writereg(client,0x3a, 0x0c); 
+	        dprintk("sagem\n");
+		writereg(client,0x3a, 0x0c); 
 
-        for (i=0; i<0x3d; i++)
-                if (Init1993WTab[i])
-                writereg(client, i, Init1993_sagemTab[i]);
+	        for (i=0; i<0x3d; i++)
+        	        if (Init1993WTab[i])
+                		writereg(client, i, Init1993_sagemTab[i]);
         
-        writereg(client,0x00, 0x01);
+	        writereg(client,0x00, 0x01);
  
-        ves->ctr=Init1993_sagemTab[0x1f];
-        ves->srate=0;
-        ves->fec=9;  
-        ves->inv=0;
+	        ves->ctr=Init1993_sagemTab[0x1f];
+        	ves->srate=0;
+	        ves->fec=9;  
+        	ves->inv=0;
         }
 
 	return 0;
@@ -663,8 +623,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		secToneMode mode=(secToneMode)arg;
 		ves->tone=(mode==SEC_TONE_ON)?1:0;
-		if (mid==1) return fp_set_sec(ves->power, ves->tone);
-		else return fp_sagem_set_SECpower(ves->power, ves->tone);
+		return dbox2_fp_sec_set(ves->volt, ves->high, ves->tone);
 	}
 
 	case FE_SEC_SET_VOLTAGE:
@@ -672,56 +631,51 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		secVoltage volt=(secVoltage)arg;
 		switch (volt)
 		{
-		case SEC_VOLTAGE_OFF:
-			ves->power=0;
-			break;
-		case SEC_VOLTAGE_LT:
-			ves->power=-2;
-			break;
 		case SEC_VOLTAGE_13:
-			ves->power=1;
+			ves->volt = 0;
+			ves->high = 0;
 			break;
+			
 		case SEC_VOLTAGE_13_5:
-			ves->power=2;
+			ves->volt = 0;
+			ves->high = 1;
 			break;
+			
 		case SEC_VOLTAGE_18:
-			ves->power=3;
+			ves->volt = 1;
+			ves->high = 0;
 			break;
+			
 		case SEC_VOLTAGE_18_5:
-			ves->power=4;
+			ves->volt = 1;
+			ves->high = 1;
 			break;
+			
 		default:
-			dprintk("invalid voltage\n");
+			return -EINVAL;
 		}
-		if (mid==1) return fp_set_sec(ves->power, ves->tone);
-		else return fp_sagem_set_SECpower(ves->power, ves->tone);
+
+		return dbox2_fp_sec_set(ves->volt, ves->high, ves->tone);
 
 	}
+
 	case FE_SEC_MINI_COMMAND:
 	{
-	if (mid==1) {
                 secMiniCmd minicmd = (secMiniCmd) arg;
                  
                 switch (minicmd) {
                 case SEC_MINI_A:
-                        dprintk ("minidiseqc: A\n");   
-                        return fp_send_diseqc (1, "\x00\x00\x00\x00", 4);
+                        return dbox2_fp_sec_diseqc_cmd ("\x00\x00\x00\x00", 4);
                         
                 case SEC_MINI_B:
-                        dprintk ("minidiseqc: B\n");
-                        return fp_send_diseqc (1, "\xff", 1);
+                        return dbox2_fp_sec_diseqc_cmd ("\xff", 1);
                  
                 default:
                         break;
                 }
-		}
-	 else {		    
-		//secMiniCmd minicmd=(secMiniCmd)arg;
-		//return fp_send_diseqc(1, (minicmd==SEC_MINI_A)?"\xFF\xFF\xFF\xFF":"\x00\x00\x00\x00", 4); // das ist evtl. falschrum
-		return 0;
-              }
 		break;
 	}
+
 	case FE_SEC_COMMAND:
 	{
 		struct secCommand *command=(struct secCommand*)arg;
@@ -734,12 +688,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
 			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			if (mid==1) {
-				    	return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
-				    } 
-				else { 
-					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
-			     	     }
+		    	return dbox2_fp_sec_diseqc_cmd(msg, command->u.diseqc.numParams+3);
 		}
                 case SEC_CMDTYPE_DISEQC_RAW:
 		{
@@ -749,56 +698,14 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
 			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-                        if (mid==1) {
-                                        return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
-                                    }
-                                else {
-					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
-				     }
+			return dbox2_fp_sec_diseqc_cmd(msg, command->u.diseqc.numParams+3);
 		}
 		default:
 			return -EINVAL;
 		}
 		break;
 	}
-	case FE_SEC_GET_STATUS:
-	{
-                struct secStatus status;
 
-		/* todo: implement */
-		status.busMode=SEC_BUS_IDLE;
-
-		switch(ves->power)
-		{
-		case -2:
-			status.selVolt=SEC_VOLTAGE_LT;
-			break;
-		case 0:
-			status.selVolt=SEC_VOLTAGE_OFF;
-			break;
-		case 1:
-			status.selVolt=SEC_VOLTAGE_13;
-			break;
-		case 2:
-			status.selVolt=SEC_VOLTAGE_13_5;
-			break;
-		case 3:
-			status.selVolt=SEC_VOLTAGE_18;
-			break;
-		case 4:
-			status.selVolt=SEC_VOLTAGE_18_5;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		status.contTone=(ves->tone ? SEC_TONE_ON : SEC_TONE_OFF);
-
-		if (copy_to_user(arg, &status, sizeof(status)))
-			return -EFAULT;
-
-		break;
-	}
 	case FE_SETFREQ:
 		tuner_set_freq(*(u32*)arg);
 		break;

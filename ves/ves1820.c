@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.34 2002/10/08 23:18:42 obi Exp $
+   $Id: ves1820.c,v 1.35 2002/10/21 11:38:59 obi Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -176,7 +176,7 @@ int tuner_set_tv_freq (u32 freq)
                         0x80 | (((div >> 15) & 0x03) << 6) | 0x04,
                         div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01 };
 
-        return fp_set_tuner_dword(T_QAM, *((u32*)buf));
+        return dbox2_fp_tuner_write(buf, sizeof(buf));
 }
 
 
@@ -592,7 +592,7 @@ int __init init_ves1820(void)
 {
         int res;
 
-	printk("$Id: ves1820.c,v 1.34 2002/10/08 23:18:42 obi Exp $\n");
+	printk("$Id: ves1820.c,v 1.35 2002/10/21 11:38:59 obi Exp $\n");
 
         if ((res = i2c_add_driver(&ves1820_i2c_driver)))
         {

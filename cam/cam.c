@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.18  2002/10/21 11:38:58  obi
+ *   fp driver cleanup
+ *
  *   Revision 1.17  2002/05/06 02:18:18  obi
  *   cleanup for new kernel
  *
@@ -68,7 +71,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -342,9 +345,9 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 int cam_reset()
 {
 	if (info.mID==DBOX_MID_NOKIA)
-		return fp_do_reset(0xAF);
+		return dbox2_fp_reset(0xAF);
 	else
-		return fp_cam_reset();
+		return dbox2_fp_reset_cam();
 }
 
 /* ---------------------------------------------------------------------- */

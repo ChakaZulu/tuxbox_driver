@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.28 2002/09/05 22:06:07 obi Exp $
+   $Id: ves1893.c,v 1.29 2002/10/21 11:38:59 obi Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.29  2002/10/21 11:38:59  obi
+    fp driver cleanup
+
     Revision 1.28  2002/09/05 22:06:07  obi
     - FE_READ_SIGNAL_STRENGTH, FE_READ_SNR: return values in range 0 to 0xFFFF
     - return some EINVALs
@@ -160,9 +163,11 @@ struct ves1893 {
 	u8 ctr;
 	u8 fec;
 	u8 inv;
-	
-	int power, tone;
-	
+
+	u8 volt;
+	u8 high;
+	u8 tone;
+
 	dvb_front_t frontend;
 };
 
@@ -213,6 +218,10 @@ static int init(struct i2c_client *client)
 	ves->srate=0;
 	ves->fec=9;
 	ves->inv=0;
+
+	ves->volt = 0;
+	ves->high = 0;
+	ves->tone = 0;
 
 	return 0;
 }
@@ -544,37 +553,39 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case FE_SEC_SET_TONE:
 	{
-		secToneMode mode=(secToneMode)arg;
-		ves->tone=(mode==SEC_TONE_ON)?1:0;
-		return fp_set_sec(ves->power, ves->tone);
+		ves->tone = ((secToneMode)arg) == SEC_TONE_OFF ? 0 : 1;
+		return dbox2_fp_sec_set(ves->volt, ves->high, ves->tone);
 	}
 	case FE_SEC_SET_VOLTAGE:
 	{
 		secVoltage volt=(secVoltage)arg;
-		switch (volt)
-		{
-		case SEC_VOLTAGE_OFF:
-			ves->power=0;
-			break;
-		case SEC_VOLTAGE_LT:
-			ves->power=-2;
-			break;
+
+		switch (volt) {
 		case SEC_VOLTAGE_13:
-			ves->power=1;
+			ves->volt = 0;
+			ves->high = 0;
 			break;
+
 		case SEC_VOLTAGE_13_5:
-			ves->power=2;
+			ves->volt = 0;
+			ves->high = 1;
 			break;
+
 		case SEC_VOLTAGE_18:
-			ves->power=3;
+			ves->volt = 1;
+			ves->high = 0;
 			break;
+
 		case SEC_VOLTAGE_18_5:
-			ves->power=4;
+			ves->volt = 1;
+			ves->high = 1;
 			break;
+
 		default:
 			return -EINVAL;
 		}
-		return fp_set_sec(ves->power, ves->tone);
+
+		return dbox2_fp_sec_set(ves->volt, ves->high, ves->tone);
 	}
 	case FE_SEC_MINI_COMMAND:
 	{
@@ -582,12 +593,10 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		switch (minicmd) {
 		case SEC_MINI_A:
-			dprintk ("minidiseqc: A\n");
-			return fp_send_diseqc (1, "\x00\x00\x00\x00", 4);
+			return dbox2_fp_sec_diseqc_cmd("\x00\x00\x00\x00", 4);
 
 		case SEC_MINI_B:
-			dprintk ("minidiseqc: B\n");
-			return fp_send_diseqc (1, "\xff", 1);
+			return dbox2_fp_sec_diseqc_cmd("\xff", 1);
 
 		default:
 			return -EINVAL;
@@ -605,7 +614,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
 			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
+			return dbox2_fp_sec_diseqc_cmd(msg, command->u.diseqc.numParams+3);
 		}
 		case SEC_CMDTYPE_DISEQC_RAW:
 		{
@@ -614,51 +623,14 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
 			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
+			return dbox2_fp_sec_diseqc_cmd(msg, command->u.diseqc.numParams+3);
 		}
 		default:
 			return -EINVAL;
 		}
 		break;
 	}
-	case FE_SEC_GET_STATUS:
-	{
-		struct secStatus status;
 
-		/* todo: implement */
-		status.busMode=SEC_BUS_IDLE;
-
-		switch(ves->power)
-		{
-		case -2:
-			status.selVolt=SEC_VOLTAGE_LT;
-			break;
-		case 0:
-			status.selVolt=SEC_VOLTAGE_OFF;
-			break;
-		case 1:
-			status.selVolt=SEC_VOLTAGE_13;
-			break;
-		case 2:
-			status.selVolt=SEC_VOLTAGE_13_5;
-			break;
-		case 3:
-			status.selVolt=SEC_VOLTAGE_18;
-			break;
-		case 4:
-			status.selVolt=SEC_VOLTAGE_18_5;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		status.contTone=(ves->tone ? SEC_TONE_ON : SEC_TONE_OFF);
-
-		if (copy_to_user(arg, &status, sizeof(status)))
-			return -EFAULT;
-
-		break;
-	}
 	case FE_SETFREQ:
 	{
 		u32 freq=*(u32*)arg;
@@ -671,8 +643,8 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		b=p<<24; b|=t<<23; b|=os<<22; b|=c<<21;
 		b|=r<<18; b|=pe<<17; b|=freq;
-		
-		fp_set_tuner_dword(T_QPSK, b);
+	
+		dbox2_fp_tuner_write((u8*)&b, 4);
 		break;
 	}
 	default:

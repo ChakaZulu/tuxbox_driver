@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.37  2002/10/21 11:38:58  obi
+ *   fp driver cleanup
+ *
  *   Revision 1.36  2002/10/03 12:47:57  Jolt
  *   AViA AV cleanups
  *
@@ -164,7 +167,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.36 $
+ *   $Revision: 1.37 $
  *
  */
 
@@ -1073,7 +1076,7 @@ static int init_avia(void)
 	/* cpu reset */
 	wGB(0x39, 0xF00000);
 	/* cpu reset by fp */
-	fp_do_reset(0xBF & ~ (2));
+	dbox2_fp_reset(0xBF & ~ (2));
 	/* enable host access */
 	wGB(0, 0x1000);
 	/* cpu reset */
@@ -1251,7 +1254,7 @@ int avia_standby( int state )
 		/* cpu reset, 3 state mode */
 		wGB(0x39, 0xF00000);
 		/* cpu reset by fp */
-		fp_do_reset(0xBF & ~ (2));
+		dbox2_fp_reset(0xBF & ~ (2));
 	}
 
 	return 0;
@@ -1484,7 +1487,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.36 2002/10/03 12:47:57 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.37 2002/10/21 11:38:58 obi Exp $\n");
 
 	aviamem = 0;
 
