@@ -32,10 +32,10 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#include "tuxbox.h"
+#include <tuxbox/tuxbox.h>
 
 #ifndef CONFIG_PROC_FS
-#error PLease enable proc_fs support
+#error Please enable proc_fs support
 #endif
 
 static int read_bus_tuxbox(char *buf, char **start, off_t offset, int len, int *eof , void *private)

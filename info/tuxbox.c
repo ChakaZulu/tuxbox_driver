@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.7  2003/02/18 18:36:57  obi
+ *   #include <tuxbox/tuxbox.h>
+ *
  *   Revision 1.6  2003/01/05 14:44:18  Homar
  *   compile-fix
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -55,7 +58,7 @@
 #include <asm/io.h>
 #include <linux/proc_fs.h>
 #include <dbox/info.h>
-#include "../../apps/tuxbox/libs/libtuxbox/tuxbox.h"
+#include <tuxbox/tuxbox.h>
 
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
