@@ -63,9 +63,9 @@ struct dvb_frontend_info ves1x93_info = {
 };
 
 
-/*
- * nokia dbox2 needs byte AGCR[PWMS] set to 1
- * siemens pci uses TEST[CTRL[2]] set to 1 to enable 13V on init
+/**
+ * nokia dbox2 (ves1893) and sagem dbox2 (ves1993)
+ * need bit AGCR[PWMS] set to 1
  */
 
 static
@@ -81,21 +81,8 @@ u8 init_1893_tab [] = {
 
 
 static
-u8 init_1993_tab_nokia_dbox2 [] = {
-	0x00, 0x94, 0x00, 0x80, 0x6a, 0x0b, 0xab, 0x2a,
-	0x09, 0x70, 0x00, 0x00, 0x4c, 0x02, 0x00, 0x00,
-	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x00,
-	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x55, 0x03, 0x00, 0x00, 0x00, 0x01, 0x03,
-	0x00, 0x00, 0x0e, 0xfd, 0x56
-};
-
-
-static
-u8 init_1993_tab_sagem_dbox2 [] = {
-	0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0x72, 0x8c,
+u8 init_1993_tab [] = {
+	0x00, 0x9c, 0x35, 0x80, 0x6a, 0x09, 0x72, 0x8c,
 	0x09, 0x6b, 0x00, 0x00, 0x4c, 0x08, 0x00, 0x00,
 	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x10,
@@ -123,7 +110,7 @@ u8 init_1893_wtab[] =
 static
 u8 init_1993_wtab[] =
 {
-	0,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,
+	1,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,
 	0,1,0,0,0,0,0,0, 1,1,1,1,0,0,0,1,
 	1,1,1,0,0,0,0,0, 0,0,1,1,0,0,0,0,
 	1,1,1,0,1,1,1,1, 1,1,1,1,1
@@ -238,22 +225,17 @@ int ves1x93_init (struct dvb_i2c_bus *i2c)
 	case DEMOD_VES1893:
 		init_1x93_tab = init_1893_tab;
 		init_1x93_wtab = init_1893_wtab;
-		size = sizeof(init_1893_wtab);
-		if (board_type == BOARD_SIEMENS_PCI)
-			init_1x93_tab[0x1f] |= 0x20; /* enable 13V (TODO: remove?) */
-		else if (board_type == BOARD_NOKIA_DBOX2)
+		size = sizeof(init_1893_tab);
+		if (board_type == BOARD_NOKIA_DBOX2)
 			init_1x93_tab[0x05] |= 0x20; /* invert PWM */
 		break;
 
 	case DEMOD_VES1993:
+		init_1x93_tab = init_1993_tab;
 		init_1x93_wtab = init_1993_wtab;
-		size = sizeof(init_1993_wtab);
-		if (board_type == BOARD_NOKIA_DBOX2)
-			init_1x93_tab = init_1993_tab_nokia_dbox2;
-		else if (board_type == BOARD_SAGEM_DBOX2)
-			init_1x93_tab = init_1993_tab_sagem_dbox2;
-		else
-			return -EINVAL;
+		size = sizeof(init_1993_tab);
+		if (board_type == BOARD_SAGEM_DBOX2)
+			init_1x93_tab[0x05] |= 0x20; /* invert PWM */
 		break;
 
 	default:
