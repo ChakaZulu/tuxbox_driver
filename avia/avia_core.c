@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.25  2001/12/20 16:56:29  gillem
+ *   - add host to decoder interrupt
+ *
  *   Revision 1.24  2001/12/20 15:31:34  derget
  *   New sample freq output rausgeschmissen
  *
@@ -125,7 +128,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -249,6 +252,7 @@ static struct timer_list avia_event_timer;
 static void avia_event_init();
 static void avia_event_cleanup();
 static void avia_event_func(unsigned long data);
+static void avia_htd_interrupt();
 
 static u32 event_delay;
 
@@ -428,6 +432,15 @@ LoaduCode (u32 *microcode)
                          microcode[data_offset+UX_SECTION_LENGTH_OFFSET]) / 4)
                          + UX_SECTION_HEADER_LENGTH;
         }
+}
+
+/* ---------------------------------------------------------------------- */
+
+static void
+avia_htd_interrupt()
+{
+        wGB(0,rGB(0)|(1<<7));
+        wGB(0,rGB(0)|(1<<6));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -657,7 +670,8 @@ u32 avia_command(u32 command, ...)
 	// RUN
         wDR(0x5C, 0);
 
-	// TODO: host-to-decoder interrupt ??? TMBINC ???
+	// host-to-decoder interrupt
+	avia_htd_interrupt();
 
 	// READY
 	if ( !(state=avia_wait_command(100)) )
@@ -1421,11 +1435,14 @@ static int avia_standby( int state )
 	{
 		avia_event_cleanup();
 
+		/* disable interrupts */
+	        wDR(0x200,0);
+
 		free_irq(AVIA_INTERRUPT, &dev);
 
 	        /* enable host access */
         	wGB(0, 0x1000);
-	        /* cpu reset */
+	        /* cpu reset, 3 state mode */
         	wGB(0x39, 0xF00000);
 	        /* cpu reset by fp */
 	        fp_do_reset(0xBF & ~ (2));
@@ -1456,7 +1473,7 @@ init_module (void)
 {
 	int err;
 
-        dprintk ("AVIA: $Id: avia_core.c,v 1.24 2001/12/20 15:31:34 derget Exp $\n");
+        dprintk ("AVIA: $Id: avia_core.c,v 1.25 2001/12/20 16:56:29 gillem Exp $\n");
 
 	aviamem = 0;
 
