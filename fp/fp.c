@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.50  2002/01/19 08:57:38  Hunz
+ *   last idea
+ *
  *   Revision 1.49  2002/01/19 08:40:25  Hunz
  *   last commit so far...
  *
@@ -161,7 +164,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.49 $
+ *   $Revision: 1.50 $
  *
  */
 
@@ -904,16 +907,19 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
   if(irkbd_flags&IRKBD_FN) {
     *keycode=fn_keymap[scancode&0x7f];
     if(scancode&0x80)                   /* Fn pressed, other key released */
-      fn_flags[scancode&0x7f]=0;
+      if(!fn_flags[scancode&0x7f])       /* fn pressed, other key released which got pressed before fn */
+	*keycode=keymap[scancode&0x7f];
+      else                              /* fn pressed, other key released which got pressed during fn */
+	fn_flags[scancode&0x7f]=0;
     else                                /* Fn + other key pressed */
       fn_flags[scancode&0x7f]=1;
   }
-  /* Fn released while other key still pressed - we release it */
+  /* key got pressed during fn and gets now released after fn has been released*/
   else if((!(irkbd_flags&IRKBD_FN)) && (fn_flags[scancode&0x7f])) {
     *keycode=fn_keymap[scancode&0x7f];
     fn_flags[scancode&0x7f]=0;
   }
-  /* no Fn and other key pressed/released */
+  /* no Fn - other key pressed/released */
   else
     *keycode=keymap[scancode&0x7f];
 
