@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.16 2001/05/03 11:33:27 fnbrd Exp $
+    $Id: at76c651.c,v 1.17 2001/05/03 22:16:20 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.17  2001/05/03 22:16:20  fnbrd
+    Sync-Bits (lock) etwas umsortiert.
+
     Revision 1.16  2001/05/03 11:33:27  fnbrd
     Ein paar printks in dprintks geaendert, damit der Treiber 'leiser' laedt.
 
@@ -283,7 +286,7 @@ static int tuner_set_freq(int freq)
 {
   u32 dw=0;
   dprintk("AT76C651: tuner_set_freq: %d\n", freq);
-  // Rechne mal wer, ich weiss nicht mal welcher Tuner :(
+  // Rechne mal wer
 //  unsigned dw=0x17e28e06+(freq-346000000UL)/8000000UL*0x800000;
   switch(freq) {
     case 474000000:
@@ -710,19 +713,35 @@ static void ves_set_frontend(struct frontend *front)
 
 static void ves_get_frontend(struct frontend *front)
 {
+  u8 lock;
   at76c651_t *ves = (at76c651_t*)dclient->data;
   dprintk("AT76C651: ves_get_frontend\n");
   front->type=FRONT_DVBC;
   ves->ber=readreg(dclient, 0x83);
   ves->ber|=(readreg(dclient, 0x82)<<8);
   ves->ber|=((readreg(dclient, 0x81)&0x0f)<<16);
+  dprintk("AT76C651: ber: 0x%08x\n", ves->ber);
   front->vber=ves->ber; // Wird allerdings nur gesetzt, wenn IRQ kam, d.h. immer vom letzten signal lost
   front->nest=0;
 //  front->inv= // ?
-  front->sync=readreg(dclient, 0x80); // Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
+  lock=readreg(dclient, 0x80); // Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
+  // VES: NODVB, BER1, BER0, FEL, FSYNC, CARLOCK, EQ_ALGO
+  // Bits umsortieren
+  // Ich mach das mal so: Ich nehm einfach die 4 wichtigsten Bits des AT
+  // d.h. : FEC, CAR, EQU, und AGC2
+  front->sync=(lock&0xe0)>>5;
+  if(lock&0x08) // AGC2
+    front->sync|=0x08;
+  if(lock&0x06==0x06)
+    front->sync|=0x10; // FEL = FSYNC & CARLOCK
+  if(lock&0x10)
+    front->sync|=0x20; // Timing recovery lock (TIM)
+
+  dprintk("AT76C651: sync (lock): 0x%02x (0x%02x)\n", (int)front->sync, lock);
+//  front->sync=readreg(dclient, 0x80); // Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
   // AGC1 Lock fuer analog AGC ist hier immer 0, daher setzen wir das mal, wenn AGC2 (digital) 1 ist
-  if(front->sync&0x08)
-    front->sync|=0x04;
+//  if(front->sync&0x08)
+//    front->sync|=0x04;
 
 /* VES1820:
   front->type=FRONT_DVBC;
@@ -743,6 +762,7 @@ static int ves_get_unc_packet(u32 *uncp)
 //  at76c651_t *ves = (at76c651_t*)dclient->data;
   dprintk("AT76C651: ves_get_unc_packet\n");
   *uncp=readreg(dclient, 0x85);
+  dprintk("AT76C651: uncp: 0x%02x\n", (int)(*uncp));
   return 0;
 }
 
@@ -789,7 +809,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.16 2001/05/03 11:33:27 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.17 2001/05/03 22:16:20 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
