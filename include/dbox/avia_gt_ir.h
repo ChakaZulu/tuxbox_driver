@@ -77,4 +77,3 @@ extern int avia_gt_ir_init(void);
 extern void avia_gt_ir_exit(void);
 	    
 #endif
-	    
