@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.59  2002/02/08 20:52:30  Hunz
+ *   keyboard/mouse now work with SAGEM (and Phillips??) too :-)
+ *
  *   Revision 1.58  2002/02/08 00:28:59  Hunz
  *   mousepad-inputdev support / keyboard still raw (keyboard-inputdev support still sux :()
  *
@@ -188,7 +191,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.58 $
+ *   $Revision: 1.59 $
  *
  */
 
@@ -1216,7 +1219,11 @@ mouse codes:
 */
 static void fp_handle_mouse(struct fp_data *dev) {
   u16 mousecode=-1;
+
+if (info.fpREV>=0x80)
   fp_cmd(dev->client, 5, (u8*)&mousecode, 2);
+else
+  fp_cmd(dev->client, 0x2A, (u8*)&mousecode, 2);
 
 #ifdef CONFIG_INPUT_MODULE
   switch(mousecode&0x0F) {
@@ -1353,7 +1360,10 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	u16 scancode=-1;
 	unsigned char keycode=0;
 
-	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+        if (info.fpREV>=0x80)
+         fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+        else
+         fp_cmd(dev->client, 0x28, (u8*)&scancode, 2);
 	//	printk("keyboard scancode: %02x\n", scancode);
 
 #ifdef CONFIG_INPUT_MODULE
