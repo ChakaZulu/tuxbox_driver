@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.29  2002/04/25 22:10:38  Jolt
+ *   FB cleanup
+ *
  *   Revision 1.28  2002/04/25 21:09:02  Jolt
  *   Fixes/Cleanups
  *
@@ -129,7 +132,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.28 $
+ *   $Revision: 1.29 $
  *
  */
 
@@ -146,7 +149,6 @@
  */
 
 #define TCR_COLOR 0xFC0F
-#define BLEVEL		0x20
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -373,7 +375,7 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, str
     var->nonstd = 0;
     var->activate = 0;
     var->height = var->width - 1;
-    var->accel_flags=0;
+    var->accel_flags = 0;
   
     return 0;
     
@@ -405,8 +407,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   val=0;
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
-  val|=0<<20;                           // BLEV1 = 8/8
-  val|=2<<16;                           // BLEV2 = 2/8	-> BLEVEL
 
   rw(GMR)=val;
   
@@ -428,8 +428,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   enx_reg_16(VCR)=0x040|(1<<13);
   enx_reg_16(BALP)=0;
-  enx_reg_16(VHT)=857|0x5000;
-  enx_reg_16(VLT)=(623|(21<<11));
 
     enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
   //enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
@@ -439,8 +437,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_16(G1CFR)=1;
 	enx_reg_16(G2CFR)=1;
 
-  enx_reg_16(GBLEV1)=BLEVEL;
-  enx_reg_16(GBLEV2)=0;
         //enx_reg_16(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
 	enx_reg_32(GVSA1)=fb_info.offset; 	// dram start address
 	enx_reg_16(GVP1)=0;
@@ -472,9 +468,11 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	break;
 	
     }
-    
+
+    avia_gt_gv_set_blevel(0x5D, 0);
     avia_gt_gv_set_pos(0, 0);
     avia_gt_gv_set_input_size(720, 576);
+    
     avia_gt_gv_set_size(par->xres, par->yres);
     avia_gt_gv_show();
 
@@ -709,7 +707,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.28 2002/04/25 21:09:02 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.29 2002/04/25 22:10:38 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
 	

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.12  2002/04/25 22:10:38  Jolt
+ *   FB cleanup
+ *
  *   Revision 1.11  2002/04/25 21:09:02  Jolt
  *   Fixes/Cleanups
  *
@@ -55,7 +58,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -217,6 +220,23 @@ void avia_gt_gv_hide(void)
 	enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
     else if (avia_gt_chip(GTX))
 	gtx_reg_s(GMR)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+    
+}
+
+void avia_gt_gv_set_blevel(unsigned char class0, unsigned char class1)
+{
+
+    if (avia_gt_chip(ENX)) {
+    
+	enx_reg_s(GBLEV1)->BLEV10 = class0 * 0x80 / 0xFF;
+	enx_reg_s(GBLEV1)->BLEV11 = class1 * 0x80 / 0xFF;
+	
+    } else if (avia_gt_chip(GTX)) {
+
+	gtx_reg_s(GMR)->BLEV0 = class0 * 0x08 / 0xFF;
+	gtx_reg_s(GMR)->BLEV1 = class1 * 0x08 / 0xFF;
+
+    }    
     
 }
 
@@ -533,7 +553,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.11 2002/04/25 21:09:02 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.12 2002/04/25 22:10:38 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -615,6 +635,7 @@ void __exit avia_gt_gv_exit(void)
 #ifdef MODULE
 EXPORT_SYMBOL(avia_gt_gv_get_clut);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
+EXPORT_SYMBOL(avia_gt_gv_set_blevel);
 EXPORT_SYMBOL(avia_gt_gv_set_clut);
 EXPORT_SYMBOL(avia_gt_gv_set_input_mode);
 EXPORT_SYMBOL(avia_gt_gv_set_input_size);
