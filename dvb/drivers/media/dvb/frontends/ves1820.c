@@ -429,9 +429,9 @@ int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 static
 int probe_tuner (struct dvb_i2c_bus *i2c)
 {
-	static
+	static const
 	struct i2c_msg msg1 = { addr: 0x61, flags: 0, buf: NULL, len: 0 };
-	static
+	static const
 	struct i2c_msg msg2 = { addr: 0x62, flags: 0, buf: NULL, len: 0 };
 	int type;
 
