@@ -21,11 +21,14 @@
  *
  *
  *   $Log: avia_osd.c,v $
+ *   Revision 1.2  2001/02/22 22:49:08  gillem
+ *   - add functions
+ *
  *   Revision 1.1  2001/02/22 15:30:59  gillem
  *   - initial release
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -49,6 +52,7 @@
 #include <asm/uaccess.h>
 
 #include "dbox/avia.h"
+//#include "fontfix.h"
 
 /* ---------------------------------------------------------------------- */
 
@@ -100,6 +104,32 @@ typedef struct osd_frame {
 } osd_frame;
 
 /* ---------------------------------------------------------------------- */
+
+static void rgb2crycb( int r, int g, int b, int blend, u32 * pal )
+{
+	int cr,y,cb;
+
+	if(!pal)
+		return;
+
+	y  = ((257*r  + 504*g + 98*b)/1000 + 16)&0x7f;
+	cr = ((439*r  - 368*g - 71*b)/1000 + 128)&0x7f;
+	cb = ((-148*r - 291*g + 439*b)/1000 + 128)&0x7f;
+
+	*pal = (y<<16)|(cr<<9)|(cb<<2)|(blend&3);
+
+	printk("DATA: %d %d %d\n",cr,y,cb);
+
+/*
+Y   =   0.29900 * R + 0.58700 * G + 0.11400 * B
+Cb = -0.16874 * R - 0.33126 * G + 0.50000 * B  + CENTER
+Cr  =   0.50000 * R - 0.41869 * G - 0.08131 * B  + CENTER
+
+Y = 0.257R + 0.504G + 0.098B + 16
+Cr = 0.439R - 0.368G - 0.071B + 128
+Cb = -0.148R - 0.291G + 0.439B + 128
+*/
+}
 
 static int osd_create_frame( struct osd_frame * frame, int x, int y, \
 						int w, int h, int gbf, int pel )
@@ -153,7 +183,7 @@ static int osd_show_frame( struct osd_frame * frame, u32 * palette, \
 	frame->odd.bmsize2 = frame->even.bmsize2 = (bmsize&0x1ff);
 
 	frame->odd.palette = frame->even.palette = (osds+0x1000)>>2;
-	frame->odd.bmp = frame->even.bmp = (osds+0x1100)&(~3);
+	frame->odd.bmp = frame->even.bmp = (osds+0x1100)>>2;
 
 	/* copy header */
 	even = (u32*)&frame->even;
@@ -168,13 +198,13 @@ static int osd_show_frame( struct osd_frame * frame, u32 * palette, \
 	/* copy palette */
 	for(i=0;i<16;i++)
 	{
-		wDR( ((osds+0x1000)&(~3))+(i*4), palette[i] );
+		wDR( osds+0x1000+(i*4), palette[i] );
 	}
 
 	/* copy bitmap */
 	for(i=0;i<bmsize;i++)
 	{
-		wDR( osds+0x1100+(i*4), bitmap[i] );
+		wDR( ((osds+0x1100)&(~3))+(i*4), bitmap[i] );
 	}
 
 	/* enable osd */
@@ -191,27 +221,33 @@ static int init_avia_osd()
 	u32 i;
 	struct osd_frame frame;
 	u32 palette[16];
-	u32 bitmap[0x100];
+	static u32 bitmap[0x1000];
+	u32 pale;
 
 	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
 
 	wDR(OSD_BUFFER_IDLE_START,rDR(OSD_BUFFER_START));
 
-	osd_create_frame( &frame, 10, 10, 200, 200, 0x1f, 1 );
+	osd_create_frame( &frame, 150, 150, 400, 400, 0x1f, 1 );
 
-	/* set bitmap */
-	for(i=0;i<16;i++)
-	{
-		palette[i] = 0x00123456;
-	}
+	rgb2crycb( 100, 0, 0, 3, &pale );
+	palette[0] = pale;
+
+	rgb2crycb( 0, 100, 0, 3, &pale );
 
 	/* set palette */
-	for(i=0;i<0x100;i++)
+	for(i=1;i<16;i++)
 	{
-		bitmap[i] = 0x00000000;
+		palette[i] = pale;
 	}
 
-	osd_show_frame( &frame, palette, bitmap, 0x100 );
+	/* set bitmap */
+	for(i=0;i<0x1000;i++)
+	{
+		bitmap[i] = 0x1111;
+	}
+
+	osd_show_frame( &frame, palette, bitmap, 0x1000 );
 
 	printk("OSD: %08X\n",rDR(OSD_BUFFER_IDLE_START));
 	printk("OSD: %08X\n",rDR(OSD_BUFFER_START));
