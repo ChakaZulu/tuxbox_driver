@@ -126,7 +126,7 @@ typedef enum {
 	FE_HAS_LOCK       = 0x10,   /*  everything's working... */
 	FE_TIMEDOUT       = 0x20,   /*  no lock within the last ~2 seconds */
 	FE_REINIT         = 0x40    /*  frontend was reinitialized,  */
-} fe_status_t;                      /*  application is recommned to reset */
+} fe_status_t;                      /*  application is recommended to reset */
                                     /*  DiSEqC, tone and parameters */
 
 typedef enum {
