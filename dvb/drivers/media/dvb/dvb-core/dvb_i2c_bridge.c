@@ -1,5 +1,5 @@
 /*
- * $Id: dvb_i2c_bridge.c,v 1.1 2003/01/04 11:05:31 Jolt Exp $
+ * $Id: dvb_i2c_bridge.c,v 1.2 2003/01/04 11:08:25 Jolt Exp $
  *
  * DVB I2C bridge
  *
@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include "dvb_i2c.h"
 #include "dvb_i2c_bridge.h"
@@ -34,7 +35,9 @@ static struct i2c_client dvb_i2c_client;
 static int dvb_i2c_bridge_master_xfer(struct dvb_i2c_bus *i2c, const struct i2c_msg msgs[], int num)
 {
 
-	return adapter->algo->master_xfer((struct i2c_adapter *)i2c->data, (struct i2c_msg *)msgs, num);
+	struct i2c_adapter *adapter = (struct i2c_adapter *)i2c->data;
+
+	return adapter->algo->master_xfer(adapter, (struct i2c_msg *)msgs, num);
 
 }
 
