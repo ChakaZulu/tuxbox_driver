@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.12  2001/03/10 22:27:59  gillem
+ *   - remove avia settings
+ *
  *   Revision 1.11  2001/02/03 19:44:38  tmbinc
  *   Fixed double-buffering.
  *
@@ -53,7 +56,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -129,7 +132,7 @@ void pcm_reset()
   rw(PCMA) = 1;
 
   /* set volume for pcm and mpeg */
-  rw(PCMN) = 0x40404040;
+//  rw(PCMN) = 0x40404040;
 
   rh(PCMC) = 0;
 
@@ -162,6 +165,7 @@ void pcm_reset()
 
 void avia_audio_init()
 {
+/*
   u32 val;
 
   val = 0;
@@ -209,7 +213,8 @@ void avia_audio_init()
   wDR(0x468,val);
   while(rDR(0x468));
   printk("XXXX: %08X\n",rDR(0x468));
-  
+*/
+
   buffer_start=0x50000;
   buffer_end=  0x60000;
   buffer_size= 0x10000;
