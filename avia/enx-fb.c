@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx-fb.c,v $
+ *   Revision 1.4  2001/04/06 21:16:41  tmbinc
+ *   fixed some fb-bugs. Test on sagem, please.
+ *
  *   Revision 1.3  2001/03/29 03:58:24  tmbinc
  *   chaned enx_reg_w to enx_reg_h and enx_reg_d to enx_reg_w.
  *   Improved framebuffer.
@@ -31,7 +34,7 @@
  *   Revision 1.1  2001/03/03 00:25:23  Jolt
  *   initial version
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -59,10 +62,6 @@
 #include "dbox/enx.h"
 #include "fbgen.c"
 
-#define RES_X           720
-#define RES_Y           576
-
-
 #define VCR_SET_HP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<10))) | ((X&3)<<10))
 #define VCR_SET_FP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
 #define GVP_SET_SPP(X)   enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
@@ -73,13 +72,12 @@
 #define GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
-
 static unsigned char* enxmem;
 static unsigned char* enxreg;
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
-    RES_X, RES_Y, RES_X, RES_Y,         /* W,H, W, H (virtual) load xres,xres_virtual*/
+    720, 576, 720, 576,         /* W,H, W, H (virtual) load xres,xres_virtual*/
     0, 0,                               /* virtual -> visible no offset */
     16, 0,                              /* depth -> load bits_per_pixel */
     {10, 5, 0},                         /* ARGB 1555 */
@@ -301,25 +299,28 @@ static void enx_set_par(const void *fb_par, struct fb_info_gen *info)
   
   printk(KERN_ERR "setting parms.\n");
   
-	enx_reg_w(VBR)=(1<<24)|0x808080;	// some color
+	enx_reg_w(VBR)=0;
 	
-  enx_reg_h(VCR)=0x040;
-  enx_reg_h(VHT)=par->pal?857:851;
+  enx_reg_h(VCR)=0x040|(1<<13);
+  enx_reg_h(BALP)=0x7F7F;
+  enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
   enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+  enx_reg_h(VAS)=par->pal?63:58;
 
 	val=0;
-  if (par->lowres)
-    val|=1<<31;
+	if (par->lowres)
+		val|=1<<31;
 
-  if (!par->pal)
-    val|=1<<28;                         // NTSC square filter. TODO: do we need this?
+	if (!par->pal)
+		val|=1<<30;                         // NTSC square filter. TODO: do we need this?
 
-  if (!par->interlaced)
-    val|=1<<29;
+	if (!par->interlaced)
+		val|=1<<29;
+
+	val|=1<<28;
 
   val|=1<<26;                           // chroma filter. evtl. average oder decimate, bei text
   		// TCR noch setzen!
-
   switch (par->bpp)
   {
 	case 4:
@@ -331,18 +332,35 @@ static void enx_set_par(const void *fb_par, struct fb_info_gen *info)
 	case 32:
 		val|=7<<20; break;
   }
-
+	
   val|=par->stride;
 
+	enx_reg_h(P1VPSA)=0;
+	enx_reg_h(P2VPSA)=0;
+	enx_reg_h(P1VPSO)=0;
+	enx_reg_h(P2VPSO)=0;
+	enx_reg_h(VMCR)=0;
+	enx_reg_h(G1CFR)=1;
+	enx_reg_h(G2CFR)=1;
+		
 	enx_reg_w(GMR1)=val;
-  enx_reg_h(GBLEV1)=0;
-  enx_reg_h(GBLEV2)=0x7F7F;
+	enx_reg_w(GMR2)=0;
+	printk("GMR1: %08x\n", val);
+  enx_reg_h(GBLEV1)=0x0000;
+  enx_reg_h(GBLEV2)=0;
 //JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
 	enx_reg_w(GVSA1)=fb_info.offset; 			// dram start address
-	memset(fb_info.videobase, 0x7A, 2*1024*1024);
 	enx_reg_h(GVP1)=0;
 
   GVP_SET_COORD(70,43);                 // TODO: NTSC?
+  for (val=0; val<576; val++)
+  {
+  	int x;
+	  for (x=0; x<720; x++)
+	  {
+	  	((__u16*)enxmem)[val*720+x]=0x7FFF;
+	  }
+  }
 
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
@@ -398,7 +416,7 @@ static int enx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   
   enx_reg_h(CLUTA)=regno;
   mb();
-	enx_reg_w(CLUTD)=(transp<<24)|(red<<16)|(green<<8)|(blue);
+	enx_reg_w(CLUTD)=(transp<<24)|(blue<<16)|(green<<8)|(red);
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
     fbcon_cfb16_cmap[regno]=(transp<<15)|(red<<10)|(green<<5)|(blue);
@@ -416,7 +434,7 @@ static void enx_set_disp(const void *fb_par, struct display *disp,
                          struct fb_info_gen *info)
 {
   struct enxfb_par *par=(struct enxfb_par *)fb_par;
-   
+
   disp->screen_base=(char*)fb_info.videobase;
   switch (par->bpp)
   {
