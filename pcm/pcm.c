@@ -1,6 +1,8 @@
 /*
  *   pcm.c - pcm driver for gtx (dbox-II-project)
  *
+ *   Homepage: http://dbox2.elxsi.de
+ *
  *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -18,12 +20,14 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.5  2001/01/06 10:07:10  gillem
+ *   cvs check
+ *
  *   Revision 1.4  2001/01/06 09:55:09  gillem
  *   cvs check
  *
  *
- *   $Revision: 1.4 $
- *
+ *   $Revision: 1.5 $
  *
  */
 
