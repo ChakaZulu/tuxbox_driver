@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.40  2002/12/28 21:01:15  obi
+ *   - fix mmio offset
+ *   - set accelerator id
+ *
  *   Revision 1.39  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -168,7 +172,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.39 $
+ *   $Revision: 1.40 $
  *
  */
 
@@ -318,14 +322,17 @@ static int avia_gt_fb_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_p
 	fix->line_length = par->stride;
 	fix->smem_start = (unsigned long)fb_info.pvideobase;
 	fix->smem_len = 1024 * 1024;			    // fix->line_length*par->yres;
-	fix->mmio_start = (unsigned long)fb_info.pvideobase;
-	fix->mmio_len = 0x410000;   // ?????
+	fix->mmio_start = (unsigned long)fb_info.pvideobase + 0x400000;
+	fix->mmio_len = 0x10000;
 
 	fix->xpanstep = 0;
 	fix->ypanstep = 0;
 	fix->ywrapstep = 0;
 
-	fix->accel = 0;
+	if (avia_gt_chip(GTX))
+		fix->accel = FB_ACCEL_CCUBE_AVIA_GTX;
+	else if (avia_gt_chip(ENX))
+		fix->accel = FB_ACCEL_CCUBE_AVIA_ENX;
 
 	return 0;
 
@@ -335,7 +342,7 @@ static int avia_gt_fb_decode_var(const struct fb_var_screeninfo *var, void *fb_p
 {
 
 	struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
-	int yres = (int)0;
+	int yres = 0;
 
 	if ((var->bits_per_pixel != 4) && (var->bits_per_pixel != 8) && (var->bits_per_pixel != 16))
 		return -EINVAL;
@@ -692,7 +699,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.39 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.40 2002/12/28 21:01:15 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
