@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.27 2002/06/28 22:08:09 Hunz Exp $
+    $Id: at76c651.c,v 1.28 2002/07/07 20:30:02 Hunz Exp $
 
     AT76C651  - DVB frontend driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.28  2002/07/07 20:30:02  Hunz
+    2. patch von dumdidum
+
     Revision 1.27  2002/06/28 22:08:09  Hunz
     patch von dumdidum
 
@@ -318,13 +321,13 @@ static int set_tuner_dword(struct i2c_client *client, u32 tw)
 static int tuner_set_freq(struct i2c_client *client, int freq)
 {
 	u32 dw=0;
-	if (freq>394000 & freq<=810000) dw+=0x16e28e85;
-	else if (freq>=178000 & freq<=394000) dw+=0x0D628e06;
+	if ((freq>=42000) & (freq<=810000)) dw+=0x04e28e06;
+	if (freq>394000) dw+=0x0000007F;
 	if (dw) {
 	    // Rechne mal wer
 	    // unsigned dw=0x17e28e06+(freq-346000000UL)/8000000UL*0x800000;
 	    freq=freq/1000;
-	    freq-=178;
+	    freq-=42;
 	    freq/=8;
 	    freq*=0x800000;
 	    dw+=freq;
@@ -661,7 +664,7 @@ static int detach_client(struct i2c_client *client)
 int init_module(void) {
 	int res;
 
-	dprintk("AT76C651: $Id: at76c651.c,v 1.27 2002/06/28 22:08:09 Hunz Exp $\n");
+	dprintk("AT76C651: $Id: at76c651.c,v 1.28 2002/07/07 20:30:02 Hunz Exp $\n");
 	if ((res = i2c_add_driver(&dvbt_driver)))
 	{
 		printk("AT76C651: Driver registration failed, module not inserted.\n");
