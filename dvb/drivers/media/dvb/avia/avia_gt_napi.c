@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.186 2003/09/11 22:43:06 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.187 2003/09/11 23:22:48 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -690,8 +690,9 @@ static struct file_operations avia_gt_napi_ecd_fops = {
 };
 
 static struct dvb_device avia_gt_napi_ecd_dev = {
-	.priv = 0,
+	.priv = NULL,
 	.users = ~0,
+	.readers = ~0,
 	.writers = 1,
 	.fops = &avia_gt_napi_ecd_fops,
 	.kernel_ioctl = avia_gt_napi_ecd_ioctl,
@@ -702,7 +703,7 @@ int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.186 2003/09/11 22:43:06 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.187 2003/09/11 23:22:48 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

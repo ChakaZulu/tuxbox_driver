@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.23 2003/09/11 22:46:33 obi Exp $
+ * $Id: avia_av_napi.c,v 1.24 2003/09/11 23:22:48 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -610,8 +610,9 @@ static struct file_operations avia_av_napi_video_fops = {
 };
 
 static struct dvb_device avia_av_napi_video_dev = {
-	.priv = 0,
-	.users = 1,
+	.priv = NULL,
+	.users = ~0,
+	.readers = ~0,
 	.writers = 1,
 	.fops = &avia_av_napi_video_fops,
 	.kernel_ioctl = avia_av_napi_video_ioctl,
@@ -627,8 +628,9 @@ static struct file_operations avia_av_napi_audio_fops = {
 };
 
 static struct dvb_device avia_av_napi_audio_dev = {
-	.priv = 0,
-	.users = 1,
+	.priv = NULL,
+	.users = ~0,
+	.readers = ~0,
 	.writers = 1,
 	.fops = &avia_av_napi_audio_fops,
 	.kernel_ioctl = avia_av_napi_audio_ioctl,
@@ -638,7 +640,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.23 2003/09/11 22:46:33 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.24 2003/09/11 23:22:48 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

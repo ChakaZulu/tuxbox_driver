@@ -1,5 +1,5 @@
 /*
- * $Id: cam_napi.c,v 1.6 2003/08/13 17:14:20 obi Exp $
+ * $Id: cam_napi.c,v 1.7 2003/09/11 23:22:47 obi Exp $
  *
  * Copyright (C) 2002, 2003 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -125,7 +125,8 @@ static struct file_operations cam_napi_fops = {
 
 static struct dvb_device cam_napi_dev = {
 	.priv = NULL,
-	.users = 1,
+	.users = ~0,
+	.readers = ~0,
 	.writers = 1,
 	.fops = &cam_napi_fops,
 	.kernel_ioctl = cam_napi_ioctl,
@@ -135,7 +136,7 @@ int cam_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "$Id: cam_napi.c,v 1.6 2003/08/13 17:14:20 obi Exp $\n");
+	printk(KERN_INFO "$Id: cam_napi.c,v 1.7 2003/09/11 23:22:47 obi Exp $\n");
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0)
 		printk("cam_napi: cam_napi_register failed (errno = %d)\n", result);
