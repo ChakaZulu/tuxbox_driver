@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.17  2002/09/15 18:06:26  Jolt
+ *   Cleanup
+ *
  *   Revision 1.16  2002/09/02 20:56:06  Jolt
  *   - HW section fix (GTX)
  *   - DMX/NAPI cleanups
@@ -133,7 +136,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -159,29 +162,8 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-#include <linux/proc_fs.h>
 
 #include "dbox/avia_gt.h"
-
-/* ---------------------------------------------------------------------- */
-
-#ifdef CONFIG_PROC_FS
-
-static int avia_gt_gtx_proc_init(void);
-static int avia_gt_gtx_proc_cleanup(void);
-
-static int avia_gt_gtx_read_bus(char *buf, char **start, off_t offset, int len, int *eof , void *private);
-static int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long count, void *data);
-static int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof , void *private);
-
-static int avia_gt_gtx_proc_state = (int)0;
-
-#else /* undef CONFIG_PROC_FS */
-
-#define avia_gt_gtx_proc_init() 0
-#define avia_gt_gtx_proc_cleanup() 0
-
-#endif /* CONFIG_PROC_FS */
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
@@ -307,7 +289,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.16 2002/09/02 20:56:06 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.17 2002/09/15 18:06:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -333,8 +315,6 @@ void avia_gt_gtx_init(void)
 
 	memset (gt_info->mem_addr, 0xFF, GTX_MEM_SIZE);	  // clear ram
 
-	avia_gt_gtx_proc_init ();
-
 	gtx_reg_set(CR0, DOD, 0);	// DAC Output Disable (0: enable)
 	gtx_reg_set(CR0, _16M, 1);	// 16 Mbit DRAM Select (1: 16 Mbit)
 	gtx_reg_set(CR0, DD1, 0);	// Delay DTACK (2 clocks delay)
@@ -350,8 +330,6 @@ void avia_gt_gtx_init(void)
 
 void avia_gt_gtx_exit(void)
 {
-
-	avia_gt_gtx_proc_cleanup();
 
 	avia_gt_gtx_close_interrupts();
 
@@ -370,153 +348,3 @@ void avia_gt_gtx_exit(void)
 	//gtx_reg_16(RR0) |= (1<<10);
 
 }
-
-#ifdef CONFIG_PROC_FS
-int avia_gt_gtx_proc_init(void)
-{
-
-	struct proc_dir_entry	*proc_bus_gtx			= (struct proc_dir_entry *)NULL;
-	struct proc_dir_entry	*proc_bus_gtx_reg	= (struct proc_dir_entry *)NULL;
-
-	avia_gt_gtx_proc_state = 0;
-
-	if (!proc_bus) {
-
-		printk("avia_gt_gtx: /proc/bus does not exist");
-
-		return -ENOENT;
-
-	}
-
-	proc_bus_gtx = create_proc_entry("gtx", S_IRUGO | S_IFREG, proc_bus);
-
-	if (!proc_bus_gtx) {
-
-		printk("avia_gt_gtx: could not create /proc/bus/gtx");
-
-		return -ENOENT;
-
-	}
-
-	proc_bus_gtx->read_proc = &avia_gt_gtx_read_bus;
-	proc_bus_gtx->write_proc = &avia_gt_gtx_write_bus;
-	proc_bus_gtx->owner = THIS_MODULE;
-	avia_gt_gtx_proc_state = 1;
-
-	proc_bus_gtx_reg = create_proc_entry("gtx-reg", S_IRUGO | S_IFREG, proc_bus);
-
-	if (!proc_bus_gtx_reg) {
-
-		printk("avia_gt_gtx: could not create /proc/bus/gtx-reg");
-
-		return -ENOENT;
-
-	}
-
-	proc_bus_gtx_reg->read_proc = &avia_gt_gtx_reg_read_bus;
-	proc_bus_gtx_reg->owner = THIS_MODULE;
-	avia_gt_gtx_proc_state = 2;
-
-	return 0;
-
-}
-
-int avia_gt_gtx_read_bus(char *buf, char **start, off_t offset, int len, int *eof, void *private)
-{
-
-	if (offset < 0)
-		return -EINVAL;
-
-	if (len < 0)
-		return -EINVAL;
-
-	if (offset > 2048)
-		return -EINVAL;
-
-	if (offset + len > 2048)
-		len = 2048 - offset;
-
-	memcpy(buf, gt_info->reg_addr + 0x1000 + offset, len);
-
-	return len;
-
-}
-
-int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long count, void *data)
-{
-
-	return -EPERM;
-
-}
-
-int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof, void *private)
-{
-
-	unsigned int	 hi		= (unsigned int)0;
-	unsigned int	 lo		= (unsigned int)0;
-	int						 nr		= (int)0;
-
-	nr += sprintf(buf+nr, "GTX-Control-Register:\n");
-	nr += sprintf(buf+nr, "RR0:  %04X\n", gtx_reg_16(RR0));
-	nr += sprintf(buf+nr, "RR1:  %04X\n", gtx_reg_16(RR1));
-	nr += sprintf(buf+nr, "CR0:  %04X\n", gtx_reg_16(CR0));
-	nr += sprintf(buf+nr, "CR1:  %04X\n", gtx_reg_16(CR1));
-	nr += sprintf(buf+nr, "COCR: %04X\n", gtx_reg_16(C0CR));
-	nr += sprintf(buf+nr, "C1CR: %04X\n", gtx_reg_16(C1CR));
-
-		hi = (gtx_reg_16(STCC2) << 16) | gtx_reg_16(STCC1);
-		lo = (gtx_reg_16(STCC0) & 0x81FF);
-
-	nr += sprintf(buf+nr, "GTX-Clock-Register:\n");
-	nr += sprintf(buf+nr, "STC:  %08X:%04X\n", hi, lo);
-
-		hi = (gtx_reg_16(LSTC2) << 16) | gtx_reg_16(LSTC1);
-		lo = (gtx_reg_16(LSTC0) & 0x81FF);
-
-	nr += sprintf(buf+nr, "LSTC: %08X:%04X\n", hi, lo);
-
-		hi = (gtx_reg_16(PCR2) << 16) | gtx_reg_16(PCR1);
-		lo = (gtx_reg_16(PCR0) & 0x81FF);
-
-	nr += sprintf(buf+nr, "PCR:  %08X:%04X\n", hi, lo);
-
-	nr += sprintf(buf+nr, "GTX-Teletext-Register:\n");
-	nr += sprintf(buf+nr, "PTS0: %04X\n", gtx_reg_16(PTS0));
-	nr += sprintf(buf+nr, "PTS1: %04X\n", gtx_reg_16(PTS1));
-	nr += sprintf(buf+nr, "TTCR: %04X\n", gtx_reg_16(TTCR));
-	nr += sprintf(buf+nr, "TTSR: %04X\n", gtx_reg_16(TSR));
-
-	nr += sprintf(buf+nr, "GTX-Queue-Register:\n");
-	nr += sprintf(buf+nr, "TQP(R/W): %04X:%04X %04X:%04X\n", gtx_reg_16(TQRPH), gtx_reg_16(TQRPL), gtx_reg_16(TQWPH), gtx_reg_16(TQWPL));
-	nr += sprintf(buf+nr, "AQP(R/W): %04X:%04X %04X:%04X\n", gtx_reg_16(AQRPH), gtx_reg_16(AQRPL), gtx_reg_16(AQWPH), gtx_reg_16(AQWPL));
-	nr += sprintf(buf+nr, "VQP(R/W): %04X:%04X %04X:%04X\n", gtx_reg_16(VQRPH), gtx_reg_16(VQRPL), gtx_reg_16(VQWPH), gtx_reg_16(VQWPL));
-
-	return nr;
-
-}
-
-int avia_gt_gtx_proc_cleanup(void)
-{
-
-	if (avia_gt_gtx_proc_state == 2)
-	{
-		remove_proc_entry ("gtx-reg", proc_bus);
-		avia_gt_gtx_proc_state--;
-	}
-
-	if (avia_gt_gtx_proc_state == 1)
-	{
-		remove_proc_entry ("gtx", proc_bus);
-		avia_gt_gtx_proc_state--;
-	}
-
-	if (avia_gt_gtx_proc_state != 0)
-	{
-		printk("avia_gt_gtx: proc cleanup failed\n");
-		return -1;
-	}
-
-	return 0;
-
-}
-#endif /* CONFIG_PROC_FS */
