@@ -433,12 +433,10 @@ fe_tune(dvb_front_t *fe)
 
 	/* if inversion is AUTO and demod cannot handle it, set spc_inv to OFF */
         fe->spc_inv = new_param->Inversion;
-#if 0
 	if (fe->spc_inv == INVERSION_AUTO) 
 		if (fe->demod_type==DVB_DEMOD_STV0299 ||
 		    fe->demod_type==DVB_DEMOD_VES1820)
 			fe->spc_inv = INVERSION_OFF;
-#endif
 			
         fe->tuning=FE_STATE_ZIGZAG;
 	switch (fe->type) {
