@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.41 $
+ *   $Revision: 1.42 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.42  2001/04/24 17:54:14  tmbinc
+ *   fixed 188bytes-on-callback bug
+ *
  *   Revision 1.41  2001/04/22 13:56:35  tmbinc
  *   other philips- (and maybe sagem?) fixes
  *
@@ -179,8 +182,12 @@ static unsigned char* gtxreg;
 
 
 #ifdef ENX
+#undef rh
+#undef rw
 #define enx_dmx
 #else
+#undef enx_reg_w
+#undef enx_reg_h
 #define gtx_dmx
 #endif
 
@@ -422,6 +429,19 @@ void gtx_set_queue_rptr(int queue, u32 read)
 #endif  
 }
 
+void gtx_set_system_queue_wptr(int queue, u32 write)
+{
+#ifdef enx_dmx
+  int base=queue*8+0x8E0;
+	enx_reg_h(base+4)=write&0xFFFF;
+	enx_reg_h(base+6)=((write>>16)&63)|(enx_reg_h(base+6)&~63);
+#else
+  int base=queue*8+0x1E0;
+	rhn(base+4)=write&0xFFFF;
+	rhn(base+6)=((write>>16)&63)|(rhn(base+6)&~63);
+#endif  
+}
+
 void gtx_reset_queue(gtx_demux_feed_t *feed)
 {
 	int rqueue;
@@ -440,7 +460,8 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 	default:
 		return;
 	}
-	gtx_set_queue_rptr(rqueue, gtx_get_queue_wptr(feed->index));
+//	gtx_set_system_queue_wptr(feed->index, feed->readptr);
+	gtx_set_queue_rptr(rqueue, feed->readptr);
 }
 
 static __u32 datamask=0;
@@ -462,7 +483,7 @@ static void gtx_queue_interrupt(int nr, int bit)
 	}
 #else
   int queue=(nr-2)*16+bit;
-#endif  
+#endif
   datamask|=1<<queue;
   wantirq++;
 
@@ -716,6 +737,7 @@ int gtx_dmx_init(void)
   printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
   if (!enx_reg_h(FIFO_PDCT))
   	printk("there MIGHT be no TS :(\n");
+
 #else
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
   rh(RR1)|=1<<6;
@@ -828,7 +850,6 @@ static void gtx_task(void *data)
         {
           int wptr;
           int rptr;
-          static int lastw, lastr;
         
           __u8 *b1, *b2;
           size_t b1l, b2l;
@@ -850,6 +871,36 @@ static void gtx_task(void *data)
             b2l=wptr-gtx->feed[queue].base;
           }
           
+					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
+					{
+						int rlen=b1l+b2l;
+						if (*b1 != 0x47)
+						{
+							printk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
+							gtx->feed[queue].readptr=wptr;
+							continue;
+						}
+						rlen-=rlen%188;
+						if (!rlen)
+						{
+							printk("this SHOULDN'T happen (tm) (incomplete packet)\n");
+							continue;
+						}
+						if (rlen<=b1l)
+						{
+							b1l=rlen;
+							b2l=0;
+							gtxfeed->readptr=rptr+b1l;
+							if (gtxfeed->readptr==gtxfeed->end)
+								gtxfeed->readptr=gtxfeed->base;
+						} else
+						{
+							b2l=rlen-b1l;
+							gtxfeed->readptr=gtxfeed->base+b2l;
+						}
+					}	else
+						gtx->feed[queue].readptr=wptr;
+					
           switch (gtx->feed[queue].type)
           {
 						// handle TS
@@ -963,8 +1014,6 @@ static void gtx_task(void *data)
 	                	p+=tsbuf[p]+1;
 									}
 
-                	dprintk("gtx_dmx: special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
-
 									if (p>188)
 									{
 										dprintk("HEXDUMP START:\n");
@@ -1001,9 +1050,6 @@ static void gtx_task(void *data)
 
 					} // switch end
 
-          gtxfeed->readptr=wptr;
-          lastw=wptr;
-          lastr=rptr;
 	      }
 	    }
 		datamask&=~(1<<queue);
@@ -1665,4 +1711,3 @@ void cleanup_module(void)
 EXPORT_SYMBOL(cleanup_module);
 
 #endif
-
