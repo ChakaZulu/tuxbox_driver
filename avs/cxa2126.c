@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.14  2001/04/28 00:46:08  fnbrd
+ *   Default auf Scart-TV.
+ *
  *   Revision 1.13  2001/04/25 08:05:22  fnbrd
  *   Debugausgabe raus.
  *
@@ -61,7 +64,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -140,6 +143,21 @@ static struct s_cxa2126_data cxa2126_data;	/* current settings */
 
 int cxa2126_set(struct i2c_client *client)
 {
+/*
+int i;
+((unsigned char*)&cxa2126_data)[0]=0x00;
+//((unsigned char*)&cxa2126_data)[0]=0x01;
+((unsigned char*)&cxa2126_data)[1]=0x00;
+((unsigned char*)&cxa2126_data)[2]=0x80;
+((unsigned char*)&cxa2126_data)[3]=0x00;
+((unsigned char*)&cxa2126_data)[4]=0x0e;
+((unsigned char*)&cxa2126_data)[5]=0x2f;
+((unsigned char*)&cxa2126_data)[6]=0x00;
+dprintk("CXA2126: write ");
+for(i=0; i<CXA2126_DATA_SIZE; i++)
+  dprintk("%02x ", (unsigned)((unsigned char*)&cxa2126_data)[i]);
+dprintk("\n");
+*/
 	if ( CXA2126_DATA_SIZE != i2c_master_send(client, (char*)&cxa2126_data, CXA2126_DATA_SIZE))
 	{
 		return -EFAULT;
@@ -480,6 +498,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 int cxa2126_init(struct i2c_client *client)
 {
 
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.14 2001/04/28 00:46:08 fnbrd Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
@@ -490,7 +509,7 @@ int cxa2126_init(struct i2c_client *client)
     cxa2126_data.vo2on = 1;
     cxa2126_data.vo1on = 1;
 
-    cxa2126_data.asw1 = 1;
+    cxa2126_data.asw1 = 0;
     cxa2126_data.vsw1 = 0;
 
     return cxa2126_set(client);
