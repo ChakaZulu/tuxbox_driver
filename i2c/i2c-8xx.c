@@ -19,6 +19,9 @@
  *
  *
  *   $Log: i2c-8xx.c,v $
+ *   Revision 1.22  2002/10/29 11:34:05  Jolt
+ *   DVB I2C support
+ *
  *   Revision 1.21  2002/10/29 11:21:24  Jolt
  *   Pre NAPI changes
  *
@@ -50,7 +53,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -471,7 +474,7 @@ static int parse_recv_msg( unsigned char address, unsigned short size,
 
 /* ------------------------------------------------------------------------- */
 
-static int xfer_8xx(struct i2c_adapter *i2c_adap,
+int i2c_dbox2_xfer(struct i2c_adapter *i2c_adap,
 		    struct i2c_msg msgs[], int num)
 {
 	unsigned long flags;
@@ -639,7 +642,7 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 
 /* ------------------------------------------------------------------------- */
 
-static int xfer_8xx_safe(struct i2c_adapter *i2c_adap,
+static int i2c_dbox2_xfer_safe(struct i2c_adapter *i2c_adap,
 		    struct i2c_msg msgs[], int num)
 {
 
@@ -651,7 +654,7 @@ static int xfer_8xx_safe(struct i2c_adapter *i2c_adap,
 
 	}
 	
-	return xfer_8xx(i2c_adap, msgs, num);
+	return i2c_dbox2_xfer(i2c_adap, msgs, num);
 	
 }
 
@@ -673,7 +676,7 @@ static u32 p8xx_func(struct i2c_adapter *adap)
 static struct i2c_algorithm i2c_8xx_algo = {
 	"PowerPC 8xx Algo",
 	I2C_ALGO_EXP,		/* vorerst */
-	xfer_8xx_safe,
+	i2c_dbox2_xfer_safe,
 	NULL,
 	NULL,				/* slave_xmit		*/
 	NULL,				/* slave_recv		*/
