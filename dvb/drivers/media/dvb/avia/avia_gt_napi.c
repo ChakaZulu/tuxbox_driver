@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.139 $
+ *   $Revision: 1.140 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.140  2002/10/07 23:12:40  Jolt
+ *   Bugfixes
+ *
  *   Revision 1.139  2002/10/07 21:13:25  Jolt
  *   Cleanups / Fixes
  *
@@ -1029,7 +1032,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 		switch (gtxfeed->type) {
 
 			case DMX_TYPE_TS:
-
+			
 				buf_len = queue_info->bytes_avail(queue_nr);
 				
 				need_payload = 0;
@@ -1065,7 +1068,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					return;
 
 				buf_len -= buf_len % 188;
-					
+				
 				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 
 					if ((gtx->feed[i].state == DMX_STATE_GO) &&
@@ -1214,6 +1217,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 			break;
 
 			case DMX_TYPE_PES:
+			
+				payload_len = queue_info->bytes_avail(queue_nr);
 
 				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 
@@ -1221,20 +1226,22 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						(gtx->feed[i].pid == gtxfeed->pid) &&
 						(gtx->feed[i].type == DMX_TYPE_PES)) {
 
-						if ((queue->read_pos + buf_len) > queue->size) {
+						if ((queue->read_pos + payload_len) > queue->size) {
 
 							chunk1 = queue->size - queue->read_pos;
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
 
 						} else {
 
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
 
 						}
 						
 					}
 					
 				}
+				
+				queue->read_pos = queue->write_pos;
 			
 			break;
 
@@ -1543,8 +1550,12 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->wait_pusi = 0;	// right?
 
 #ifndef AVIA_SPTS
-	if ((gtxfeed->output & TS_DECODER) && (gtxfeed->pes_type != DMX_TS_PES_TELETEXT))
+	if ((gtxfeed->output & TS_DECODER) && (gtxfeed->pes_type != DMX_TS_PES_TELETEXT)) {
+	
 		gtxfeed->output |= TS_PAYLOAD_ONLY;	 // weil: wir haben dual-pes
+		gtxfeed->type = DMX_TYPE_PES;
+		
+	}
 #endif
 
 	if (gtxfeed->output & TS_PAYLOAD_ONLY)
@@ -2143,7 +2154,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.139 2002/10/07 21:13:25 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.140 2002/10/07 23:12:40 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
