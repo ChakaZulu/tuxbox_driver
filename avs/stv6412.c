@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.19  2002/04/22 05:51:02  happydude
+ *   fix AVSIOGFNC
+ *
  *   Revision 1.18  2002/03/03 06:43:19  gillem
  *   - fix mute flag
  *
@@ -74,7 +77,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -526,7 +529,7 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
                                 val = stv6412_get_fblk();
                                 break;
 			/* get slow blanking (tv) */
-			case AVSIOSFNC:
+			case AVSIOGFNC:
 				val = stv6412_get_t_sb();
 				break;
 			/* get status */
