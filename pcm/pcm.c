@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.13  2001/11/26 23:07:30  Terminar
+ *   implemented more ioctls - pcm Termina'ted' ;)
+ *
  *   Revision 1.12  2001/03/10 22:27:59  gillem
  *   - remove avia settings
  *
@@ -56,7 +59,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -90,10 +93,11 @@
 #define PCM_PF_INTR_BIT       10
 #define PCM_AD_INTR_BIT       12
 
-void pcm_reset(void);
-void pcm_dump_reg(void);
-
-void avia_audio_init(void);
+//just debug stuff
+//#define PCM_DEBUG 1
+//#define PCM_FORCE_11025 1
+//#define PCM_FORCE_MONO 1
+//#define PCM_FORCE_8BIT 1
 
 static wait_queue_head_t pcm_wait;
 
@@ -102,22 +106,110 @@ MODULE_AUTHOR("Gillem <htoa@gmx.net>");
 MODULE_DESCRIPTION("GTX-PCM Driver");
 #endif
 
-struct pcm_state {
-  /* soundcore stuff */
-  int dev_audio;
-  int dev_mixer;
-};
 
 struct pcm_state s;
+struct pcm_data pcm;
 
 static unsigned char *gtxmem, *gtxreg;
 static int buffer_start, buffer_size, buffer_end, buffer_wptr, buffer_rptr, buffer_playptr;
 static int underrun=0;
 
+
+int pcm_setfmt(int fmt)
+{
+    printk("setformat %d\n",fmt);
+
+    if (fmt != AFMT_QUERY)
+    {
+    
+        switch(fmt)
+        {
+
+            case AFMT_U8: //8 on pcm_write_bits
+                printk("set unsigned 8bit\n");
+                rh(PCMC) &= ~(1<<11);       //unsigned
+                rh(PCMC) &= ~(1<<13);       //8bit
+                pcm.sign = 0;
+                pcm.bits = 8;
+                pcm.fmt = AFMT_U8;
+                break;
+
+            default:    
+                printk("set default for %d\n",fmt);
+#ifndef PCM_FORCE_8BIT
+            case AFMT_S16_LE: //16 bit signed little endian, 16 on pcm_write_bits
+                printk("set signed 16bit little endian\n");
+                rh(PCMC) |= (1<<11);       //signed
+                rh(PCMC) |= (1<<13);       //16bit
+                pcm.sign = 1;
+                pcm.bits = 16;
+                pcm.fmt = AFMT_S16_LE;
+                break;
+#endif
+        }
+    }
+    else
+    {
+        printk("got afmt_query\n");
+    }
+
+    return(pcm.fmt);    
+}
+
+
+void printbin(unsigned long num, int size)
+{
+	int i;
+
+	for (i = size - 1; i >= 0; i--) {
+            if (  ((i+1)  % 4 ) == 0)
+            {
+                printk(" %u",((1<<i) & num) ? 1 : 0);
+            } else
+            {
+                printk("%u",((1<<i) & num) ? 1 : 0);
+            }
+	}
+        
+        printk("\n");
+}
+
+void pcm_dump_reg()
+{
+  printk("pcm dump reg\n");
+  printk("PCMA: %08lX\n",rw(PCMA));
+  printbin(rw(PCMA),32);
+  printk("PCMN: %08lX\n",rw(PCMN));
+  printbin(rw(PCMN),32);
+  printk("PCMC: %04X\n",rh(PCMC));
+  printbin(rh(PCMC),32);
+  printk("PCMD: %08lX\n",rw(PCMD));
+  printbin(rw(PCMD),32);
+}
+
+void avia_dump_reg()
+{
+  printk("avia dump reg\n");
+  printk("0XE0: %08X\n",rDR(0xE0));
+  printbin(rDR(0xe0),32);
+  printk("0XE8: %08X\n",rDR(0xE8));
+  printbin(rDR(0xe8),32);
+  printk("0XEC: %08X\n",rDR(0xEC));
+  printbin(rDR(0xec),32);
+  printk("0XF4: %08X\n",rDR(0xF4));	
+  printbin(rDR(0xf4),32);
+}
+
 /* reset pcm register on gtx */
 void pcm_reset()
 {
   int cr;
+
+#ifdef PCM_DEBUG
+  printk("pcm-reset-start\n");
+  avia_dump_reg();
+  pcm_dump_reg();
+#endif
 
   /* enable pcm on gtx */
   cr=rh(CR0);
@@ -125,50 +217,82 @@ void pcm_reset()
   rh(CR0)=cr;
 
   /* reset aclk  and pcm*/
-  rh(RR0) |= 0x1200;
-  rh(RR0) &= ~0x1200;
+//  rh(RR0) |= 0x1200;
+//  rh(RR0) &= ~0x1200;
   
   /* buffer disable */
-  rw(PCMA) = 1;
+  rw(PCMA) |= 1;
 
   /* set volume for pcm and mpeg */
-//  rw(PCMN) = 0x40404040;
+  rw(PCMN) = 0x40404040;
 
-  rh(PCMC) = 0;
+  rh(PCMC) |= 0;
 
   /* enable PCM frequ. same MPEG */
-  rh(PCMC) |= (3<<14);
+  //rh(PCMC) |= (3<<14);
+  rh(PCMC) &= ~(3<<14);
+  rh(PCMC) |= (1<<14);
+  pcm.rate = 11025;
 
   /* 16 bit mode */
-  rh(PCMC) |= (1<<13);
+  rh(PCMC) &= ~(1<<13);
+  pcm.bits = 8;
 
   /* stereo */
-  rh(PCMC) |= (1<<12);
+    rh(PCMC) &= ~(1<<12);
+    pcm.channels = 1;
 
-  /* signed samples */  
-  rh(PCMC) |= (1<<11);
+  /* unsigned samples */  
+  rh(PCMC) &= ~(1<<11);
+  pcm.sign = 0;
+
+//TODO: setfmt
+    pcm_setfmt(AFMT_U8);
+    
   
   /* !!! ACLK NOT WORK !!! */
 
   /* clock from aclk */
-  rh(PCMC) &= ~(0<<6);  // 0: use external (avia) clock
+//  rh(PCMC) &= ~(0<<6);  // 0: use external (avia) clock <-- bug!
+    rh(PCMC) |= (1<<6);
 
   /* set adv */
-  rh(PCMC) |= 0;
+//  rh(PCMC) |= 0;	<---BUG!?
+//    rh(PCMC) &= ~(2<<4); //(a/4, 1x)
+    rh(PCMC) |= (2<<4); //(a/4, 1x) <-------------- important? !!! ?
 
   /* set acd */
   rh(PCMC) |= 2<<2;             // 256 ACLKs per LRCLK
 
   /* set bcd */
   rh(PCMC) |= 2;
+
+#ifdef PCM_DEBUG
+  avia_dump_reg();  
+  pcm_dump_reg();
+#endif
+  
 }
 
 void avia_audio_init()
 {
-/*
+
   u32 val;
 
   val = 0;
+
+  // AUDIO_CLOCK_SELECTION
+/*
+  val |= (1<<4);   //44100
+  val |= (1<<3);   //44100
+  val |= (1<<2);
+  val |= (1<<1);   // 1:256 0:384 x sampling frequ.
+  val |= (1);      // master,slave mode
+
+  wDR(0xEC, val);  
+*/
+
+/*
 
   // AUDIO_CONFIG 12,11,7,6,5,4 reserved or must be set to 0
   val |= (0<<10);  // 64 DAI BCKs per DAI LRCK
@@ -217,88 +341,210 @@ void avia_audio_init()
 
   buffer_start=0x50000;
   buffer_end=  0x60000;
-  buffer_size= 0x10000;
+  buffer_size= 0x10000; //64k
+  /* anm.:
+  16bit stereo 4 byte/sample
+  44100 bits * 4 (2 x 16bit, 2 x stereo)
+  */
+  
   buffer_playptr=buffer_wptr=buffer_rptr=buffer_start;
   memset(gtxmem+buffer_start, 0, buffer_size); // ...
 }  
 
 
-void pcm_dump_reg()
-{
-  printk("PCMA: %08lX\n",rw(PCMA));
-  printk("PCMN: %08lX\n",rw(PCMN));
-  printk("PCMC: %04X\n",rh(PCMC));
-  printk("PCMD: %08lX\n",rw(PCMD));
-}
-
 
 static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
   int val;
+  
   switch(cmd) {
+    case OSS_GETVERSION:                                                                                  
+            return put_user(SOUND_VERSION, (int *)arg);                                                   
+
 
     case SNDCTL_DSP_RESET:
                       printk("RESET\n");
                       pcm_reset();
                       return 0;
-                      break;
+                      
     case SNDCTL_DSP_SPEED:
                       if (get_user(val,(int*)arg))
                         return -EFAULT;
 
-                      /* clear flags */
-                      rh(PCMC) &= ~3;
+                      /* clear flags, disable pcm, set to 00 */
+			rh(PCMC) &= ~(3<<14);
 
                       /* set speed */
-                      switch(val) {
-                        case 44100: rh(PCMC) |= (3<<14);break;
-                        case 22050: rh(PCMC) |= (2<<14);break;
-                        case 11025: rh(PCMC) |= (1<<14);break;
-                        default: printk("SPEED: %d not support\n",val);return -1;
-                      }
+		      /* hm, the specifications of the kernel-sound stuff...
+		         a kernel mod should set values near the supported speed
+			 even if something different is to be set... right? */
 
-                      return 0;
-                      break;
+#ifndef PCM_FORCE_11025
+			//nearest to 11025
+		        if (val <= 15537)
+		        {
+		    	    rh(PCMC) |= (1<<14);
+			    val = pcm.rate = 11025;
+			}
+			//nearest to 22050
+		        else if ((val > 15538) && (val <= 33075))
+		        {
+		    	    rh(PCMC) |= (2<<14);
+			    val = pcm.rate = 22050;
+			}
+			//nearest to 44100
+		        else if (val > 33076)
+		        {
+		    	    rh(PCMC) |= (3<<14);
+			    val = pcm.rate = 44100;
+			}
+#else
+		    	    rh(PCMC) |= (1<<14);
+			    val = pcm.rate = 11025;
+                
+#endif
+
+                        printk("SET_SPEED: %d\n",val);
+			
+                      return put_user(val,(int *) arg);
 
     case SNDCTL_DSP_STEREO:
                       if (get_user(val,(int*)arg))
                         return -EFAULT;
 
-                      if (val)
-                        rh(PCMC) |= (1<<12);
-                      else
-                        rh(PCMC) &= ~(1<<12);
+                    //stereo
+#ifndef PCM_FORCE_MONO
+		      if (val == 1)
+		      {
+		        rh(PCMC) |= (1<<12);
+			val = 1;
+                        pcm.channels = 2;
+		      } else
+#endif
+		      {
+		        rh(PCMC) &= ~(1<<12);
+			val = 0;
+                        pcm.channels = 1;
+		      }
 
                       printk("STEREO: %d\n",val);
+                      return put_user(val,(int*)arg);
 
-                      return 0;
-                      break;
+    case SNDCTL_DSP_CHANNELS:
+		      if (get_user(val,(int*)arg))
+		    	return -EFAULT;
+			if (val != 0)
+			{
+#ifndef PCM_FORCE_MONO
+			    if (val >= 2)
+			    {
+		    		rh(PCMC) |= (1<<12);
+				val = pcm.channels = 2;
+			    } else
+#endif
+			    {
+		    		rh(PCMC) &= ~(1<<12);
+				val = pcm.channels = 1;
+			    }
+                            
+			    return put_user(val,(int*)arg);
+			    
+			}
+			
+
+    case SNDCTL_DSP_GETFMTS:
+                        printk("GETFMTS\n");
+#ifdef PCM_FORCE_8BIT
+			return put_user( AFMT_U8 , (int*)arg );
+#else
+			return put_user( AFMT_U8 | AFMT_S16_LE, (int*)arg );
+#endif
 
     case SNDCTL_DSP_SETFMT:
                       if (get_user(val,(int*)arg))
                         return -EFAULT;
                       printk("SETFMT: %d\n",val);
-                      return 0;
-                      break;
+                      pcm_setfmt(val);
+		      val = pcm.fmt;
+                      return put_user(pcm.fmt,(int*) arg);
 
-    case SNDCTL_DSP_GETFMTS:
-                      return put_user( AFMT_S16_NE|AFMT_S8, (int*)arg );
-                      break;
 
     case SNDCTL_DSP_GETBLKSIZE:
                       if (get_user(val,(int*)arg))
                         return -EFAULT;
 
+		      val = buffer_size;
                       printk("GETBLKSIZE: %d\n",val);
+			return put_user(val,(int *)arg);
 
-                      break;
-//    case SNDCTL_DSP_SAMPLESIZE:break;
+    case SOUND_PCM_READ_RATE:
+		    printk("READ_RATE: %d\n",pcm.rate);
+		    return put_user(pcm.rate,(int *)arg);
+		    
+    case SOUND_PCM_READ_CHANNELS:
+		    printk("READ_CHANNELS: %d\n",pcm.channels);
+		    return put_user(pcm.channels,(int *)arg);
+		    
+    case SOUND_PCM_READ_BITS:
+		    printk("READ_BITS: %d\n",pcm.bits);
+		    return put_user(pcm.bits,(int *)arg);
+	
+    case SNDCTL_DSP_SYNC:
+                    printk("SYNC\n");
+		    return 0;
 
+    case SNDCTL_DSP_NONBLOCK:
+		    printk("NONBLOCK\n");                    
+		    file->f_flags |= O_NONBLOCK;                                                          
+                    return 0;                       
+                    
+    case SNDCTL_DSP_GETCAPS:
+                    printk("GETCAPS\n");
+                    return put_user(0,(int *) arg);
+    
+    case SOUND_PCM_WRITE_FILTER:                                                                          
+                    printk("PCM_WRITE_FILTER\n");
+    case SNDCTL_DSP_SETSYNCRO:                                                                            
+                    printk("PCM_SETSYNCRO\n");
+    case SOUND_PCM_READ_FILTER:                                                                           
+                    printk("PCM_READ_FILTER\n");
+    case SNDCTL_DSP_POST:
+                    printk("POST\n");
+    case SNDCTL_DSP_SUBDIVIDE:
+                    printk("SUBDIVIDE\n");
+    case SNDCTL_DSP_SETFRAGMENT:
+                    printk("SETFRAGMENT\n");
+    case SNDCTL_DSP_GETOSPACE:
+                    printk("GETOSPACE\n");
+    case SNDCTL_DSP_GETISPACE:
+                    printk("GETISPACE\n");
+		    
+    case SNDCTL_DSP_GETTRIGGER:
+                    printk("GETTRIGGER\n");
+    case SNDCTL_DSP_SETTRIGGER:
+                    printk("SETTRIGGER\n");
+    case SNDCTL_DSP_GETIPTR:
+                    printk("GETIPTR\n");
+    case SNDCTL_DSP_GETOPTR:
+                    printk("GETOPTR\n");
+    case SNDCTL_DSP_MAPINBUF:
+                    printk("MAPINBUF\n");
+    case SNDCTL_DSP_MAPOUTBUF:
+                    printk("MAPOUTBUF\n");
+
+		        return -EINVAL;                                                                               
+							    
+
+    
+
+//    case SNDCTL_DSP_SAMPLESIZE:
 //    case SOUND_MIXER_READ_DEVMASK:break;
 //    case SOUND_MIXER_WRITE_PCM:break;
 //    case SOUND_MIXER_WRITE_VOLUME:break;
 
-    default:   printk("IOCTL: %04X\n",cmd); break;
+    default:   
+        printk("IOCTL: %04X\n",cmd); 
+        return -EINVAL;                                                                               
   }
 
   return 0;
@@ -311,12 +557,16 @@ static void startplay(int start)
   int byps=1;
   
     // 16 bit ?
-  if ( rh(PCMC) & (1<<13) )
+#ifndef PCM_FORCE_8BIT
+  if ( pcm.bits == 16 )
     byps<<=1;
+#endif
 
   // stereo ?
-  if ( rh(PCMC) & (1<<12) )
+#ifndef PCM_FORCE_MONO
+  if ( pcm.channels == 2 )
     byps<<=1;
+#endif
  
   rw(PCMA)=(512<<22)|buffer_rptr;
   buffer_rptr+=512*byps;
@@ -344,16 +594,20 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
   int i;
   
   // 16 bit ?
-  if ( rh(PCMC) & (1<<13) )
+#ifndef PCM_FORCE_8BIT
+  if ( pcm.bits == 16 )
   {
     byps<<=1;
-    bit16=1;
+//    bit16=1;
   }
+#endif
 
   // stereo ?
-  if ( rh(PCMC) & (1<<12) )
+#ifndef PCM_FORCE_MONO
+  if ( pcm.channels == 2 )
     byps<<=1;
- 
+#endif
+
   if (count<=0)
     return -EFAULT;
 
@@ -396,7 +650,8 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
     if (!tocopy)
       return -EIO;
 
-    if (bit16)          // swap bytes
+#ifndef PCM_FORCE_8BIT
+    if (pcm.bits == 16 )          // swap bytes
     {
       u16 *d=(u16*)(gtxmem+buffer_wptr);
       u8 *s=swapbuffer;
@@ -409,6 +664,7 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
         s+=2;
       }
     } else
+#endif
       if (copy_from_user(gtxmem+buffer_wptr, buf, tocopy))
         return -EFAULT;
 
@@ -463,11 +719,16 @@ static void pcm_interrupt( int reg, int bit )
   }
   
   rh(PCMC)&=~1<<10;
+#ifndef PCM_FORCE_8BITS
+  if ( pcm.bits == 16 )
+    byps<<=1;
+#endif
 
-  if ( rh(PCMC) & (1<<13) )
+#ifndef PCM_FORCE_MONO
+  if ( pcm.channels == 2 )
     byps<<=1;
-  if ( rh(PCMC) & (1<<12) )
-    byps<<=1;
+#endif
+
  
 //  printk("another block played (%x:%x) -> %x (%x) -> %x.\n", reg, bit, rw(PCMD), rw(PCMA), rh(PCMC));
 
@@ -675,8 +936,24 @@ static int __init pcm_setup(char *str)
   nr_dev++;
   return 1;
 */
+
+	/* io, irq, dma, dma2 mpuio, mpuirq*/
+/*	int ints[7];
+	
+	str = get_options(str, ARRAY_SIZE(ints), ints);
+	
+	io	= ints[1];
+	irq	= ints[2];
+	dma	= ints[3];
+	dma2	= ints[4];
+	mpuio	= ints[5];
+	mpuirq	= ints[6];
+*/
+
+    return 1;
 }
 
 __setup("pcm=", pcm_setup);
 
 #endif /* MODULE */
+
