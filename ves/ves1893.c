@@ -1,5 +1,5 @@
 /* 
-    $Id: ves1893.c,v 1.17 2002/01/27 22:31:40 Hunz Exp $
+   $Id: ves1893.c,v 1.18 2002/02/24 15:32:07 woglinde Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -14,6 +14,7 @@
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
@@ -21,73 +22,49 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
-    Revision 1.17  2002/01/27 22:31:40  Hunz
-    removed that annoying sync:-printk
+    Revision 1.18  2002/02/24 15:32:07  woglinde
+    new tuner-api now in HEAD, not only in branch,
+    to check out the old tuner-api should be easy using
+    -r and date
 
-    Revision 1.16  2002/01/22 23:38:28  fnbrd
-    reverted to old api
-
-    Revision 1.14.2.1  2002/01/22 22:58:04  fnbrd
-    Id und Log bei manchen Quellen eingefuegt.
+    Revision 1.14.2.3  2002/01/22 23:44:56  fnbrd
+    Id und Log reingemacht.
 
     
 */    
 
 #include <linux/module.h>
+#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <asm/io.h>
-
 #include <linux/i2c.h>
-#include <dbox/dvb.h>
 
-#include <dbox/ves.h>
+#include <dbox/dvb_frontend.h>
 #include <dbox/fp.h>
+#include <ost/sec.h>
 
 #ifdef MODULE
+MODULE_DESCRIPTION("");
+MODULE_AUTHOR("Ralph Metzler");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 MODULE_PARM(debug,"i");
 #endif
 
-static void ves_write_reg(int reg, int val);
-static void ves_init(void);
-static void ves_set_frontend(struct frontend *front);
-static void ves_get_frontend(struct frontend *front);
-static void ves_reset(void);
-static int ves_read_reg(int reg);
-static int ves_get_unc_packet(u32 *uncp);
-static int mitel_set_freq(unsigned int freq);
-static int ves_send_diseqc(u8 *cmd, unsigned int len);
-
-struct demod_function_struct ves1893={
-		write_reg:			ves_write_reg, 
-		init:						ves_init,
-		set_frontend: 	ves_set_frontend,
-		get_frontend:		ves_get_frontend,
-		get_unc_packet: ves_get_unc_packet,
-		set_frequency:	mitel_set_freq,
-		set_sec:				fp_set_sec,
-		send_diseqc:		ves_send_diseqc,
-		sec_status:			fp_sec_status};
-
-static int debug = 9;
+static int debug = 0;
 #define dprintk	if (debug) printk
 
 static struct i2c_driver dvbt_driver;
-static struct i2c_client client_template, *dclient;
+static struct i2c_client client_template;
 
-#define BN
+#define DBOX
+
 static u8 Init1893Tab[] =
 {
-#ifdef BN
-	0x01, 0x94, 0x00, 0x80, 0x80, 0x6a, 0x9b, 0xab,
-	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
-	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
-	0x80, 0x00, 0x21, 0xb0, 0x14, 0x00, 0xDC, 0x00,
-	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x55, 0x03, 0x00, 0x7f, 0x00
-#else
+#ifndef DBOX
 	0x01, 0xA4, 0x35, 0x81, 0x2A, 0x0d, 0x55, 0xC4,
 	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
 	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
@@ -95,6 +72,14 @@ static u8 Init1893Tab[] =
 	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x55, 0x00, 0x00, 0x7f, 0x00
+#else
+	0x01, 0x94, 0x00, 0x80, 0x80, 0x6a, 0x9b, 0xab,
+	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7F, 0x00,
+	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
+	0x80, 0x00, 0x21, 0xb0, 0x14, 0x00, 0xDC, 0x00,
+	0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x55, 0x03, 0x00, 0x7f, 0x00
 #endif
 };
 
@@ -111,6 +96,10 @@ struct ves1893 {
 	u8 ctr;
 	u8 fec;
 	u8 inv;
+	
+	int power, tone;
+	
+	dvb_front_t frontend;
 };
 
 static int writereg(struct i2c_client *client, int reg, int data)
@@ -142,24 +131,6 @@ static u8 readreg(struct i2c_client *client, u8 reg)
 	
 	return mm2[0];
 }
-
-/*
-static int dump(struct i2c_client *client)
-{
-	int i;
-	
-	printk("VES1893: DUMP\n");
-	
-	for (i=0; i<54; i++) 
-	{
-		printk("%02x ", readreg(client, i));
-		if ((i&7)==7)
-			printk("\n");
-	}
-	printk("\n");
-	return 0;
-}
-*/
 
 static int init(struct i2c_client *client)
 {
@@ -193,7 +164,35 @@ static void ClrBit1893(struct i2c_client *client)
 	ddelay(2);
 	writereg(client, 0, Init1893Tab[0] & 0xfe);
 	writereg(client, 0, Init1893Tab[0]);
+	writereg(client, 3, 0);
+	writereg(client, 3, Init1893Tab[3]);
 }
+
+static int SetInversion(struct i2c_client *client, int inversion)
+{
+	struct ves1893 *ves=(struct ves1893 *) client->data;
+	u8 val;
+
+	if (inversion == ves->inv) 
+		return 0;
+	ves->inv=inversion;
+	switch (inversion) {
+	case INVERSION_OFF:
+		val=0xc0;
+		break;
+	case INVERSION_ON:
+		val=0x80;
+		break;
+	default:
+	case INVERSION_AUTO:
+		val=0x40;
+		break;
+	}
+	writereg(client, 0x0c, 
+		 (Init1893Tab[0x0c]&0x3f)|val);
+	return 0;
+}
+
 
 static int SetFEC(struct i2c_client *client, u8 fec)
 {
@@ -215,7 +214,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
   	u8  ADCONF, FCONF, FNR;
 	u32 BDRI;
 	u32 tmp;
-	
+
 	if (ves->srate==srate) {
 		if (doclr)
 			ClrBit1893(client);
@@ -223,7 +222,11 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	}
 	dprintk("setsymbolrate %d\n", srate);
 
-#define XIN (91000000UL) // dbox Crystal iss 91 MHz !!
+#ifndef DBOX
+#define XIN (90106000UL)
+#else
+#define XIN (91000000UL)
+#endif
 
 	if (srate>XIN/2)
 		srate=XIN/2;
@@ -235,15 +238,15 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 #define FIN (XIN>>4)
 	tmp=srate<<6;
 	ratio=tmp/FIN;
-
+	
 	tmp=(tmp%FIN)<<8;
 	ratio=(ratio<<8)+tmp/FIN;
-   	
+	
 	tmp=(tmp%FIN)<<8;
-	ratio=(ratio<<8)+tmp/FIN;     
+	ratio=(ratio<<8)+tmp/FIN;
 	
 	FNR = 0xFF;
-	
+
 	if (ratio < MUL/3)	   FNR = 0;
 	if (ratio < (MUL*11)/50)     FNR = 1;
 	if (ratio < MUL/6)	   FNR = 2;
@@ -255,16 +258,14 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	if (ratio < MUL/48)	  FNR = 8;
 	if (ratio < (MUL*137)/10000) FNR = 9;
 
-	if (FNR == 0xFF)
-	{
-		ADCONF = 0x89;		//bypass Filter
-		FCONF  = 0x80;		//default
+	if (FNR == 0xFF) {
+		ADCONF = 0x89;
+		FCONF  = 0x80;
 		FNR	= 0;
-	} else	{
+	} else {
 		ADCONF = 0x81;
-		FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5); //default | DFN | AFS
+		FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5);
 	}
-
 
 	BDR = ((  (ratio<<(FNR>>1))  >>4)+1)>>1;
 	BDRI = (  ((FIN<<8) / ((srate << (FNR>>1))>>2)  ) +1 ) >> 1;
@@ -304,131 +305,262 @@ static int attach_adapter(struct i2c_adapter *adap)
 	struct i2c_client *client;
 	
 	client_template.adapter=adap;
-
-// siehe ves1820.c ... TODO: check ...
-//	if (i2c_master_send(&client_template,NULL,0))
-//		return -1;
+	
+/*	if (i2c_master_send(&client_template, NULL,0))
+	{
+		printk("send failed.\n");
+		return -1;
+	} */
 	
 	client_template.adapter=adap;
 	
-	dprintk("readreg\n");
 	if ((readreg(&client_template, 0x1e)&0xf0)!=0xd0)
-	{
-	  if ((readreg(&client_template, 0x1a)&0xF0)==0x70)
-	    printk("warning, no VES1893 found but a VES1820\n");
-	  return -1;
-	}
-	printk("feID: 1893 %x\n", readreg(&client_template, 0x1e));
+		return -1;
 	
 	if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
 		return -ENOMEM;
 	memcpy(client, &client_template, sizeof(struct i2c_client));
-	dclient=client;
 	
 	client->data=ves=kmalloc(sizeof(struct ves1893),GFP_KERNEL);
 	if (ves==NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-       
+
 	i2c_attach_client(client);
 	init(client);
-	
-	if (register_demod(&ves1893))
- 		printk("ves1893.o: can't register demod.\n");
 
+	printk("VES1893: attaching VES1893 at 0x%02x ", (client->addr)<<1);
+	printk("to adapter %s\n", adap->name);
+	
+	ves->frontend.type=DVB_S;
+	ves->frontend.capabilities=0;	// kann nix
+	ves->frontend.i2cbus=adap;
+	
+	ves->frontend.demod=client;
+	ves->frontend.demod_type=DVB_DEMOD_VES1893;
+	
+	register_frontend(&ves->frontend);
 	return 0;
 }
 
 static int detach_client(struct i2c_client *client)
 {
 	printk("VES1893: detach_client\n");
+	unregister_frontend(&((struct ves1893*)client->data)->frontend);
 	i2c_detach_client(client);
 	kfree(client->data);
 	kfree(client);
-	unregister_demod(&ves1893);
 	return 0;
 }
 
-void ves_write_reg(int reg, int val)
+
+static const uint8_t fectab[8]={8,0,1,2,4,6,0,8};
+static const uint8_t fectab2[9]={1,2,3,-1,4,-1,5,-1,0};
+
+
+static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
-  writereg(dclient, reg, val);
-}
-
-int ves_read_reg(int reg)
-{
-  return readreg(dclient, reg);
-}
-
-void ves_init(void)
-{
-  init(dclient);
-}
-
-void ves_reset(void)
-{
-  ClrBit1893(dclient);
-}
-
-void ves_set_frontend(struct frontend *front)
-{
-  struct ves1893 *ves=(struct ves1893 *) dclient->data;
-  if (ves->inv!=front->inv)
-  {
-    ves->inv=front->inv;
-    writereg(dclient, 0x0c, Init1893Tab[0x0c] ^ (ves->inv ? 0x40 : 0x00));
-    ClrBit1893(dclient);
-  }
-  SetFEC(dclient, front->fec);
-  SetSymbolrate(dclient, front->srate, 1);
-//  printk("sync: %x\n", readreg(dclient, 0x0E));
-}
-
-void ves_get_frontend(struct frontend *front)
-{
-  front->type=FRONT_DVBS;
-  front->afc=((int)((char)(readreg(dclient,0x0a)<<1)))/2;
-  front->afc=(front->afc*(int)(front->srate/8))/16;
-  front->agc=((255-readreg(dclient,0x0b))<<8);
-  front->sync=readreg(dclient,0x0e);
-  printk("sync: %x\n", front->sync);
-  front->nest=(readreg(dclient,0x1c)<<8);
-
-  front->vber = readreg(dclient,0x15);
-  front->vber|=(readreg(dclient,0x16)<<8);
-  front->vber|=(readreg(dclient,0x17)<<16);
-  //printk("vber: %x\n", front->vber);
-
-  if ((front->fec==8) && ((front->sync&0x1f) == 0x1f))
-    front->fec=(readreg(dclient, 0x0d)>>4)&0x07;
-} 
-
-int ves_get_unc_packet(u32 *uncp)
-{
-  *uncp=0;
-  return -1;
-}
-
-static int mitel_set_freq(unsigned int freq)
-{
-	int p, t, os, c, r, pe;
-	unsigned long b;
-
-	freq+=479500000; freq/=125000*4;
-	t=0; os=0; c=1;								// doch doch
-	r=3; pe=1; p=1;
-
-	b=p<<24;
-	b|=t<<23;
-	b|=os<<22;
-	b|=c<<21;
-	b|=r<<18;
-	b|=pe<<17;
-	b|=freq;
+	struct ves1893 *ves=(struct ves1893 *) client->data;
 		
-	fp_set_tuner_dword(T_QPSK, b);
+	switch (cmd) 
+	{
+	case FE_READ_STATUS:
+	{
+		FrontendStatus *status=(FrontendStatus *) arg;
+		int sync;
+
+		*status=0;
+
+		sync=readreg(client,0x0e);
+		if (sync&1)
+			*status|=FE_HAS_SIGNAL;
+		if (sync&2)
+			*status|=FE_HAS_CARRIER;
+		if (sync&4)
+			*status|=FE_HAS_VITERBI;
+		if (sync&8)
+			*status|=FE_HAS_SYNC;
+		if ((sync&0x1f)==0x1f)
+			*status|=FE_HAS_LOCK;
+
+		sync=readreg(client,0x0f);
+		if (sync&2)
+			*status|=FE_SPECTRUM_INV;
+		break;
+	}
+	case FE_READ_BER:
+	{
+		u32 *ber=(u32 *) arg;
+
+		*ber = readreg(client,0x15);
+		*ber|=(readreg(client,0x16)<<8);
+		*ber|=(readreg(client,0x17)<<16);
+		*ber*=10;
+		break;
+	}
+	case FE_READ_SIGNAL_STRENGTH:
+	{
+		s32 *signal=(s32 *) arg;
+
+		*signal=0xff-readreg(client,0x0b);
+		break;
+	}
+	case FE_READ_SNR:
+	{
+		s32 *snr=(s32 *) arg;
+
+		*snr=(readreg(client,0x1c)<<8);
+		*snr=20000000+(10-(*snr>>8))*20000000/160;
+		break;
+	}
+	case FE_READ_UNCORRECTED_BLOCKS: 
+	{
+		u32 *ublocks=(u32 *) arg;
+		*ublocks=0;
+		break;
+	}
+	case FE_READ_AFC:
+	{
+		s32 *afc=(s32 *) arg;
+		
+		*afc=((int)((char)(readreg(client,0x0a)<<1)))/2;
+		*afc=(*afc*(int)(ves->srate/8))/16;
+		break;
+	}
+	case FE_GET_INFO:
+	{
+		FrontendInfo *feinfo=(FrontendInfo *) arg;
+
+		feinfo->type=FE_QPSK;
+		feinfo->minFrequency=500; 
+		feinfo->maxFrequency=2700000;
+		feinfo->minSymbolRate=500000;
+		feinfo->maxSymbolRate=30000000;
+		feinfo->hwType=0;    
+		feinfo->hwVersion=0;
+		break;
+	}
+		
+	case FE_WRITEREG:
+	{
+		u8 *msg = (u8 *) arg;
+		writereg(client, msg[0], msg[1]);
+		break;
+	}
+	case FE_READREG:
+	{
+		u8 *msg = (u8 *) arg;
+		msg[1]=readreg(client, msg[0]);
+
+		break;
+	}
+	case FE_INIT:
+	{
+		init(client);
+		break;
+	}
+	case FE_SET_FRONTEND:
+	{
+		FrontendParameters *param = (FrontendParameters *) arg;
+
+		SetInversion(client, param->Inversion);
+		SetFEC(client, fectab[param->u.qpsk.FEC_inner]);
+		SetSymbolrate(client, param->u.qpsk.SymbolRate, 1);
+		break;
+	}
+	case FE_RESET:
+	{
+		ClrBit1893(client);
+		break;
+	}
+	case FE_SEC_SET_TONE:
+	{
+		secToneMode mode=(secToneMode)arg;
+		ves->tone=(mode==SEC_TONE_ON)?1:0;
+		return fp_set_sec(ves->power, ves->tone);
+	}
+	case FE_SEC_SET_VOLTAGE:
+	{
+		secVoltage volt=(secVoltage)arg;
+		switch (volt)
+		{
+		case SEC_VOLTAGE_OFF:
+			ves->power=0;
+			break;
+		case SEC_VOLTAGE_LT:
+			ves->power=-2;
+			break;
+		case SEC_VOLTAGE_13:
+			ves->power=1;
+			break;
+		case SEC_VOLTAGE_13_5:
+			ves->power=2;
+			break;
+		case SEC_VOLTAGE_18:
+			ves->power=3;
+			break;
+		case SEC_VOLTAGE_18_5:
+			ves->power=4;
+			break;
+		default:
+			printk("invalid voltage\n");
+		}
+		return fp_set_sec(ves->power, ves->tone);
+	}
+	case FE_SEC_MINI_COMMAND:
+	{
+//		secMiniCmd minicmd=(secMiniCmd)arg;
+//		return fp_send_diseqc(1, (minicmd==SEC_MINI_A)?"\xFF\xFF\xFF\xFF":"\x00\x00\x00\x00", 4);		// das ist evtl. falschrum
+		printk("warning, minidiseqc nyi\n");
+		return 0;
+	}
+	case FE_SEC_COMMAND:
+	{
+		struct secCommand *command=(struct secCommand*)arg;
+		switch (command->type) {
+		case SEC_CMDTYPE_DISEQC:
+		{
+			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
+			msg[0]=0xE0;
+			msg[1]=command->u.diseqc.addr;
+			msg[2]=command->u.diseqc.cmd;
+			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
+			return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
+		}
+		default:
+			return -EINVAL;
+		}
+		break;
+	}
+	case FE_SEC_GET_STATUS:
+	{
+		struct secStatus *status=(struct secStatus*)arg;
+		
+		break;
+	}
+	case FE_SETFREQ:
+	{
+		u32 freq=*(u32*)arg;
+		int p, t, os, c, r, pe;
+		unsigned long b;
+
+		freq+=479500; freq/=125*4;
+		t=0; os=0; c=1;								// doch doch
+		r=3; pe=1; p=1;
+
+		b=p<<24; b|=t<<23; b|=os<<22; b|=c<<21;
+		b|=r<<18; b|=pe<<17; b|=freq;
+		
+		fp_set_tuner_dword(T_QPSK, b);
+		break;
+	}
+	default:
+		return -1;
+	}
+	
 	return 0;
-}
+} 
 
 static void inc_use (struct i2c_client *client)
 {
@@ -445,48 +577,42 @@ static void dec_use (struct i2c_client *client)
 }
 
 static struct i2c_driver dvbt_driver = {
-	"VES1893 DVB DECODER",
+	"VES1893 DVB demodulator",
 	I2C_DRIVERID_VES1893,
 	I2C_DF_NOTIFY,
 	attach_adapter,
 	detach_client,
-	0,
+	dvb_command,
 	inc_use,
 	dec_use,
 };
 
 static struct i2c_client client_template = {
-	"VES1893",
-	I2C_DRIVERID_VES1893,
-	0,
-	(0x10 >> 1),
-	NULL,
-	&dvbt_driver,
-	NULL
+	name:    "VES1893",
+	id:      I2C_DRIVERID_VES1893,
+	flags:   0,
+	addr:    (0x10 >> 1),
+	adapter: NULL,
+	driver:  &dvbt_driver,
 };
 
 
-#ifdef MODULE
-int init_module(void) {
+static int __init 
+init_ves1893(void) {
 	int res;
 	
 	if ((res = i2c_add_driver(&dvbt_driver))) 
 	{
-		printk("VES1893: Driver registration failed, module not inserted.\n");
+		printk("VES1893: i2c driver registration failed\n");
 		return res;
 	}
-	if (!dclient)
-	{
-		printk("VES1893: not found.\n");
-		i2c_del_driver(&dvbt_driver);
-		return -EBUSY;
-	}
 	
-	dprintk("VES1893: init_module\n");
+	dprintk("VES1893: init done\n");
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit
+exit_ves1893(void)
 {
 	int res;
 	
@@ -497,24 +623,6 @@ void cleanup_module(void)
 	}
 	dprintk("VES1893: cleanup\n");
 }
-#endif
 
-int ves_send_diseqc(u8 *cmd, unsigned int len)
-{
-	return fp_send_diseqc(1,cmd,len);
-}
-
-/*
- * Local variables:
- * c-indent-level: 8
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -8
- * c-argdecl-indent: 8
- * c-label-offset: -8
- * c-continued-statement-offset: 8
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */
-
+module_init(init_ves1893);
+module_exit(exit_ves1893);

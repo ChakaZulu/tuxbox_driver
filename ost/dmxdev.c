@@ -783,18 +783,17 @@ ssize_t
 DmxDevRead(dmxdev_t *dmxdev, struct file *file, 
 	   char *buf, size_t count, loff_t *ppos)
 {
-	down_interruptible(&dmxdev->mutex);
-
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 	int ret=0;
 
+//	down_interruptible(&dmxdev->mutex);
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 		ret=DmxDevReadSec(dmxdevfilter, file, buf, count, ppos);
 	else
 		ret=DmxDevBufferRead(&dmxdevfilter->buffer, 
 				     file->f_flags&O_NONBLOCK, 
 				     buf, count, ppos);
-	up(&dmxdev->mutex);
+//	up(&dmxdev->mutex);
 	return ret;
 }
 
@@ -802,19 +801,15 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file, 
 		unsigned int cmd, unsigned long arg)
 {
-	down_interruptible(&dmxdev->mutex);
-
 	void *parg=(void *)arg;
 	int ret=0;
 
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
   
 	if (!dmxdevfilter)
-	{
-		up(&dmxdev->mutex);
 		return -EINVAL;
-	}
 
+	down_interruptible(&dmxdev->mutex);
 	switch (cmd) {
 	case DMX_START: 
 		if (dmxdevfilter->state<2)
@@ -842,7 +837,12 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 		if(copy_from_user(&npara, parg, sizeof(npara)))
 			ret=-EFAULT;
 		else
-			ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
+		{
+			if (npara.pid == 0x1500 || npara.pid == 0x1000)
+				break;
+			else
+				ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
+		}
 		break;
 	}
 	case DMX_SET_BUFFER_SIZE: 
@@ -877,65 +877,50 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 unsigned int 
 DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
-	down_interruptible(&dmxdev->mutex);
-
-	unsigned int ret = 0;
-
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 
 	if (!dmxdevfilter)
-		ret = -EINVAL;
-	else if (dmxdevfilter->state==DMXDEV_STATE_TIMEDOUT)
-		ret = (POLLHUP);
-	else if (dmxdevfilter->state==DMXDEV_STATE_FREE)
-		ret = 0;
-	else if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-		ret = (POLLIN | POLLRDNORM | POLLPRI);
-	else if (dmxdevfilter->state!=DMXDEV_STATE_GO)
-		ret = 0;
-        else
-	{
-		poll_wait(file, &dmxdevfilter->buffer.queue, wait);
+		return -EINVAL;
 
-		if (dmxdevfilter->state==DMXDEV_STATE_FREE)
-			ret = 0;
-		else if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-			ret = (POLLIN | POLLRDNORM | POLLPRI);
-	}
+	if (dmxdevfilter->state==DMXDEV_STATE_TIMEDOUT)
+		return (POLLHUP);
 
-	up(&dmxdev->mutex);
+	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
+		return 0;
 
-	return ret;
+	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
+		return (POLLIN | POLLRDNORM | POLLPRI);
+
+	if (dmxdevfilter->state!=DMXDEV_STATE_GO)
+		return 0;
+
+	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
+
+	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
+		return 0;
+		
+	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
+		return (POLLIN | POLLRDNORM | POLLPRI);
+
+
+	return 0;
 }
 
 unsigned int 
 DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
-	down_interruptible(&dmxdev->mutex);
-
-	unsigned int ret = 0;
-
-	if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-	{
+	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
 		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-		{
-			ret = (POLLIN | POLLRDNORM | POLLPRI);
-		}
-		else
-		{
-			poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
+			return (POLLIN | POLLRDNORM | POLLPRI);
 		
-			if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-				ret = (POLLIN | POLLRDNORM | POLLPRI);
-			else
-				ret = 0;
-		}
+		poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
+		
+		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
+			return (POLLIN | POLLRDNORM | POLLPRI);
+		
+		return 0;
 	} else 
-		ret = (POLLOUT | POLLWRNORM | POLLPRI);
-
-	up(&dmxdev->mutex);
-
-	return ret;
+		return (POLLOUT | POLLWRNORM | POLLPRI);
 }
 
 
@@ -948,7 +933,6 @@ EXPORT_SYMBOL(DmxDevDVROpen);
 EXPORT_SYMBOL(DmxDevDVRClose);
 EXPORT_SYMBOL(DmxDevDVRRead);
 EXPORT_SYMBOL(DmxDevDVRWrite);
-EXPORT_SYMBOL(DmxDevDVRPoll);
 
 EXPORT_SYMBOL(DmxDevFilterAlloc);
 EXPORT_SYMBOL(DmxDevFilterFree);

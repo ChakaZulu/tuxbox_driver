@@ -1,3 +1,19 @@
+/*
+
+    $Id: vesirq.c,v 1.2 2002/02/24 15:32:07 woglinde Exp $
+    
+    $Log: vesirq.c,v $
+    Revision 1.2  2002/02/24 15:32:07  woglinde
+    new tuner-api now in HEAD, not only in branch,
+    to check out the old tuner-api should be easy using
+    -r and date
+
+    Revision 1.1.1.1.4.1  2002/01/22 22:58:04  fnbrd
+    Id und Log bei manchen Quellen eingefuegt.
+
+    
+*/
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

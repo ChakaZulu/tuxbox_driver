@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2002 Gillem (gillem@berlios.de)
+ *   Copyright (C) 2000-2001 Gillem (htoa@gmx.net)
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
- *   Revision 1.15  2002/01/23 19:03:25  gillem
- *   - fix lcd init
+ *   Revision 1.16  2002/02/24 15:32:06  woglinde
+ *   new tuner-api now in HEAD, not only in branch,
+ *   to check out the old tuner-api should be easy using
+ *   -r and date
  *
  *   Revision 1.14  2001/12/01 06:53:17  gillem
  *   - malloc.h -> slab.h
@@ -60,7 +62,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -853,10 +855,10 @@ void lcd_clear(void)
 
 void lcd_reset_init(void)
 {
-	// i hope it works now
-	lcd_send_cmd( LCD_CMD_RESET, 0 );
+    // i hope it works now
+    lcd_send_cmd( LCD_CMD_RESET, 0 );
 
-	udelay(1000*100);
+    udelay(1000*100);
 
 	lcd_send_cmd( LCD_CMD_ON, 1 );
 	lcd_send_cmd( LCD_CMD_EON, 0 );
@@ -868,8 +870,8 @@ void lcd_reset_init(void)
 	lcd_send_cmd( LCD_CMD_RES, 7 );
 	lcd_send_cmd( LCD_CMD_SIR, 3 );
 	lcd_send_cmd( LCD_CMD_IDL, 0 );
-	lcd_send_cmd( LCD_CMD_SRV, 1 );
-	lcd_send_cmd( 0x00, 15 );
+	lcd_send_cmd( LCD_CMD_SRV, 0 );
+	lcd_send_cmd( 0x00, 0 );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -943,7 +945,7 @@ EXPORT_NO_SYMBOLS;
 
 #ifdef MODULE
 
-MODULE_AUTHOR("Gillem <gillem@berlios.de>");
+MODULE_AUTHOR("Gillem <htoa@gmx.net>");
 MODULE_DESCRIPTION("LCD driver (KS0713)");
 
 int init_module(void)

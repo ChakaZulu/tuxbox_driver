@@ -21,14 +21,10 @@
  *
  *
  *   $Log: stv6412.c,v $
- *   Revision 1.14  2002/02/21 17:48:07  gillem
- *   - fix get audio switch & mute settings (stv sucks)
- *
- *   Revision 1.13  2002/02/21 17:42:14  gillem
- *   - more fixes (save old mute/aroute values for correct audio routing)
- *
- *   Revision 1.12  2002/02/21 17:31:22  gillem
- *   - fix mute
+ *   Revision 1.15  2002/02/24 15:32:06  woglinde
+ *   new tuner-api now in HEAD, not only in branch,
+ *   to check out the old tuner-api should be easy using
+ *   -r and date
  *
  *   Revision 1.11  2002/01/01 14:16:28  gillem
  *   - update
@@ -64,7 +60,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -141,11 +137,6 @@ typedef struct s_stv6412_data {
 
 #define STV6412_DATA_SIZE sizeof(s_stv6412_data)
 
-
-/* hold old values for mute/unmute */
-unsigned char tc_asc;
-unsigned char v_asc;
-
 /* ---------------------------------------------------------------------- */
 
 #define dprintk     if (debug) printk
@@ -209,25 +200,10 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-	if (type==0)
-	{
-		/* save old values */
-		tc_asc = stv6412_data.tc_asc;
-		v_asc  = stv6412_data.v_asc;
+	stv6412_data.c_ag = type&1;
 
-		/* set mute */
-		stv6412_data.tc_asc = 0;	// tv & cinch mute
-		stv6412_data.v_asc  = 0;	// vcr mute
-
-	}
-	else /* unmute with old values */
-	{
-		stv6412_data.tc_asc = tc_asc;
-		stv6412_data.v_asc  = v_asc;
-
-		tc_asc = 0;
-		v_asc  = 0;
-	}
+	// test only !
+	stv6412_data.svm  = type&1;
 
 	return stv6412_set(client);
 }
@@ -273,31 +249,21 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 	switch(sw)
 	{
 		case 0:
-			if (type<=0 || type>3)
+			if (type<0 || type>3)
 			{
 				return -EINVAL;
 			}
 
-			/* if muted ? yes: save in temp */
-			if ( v_asc == 0 )
-				stv6412_data.v_asc = type;
-			else
-				v_asc = type;
-
+			stv6412_data.v_asc = type;
 			break;
 		case 1:
 		case 2:
-			if (type<=0 || type>4)
+			if (type<0 || type>4)
 			{
 				return -EINVAL;
 			}
 
-			/* if muted ? yes: save in temp */
-			if ( tc_asc == 0 )
-				stv6412_data.tc_asc = type;
-			else
-				tc_asc = type;
-
+			stv6412_data.tc_asc = type;
 			break;
 		default:
 			return -EINVAL;
@@ -416,17 +382,10 @@ inline int stv6412_get_asw( int sw )
 	switch(sw)
 	{
 		case 0:
-			// muted ? yes: return tmp values
-			if ( v_asc == 0 )
-				return stv6412_data.v_asc;
-			else
-				return v_asc;
+			return stv6412_data.v_asc;
 		case 1:
 		case 2:
-			if ( tc_asc == 0 )
-				return stv6412_data.tc_asc;
-			else
-				return tc_asc;
+			return stv6412_data.tc_asc;
 			break;
 		default:
 			return -EINVAL;
@@ -561,10 +520,6 @@ int stv6412_init(struct i2c_client *client)
 	/* Data 6 */
 	stv6412_data.a_in  = 1;
 	stv6412_data.r_out = 1;
-
-	/* save mute/unmute values */
-	tc_asc = stv6412_data.tc_asc;
-	v_asc  = stv6412_data.v_asc;
 
 	return stv6412_set(client);
 }

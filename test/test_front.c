@@ -106,7 +106,7 @@ int FEReadStatus(int fd)
 	if (stat & FE_HAS_SIGNAL)
 		printf("FE HAS SIGNAL\n");
 
-	if (stat & FE_SPECTRUM_INV)
+	if (stat & QPSK_SPECTRUM_INV)
 		printf("QPSK SPEKTRUM INV\n");
 
 	return 0;
