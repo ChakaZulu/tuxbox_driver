@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.2 2002/11/11 01:46:35 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.3 2002/11/12 18:01:41 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -95,7 +95,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 
 			switch (demod) {
 			case DBOX_DEMOD_VES1820:
-				div = (((struct dvb_frontend_parameters *) arg)->frequency + 36125) / 125;
+				div = (((struct dvb_frontend_parameters *) arg)->frequency + 36125000) / 125000;
 				buf[0] = (div >> 8) & 0x7f;
 				buf[1] = div & 0xff;
 				buf[2] = 0x80 | (((div >> 15) & 0x03) << 6) | 0x04;
