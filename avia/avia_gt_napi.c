@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.91 $
+ *   $Revision: 1.92 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.92  2002/08/24 09:36:07  Jolt
+ *   Merge
+ *
  *   Revision 1.91  2002/08/24 09:28:20  Jolt
  *   Compile fix
  *
@@ -617,19 +620,6 @@ static void gtx_task(void *data)
 						}
 					}	else
 						gtx->feed[queue].readptr=wptr;
-
-#define TICK_QUEUE_MAX  010000    /* max video rate before changing queue */
-
-					if (gtxfeed->pid==TICK_QUEUE_MAX)	// workaround for videoqueue PES packets w/ wrong offset
-					{
-						b1l-=*b1;
-						b1+=*b1;
-						if (b1l<0)
-						{
-							b2l+=b1l;
-							b1l=0;
-						}
-					}
 
 					switch (gtx->feed[queue].type)
 					{
@@ -1524,7 +1514,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.91 2002/08/24 09:28:20 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.92 2002/08/24 09:36:07 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
