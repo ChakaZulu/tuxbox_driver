@@ -21,23 +21,26 @@
  *
  *
  *   $Log: gtx-fb.c,v $
+ *   Revision 1.9  2001/02/11 16:32:08  tmbinc
+ *   fixed viewport position
+ *
  *   Revision 1.8  2001/02/04 20:46:14  tmbinc
  *   improved framebuffer.
  *
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
  /*
-    This framebuffer device is somehow incomplete and buggy.
-    It just supports one resolution (RES_XxRES_Y, currently
-    720x576) and one color depth (16bpp), althought the GTX
-    is able to support 4bpp and 8bpp as well.
+    This is the improved FB.
+    Report bugs as usual.
     
-    There were attempts to rewrite this driver, but i don't
+    CLUTs completely untested.
+    
+    There were other attempts to rewrite this driver, but i don't
     know the state of this work.
     
     roh suxx.
@@ -94,6 +97,7 @@ struct gtxfb_info
   struct fb_info_gen gen;
 
   void *videobase;
+  int offset;
   u32 videosize, pvideobase;
 };
 
@@ -309,8 +313,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   
   if (par->lowres)
     val|=1<<29;
-  printk("LORES: %x\n", par->lowres);
-  printk("INTERLACE: %x\n", par->interlaced);
 
   if (!par->pal)
     val|=1<<28;                         // NTSC square filter. TODO: do we need this?
@@ -320,33 +322,39 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
     val|=1<<26;
   
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
-  val|=4<<20;                           // BLEV1 = 50%
-  val|=0<<16;                           // BLEV2 = 0%
+  val|=0<<20;                           // BLEV1 = 50%
+  val|=4<<16;                           // BLEV2 = 0%
   val|=par->stride;
 
   rw(GMR)=val;
   
   rh(CCR)=0x7FFF;                  // white cursor
-  rw(GVSA)=0;                      // dram start address
+  rw(GVSA)=fb_info.offset;                      // dram start address
   rh(GVP)=0;
 
   VCR_SET_HP(2);
   VCR_SET_FP(0);
-  GVP_SET_COORD(70,43);                 // TODO: NTSC?
+  val=par->pal?127:117;
+  val*=8;
+  if (par->lowres)
+    val/=2;
+  if (rw(GMR)&(1<<28))
+    val/=9;
+  else
+    val/=8;
+  val-=3;
+  GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
 
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
+    GVS_SET_XSZ(par->xres*2);
+  else */
     GVS_SET_XSZ(par->xres);
-  else
-    GVS_SET_XSZ(par->xres*2);*/
 
-  GVS_SET_XSZ(720);
-  GVS_SET_YSZ(576);
-
-/*  if (par->interlaced)
+  if (par->interlaced)
     GVS_SET_YSZ(par->yres);
   else
-    GVS_SET_YSZ(par->yres*2);*/
+    GVS_SET_YSZ(par->yres*2);
 
   rw(VBR)=0;                       // disable background..
   
@@ -465,15 +473,15 @@ static struct fb_ops gtxfb_ops = {
 
 int __init gtxfb_init(void)
 {
-  int offset;
   gtxmem=gtx_get_mem();
   gtxreg=gtx_get_reg();
 
   fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
-  offset=gtx_allocate_dram(fb_info.videosize, 1);
+//  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
+  fb_info.offset=1024*1024;
  
-  fb_info.videobase=gtxmem+offset;
-  fb_info.pvideobase=GTX_PHYSBASE+offset;
+  fb_info.videobase=gtxmem+fb_info.offset;
+  fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
 
   fb_info.gen.info.node = -1;
   fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -503,7 +511,7 @@ int __init gtxfb_init(void)
          GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
 #ifdef MODULE
-  atomic_set(& THIS_MODULE->uc.usecount, 1);
+  atomic_set(&THIS_MODULE->uc.usecount, 1);
 #endif
   return 0;
 }
