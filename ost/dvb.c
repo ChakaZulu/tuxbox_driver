@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.31 2001/06/24 09:06:23 gillem Exp $
+ * $Id: dvb.c,v 1.32 2001/06/24 10:54:37 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -761,476 +761,527 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 {
 	struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
 	void *parg=(void *)arg;
-	switch (type) {
-	case DVB_DEVICE_VIDEO:
+
+	switch (type)
 	{
-		if (((file->f_flags&O_ACCMODE)==O_RDONLY) && (cmd!=VIDEO_GET_STATUS))
-			return -EPERM;
-		switch (cmd)
+		case DVB_DEVICE_VIDEO:
 		{
-	case VIDEO_DIGEST:
-		/* TODO: check values */
-		avia_wait(avia_command(Digest,\
-		((struct videoDigest*)parg)->x,
-		((struct videoDigest*)parg)->y,
-		((struct videoDigest*)parg)->skip,
-		((struct videoDigest*)parg)->decimation,
-		((struct videoDigest*)parg)->threshold,
-		((struct videoDigest*)parg)->pictureID));
-		break;
-		case VIDEO_STOP:
-			dvb->videostate.playState=VIDEO_STOPPED;
-			printk("CHCH [DECODER] ABORT\n");
-			avia_command(Abort, 0);
-//			avia_wait(avia_command(SelectStream, 0, 0xFFFF));
-//			avia_wait(avia_command(SelectStream, 2, 0xFFFF));
-//			avia_wait(avia_command(SelectStream, 3, 0xFFFF));
-			break;
-		case VIDEO_PLAY:
-			printk("CHCH [DECODER] PLAY\n");
-			avia_command(Play, 50, 0, 0);
-			udelay(100*1000);
-			avia_flush_pcr();
-			if (dvb->dmxdev.demux)
-				dvb->dmxdev.demux->flush_pcr();
-			dvb->videostate.playState=VIDEO_PLAYING;
-			break;
-		case VIDEO_FREEZE:
-			dvb->videostate.playState=VIDEO_FREEZED;
-			avia_wait(avia_command(Freeze, 1));
-			break;
-		case VIDEO_CONTINUE:
-			if (dvb->videostate.playState==VIDEO_FREEZED)
-			{
-				dvb->videostate.playState=VIDEO_PLAYING;
-				avia_wait(avia_command(Resume));
-			}
-			break;
-		case VIDEO_SELECT_SOURCE:
-		{
-			if (dvb->videostate.playState==VIDEO_STOPPED)
-			{
-				dvb->videostate.streamSource=(videoStreamSource_t) arg;
-				if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
-					return -EINVAL;
-				printk("CHCH [DECODER] SETSTREAMTYPE\n");
-				avia_command(SetStreamType, 0xB);
-				avia_command(SelectStream, 0, 0);
-				avia_command(SelectStream, 2, 0);
-				avia_command(SelectStream, 3, 0);
-				wDR(0x468, 0xFFFF);	// new audio config
-			} else
-				return -EINVAL;
-			break;
-		}
-		case VIDEO_SET_BLANK:
-			dvb->videostate.videoBlank=(boolean) arg;
-			break;
-		case VIDEO_GET_STATUS:
-			if(copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
-				return -EFAULT;
-			break;
-		case VIDEO_GET_EVENT:
-			return -ENOTSUPP;
-		case VIDEO_SET_DIPLAY_FORMAT:
-
-				switch ((videoDisplayFormat_t)arg)
-		{
-			case VIDEO_PAN_SCAN:
-					printk("SWITCH PAN SCAN\n");
-					dvb->videostate.displayFormat = VIDEO_PAN_SCAN;
-					wDR(ASPECT_RATIO_MODE, 1);
-					return 0;
-			case VIDEO_LETTER_BOX:
-					printk("SWITCH LETTER BOX\n");
-					dvb->videostate.displayFormat = VIDEO_LETTER_BOX;
-					wDR(ASPECT_RATIO_MODE, 2);
-					return 0;
-			case VIDEO_CENTER_CUT_OUT:
-					printk("SWITCH CENTER CUT OUT\n");
-					dvb->videostate.displayFormat = VIDEO_CENTER_CUT_OUT;
-					wDR(ASPECT_RATIO_MODE, 0);
-					return 0;
-			default:
-				return -ENOTSUPP;
-		}
-
-		return -ENOTSUPP;
-
-		case VIDEO_SET_FORMAT:
-
-				switch ((videoFormat_t)arg)
-		{
-			case VIDEO_FORMAT_4_3:
-					printk("SWITCH 4:3\n");
-					dvb->videostate.videoFormat = VIDEO_FORMAT_4_3;
-					wDR(FORCE_CODED_ASPECT_RATIO, 2);
-					return 0;
-			case VIDEO_FORMAT_16_9:
-					printk("SWITCH 16:9\n");
-					dvb->videostate.videoFormat = VIDEO_FORMAT_16_9;
-					wDR(FORCE_CODED_ASPECT_RATIO, 3);
-					return 0;
-			case VIDEO_FORMAT_20_9:
-					printk("SWITCH 20:9\n");
-					dvb->videostate.videoFormat = VIDEO_FORMAT_20_9;
-					wDR(FORCE_CODED_ASPECT_RATIO, 4);
-					return 0;
-			default:
-				return -ENOTSUPP;
-		}
-
-		return -ENOTSUPP;
-
-		case VIDEO_STILLPICTURE:
-			return -ENOTSUPP;
-		case VIDEO_FAST_FORWARD:
-			return -ENOTSUPP;
-		case VIDEO_SLOWMOTION:
-			return -ENOTSUPP;
-		default:
-			return -ENOIOCTLCMD;
-		}
-		return 0;
-	}
-//	case DVB_DEVICE_AUDIO:
-	case DVB_DEVICE_FRONTEND:
-	{
-		if (!dvb->demod)
-			return -ENOSYS;
-		switch (cmd)
-		{
-		case OST_SELFTEST:
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+			if (((file->f_flags&O_ACCMODE)==O_RDONLY) && (cmd!=VIDEO_GET_STATUS))
 				return -EPERM;
-			if(dvb->demod->sec_status)
-				return dvb->demod->sec_status(); // anyone a better idea ? 
-			else 
-				return -ENOSYS;
-			break;
-		case OST_SET_POWER_STATE:
-		{
-			uint32_t pwr,old;
-			int res;
-	
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			if (copy_from_user(&pwr, parg, sizeof(pwr))) //FIXME!! -Hunz
-				return -EFAULT;
-			if(dvb->demod->set_sec)
+
+			switch (cmd)
 			{
-				if (!dvb->demod->sec_status || (dvb->demod->sec_status() < 0))
-					return -EINVAL;
-				old=dvb->front.power;
-				if(pwr == OST_POWER_OFF)
-					dvb->front.power=OST_POWER_OFF;
-				else
-					dvb->front.power=OST_POWER_ON;
-				res=SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
-				if (res < 0)
-					dvb->front.power=old;
-				return res;
-			}	else 
-				return -ENOSYS;
+				case VIDEO_DIGEST:
+				{
+					/* TODO: check values */
+					avia_wait(avia_command(Digest,\
+							((struct videoDigest*)parg)->x,
+							((struct videoDigest*)parg)->y,
+							((struct videoDigest*)parg)->skip,
+							((struct videoDigest*)parg)->decimation,
+							((struct videoDigest*)parg)->threshold,
+							((struct videoDigest*)parg)->pictureID));
+					break;
+				}
+				case VIDEO_STOP:
+				{
+					dvb->videostate.playState=VIDEO_STOPPED;
+					printk("CHCH [DECODER] ABORT\n");
+					avia_command(Abort, 0);
+					break;
+				}
+				case VIDEO_PLAY:
+				{
+					printk("CHCH [DECODER] PLAY\n");
+					avia_command(Play, 50, 0, 0);
+					udelay(100*1000);
+					avia_flush_pcr();
+					if (dvb->dmxdev.demux)
+						dvb->dmxdev.demux->flush_pcr();
+					dvb->videostate.playState=VIDEO_PLAYING;
+					break;
+				}
+				case VIDEO_FREEZE:
+				{
+					dvb->videostate.playState=VIDEO_FREEZED;
+					avia_wait(avia_command(Freeze, 1));
+					break;
+				}
+				case VIDEO_CONTINUE:
+				{
+					if (dvb->videostate.playState==VIDEO_FREEZED)
+					{
+						dvb->videostate.playState=VIDEO_PLAYING;
+						avia_wait(avia_command(Resume));
+					}
+					break;
+				}
+				case VIDEO_SELECT_SOURCE:
+				{
+					if (dvb->videostate.playState==VIDEO_STOPPED)
+					{
+						dvb->videostate.streamSource=(videoStreamSource_t) arg;
+						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
+							return -EINVAL;
+						printk("CHCH [DECODER] SETSTREAMTYPE\n");
+						avia_command(SetStreamType, 0xB);
+						avia_command(SelectStream, 0, 0);
+						avia_command(SelectStream, 2, 0);
+						avia_command(SelectStream, 3, 0);
+						wDR(0x468, 0xFFFF);	// new audio config
+					} else
+						return -EINVAL;
+					break;
+				}
+				case VIDEO_SET_BLANK:
+				{
+					dvb->videostate.videoBlank=(boolean) arg;
+					break;
+				}
+				case VIDEO_GET_STATUS:
+				{
+					if(copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
+						return -EFAULT;
+					break;
+				}
+				case VIDEO_GET_EVENT:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SET_DIPLAY_FORMAT:
+				{
+					switch ((videoDisplayFormat_t)arg)
+					{
+						case VIDEO_PAN_SCAN:
+							printk("SWITCH PAN SCAN\n");
+							dvb->videostate.displayFormat = VIDEO_PAN_SCAN;
+							wDR(ASPECT_RATIO_MODE, 1);
+							return 0;
+						case VIDEO_LETTER_BOX:
+							printk("SWITCH LETTER BOX\n");
+							dvb->videostate.displayFormat = VIDEO_LETTER_BOX;
+							wDR(ASPECT_RATIO_MODE, 2);
+							return 0;
+						case VIDEO_CENTER_CUT_OUT:
+							printk("SWITCH CENTER CUT OUT\n");
+							dvb->videostate.displayFormat = VIDEO_CENTER_CUT_OUT;
+							wDR(ASPECT_RATIO_MODE, 0);
+							return 0;
+						default:
+							return -ENOTSUPP;
+					}
+
+					return -ENOTSUPP;
+				}
+				case VIDEO_SET_FORMAT:
+				{
+					switch ((videoFormat_t)arg)
+					{
+						case VIDEO_FORMAT_4_3:
+							printk("SWITCH 4:3\n");
+							dvb->videostate.videoFormat = VIDEO_FORMAT_4_3;
+							wDR(FORCE_CODED_ASPECT_RATIO, 2);
+							return 0;
+						case VIDEO_FORMAT_16_9:
+							printk("SWITCH 16:9\n");
+							dvb->videostate.videoFormat = VIDEO_FORMAT_16_9;
+							wDR(FORCE_CODED_ASPECT_RATIO, 3);
+							return 0;
+						case VIDEO_FORMAT_20_9:
+							printk("SWITCH 20:9\n");
+							dvb->videostate.videoFormat = VIDEO_FORMAT_20_9;
+							wDR(FORCE_CODED_ASPECT_RATIO, 4);
+							return 0;
+						default:
+							return -ENOTSUPP;
+					}
+
+					return -ENOTSUPP;
+	    		}
+				case VIDEO_STILLPICTURE:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_FAST_FORWARD:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SLOWMOTION:
+				{
+					return -ENOTSUPP;
+				}
+				default:
+					return -ENOIOCTLCMD;
 			}
-			break;
-		case OST_GET_POWER_STATE:
-		{
-			uint32_t pwr;
-	
-			if ((file->f_flags&O_ACCMODE)==O_WRONLY)
-				return -EPERM;
-			pwr=dvb->front.power;
-			if(copy_to_user(parg, &pwr, sizeof(pwr)))
-				return -EFAULT;
-			}
-			break;
-		case FE_READ_STATUS:
-		{
-			feStatus stat;
 
-			dvb->demod->get_frontend(&dvb->front);
-			stat=0;
-			if (dvb->front.power)
-				stat|=FE_HAS_POWER;
-			if ((dvb->front.sync&0x1f)==0x1f)
-				stat|=FE_HAS_SIGNAL;
-			if (dvb->front.inv)
-				stat|=QPSK_SPECTRUM_INV;
-
-			if(copy_to_user(parg, &stat, sizeof(stat)))
-				return -EFAULT;
-			break;
-		}
-		case FE_READ_BER:
-		{
-			uint32_t ber;
-			
-			dvb->demod->get_frontend(&dvb->front);
-			if (!dvb->front.power)
-				return -ENOSIGNAL;
-			ber=dvb->front.vber*10;
-			if(copy_to_user(parg, &ber, sizeof(ber)))
-				return -EFAULT;
-			break;
-		}
-		case FE_READ_SIGNAL_STRENGTH:
-		{
-			int32_t signal;
-			dvb->demod->get_frontend(&dvb->front);
-			if (!dvb->front.power)
-				return -ENOSIGNAL;
-			signal=dvb->front.agc;
-			if (copy_to_user(parg, &signal, sizeof(signal)))
-				return -EFAULT;
-			break;
-		}
-		case FE_READ_SNR:
-			return -ENOSYS;
-		case FE_READ_UNCORRECTED_BLOCKS:
-		{
-			uint32_t uncp;
-
-			if ( dvb->demod->get_unc_packet(&uncp) < 0 )
-			{
-				return -ENOSYS;
-			}
-			else
-			{
-				if (copy_to_user(parg, &uncp, sizeof(uncp)))
-					return -EFAULT;
-			}
-
-			break;
-		}
-		case FE_GET_NEXT_FREQUENCY:
-		{
-			uint32_t freq;
-			if (copy_from_user(&freq, parg, sizeof(freq)))
-				return -EFAULT;
-			freq+=1000;
-			if (copy_to_user(parg, &freq, sizeof(freq)))
-				return -EFAULT;
-			break;
-		}
-		case FE_GET_NEXT_SYMBOL_RATE:
-		{
-			uint32_t rate;
-
-			if(copy_from_user(&rate, parg, sizeof(rate)))
-				return -EFAULT;
-			// FIXME: how does one really calculate this?
-			if (rate<5000000)
-				rate+=500000;
-			else if(rate<10000000)
-				rate+=1000000;
-			else if(rate<30000000)
-				rate+=2000000;
-			else
-				return -EINVAL;
-			if(copy_to_user(parg, &rate, sizeof(rate)))
-				return -EFAULT;
-			break;
-		}
-		case QPSK_TUNE:
-		{
-			struct qpskParameters para;
-			static const uint8_t fectab[8]={8,0,1,2,4,6,0,8};
-			u32 val;
-	
-			if(copy_from_user(&para, parg, sizeof(para)))
-				return -EFAULT;
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			if (para.FEC_inner>7)
-				return -EINVAL;
-			val=para.iFrequency*1000;
-			if (dvb->front.freq!=val)
-			{
-//				printk ("frontend.c: fe.freq != val...\n");
-				tuner_setfreq(dvb, val);
-				dvb->front.freq=val;
-			}
-			val=para.SymbolRate;
-
-			dvb->front.srate=val;
-			dvb->front.fec=fectab[para.FEC_inner];
-			dvb->demod->set_frontend(&dvb->front);
-
-				// TODO: qpsk event				
-			break;
-		}
-		case QPSK_GET_EVENT:
-			return -ENOTSUPP;
-		case QPSK_FE_INFO:
-		{
-			struct qpskFrontendInfo feinfo;
-		
-			feinfo.minFrequency=500;	//KHz?
-			feinfo.maxFrequency=2100000;
-			feinfo.minSymbolRate=500000;
-			feinfo.maxSymbolRate=30000000;
-			feinfo.hwType=0;		//??
-			feinfo.hwVersion=0; //??
-			if(copy_to_user(parg, &feinfo, sizeof(feinfo)))
-				return -EFAULT;
-			break;
-		}
-		case QPSK_WRITE_REGISTER:
-			return -ENOTSUPP;
-		case QPSK_READ_REGISTER:
-			return -ENOTSUPP;
-		default:
-			printk("ost_frontend_ioctl: UNEXPECTED cmd: %d.\n", cmd);
-			return -EOPNOTSUPP;
-		}
-		return 0;
-		break;
-	}
-	case DVB_DEVICE_SEC:
-		if (!dvb->demod->set_sec)
-			return -ENOENT;
-				switch(cmd) {
-		case SEC_GET_STATUS:
-			{
-	struct secStatus status;
-	int ret;
-
-	if ((file->f_flags&O_ACCMODE)==O_WRONLY)
-		return -EPERM;
-	if (!dvb->demod->sec_status)
-		return -ENOSYS;
-	ret=dvb->demod->sec_status();
-	if (ret == 0)
-		status.busMode=SEC_BUS_IDLE;
-	else if (ret == -1)
-		status.busMode=SEC_BUS_OVERLOAD;
-	else if (ret == -2)
-		status.busMode=SEC_BUS_BUSY;
-	else if ((dvb->front.power == SEC_VOLTAGE_OFF) || (dvb->front.power == SEC_VOLTAGE_LT))
-		status.busMode=SEC_BUS_OFF;
-	
-	status.selVolt=dvb->front.volt;
-	status.contTone=dvb->front.ttk;
-	if(copy_to_user(parg,&status, sizeof(status)))
-		return -EFAULT;
-			}
-			break;
-	case SEC_RESET_OVERLOAD:
-		{
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			dvb->front.power=OST_POWER_ON;
-			SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
 			return 0;
 		}
-		break;
-	case SEC_SEND_SEQUENCE:
+		case DVB_DEVICE_FRONTEND:
 		{
-			struct secCmdSequence seq;
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			if(copy_from_user(&seq, parg, sizeof(seq)))
-				return -EFAULT;
-			return secSendSequence(dvb, &seq);
- 		}
-	case SEC_SET_TONE:
-		{
-			secToneMode mode = (secToneMode) arg;
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			return secSetTone(dvb,mode);
-		}
-	case SEC_SET_VOLTAGE:
-		{
-			secVoltage val = (secVoltage) arg;
-			if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-				return -EPERM;
-			return secSetVoltage(dvb,val);
-		}
-	default:
-		return -EOPNOTSUPP;
-	}
-	case DVB_DEVICE_DEMUX:
-		return DmxDevIoctl(&dvb->dmxdev, file, cmd, arg);
+			if (!dvb->demod)
+				return -ENOSYS;
 
-	case DVB_DEVICE_CA:
-	{
-		switch (cmd)
-		{
-			ca_msg_t ca_msg;
-
-			case CA_RESET:
-				return cam_reset();
-				break;
-			case CA_GET_MSG:
-								ca_msg.slot_num = 0;
-								ca_msg.type = 0;
-
-				if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+			switch (cmd)
+			{
+				case OST_SELFTEST:
 				{
-					return -EFAULT;
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					if(dvb->demod->sec_status)
+						return dvb->demod->sec_status(); // anyone a better idea ?
+					else
+						return -ENOSYS;
+					break;
 				}
-
-				((ca_msg_t*)parg)->length = cam_read_message( ((ca_msg_t*)parg)->msg, ca_msg.length );
-/*
-				if(copy_to_user(parg, &ca_msg, sizeof(ca_msg_t)))
+				case OST_SET_POWER_STATE:
 				{
-					return -EFAULT;
+					uint32_t pwr,old;
+					int res;
+	
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					if (copy_from_user(&pwr, parg, sizeof(pwr))) //FIXME!! -Hunz
+						return -EFAULT;
+					if(dvb->demod->set_sec)
+					{
+						if (!dvb->demod->sec_status || (dvb->demod->sec_status() < 0))
+							return -EINVAL;
+						old=dvb->front.power;
+						if(pwr == OST_POWER_OFF)
+							dvb->front.power=OST_POWER_OFF;
+						else
+							dvb->front.power=OST_POWER_ON;
+						res=SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
+						if (res < 0)
+							dvb->front.power=old;
+						return res;
+					}	else
+						return -ENOSYS;
+					break;
 				}
-*/
-				return 0;
-				break;
-			case CA_SEND_MSG:
-				if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+				case OST_GET_POWER_STATE:
 				{
-					return -EFAULT;
+					uint32_t pwr;
+	
+					if ((file->f_flags&O_ACCMODE)==O_WRONLY)
+						return -EPERM;
+					pwr=dvb->front.power;
+					if(copy_to_user(parg, &pwr, sizeof(pwr)))
+						return -EFAULT;
+					break;	
 				}
+				case FE_READ_STATUS:
+				{
+					feStatus stat;
 
-				cam_write_message( ca_msg.msg, ca_msg.length );
+					stat=0;
+					dvb->demod->get_frontend(&dvb->front);
+					if (dvb->front.power)
+						stat|=FE_HAS_POWER;
+					if ((dvb->front.sync&0x1f)==0x1f)
+						stat|=FE_HAS_SIGNAL;
+					if (dvb->front.inv)
+						stat|=QPSK_SPECTRUM_INV;
 
-				return 0;
-				break;
-			default:
-				return -EINVAL;
+					if(copy_to_user(parg, &stat, sizeof(stat)))
+						return -EFAULT;
+					break;
+				}
+				case FE_READ_BER:
+				{
+					uint32_t ber;
+			
+					dvb->demod->get_frontend(&dvb->front);
+					if (!dvb->front.power)
+						return -ENOSIGNAL;
+					ber=dvb->front.vber*10;
+					if(copy_to_user(parg, &ber, sizeof(ber)))
+						return -EFAULT;
+					break;
+				}
+				case FE_READ_SIGNAL_STRENGTH:
+				{
+					int32_t signal;
+					dvb->demod->get_frontend(&dvb->front);
+					if (!dvb->front.power)
+						return -ENOSIGNAL;
+					signal=dvb->front.agc;
+					if (copy_to_user(parg, &signal, sizeof(signal)))
+						return -EFAULT;
+					break;
+				}
+				case FE_READ_SNR:
+				{
+					return -ENOSYS;
+				}
+				case FE_READ_UNCORRECTED_BLOCKS:
+				{
+					uint32_t uncp;
+
+					if ( dvb->demod->get_unc_packet(&uncp) < 0 )
+					{
+						return -ENOSYS;
+					}
+					else
+					{
+						if (copy_to_user(parg, &uncp, sizeof(uncp)))
+							return -EFAULT;
+					}
+
+					break;
+				}
+				case FE_GET_NEXT_FREQUENCY:
+				{
+					uint32_t freq;
+
+					if (copy_from_user(&freq, parg, sizeof(freq)))
+						return -EFAULT;
+					freq+=1000;
+					if (copy_to_user(parg, &freq, sizeof(freq)))
+						return -EFAULT;
+					break;
+				}
+				case FE_GET_NEXT_SYMBOL_RATE:
+				{
+					uint32_t rate;
+
+					if(copy_from_user(&rate, parg, sizeof(rate)))
+						return -EFAULT;
+
+					// FIXME: how does one really calculate this?
+					if (rate<5000000)
+						rate+=500000;
+					else if(rate<10000000)
+						rate+=1000000;
+					else if(rate<30000000)
+						rate+=2000000;
+					else
+						return -EINVAL;
+
+					if(copy_to_user(parg, &rate, sizeof(rate)))
+						return -EFAULT;
+					break;
+				}
+				case QPSK_TUNE:
+				{
+					struct qpskParameters para;
+					static const uint8_t fectab[8]={8,0,1,2,4,6,0,8};
+					u32 val;
+	
+					if(copy_from_user(&para, parg, sizeof(para)))
+						return -EFAULT;
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					if (para.FEC_inner>7)
+						return -EINVAL;
+					val=para.iFrequency*1000;
+					if (dvb->front.freq!=val)
+					{
+//						printk ("frontend.c: fe.freq != val...\n");
+						tuner_setfreq(dvb, val);
+						dvb->front.freq=val;
+					}
+
+					val=para.SymbolRate;
+					dvb->front.srate=val;
+					dvb->front.fec=fectab[para.FEC_inner];
+					dvb->demod->set_frontend(&dvb->front);
+
+					// TODO: qpsk event				
+					break;
+				}
+				case QPSK_GET_EVENT:
+				{
+					return -ENOTSUPP;
+				}
+				case QPSK_FE_INFO:
+				{
+					struct qpskFrontendInfo feinfo;
+		
+					feinfo.minFrequency=500;	//KHz?
+					feinfo.maxFrequency=2100000;
+					feinfo.minSymbolRate=500000;
+					feinfo.maxSymbolRate=30000000;
+					feinfo.hwType=0;		//??
+					feinfo.hwVersion=0; //??
+
+					if(copy_to_user(parg, &feinfo, sizeof(feinfo)))
+						return -EFAULT;
+					break;
+				}
+				case QPSK_WRITE_REGISTER:
+				{
+					return -ENOTSUPP;
+				}
+				case QPSK_READ_REGISTER:
+				{
+					return -ENOTSUPP;
+				}
+				default:
+				{
+					printk("ost_frontend_ioctl: UNEXPECTED cmd: %d.\n", cmd);
+					return -EOPNOTSUPP;
+				}
+			}
+
+			return 0;
 		}
-	}
-
-	case DVB_DEVICE_SCART:
-	{
-		switch (cmd)
+		case DVB_DEVICE_SEC:
 		{
-			case SCART_VOLUME_SET:
-			case SCART_VOLUME_GET:
-			case SCART_MUTE_SET:
-			case SCART_MUTE_GET:
-			case SCART_AUD_FORMAT_SET:
-			case SCART_AUD_FORMAT_GET:
-			case SCART_VID_FORMAT_SET:
-			case SCART_VID_FORMAT_GET:
-			case SCART_VID_FORMAT_INPUT_GET:
-			case SCART_SLOW_SWITCH_SET:
-			case SCART_SLOW_SWITCH_GET:
-			case SCART_RGB_LEVEL_SET:
-			case SCART_RGB_LEVEL_GET:
-			case SCART_RGB_SWITCH_SET:
-			case SCART_RGB_SWITCH_GET:
-			case SCART_BYPASS_SET:
-			case SCART_BYPASS_GET:
-				return scart_command( cmd, parg );
+			if (!dvb->demod->set_sec)
+				return -ENOENT;
 
-			default:
-				return -EOPNOTSUPP;
+			switch(cmd)
+			{
+				case SEC_GET_STATUS:
+				{
+					struct secStatus status;
+					int ret;
+
+					if ((file->f_flags&O_ACCMODE)==O_WRONLY)
+						return -EPERM;
+					if (!dvb->demod->sec_status)
+						return -ENOSYS;
+
+					ret=dvb->demod->sec_status();
+					if (ret == 0)
+						status.busMode=SEC_BUS_IDLE;
+					else if (ret == -1)
+						status.busMode=SEC_BUS_OVERLOAD;
+					else if (ret == -2)
+						status.busMode=SEC_BUS_BUSY;
+					else if ((dvb->front.power == SEC_VOLTAGE_OFF) || (dvb->front.power == SEC_VOLTAGE_LT))
+						status.busMode=SEC_BUS_OFF;
+	
+					status.selVolt=dvb->front.volt;
+					status.contTone=dvb->front.ttk;
+					if(copy_to_user(parg,&status, sizeof(status)))
+						return -EFAULT;
+					break;
+				}
+				case SEC_RESET_OVERLOAD:
+				{
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					dvb->front.power=OST_POWER_ON;
+					SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
+					break;
+				}
+				case SEC_SEND_SEQUENCE:
+				{
+					struct secCmdSequence seq;
+
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					if(copy_from_user(&seq, parg, sizeof(seq)))
+						return -EFAULT;
+					return secSendSequence(dvb, &seq);
+		 		}
+				case SEC_SET_TONE:
+				{
+					secToneMode mode = (secToneMode) arg;
+
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					return secSetTone(dvb,mode);
+				}
+				case SEC_SET_VOLTAGE:
+				{
+					secVoltage val = (secVoltage) arg;
+
+					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+						return -EPERM;
+					return secSetVoltage(dvb,val);
+				}
+				default:
+					return -EOPNOTSUPP;
+			}
+
+			return 0;
 		}
-	}
+		case DVB_DEVICE_DEMUX:
+		{
+			return DmxDevIoctl(&dvb->dmxdev, file, cmd, arg);
+		}
+		case DVB_DEVICE_CA:
+		{
+			switch (cmd)
+			{
+				ca_msg_t ca_msg;
 
+				case CA_RESET:
+				{
+					return cam_reset();
+				}
+				case CA_GET_MSG:
+				{
+					ca_msg.slot_num = 0;
+					ca_msg.type = 0;
 
-	case DVB_DEVICE_OSTKBD:
-	{
-	}
+					if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+					{
+						return -EFAULT;
+					}
 
-	default:
-		return -EOPNOTSUPP;
+					((ca_msg_t*)parg)->length = cam_read_message( ((ca_msg_t*)parg)->msg, ca_msg.length );
+					/*
+					if(copy_to_user(parg, &ca_msg, sizeof(ca_msg_t)))
+					{
+						return -EFAULT;
+					}
+					*/
+					return 0;
+				}
+				case CA_SEND_MSG:
+				{
+					if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+					{
+						return -EFAULT;
+					}
+
+					cam_write_message( ca_msg.msg, ca_msg.length );
+
+					return 0;
+				}
+				default:
+					return -EINVAL;
+			}
+
+			return 0;
+		}
+		case DVB_DEVICE_SCART:
+		{
+			switch (cmd)
+			{
+				case SCART_VOLUME_SET:
+				case SCART_VOLUME_GET:
+				case SCART_MUTE_SET:
+				case SCART_MUTE_GET:
+				case SCART_AUD_FORMAT_SET:
+				case SCART_AUD_FORMAT_GET:
+				case SCART_VID_FORMAT_SET:
+				case SCART_VID_FORMAT_GET:
+				case SCART_VID_FORMAT_INPUT_GET:
+				case SCART_SLOW_SWITCH_SET:
+				case SCART_SLOW_SWITCH_GET:
+				case SCART_RGB_LEVEL_SET:
+				case SCART_RGB_LEVEL_GET:
+				case SCART_RGB_SWITCH_SET:
+				case SCART_RGB_SWITCH_GET:
+				case SCART_BYPASS_SET:
+				case SCART_BYPASS_GET:
+					return scart_command( cmd, parg );
+				default:
+					return -EOPNOTSUPP;
+			}
+
+			return 0;
+		}
+		case DVB_DEVICE_OSTKBD:
+		{
+		}
+		default:
+			return -EOPNOTSUPP;
 	}
 
 	return 0;
