@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.128 $
+ *   $Revision: 1.129 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.129  2002/09/18 12:13:20  Jolt
+ *   Queue handling changes #2
+ *
  *   Revision 1.128  2002/09/18 09:57:42  Jolt
  *   Queue handling changes
  *
@@ -636,16 +639,16 @@ static int avia_gt_napi_handle_section(gtx_demux_feed_t *gtxfeed, u8 queue_nr, u
 	{
 		max_check = sec_len;
 		copied = 1;
-		queue->info.move_data(queue_nr, gtxfeed->sec_buffer, sec_len, 0);
+		queue->info.get_data(queue_nr, gtxfeed->sec_buffer, sec_len, 0);
 	}
 	else if (gtxfeed->secfilter->next)      // mehr als ein client ?
 	{
-		queue->info.move_data(queue_nr, gtxfeed->sec_buffer, sec_len, 0);
+		queue->info.get_data(queue_nr, gtxfeed->sec_buffer, sec_len, 0);
 		copied = 1;
 	}
 	else
 	{
-		queue->info.move_data(queue_nr, gtxfeed->sec_buffer, DMX_MAX_FILTER_SIZE, 1);
+		queue->info.get_data(queue_nr, gtxfeed->sec_buffer, DMX_MAX_FILTER_SIZE, 1);
 	}
 
 	/*
@@ -700,7 +703,7 @@ static int avia_gt_napi_handle_section(gtx_demux_feed_t *gtxfeed, u8 queue_nr, u
 
 	if (!copied)
 	{
-		queue->info.move_data(queue_nr, NULL, sec_len, 0);
+		queue->info.get_data(queue_nr, NULL, sec_len, 0);
 	}
 
 	gtxfeed->sec_len = 0;
@@ -749,7 +752,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 									
-				queue_info->move_data(queue_nr, &msg, sizeof(msg), 0);
+				queue_info->get_data(queue_nr, &msg, sizeof(msg), 0);
 									
 				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 				
@@ -789,7 +792,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 								
 				}
 
-				queue_info->move_data(queue_nr, &adaption, sizeof(adaption), 0);
+				queue_info->get_data(queue_nr, &adaption, sizeof(adaption), 0);
 									
 				if (queue_info->bytes_avail(queue_nr) < adaption.length) {
 									
@@ -801,7 +804,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 
-				queue_info->move_data(queue_nr, NULL, adaption.length, 0);
+				queue_info->get_data(queue_nr, NULL, adaption.length, 0);
 
 			break;
 
@@ -849,7 +852,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 									
-				queue_info->move_data(queue_nr, &comp_msg, sizeof(comp_msg), 0);
+				queue_info->get_data(queue_nr, &comp_msg, sizeof(comp_msg), 0);
 									
 				if (!(blocked & (1 << comp_msg.filter_index))) {
 									
@@ -928,7 +931,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						}
 
-						queue_info->move_data(queue_nr, NULL, buf_len, 0);
+						queue_info->get_data(queue_nr, NULL, buf_len, 0);
 
 					}
 
@@ -944,7 +947,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				{
 					while ((queue_info->bytes_avail(queue_nr)) && (queue_info->get_data8(queue_nr, 1) == 0xFF))
 					{
-						queue_info->move_data(queue_nr, NULL, 1, 0);
+						queue_info->get_data(queue_nr, NULL, 1, 0);
 					}
 
 					if (queue_info->bytes_avail(queue_nr) < 3)
@@ -952,7 +955,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						break;
 					}
 
-					queue_info->move_data(queue_nr, section_header, sizeof(section_header), 1);
+					queue_info->get_data(queue_nr, section_header, sizeof(section_header), 1);
 					gtxfeed->sec_len = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
 
 					if (gtxfeed->sec_len > 4096)
@@ -977,7 +980,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					if ((gtxfeed->check_crc) && (queue_info->crc32(queue_nr, gtxfeed->sec_len, 0)))
 					{
 						dprintk("avia_gt_napi: section CRC invalid\n");
-						queue_info->move_data(queue_nr, NULL, gtxfeed->sec_len, 0);
+						queue_info->get_data(queue_nr, NULL, gtxfeed->sec_len, 0);
 						continue;
 					}
 
@@ -1016,7 +1019,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 					}
 
-					queue_info->move_data(queue_nr, ts_header, sizeof(ts_header), 0);
+					queue_info->get_data(queue_nr, ts_header, sizeof(ts_header), 0);
 
 					// TODO: handle CC
 
@@ -1024,7 +1027,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					if (!(ts_header[3] & 0x10)) {					// adaption control field
 
 						dprintk("a packet with no payload. sachen gibt's.\n");
-						queue_info->move_data(queue_nr, NULL,188 - sizeof(ts_header), 0);
+						queue_info->get_data(queue_nr, NULL,188 - sizeof(ts_header), 0);
 						continue;
 					}
 
@@ -1032,7 +1035,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 					if (ccn == gtxfeed->sec_ccn)			// doppelt hält besser, hmm?
 					{
-						queue_info->move_data(queue_nr, NULL,188 - sizeof(ts_header), 0);
+						queue_info->get_data(queue_nr, NULL,188 - sizeof(ts_header), 0);
 						continue;
 					}
 
@@ -1062,7 +1065,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						if (adaption_len > 182)	{
 
 							dprintk("gtx_dmx: warning afle=%d (ignore)\n", adaption_len);
-							queue_info->move_data(queue_nr, NULL,187 - sizeof(ts_header), 0);
+							queue_info->get_data(queue_nr, NULL,187 - sizeof(ts_header), 0);
 
 							continue;
 
@@ -1070,7 +1073,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						tr -= adaption_len + 1;
 
-						queue_info->move_data(queue_nr, NULL, adaption_len, 0);
+						queue_info->get_data(queue_nr, NULL, adaption_len, 0);
 
 					}
 
@@ -1093,7 +1096,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									if (gtxfeed->check_crc)
 										gtxfeed->sec_crc = queue_info->crc32(queue_nr, r, gtxfeed->sec_crc);
 
-									queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 0);
+									queue_info->get_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 0);
 
 									gtxfeed->sec_recv += r;
 
@@ -1104,7 +1107,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							}
 							else
 							{
-								queue_info->move_data(queue_nr, NULL, next_sec_offs, 0);
+								queue_info->get_data(queue_nr, NULL, next_sec_offs, 0);
 							}
 							tr -= next_sec_offs + 1;
 						} else {
@@ -1120,7 +1123,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					}
 					else if (gtxfeed->sec_recv == 0)	// kein Paketstart und keine bereits angefangene section im Puffer
 					{
-						queue_info->move_data(queue_nr, NULL, tr, 0);
+						queue_info->get_data(queue_nr, NULL, tr, 0);
 						continue;
 					}
 
@@ -1136,7 +1139,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							if (gtxfeed->check_crc)
 								gtxfeed->sec_crc = queue_info->crc32(queue_nr, r, gtxfeed->sec_crc);
 
-							queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 0);
+							queue_info->get_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, r, 0);
 
 							gtxfeed->sec_recv += r;
 
@@ -1149,13 +1152,13 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 								// Get rid of padding bytes
 								if (tr)
-									queue_info->move_data(queue_nr, NULL, tr, 0);
+									queue_info->get_data(queue_nr, NULL, tr, 0);
 
 								break;
 
 							}
 
-							queue_info->move_data(queue_nr, section_header, sizeof(section_header), 1);
+							queue_info->get_data(queue_nr, section_header, sizeof(section_header), 1);
 
 							r = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
 
@@ -1177,7 +1180,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									}
 									else
 									{
-										queue_info->move_data(queue_nr,NULL,r,0);
+										queue_info->get_data(queue_nr,NULL,r,0);
 										dprintk("avia_gt_napi: section CRC invalid\n");
 										gtxfeed->sec_len = 0;
 										gtxfeed->sec_recv = 0;
@@ -1186,7 +1189,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								}
 								else
 								{
-									queue_info->move_data(queue_nr, gtxfeed->sec_buffer, r, 0);
+									queue_info->get_data(queue_nr, gtxfeed->sec_buffer, r, 0);
 									gtxfeed->sec_recv += r;
 									if (gtxfeed->sec_len == gtxfeed->sec_recv)
 										gtx_handle_section(gtxfeed);
@@ -1944,7 +1947,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.128 2002/09/18 09:57:42 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.129 2002/09/18 12:13:20 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
