@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.31 2002/08/17 02:03:18 Homar Exp $
+   $Id: ves1820.c,v 1.32 2002/08/19 22:53:13 Homar Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,9 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.32  2002/08/19 22:53:13  Homar
+    special enigma und satfind support
+
     Revision 1.31  2002/08/17 02:03:18  Homar
     Tuner sei stil...
 
@@ -71,6 +74,9 @@
 #include <dbox/dvb_frontend.h>
 #include <dbox/fp.h>
 
+static int debug = 0;
+
+
 #ifdef MODULE
 MODULE_DESCRIPTION("");
 MODULE_AUTHOR("Ralph Metzler");
@@ -80,7 +86,6 @@ MODULE_LICENSE("GPL");
 MODULE_PARM(debug,"i");
 #endif
 
-static int debug = 0;
 #define dprintk	if (debug) printk
 
 static struct i2c_driver dvbt_driver;
@@ -475,7 +480,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.31 2002/08/17 02:03:18 Homar Exp $\n");
+        printk("$Id: ves1820.c,v 1.32 2002/08/19 22:53:13 Homar Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -628,6 +633,13 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
                 writereg(client, msg[0], msg[1]);
                 break;
         }
+		case FE_READREG:
+		{
+				u8 *msg = (u8 *) arg;
+				msg[1]=readreg(client, msg[0]);
+				dprintk ("READREG: %16u / %16u\n",msg[0], msg[1]);
+				break;
+		}
         case FE_INIT:
         {
 				dprintk ("INIT: Einsprung \n");
@@ -674,6 +686,61 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				dprintk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
 
 				fp_set_tuner_dword(T_QAM, *((u32*)buffer));
+				break;
+		}
+		case FE_READ_BER:
+		{
+				u32 *ber=(u32 *) arg;
+
+				*ber = readreg(client,0x14);
+				*ber|=(readreg(client,0x15)<<8);
+				*ber|=((readreg(client,0x16)&0xF)<<16);
+				*ber*=10;
+				dprintk ("READ_BER: %u\n",*ber);
+				break;
+		}
+		case FE_READ_SIGNAL_STRENGTH:
+		{
+				u8 *vagc=(u8 *) arg;
+				*vagc=0xff-readreg(client,0x17);
+				dprintk ("READ_SIGNAL_STRENGTH (AGC): %d\n",*vagc);
+				break;
+		}
+		case FE_READ_SNR:
+		{
+				u8 *snr=(u8 *) arg;
+				*snr=readreg(client,0x18);
+				dprintk ("READ_SNR (MeanSquareError): %d\n",*snr);
+				break;
+		}
+		case FE_READ_UNCORRECTED_BLOCKS:
+		{
+				u8 *ublocks=(u8 *) arg;
+				*ublocks = readreg(client,0x13) & 0x7f;
+				ClrBit1820(client);
+				dprintk ("READ_UNCORRECTED_BLOCKS: %d\n",*ublocks);
+				break;
+		}
+		case FE_READ_AFC:
+		{
+				struct ves1820 *ves=(struct ves1820 *) client->data;
+				s32 *afc=(s32 *) arg;
+				*afc=(s32)((int)(readreg(client,0x19)>>2));
+				*afc=(s32)((*afc*((ves->srate)>>1))>>7);
+				dprintk ("READ_AFC: %d\n",*afc);
+				break;
+		}
+		case FE_GET_INFO:
+		{
+				FrontendInfo *feinfo=(FrontendInfo *) arg;
+				feinfo->type=FE_QAM;
+				feinfo->minFrequency=49000000;
+				feinfo->maxFrequency=890000000;
+				feinfo->minSymbolRate=543750;
+				feinfo->maxSymbolRate=8700000;
+				feinfo->hwType=0;
+				feinfo->hwVersion=0;
+				dprintk ("GET_INFO: Einsprung \n");
 				break;
 		}
         default:
