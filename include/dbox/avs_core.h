@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.7  2002/04/25 12:07:06  happydude
+ *   unified setting of scart pin8 voltage for lazyT :)
+ *
  *   Revision 1.6  2002/01/01 14:16:10  gillem
  *   - update
  *
@@ -40,7 +43,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -130,8 +133,9 @@
 #define AVSIOGLOG3   (31|AVSIOGET)
 #define AVSIOGLOG4   (32|AVSIOGET)
 #define AVSIOGSTATUS (33|AVSIOGET)
-
 #define AVSIOGTYPE   (34|AVSIOGET)
+#define AVSIOSSCARTPIN8	(35|AVSIOSET)
+#define AVSIOGSCARTPIN8	(36|AVSIOGET)
 
 
 /* VS1 - TV Output */
