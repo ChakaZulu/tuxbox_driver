@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.196 2003/12/22 04:09:17 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.197 2004/02/01 13:50:23 wjoost Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -307,14 +307,37 @@ static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue,
 static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, void *data)
 {
 	struct dvb_demux_feed *dvbdmxfeed = data;
+	u32 buf1_len = queue->get_buf1_size(queue);
+	u32 buf2_len = queue->get_buf2_size(queue);
+	u32 len;
+	u32 cutoff;
+
+	len = buf1_len + buf2_len;
+
+	if ( (dvbdmxfeed->type == DMX_TYPE_TS) && !(dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY) )
+	{
+		if ( (cutoff = len % 188) )
+		{
+			if (cutoff > buf2_len)
+			{
+				buf1_len -= cutoff - buf2_len;
+				buf2_len = 0;
+			}
+			else
+			{
+				buf2_len -= cutoff;
+			}
+			len -= cutoff;
+		}
+	}
 
 	dvbdmxfeed->cb.ts(gt_info->mem_addr + queue->get_buf1_ptr(queue),
-			  queue->get_buf1_size(queue),
+			  buf1_len,
 			  gt_info->mem_addr + queue->get_buf2_ptr(queue),
-			  queue->get_buf2_size(queue), &dvbdmxfeed->feed.ts,
+			  buf2_len, &dvbdmxfeed->feed.ts,
 			  DMX_OK);
 
-	queue->flush(queue);
+	queue->get_data(queue,NULL,len,0);
 }
 
 static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
@@ -744,7 +767,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.196 2003/12/22 04:09:17 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.197 2004/02/01 13:50:23 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

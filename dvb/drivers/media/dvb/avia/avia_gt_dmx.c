@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.200 2003/12/31 16:49:04 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.201 2004/02/01 13:50:23 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -55,7 +55,7 @@ static sAviaGtInfo *gt_info;
 static volatile sRISC_MEM_MAP *risc_mem_map;
 static volatile u16 *riscram;
 static volatile u16 *pst;
-static volatile u16 *ppct; 
+static volatile u16 *ppct;
 static char *ucode;
 static int hw_sections = 1;
 static int force_stc_reload;
@@ -68,11 +68,11 @@ static struct avia_gt_ucode_info ucode_info;
 static int queue_client[AVIA_GT_DMX_QUEUE_USER_START] = { -1, -1, -1 };
 
 /* Sizes are (2 ^ n) * 64 bytes. Beware of the aligning! */
-static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] = {
+static u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] = {
 	10,			/* video	*/
-	9,			/* audio	*/
+	10,			/* audio	*/
 	9,			/* teletext	*/
-	10, 10, 10, 10, 10,	/* user 3..7	*/
+	9, 10, 11, 10, 10,	/* user 3..7	*/
 	8, 8, 8, 8, 8, 8, 8, 8,	/* user 8..15	*/
 	8, 8, 8, 8, 7, 7, 7, 7,	/* user 16..23	*/
 	7, 7, 7, 7, 7, 7, 7,	/* user 24..30	*/
@@ -718,7 +718,7 @@ void avia_gt_dmx_queue_irq(unsigned short irq)
 
 	u8 bit = AVIA_GT_IRQ_BIT(irq);
 	u8 nr = AVIA_GT_IRQ_REG(irq);
-	u32 old_hw_write_pos,written,too_much;
+	u32 old_hw_write_pos;
 
 	u8 queue_nr = AVIA_GT_DMX_QUEUE_COUNT;
 
@@ -751,31 +751,6 @@ void avia_gt_dmx_queue_irq(unsigned short irq)
 	old_hw_write_pos = q->hw_write_pos;
 	q->hw_write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 
-	/*
-	 * Deliver only complete ts-packets. Otherwise, /dev/dvr gets confused.
-	 */
-
-	if (q->mode == AVIA_GT_DMX_QUEUE_MODE_TS)
-	{
-		if (old_hw_write_pos < q->hw_write_pos)
-		{
-			written = q->hw_write_pos - old_hw_write_pos;
-		}
-		else
-		{
-			written = q->hw_write_pos + q->size - old_hw_write_pos;
-		}
-		too_much = written % 188;
-		if (too_much > q->hw_write_pos)
-		{
-			q->hw_write_pos = q->size + q->hw_write_pos - too_much;
-		}
-		else
-		{
-			q->hw_write_pos -= too_much;
-		}
-	}
-
 	if (!q->qim_mode) {
 		q->qim_irq_count++;
 
@@ -794,9 +769,9 @@ void avia_gt_dmx_queue_irq(unsigned short irq)
 	else {
 		avia_gt_dmx_queue_qim_mode_update(queue_nr);
 	}
-	
+
 	// Cases:
-	// 
+	//
 	//    [    R     OW    ] (R < OW)
 	//
 	// 1. [    R     OW  W ] OK
@@ -902,6 +877,19 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt
 
 	q = &queue_list[queue_nr];
 
+	if (!queue_nr) {
+		if (!mode) {		/* SPTS-Mode? */
+			queue_size_table[0] = 11;
+			printk(KERN_INFO "SPTS, queue 0 extended.\n");
+		}
+		else
+		{
+			printk(KERN_INFO "PES, queue 0 normal.\n");
+			queue_size_table[0] = 10;
+		}
+		q->size = (1 << queue_size_table[0]) * 64;
+	}
+
 	avia_gt_dmx_queue_reset(queue_nr);
 
 	q->pid = pid;
@@ -961,19 +949,15 @@ void avia_gt_dmx_bh_task(void *tl_data)
 	if (q->overflow_count) {
 		printk(KERN_WARNING "avia_gt_dmx: queue %d overflow (count: %d)\n", queue_nr, q->overflow_count);
 		q->overflow_count = 0;
-		q->read_pos = q->hw_write_pos;
+		q->read_pos = q->write_pos = q->hw_write_pos;
 		return;
 	}
 
 	queue_info = &q->info;
 
-	/* Resync for video, audio and teletext */
-	if ((avia_gt_dmx_queue_is_system_queue(queue_nr)) && (q->mode == AVIA_GT_DMX_QUEUE_MODE_TS)) {
-		if (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT) {
-			pid1 = queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].pid;
-			pid2 = pid1;
-		}
-		else {
+	/* Resync for TS-Queues */
+	if (q->mode == AVIA_GT_DMX_QUEUE_MODE_TS) {
+		if (queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) {
 			if (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid != 0xFFFF) {
 				pid1 = queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid;
 				pid2 = pid1;
@@ -984,21 +968,38 @@ void avia_gt_dmx_bh_task(void *tl_data)
 					pid1 = pid2;
 			}
 		}
-
-		avail = queue_info->bytes_avail(queue_info);
-
-		while (avail >= 188) {
-			queue_info->get_data(queue_info, &ts, 3, 1);
-
-			if ((ts.sync_byte == 0x47) && ((ts.pid == pid1) || (ts.pid == pid2)))
-				break;
-
-			avail--;
-			queue_info->get_data(queue_info, NULL, 1, 0);
+		else
+		{
+			pid1 = queue_list[queue_nr].pid;
+			pid2 = pid1;
 		}
 
-		if (avail < 188)
+		if ( (avail = queue_info->bytes_avail(queue_info)) < 188 )
+		{
 			return;
+		}
+
+		queue_info->get_data(queue_info, &ts, 3, 1);
+
+		/* Resynchronisation TS-queues */
+
+		if ( (ts.sync_byte != 0x47) || ((ts.pid != pid1) && (ts.pid != pid2) ) )
+		{
+			while (avail >= 188)
+			{
+				if ((ts.sync_byte == 0x47) && ((ts.pid == pid1) || (ts.pid == pid2)) )
+				{
+					break;
+				}
+				queue_info->get_data(queue_info,NULL,1,0);
+				avail--;
+			}
+
+			if (avail < 188)
+			{
+				return;
+			}
+		}
 	}
 
 	for (sys_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO; sys_queue_nr < AVIA_GT_DMX_QUEUE_USER_START; sys_queue_nr++) {
@@ -1016,6 +1017,7 @@ void avia_gt_dmx_bh_task(void *tl_data)
 
 	if (cb_proc)
 		cb_proc(queue_info, priv_data);
+
 }
 
 void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
@@ -2066,7 +2068,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.200 2003/12/31 16:49:04 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.201 2004/02/01 13:50:23 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
