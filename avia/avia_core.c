@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.17  2001/05/26 20:39:33  tmbinc
+ *   fixed annoying audio bug (thought this was already fixed?!)
+ *
  *   Revision 1.16  2001/05/15 22:19:11  kwon
  *   use __le32_to_cpu() instead of endian_swap()
  *
@@ -95,7 +98,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -454,8 +457,8 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                                         "New audio emphasis is on.\n",
                                         __FILE__, __FUNCTION__); break;
                         }
-
-                wDR (0x468, 1);
+								if (sem&0xFF)
+	                wDR (0x468, 1);
         }
 
         /* buffer full */
@@ -1203,7 +1206,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_core.c,v 1.16 2001/05/15 22:19:11 kwon Exp $\n");
+        dprintk ("AVIA: $Id: avia_core.c,v 1.17 2001/05/26 20:39:33 tmbinc Exp $\n");
         return init_avia ();
 }
 
