@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.57  2002/02/06 23:54:57  Hunz
+ *   IR-Keyboard Mousepad test - Inputdev not yet working
+ *
  *   Revision 1.56  2002/01/23 19:54:11  Hunz
  *   experimental input support
  *
@@ -182,7 +185,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.56 $
+ *   $Revision: 1.57 $
  *
  */
 
@@ -1200,9 +1203,10 @@ int fp_do_reset(int type)
 }
 
 static void fp_handle_mouse(struct fp_data *dev) {
-  // u16 mousecode=-1;
-  //  fp_cmd(dev->client, ?, (u8*)&mousecode, 2);
-  
+   u16 mousecode=-1;
+   
+   fp_cmd(dev->client, 5, (u8*)&mousecode, 2);
+   printk("mouse: %02X\n", mousecode&0xFF);
 }
 
 static void fp_handle_keyboard(struct fp_data *dev)
@@ -1338,7 +1342,7 @@ fp status:
 			break;
 		}
 
-	} while (status & (0x59|2));            // only the ones we can handle
+	} while (status & 0x5F);            // only the ones we can handle
 
 	if (status)
 		dprintk("fp.o: unhandled interrupt source %x\n", status);
