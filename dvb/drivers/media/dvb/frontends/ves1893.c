@@ -384,7 +384,7 @@ void ves_get_frontend(struct frontend *front)
   front->vber = readreg(dclient,0x15);
   front->vber|=(readreg(dclient,0x16)<<8);
   front->vber|=(readreg(dclient,0x17)<<16);
-  printk("vber: %x\n", front->vber);
+  //printk("vber: %x\n", front->vber);
 
   if ((front->fec==8) && ((front->sync&0x1f) == 0x1f))
     front->fec=(readreg(dclient, 0x0d)>>4)&0x07;
