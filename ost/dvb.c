@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.45 2001/07/23 21:16:48 TripleDES Exp $
+ * $Id: dvb.c,v 1.46 2001/07/25 04:43:26 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -116,7 +116,7 @@ static int frontend_init(dvb_struct_t *dvb)
 	} else if (fe.type==FRONT_DVBC)
 	{
 		printk("using QAM\n");
-		fe.power=1; // <- that's false! in 2 ways even !! -Hunz
+		fe.power=OST_POWER_ON;
 		fe.freq=394000000;
 		fe.srate=6900000;
 		fe.video_pid=0x262;
@@ -1175,7 +1175,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 					stat=0;
 					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power)
+					if (dvb->front.power==OST_POWER_ON)
 						stat|=FE_HAS_POWER;
 					if ((dvb->front.sync&0x1f)==0x1f)
 						stat|=FE_HAS_SIGNAL;
@@ -1191,7 +1191,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					uint32_t ber;
 			
 					dvb->demod->get_frontend(&dvb->front);
-					if (!dvb->front.power)
+					if (dvb->front.power!=OST_POWER_ON)
 						return -ENOSIGNAL;
 					ber=dvb->front.vber*10;
 					if(copy_to_user(parg, &ber, sizeof(ber)))
@@ -1202,7 +1202,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					int32_t signal;
 					dvb->demod->get_frontend(&dvb->front);
-					if (!dvb->front.power)
+					if (dvb->front.power!=OST_POWER_ON)
 						return -ENOSIGNAL;
 					signal=dvb->front.agc;
 					if (copy_to_user(parg, &signal, sizeof(signal)))
@@ -1211,7 +1211,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case FE_READ_SNR:
 				{
-					return -ENOSYS;
+					int32_t snr;
+					dvb->demod->get_frontend(&dvb->front);
+					if (dvb->front.power==OST_POWER_ON)
+						return -ENOSIGNAL;
+					snr=dvb->front.nest;
+					if (copy_to_user(parg, &snr, sizeof(snr)))
+						return -EFAULT;
+					break;
 				}
 				case FE_READ_UNCORRECTED_BLOCKS:
 				{
