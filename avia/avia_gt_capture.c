@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.11  2002/04/17 16:44:26  Jolt
+ *   GTX support finished
+ *
  *   Revision 1.10  2002/04/17 13:32:57  Jolt
  *   Capture driver merge
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -212,7 +215,7 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
     //line_stride = (((input_width / scale_x) + 3) & ~3) * 2;
     line_stride = (((input_width / scale_x) + 3) & ~3);
     buffer_odd_offset = (line_stride * (capture_height / 2)) + 100;
-    buffer_odd_offset = line_stride / 2;
+    //buffer_odd_offset = line_stride / 2;
 
     printk("avia_gt_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
     printk("avia_gt_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
@@ -248,37 +251,72 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
     // than if we scale down both fields
 //    if ((scale_y > 0) && (!(scale_y & 0x01))) {
 
-	enx_reg_s(VCSZ)->B = 0;   				// Even-only fields
-//	enx_reg_s(VCSZ)->VDEC = (scale_y / 2) - 1;		
+	if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+	
+	    enx_reg_s(VCSZ)->B = 0;   				// Even-only fields
+	    //enx_reg_s(VCSZ)->VDEC = (scale_y / 2) - 1;		
+
+	} else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+    	    gtx_reg_s(VCS)->B = 0;                                  // Even-only fields
+	    //gtx_reg_s(VCS)->VDEC = (scale_y / 2) - 1;
+	
+			
+	}
     
 //    } else {
 
-//	enx_reg_s(VCSZ)->B = 1;   				// Both fields
-	enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
+	if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
+	    //enx_reg_s(VCSZ)->B = 1;   				// Both fields
+	    enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
+	    
+	} else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+	
+	    //gtx_reg_s(VCS)->B = 1;                                  // Both fields
+	    gtx_reg_s(VCS)->VDEC = scale_y - 1;
+		
+	}
     
 //    }
 
-    enx_reg_s(VCSZ)->VSIZE = input_height / 2;
-
-    enx_reg_s(VCSTR)->STRIDE = line_stride / 4;
-
-    enx_reg_s(VCOFFS)->Offset = buffer_odd_offset >> 2;
-//    enx_reg_s(VCOFFS)->Offset = 0;
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
-    enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
-//    enx_reg_s(VCSA2)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 2;
+        enx_reg_s(VCSZ)->VSIZE = input_height / 2;
 
-    enx_reg_s(VCSA1)->E = 1;
+	enx_reg_s(VCSTR)->STRIDE = line_stride / 4;
+
+        enx_reg_s(VCOFFS)->Offset = buffer_odd_offset >> 2;
+	//enx_reg_s(VCOFFS)->Offset = 0;
     
-    printk("avia_gt_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
-    printk("avia_gt_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
+	enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
+	//enx_reg_s(VCSA2)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 2;
+
+	enx_reg_s(VCSA1)->E = 1;
     
-    state=1;
-    frames=0;
+	printk("avia_gt_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
+	printk("avia_gt_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
+
+    } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	gtx_reg_s(VCS)->VSIZE = input_height / 2;
+    
+        gtx_reg_s(VCSA)->Addr = capt_buf_addr >> 1;
+	//gtx_reg_s(VPSA)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 1;
+	
+	gtx_reg_s(VCSA)->E = 1;
+	    
+	printk("gtx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", gtx_reg_s(VCS)->HDEC, gtx_reg_s(VCS)->HSIZE, gtx_reg_s(VCS)->VDEC, gtx_reg_s(VCS)->VSIZE, gtx_reg_s(VCS)->B, line_stride / 4);
+	printk("gtx_capture: VCSA->Addr=0x%X, VPSA->Addr=0x%X, Delta=%d\n", gtx_reg_s(VCSA)->Addr, gtx_reg_s(VCSA)->Addr, gtx_reg_s(VCSA)->Addr - gtx_reg_s(VPSA)->Addr);
+
+    }
+    
+    state = 1;
+    frames = 0;
     capture_busy = 1;
     
     if (capture_buffer)
-	*capture_buffer = (unsigned char *)(enx_reg_s(VCSA1)->Addr << 2);
+	*capture_buffer = (unsigned char *)(capt_buf_addr);
 	
     if (stride)
 	*stride = line_stride;
@@ -353,7 +391,7 @@ int __init avia_gt_capture_init(void)
 
     unsigned short capture_irq;
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.10 2002/04/17 13:32:57 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.11 2002/04/17 16:44:26 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
