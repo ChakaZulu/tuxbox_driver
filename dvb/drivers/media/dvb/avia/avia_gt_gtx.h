@@ -80,7 +80,7 @@
 /* Infrared */
 #define GTX_REG_CWP	0x0C0
 #define GTX_REG_CWPH	0x0C2
-#define GTX_REG_MSP	0x0C4
+#define GTX_REG_MSPR	0x0C4
 #define GTX_REG_MSPL	0x0C6
 #define GTX_REG_RTC	0x0C8
 #define GTX_REG_RTP	0x0CA
@@ -907,7 +907,7 @@ typedef struct {
 	unsigned char E: 1;
 	unsigned short MSP: 10;
 
-} sGTX_REG_MSP;
+} sGTX_REG_MSPR;
 
 typedef struct {
 
