@@ -999,6 +999,9 @@ unsigned int dvb_demux_poll (struct file *file, poll_table *wait)
 	if (!dmxdevfilter)
 		return -EINVAL;
 
+	if (dmxdevfilter->buffer.pread != dmxdevfilter->buffer.pwrite)
+		return (POLLIN | POLLRDNORM | POLLPRI);
+
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
 	if (dmxdevfilter->state != DMXDEV_STATE_GO)
