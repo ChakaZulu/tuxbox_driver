@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.35 2002/10/29 19:27:05 obi Exp $
+ * $Id: at76c651.c,v 1.36 2002/10/29 21:39:45 Jolt Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -185,6 +185,8 @@ static int dat7021_set_tv_freq(struct dvb_i2c_bus *i2c, u32 freq)
 {
 
 	u32 dw;
+	
+	freq /= 1000;
 
 	if ((freq < 48250) || (freq > 863250))
 		return -EINVAL;
@@ -466,7 +468,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.35 2002/10/29 19:27:05 obi Exp $\n");
+	printk("$Id: at76c651.c,v 1.36 2002/10/29 21:39:45 Jolt Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
