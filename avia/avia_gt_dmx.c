@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.118  2002/09/08 16:15:22  Jolt
+ *   DMX fixes
+ *
  *   Revision 1.117  2002/09/08 13:02:49  Jolt
  *   DMX fixes
  *
@@ -158,7 +161,7 @@
  *
  *
  *
- *   $Revision: 1.117 $
+ *   $Revision: 1.118 $
  *
  */
 
@@ -268,13 +271,6 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *cb_proc, void *cb_d
 		return -EBUSY;
 
 	}
-
-#if 0
-	if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
-		gtx_set_queue_pointer(queue_system_map[queue_nr], queue_list[queue_nr].mem_addr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr], 0);
-	else
-		avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);    
-#endif
 
 	queue_list[queue_nr].busy = 1;
 	queue_list[queue_nr].cb_proc = cb_proc;
@@ -1641,7 +1637,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.117 2002/09/08 13:02:49 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.118 2002/09/08 16:15:22 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1743,7 +1739,12 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;
 		queue_list[queue_nr].info.move_data = avia_gt_dmx_queue_data_move;
-		
+
+		if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
+			gtx_set_queue_pointer(queue_system_map[queue_nr], queue_list[queue_nr].mem_addr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr], 0);
+		else
+			avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);    
+				
 		avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);    
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 		avia_gt_dmx_queue_irq_disable(queue_nr);
