@@ -1,7 +1,6 @@
 
-AM_CFLAGS =			\
-	$(DFB_CFLAGS)		\
-	$(DFB_INTERNAL_CFLAGS)
+INCLUDES =			\
+	@DFB_CFLAGS@
 
 gtx_LTLIBRARIES = libdirectfb_gtx.la
 
