@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.6  2003/01/05 14:44:18  Homar
+ *   compile-fix
+ *
  *   Revision 1.5  2003/01/03 17:19:31  Jolt
  *   Adapt some new stuff from libtuxbox
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -52,7 +55,7 @@
 #include <asm/io.h>
 #include <linux/proc_fs.h>
 #include <dbox/info.h>
-#include "../../apps/misc/libs/libtuxbox/tuxbox.h"
+#include "../../apps/tuxbox/libs/libtuxbox/tuxbox.h"
 
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
@@ -70,33 +73,33 @@ static int read_manufacturer_id(void)
 	unsigned char *conf = (unsigned char *)ioremap(0x1001FFE0, 0x20);
 
 	if (!conf) {
-	
+
 		printk("tuxbox: Could not remap memory\n");
-		
+
 		return -1;
-		
+
 	}
 
 	switch (conf[0]) {
-	
+
 		case DBOX_MID_NOKIA:
-		
+
 			vendor = TUXBOX_VENDOR_NOKIA;
-			
+
 			break;
-			
+
 		case DBOX_MID_SAGEM:
-		
+
 			vendor = TUXBOX_VENDOR_SAGEM;
-			
+
 			break;
-			
+
 		case DBOX_MID_PHILIPS:
-		
+
 			vendor = TUXBOX_VENDOR_PHILIPS;
-			
+
 			break;
-			
+
 	}
 
 	iounmap(conf);
@@ -109,14 +112,14 @@ static int tuxbox_read_proc(char *buf, char **start, off_t offset, int len, int 
 {
 
 	u32 buf_len = 0;
-	
+
 	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_VERSION, TUXBOX_VERSION);
 	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_VENDOR, vendor);
 	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_MODEL, TUXBOX_MODEL_DBOX2);
 	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_CAPABILITIES, DBOX2_CAPS);
-	
+
 	return buf_len;
-	
+
 }
 
 int __init tuxbox_init(void)
@@ -133,21 +136,21 @@ int __init tuxbox_init(void)
 	}
 
 	if (!proc_bus) {
-	
+
 		printk("tuxbox: /proc/bus does not exist\n");
-		
+
 		return -ENOENT;
-		
+
 	}
 
 	tuxbox_proc_entry = create_proc_entry("tuxbox", 0, proc_bus);
 
 	if (!tuxbox_proc_entry)	{
-	
+
 		printk("tuxbox: Could not create /proc/bus/tuxbox\n");
-		
+
 		return -ENOENT;
-		
+
 	}
 
 	tuxbox_proc_entry->read_proc = &tuxbox_read_proc;
@@ -155,14 +158,14 @@ int __init tuxbox_init(void)
 	tuxbox_proc_entry->owner = THIS_MODULE;
 
 	return 0;
-	
+
 }
 
 void __exit tuxbox_exit(void)
 {
 
 	remove_proc_entry("tuxbox", proc_bus);
-	
+
 }
 
 module_init(tuxbox_init);
