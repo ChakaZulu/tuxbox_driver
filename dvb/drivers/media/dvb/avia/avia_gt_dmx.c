@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.208 2004/06/24 00:26:58 carjay Exp $
+ * $Id: avia_gt_dmx.c,v 1.209 2004/06/24 00:35:39 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -90,8 +90,9 @@ static inline int avia_gt_dmx_queue_is_system_queue(u8 queue_nr)
  *   background and a software teletext decoder is running.
  * - if the driver operates in spts mode then recording the running video or
  *   audio packets separately is not possible because both pids are routed
- *   into the video queue. For now recording either video pid/audio pid will deliver video
- *   and audio. This has to be filtered by software.
+ *   into the video queue. For now recording the video pid will deliver video
+ *   and audio while recording the audio pid will not deliver data at all.
+ *   This has to be filtered by the software demux.
  */
 static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 {
@@ -1326,7 +1327,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.208 2004/06/24 00:26:58 carjay Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.209 2004/06/24 00:35:39 carjay Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
