@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.12 2003/11/20 01:38:25 obi Exp $
+ * $Id: avia_av_proc.c,v 1.13 2003/11/24 08:44:25 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -48,6 +48,10 @@ static int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t o
 	nr += sprintf(buf + nr, "B_RATE:  %d\n", avia_av_dram_read(BIT_RATE) & 0xFFFF);
 	nr += sprintf(buf + nr, "VB_SIZE: %d\n", avia_av_dram_read(VBV_SIZE) & 0xFFFF);
 	nr += sprintf(buf + nr, "A_TYPE:  %d\n", avia_av_dram_read(AUDIO_TYPE) & 0xFFFF);
+	nr += sprintf(buf + nr, "MR_PIC_PTS: %08x\n", avia_av_dram_read(MR_PIC_PTS));
+	nr += sprintf(buf + nr, "MR_PIC_STC: %08x\n", avia_av_dram_read(MR_PIC_STC));
+	nr += sprintf(buf + nr, "MR_AUD_PTS: %08x\n", avia_av_dram_read(MR_AUD_PTS));
+	nr += sprintf(buf + nr, "MR_AUD_STC: %08x\n", avia_av_dram_read(MR_AUD_STC));
 
 	return nr;
 }
@@ -97,7 +101,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.12 2003/11/20 01:38:25 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.13 2003/11/24 08:44:25 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");
