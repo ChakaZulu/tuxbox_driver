@@ -1,5 +1,5 @@
 /*
- * $Id: dummyadap.c,v 1.2 2002/10/29 11:34:05 Jolt Exp $
+ * $Id: dummyadap.c,v 1.3 2002/10/29 21:19:10 Jolt Exp $
  *
  * Dummy Adapter Driver 
  *
@@ -47,11 +47,9 @@ int i2c_dbox2_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 static int dummyadap_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msgs[], int num)
 {
 
-	printk("dummyadap: i2c_master_xfer\n");
+//	printk("dummyadap: i2c_master_xfer\n");
 	
-	i2c_dbox2_xfer(NULL, msgs, num);
-
-	return 0;
+	return i2c_dbox2_xfer(NULL, msgs, num);
 
 }
 
@@ -107,7 +105,7 @@ static int __init dummyadap_init(void)
 
 	int result;
 
-	printk("$Id: dummyadap.c,v 1.2 2002/10/29 11:34:05 Jolt Exp $\n");
+	printk("$Id: dummyadap.c,v 1.3 2002/10/29 21:19:10 Jolt Exp $\n");
 
 	if ((result = dvb_register_adapter(&adap, "dummy adapter")) < 0) {
 	

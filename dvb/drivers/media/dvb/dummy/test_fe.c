@@ -148,9 +148,10 @@ int main(void)
 	FEDumpStatus(fe_fd);
 	
 	if (fe_info.type == FE_QAM) {
-	
-		fe_param.frequency = 1000000;
-		fe_param.u.qam.symbol_rate = 7900;
+
+		fe_param.frequency = 394000000;
+		fe_param.u.qam.symbol_rate = 6900000;
+		fe_param.u.qam.modulation = QAM_64;
 		fe_param.inversion = INVERSION_AUTO;
 	
 	} else if (fe_info.type == FE_QPSK) {
