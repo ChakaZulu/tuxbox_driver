@@ -7,13 +7,12 @@ KERNELRELEASE = \
 
 INSTALL_MOD_PATH =
 MODULE_DEST := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/misc
-BIN_DEST := $(INSTALL_MOD_PATH)/bin
 
-export KERNELRELEASE KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST BIN_DEST
+export KERNELRELEASE KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST
 
-mod-subdirs := avs lcd saa7126 avia fp i2c ves cam ost test info event
+mod-subdirs := avia avs cam event fp i2c info lcd ost saa7126 ves
 
-subdir-y := avs lcd saa7126 avia fp i2c ves cam ost test info event
+subdir-y := avia avs cam event fp i2c info lcd ost saa7126 ves
 
 subdir-m := $(subdir-y)
 
