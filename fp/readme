@@ -25,12 +25,8 @@ FP_IOCTL_LED
 devfs:
 ------
 
-/dev/fp
-
-FP_MAJOR        60
-
-FP_MINOR        0
-RC_MINOR        1
+/dev/dbox/fp0
+/dev/dbox/rc0
 
 fpid
 ----
