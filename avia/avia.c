@@ -21,10 +21,13 @@
  *
  *
  *   $Log: avia.c,v $
+ *   Revision 1.9  2001/02/02 18:17:18  gillem
+ *   - add exports (avia_wait,avia_command)
+ *
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -275,6 +278,9 @@ u32 avia_wait(u32 sa)                 // sagte ich dass wir DRINGEND nen irq bra
     udelay(1000);
   }
 }
+
+EXPORT_SYMBOL(avia_wait);
+EXPORT_SYMBOL(avia_command);
 
 static void avia_audio_init(void);
 
