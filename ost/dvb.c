@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.47 2001/07/30 19:12:29 tmbinc Exp $
+ * $Id: dvb.c,v 1.48 2001/09/02 01:23:45 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -898,6 +898,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
 					printk("CHCH [DECODER] ABORT\n");
+					avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
 					//avia_command(Abort, 0);
 					break;
 				}
@@ -905,12 +906,12 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					printk("CHCH [DECODER] PLAY\n");
 					avia_command(NewChannel, 0, 0, 0);
-					//avia_command(Play, 50, 0, 0);
-					udelay(100*1000);
-					avia_flush_pcr();
+					//avia_command(Play, 0, 0, 0);
+					udelay(10*1000);
+					//avia_flush_pcr();
 					
-					if (dvb->dmxdev.demux)
-						dvb->dmxdev.demux->flush_pcr();
+					//if (dvb->dmxdev.demux)
+					//	dvb->dmxdev.demux->flush_pcr();
 					dvb->videostate.playState=VIDEO_PLAYING;
 					break;
 				}
@@ -938,13 +939,22 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 							return -EINVAL;
 						printk("CHCH [DECODER] SETSTREAMTYPE\n");
 						avia_command(SetStreamType, 0xB);
-						avia_command(SelectStream, 0, 0);
-						avia_command(SelectStream, 2, 0);
-						avia_command(SelectStream, 3, 0);
+						
+						avia_flush_pcr();
+					
+						if (dvb->dmxdev.demux)
+						    dvb->dmxdev.demux->flush_pcr();
+						
+						
+						
+						//avia_command(SelectStream, 0, 0);
+						//avia_command(SelectStream, 2, 0);
+						//avia_command(SelectStream, 3, 0);
 						
 						//udelay(1000*10);
 						//avia_command(NewChannel,0,0,0);
-						wDR(0x468, 0xFFFF);	// new audio config
+						//wDR(0x468, 0xFFFF);	// new audio config
+
 					} else
 						return -EINVAL;
 					break;
