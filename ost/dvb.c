@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.9 2001/03/07 20:59:43 Hunz Exp $
+ * $Id: dvb.c,v 1.10 2001/03/08 14:08:51 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -211,7 +211,6 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 {
         int i, ret, burst, len;
         u8 msg[16];
-	u32 final_msg;
 
         switch (seq->miniCommand) {
         case SEC_MINI_NONE:
@@ -237,8 +236,7 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
                         msg[1]=seq->commands[i].u.diseqc.addr;
                         msg[2]=seq->commands[i].u.diseqc.cmd;
                         memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
-			memcpy(&final_msg,msg,4);
-                        fp_send_diseqc(final_msg);
+                        fp_send_diseqc(msg,len+3);
                         break;
                 case SEC_CMDTYPE_PAUSE:
                         // what to do here ??

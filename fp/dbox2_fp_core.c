@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.14  2001/03/08 14:08:50  Hunz
+ *   DiSEqC number of params changed to 0-3
+ *
  *   Revision 1.13  2001/03/06 18:49:20  Hunz
  *   fix for sat-boxes (fp_set_pol... -> fp_set_sec)
  *
@@ -42,7 +45,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -71,6 +74,8 @@
 #include "dbox/fp.h"
 
 #include <linux/devfs_fs_kernel.h>
+
+#include <ost/sec.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -822,13 +827,18 @@ int fp_set_tuner_dword(int type, u32 tw)
 
 /* ------------------------------------------------------------------------- */
 
-int fp_send_diseqc(u32 dw)
+int fp_send_diseqc(u8 *cmd, unsigned int len)
 {
-	char msg[]={0, 0x1B};
+	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0x1B};
 	int c;
-	*(u32*)(msg+2)=dw;
+	memcpy(msg+2,cmd,len);
 
-	i2c_master_send(defdata->client, msg, 6);
+	dprintk("DiSEqC sent:");
+	for(c=0;c<len;c++) {
+	  dprintk(" %02X",msg[2+c]);
+	}
+	dprintk("\n");
+	i2c_master_send(defdata->client, msg, 2+len);
 
 	for (c=0;c<100;c++)
 	{
@@ -845,6 +855,7 @@ int fp_send_diseqc(u32 dw)
 		dprintk("fp.o: DiSEqC/DISEqC/DISeQc/dIS.,.... TIMEOUT jedenfalls.\n");
 	} else
 	{
+
 		dprintk("fp.o: ja, das d.... hat schon nach %d versuchen ...  egal.\n", c);
 	}
 

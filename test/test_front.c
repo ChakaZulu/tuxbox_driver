@@ -303,13 +303,15 @@ main(int argc, char **argv)
 	int32_t strength, i;
 	struct qpskFrontendInfo info;
 	struct secStatus sec_state;
-        struct qpskParameters parm={370000, 6900000, 0};
-//        struct qpskParameters parm={11837000-10600000, 27500000, 0}; //2==3/4
+//        struct qpskParameters parm={370000, 6900000, 0};
+        struct qpskParameters parm={12480000-10600000, 27500000, 0}; //2==3/4
         printf ("only 27500 and HOR and HI-Band!!\n");
         if (argc >= 2)
           parm.iFrequency = atoi(argv[1]);
         if (argc >= 3)
           parm.SymbolRate = atoi(argv[2]);
+        if (argc >= 4)
+          parm.FEC_inner = atoi(argv[3]);
 	if((fd = open("/dev/ost/qpskfe0",O_RDWR)) < 0){
 		perror("FRONTEND DEVICE: ");
 		return -1;
