@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.22  2001/04/06 21:15:20  tmbinc
+ *   Finally added new rc-support.
+ *
  *   Revision 1.21  2001/04/01 01:54:25  tmbinc
  *   added "poll"-support, blocks on open if already opened
  *
@@ -66,7 +69,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -568,9 +571,7 @@ static int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1)
 	dprintk("fp.o: fp_sendcmd: %02x %02x\n", b0, b1);
 
 	if (i2c_master_send(client, cmd, 2)!=2)
-	{
 		return -1;
-	}
 
 	return 0;
 }
@@ -582,9 +583,7 @@ static int fp_getid(struct i2c_client *client)
 	u8 id[3]={0, 0, 0};
 
 	if (fp_cmd(client, FP_GETID, id, 3))
-	{
 		return 0;
-	}
 
 	return id[0];
 }
@@ -625,12 +624,22 @@ static void fp_handle_rc(struct fp_data *dev)
 
 /* ------------------------------------------------------------------------- */
 
+static void fp_handle_new_rc(struct fp_data *dev)
+{
+	u16 rc;
+
+	fp_cmd(dev->client, 0x26, (u8*)&rc, 2);
+	fp_add_event(rc);
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void fp_handle_button(struct fp_data *dev)
 {
 	u8 rc;
 
 	fp_cmd(dev->client, 0x25, (u8*)&rc, 1);
-	fp_add_event(rc);
+	fp_add_event(rc|0xFF00);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -784,7 +793,8 @@ static void fp_check_queues(void)
 {
 	u8 status;
 	int iwork=0;
-  
+ 
+ 	dprintk("fp.o: checking queues.\n"); 
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
 	if (status)
@@ -799,10 +809,11 @@ static void fp_check_queues(void)
 		fp_cmd(defdata->client, 0x20, &status, 1);
   
 		/* remote control */
-		if (status&9)
-		{
+		if (status&1)
 			fp_handle_rc(defdata);
-		}
+
+		if (status&8)
+			fp_handle_new_rc(defdata);
   
 		/* front button */
 		if (status&0x10)
@@ -997,6 +1008,7 @@ static void fp_restart(char *cmd)
 static void fp_power_off(void)
 {
 	fp_sendcmd(defdata->client, 0, 3);
+	fp_sendcmd(defdata->client, 0, 0);
 	for (;;);
 }
 
