@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.h,v $
+ *   Revision 1.3  2001/03/03 11:09:21  gillem
+ *   - bugfix
+ *
  *   Revision 1.2  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -28,11 +31,11 @@
  *   initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
 #ifdef __KERNEL__
-int cxa2092_init(struct i2c_client *client);
-int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg );
+int cxa2126_init(struct i2c_client *client);
+int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg );
 #endif

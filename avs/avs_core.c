@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.3  2001/03/03 11:09:21  gillem
+ *   - bugfix
+ *
  *   Revision 1.2  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -28,7 +31,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -83,7 +86,7 @@ struct avs_type
 
 static struct avs_type avs_types[] = {
 	{"CXA2092", 0, 0 },
-	{"CXA2126", 0, 0 }
+	{"CXA2126", 0, 1 }
 };
 
 struct avs
@@ -96,8 +99,6 @@ struct avs
 static int avs_ioctl (struct inode *inode, struct file *file,
                          unsigned int cmd, unsigned long arg);
 static int avs_open (struct inode *inode, struct file *file);
-
-static int avs_set(void);
 
 /* ---------------------------------------------------------------------- */
 
