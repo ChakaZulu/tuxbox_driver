@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.37 2001/06/24 18:29:02 gillem Exp $
+ * $Id: dvb.c,v 1.38 2001/06/25 20:31:34 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -1557,6 +1557,8 @@ int unregister_demux(struct dmx_demux_s *demux)
 {
 	if (dvb.dmxdev.demux==demux)
 	{
+		dvb_net_release(&dvb.dvb_net);
+
 		DmxDevRelease(&dvb.dmxdev);
 		dvb.dmxdev.demux=0;
 #ifdef MODULE
