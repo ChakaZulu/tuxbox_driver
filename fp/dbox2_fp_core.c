@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.53  2002/01/20 06:21:49  Hunz
+ *   keyboard change
+ *
  *   Revision 1.52  2002/01/19 17:32:57  Hunz
  *   didn't help
  *
@@ -170,7 +173,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.52 $
+ *   $Revision: 1.53 $
  *
  */
 
@@ -885,7 +888,7 @@ static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 /* ------------------------------------------------------------------------ */
 
 int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
-  /* not sure if this works... */
+
   if(scancode>255||keycode>127)
     return -EINVAL;
   if(scancode&0x80)
@@ -896,7 +899,7 @@ int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
 }
 
 int irkbd_getkeycode(unsigned int scancode) {
-  /* not sure if this works... */
+
   if(scancode&0x80)
     return fn_keymap[scancode&0x7f];
   else
@@ -904,9 +907,17 @@ int irkbd_getkeycode(unsigned int scancode) {
 }
 
 int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
-  /* i wonder wether that's enough... */
-  if((scancode&0x7f)==0x49) {/* Fn toggled */
-    *keycode=0;
+
+  if((scancode&0x7f)==0x49) {  /* Fn toggled */
+    if(scancode==0x49)
+      irkbd_flags|=IRKBD_FN;
+    else 
+      irkbd_flags&=~IRKBD_FN;
+    return 0;
+  }
+  /* mouse button changed */
+  else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f)) {
+    irkbd_mousebutton(scancode&0xff);
     return 0;
   }
   
@@ -1050,7 +1061,7 @@ static int fp_init(void)
 #ifdef CONFIG_MAGIC_SYSRQ
         ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
-	irkbd_init_hw();
+	//	irkbd_init_hw();
 	return 0;
 }
 
@@ -1160,17 +1171,8 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	u16 scancode=-1;
 
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
-	printk("keyboard scancode: %02x\n", scancode);
+	//	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
-	if((scancode&0xff)==0x49) {
-	  irkbd_flags|=IRKBD_FN;
-	}
-	else if ((scancode&0xff)==0xC9) {
-	  irkbd_flags&=~IRKBD_FN;
-	}
-	 /* mouse button changed */
-	else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
-	  irkbd_mousebutton(scancode&0xff);
 }
 
 
