@@ -17,12 +17,14 @@ BUILD_DATE=$(shell date)
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx.o aviam.o
+M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o aviam.o
 
 AVIA_OBJS = 500v093.o 600vb017.o avia.o
-GTX_OBJS  = gtx-core.o gtx-dmx.o gtx-fb.o ucode.o fbgen.o 
+GTX_FB    = gtx-fb.o fbgen.o
+GTX_DMX   = gtx-dmx.o
+GTX_CORE  = gtx-core.o ucode.o
 
-EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
+#EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
@@ -35,11 +37,17 @@ install:
 	cp $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(GTX_OBJS) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(GTX_FB) $(GTX_DMX) $(GTX_CORE) .*.o.flags *~
 
-gtx.o: $(GTX_OBJS)
-	$(LD) -m elf32ppclinux -r -o $@ $(GTX_OBJS)
+gtx_core.o: $(GTX_CORE)
+	$(LD) -m elf32ppclinux -r -o $@ $(GTX_CORE)
     
+gtx_dmx.o: $(GTX_DMX)
+	$(LD) -m elf32ppclinux -r -o $@ $(GTX_DMX)
+
+gtx_fb.o: $(GTX_FB)
+	$(LD) -m elf32ppclinux -r -o $@ $(GTX_FB)
+
 aviam.o: $(AVIA_OBJS)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_OBJS)
 
