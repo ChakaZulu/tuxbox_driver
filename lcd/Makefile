@@ -8,7 +8,7 @@ LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o
 # 2.4.X Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -I$(KERNEL_LOCATION)/arch/ppc/8xx_io -I$(KERNEL_LOCATION)/include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I$(KERNEL_LOCATION)/arch/ppc -I../include -I$(KERNEL_LOCATION)/arch/ppc/8xx_io -I$(KERNEL_LOCATION)/include -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
