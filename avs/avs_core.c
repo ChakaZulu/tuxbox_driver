@@ -21,8 +21,8 @@
  *
  *
  *   $Log: avs_core.c,v $
- *   Revision 1.13  2001/06/24 07:50:18  gillem
- *   - more functions in nokia ostnet scart api
+ *   Revision 1.14  2001/06/24 08:24:24  gillem
+ *   - some changes in nokia ostnet scart api
  *
  *   Revision 1.12  2001/05/26 09:20:09  gillem
  *   - add stv6412
@@ -61,7 +61,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -447,6 +447,7 @@ int scart_command( unsigned int cmd, void *arg )
 		}
 		case SCART_VOLUME_GET:
 		{
+			int err;
 			int32_t value;			
 			scartVolume sVolume;
 
@@ -454,9 +455,9 @@ int scart_command( unsigned int cmd, void *arg )
 			sVolume.maxVol = 63;
 			sVolume.incVol = 1;
 
-			if ( avs_command( &client_template, AVSIOGVOL, &value ) )
+			if ( (err=avs_command( &client_template, AVSIOGVOL, &value )) )
 			{
-				return -EINVAL;
+				return err;
 			}
 
 			sVolume.curVol = value;
@@ -499,29 +500,11 @@ int scart_command( unsigned int cmd, void *arg )
 		}
 		case SCART_VID_FORMAT_SET:
 		{
-			int32_t value;
-
-			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
-			{
-				return -EFAULT;
-			}
-
-			// TODO: set
-
-			return 0;
+			return avs_command( &client_template, AVSIOSFNC, arg );
 		}
 		case SCART_VID_FORMAT_GET:
 		{
-			int32_t value;
-
-			// TODO: get
-
-			if ( copy_to_user( arg, &value, sizeof(int32_t) ) )
-			{
-				return -EFAULT;
-			}
-
-			return 0;
+			return avs_command( &client_template, AVSIOGFNC, arg );
 		}
 		case SCART_VID_FORMAT_INPUT_GET:
 		{
@@ -538,29 +521,11 @@ int scart_command( unsigned int cmd, void *arg )
 		}
 		case SCART_SLOW_SWITCH_SET:
 		{
-			int32_t value;
-
-			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
-			{
-				return -EFAULT;
-			}
-
-			// TODO: set
-
-			return 0;
+			return avs_command( &client_template, AVSIOSFBLK, arg );
 		}
 		case SCART_SLOW_SWITCH_GET:
 		{
-			int32_t value;
-
-			// TODO: get
-
-			if ( copy_from_user( arg, &value, sizeof(int32_t) ) )
-			{
-				return -EFAULT;
-			}
-
-			return 0;
+			return avs_command( &client_template, AVSIOGFBLK, arg );
 		}
 		case SCART_RGB_LEVEL_SET:
 		{
@@ -621,6 +586,14 @@ int scart_command( unsigned int cmd, void *arg )
 				return -EFAULT;
 			}
 
+			if ( sBypass.ctrlCmd & SET_TV_SCART )
+			{
+			}
+
+			if ( sBypass.ctrlCmd & SET_VCR_SCART )
+			{
+			}
+
 			// TODO: set
 
 			return 0;
@@ -628,6 +601,19 @@ int scart_command( unsigned int cmd, void *arg )
 		case SCART_BYPASS_GET:
 		{
 			scartBypass sBypass;
+
+			if ( copy_from_user( &sBypass, arg, sizeof(scartBypass) ) )
+			{
+				return -EFAULT;
+			}
+
+			if ( sBypass.ctrlCmd & SET_TV_SCART )
+			{
+			}
+
+			if ( sBypass.ctrlCmd & SET_VCR_SCART )
+			{
+			}
 
 			// TODO: get
 
