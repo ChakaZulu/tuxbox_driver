@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.73 $
+ *   $Revision: 1.74 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.74  2002/04/18 18:17:37  happydude
+ *   deactivate pcr pid failsafe
+ *
  *   Revision 1.73  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -1508,11 +1511,13 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->pid=pid;
 	filter->wait_pusi=0;	// right?
 
+#if 0
 	if (gtxfeed->pes_type==DMX_TS_PES_VIDEO)
 	{
 		dprintk(KERN_DEBUG "gtx_dmx: assuming PCR_PID == VPID == %04x\n", pid);
 		gtx_dmx_set_pcr_source(pid);
 	}
+#endif
 
 	filter->type=GTX_FILTER_PID;
 
@@ -2104,7 +2109,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.73 2002/04/14 18:06:19 Jolt Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.74 2002/04/18 18:17:37 happydude Exp $\n");
 
 	return gtx_dmx_init();
 }
