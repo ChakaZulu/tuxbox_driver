@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.11  2001/02/03 19:44:38  tmbinc
+ *   Fixed double-buffering.
+ *
  *   Revision 1.10  2001/02/02 23:45:33  tmbinc
  *   Modified for strictly halfword-aligned accesses to gtxmem. -tmb
  *
@@ -50,7 +53,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -81,8 +84,8 @@
 #define rDR(a) avia_rd(TM_DRAM, a)
 
 #define PCM_INTR_REG        1
-#define PCM1_INTR_BIT       10
-#define PCM2_INTR_BIT        12
+#define PCM_PF_INTR_BIT       10
+#define PCM_AD_INTR_BIT       12
 
 void pcm_reset(void);
 void pcm_dump_reg(void);
@@ -105,8 +108,8 @@ struct pcm_state {
 struct pcm_state s;
 
 static unsigned char *gtxmem, *gtxreg;
-static int buffer_start, buffer_size, buffer_end, buffer_wptr, buffer_rptr, buffer_maxptr;
-static int stopped=1;
+static int buffer_start, buffer_size, buffer_end, buffer_wptr, buffer_rptr, buffer_playptr;
+static int underrun=0;
 
 /* reset pcm register on gtx */
 void pcm_reset()
@@ -118,21 +121,10 @@ void pcm_reset()
   cr&=~(1<<9);
   rh(CR0)=cr;
 
-  /* enable dac on gtx */
-  cr=rh(CR0);
-  cr&=~(1<<5);
-  rh(CR0)=cr;
-
-  /* reset aclk */
-  rh(RR0) |=  (1<<12);
-  rh(RR0) &= ~(1<<12);
-
-  /* reset pcm */
-  rh(RR0) |=  (1<<9);
-  rh(RR0) &= ~(1<<9);
-
-  // der dac ist was anderes (hat mit PCR zu tun).. AFAIK?
-
+  /* reset aclk  and pcm*/
+  rh(RR0) |= 0x1200;
+  rh(RR0) &= ~0x1200;
+  
   /* buffer disable */
   rw(PCMA) = 1;
 
@@ -152,20 +144,20 @@ void pcm_reset()
 
   /* signed samples */  
   rh(PCMC) |= (1<<11);
-
+  
   /* !!! ACLK NOT WORK !!! */
 
   /* clock from aclk */
-  rh(PCMC) &= ~(1<<6);
+  rh(PCMC) &= ~(0<<6);  // 0: use external (avia) clock
 
   /* set adv */
   rh(PCMC) |= 0;
 
   /* set acd */
-  rh(PCMC) |= 0;
+  rh(PCMC) |= 2<<2;             // 256 ACLKs per LRCLK
 
   /* set bcd */
-  rh(PCMC) |= 0;
+  rh(PCMC) |= 2;
 }
 
 void avia_audio_init()
@@ -178,10 +170,11 @@ void avia_audio_init()
   val |= (0<<10);  // 64 DAI BCKs per DAI LRCK
   val |= (0<<9);  // input is I2S
   val |= (0<<8);  // output constan low (no clock)
-  val |= (0<<3);  // 0: normal 1:I2S output
-  val |= (0<<2);  // 0:off 1:on channels
-  val |= (0<<1);  // 0:off 1:on IEC-958
-  val |= (0);      // 0:encoded 1:decoded output
+  val |= (1<<3);  // 0: normal 1:I2S output
+  val |= (1<<2);  // 0:off 1:on channels
+  val |= (1<<1);  // 0:off 1:on IEC-958
+  val |= (1);      // 0:encoded 1:decoded output
+  
   wDR(0xE0, val);
 
   val = 0;
@@ -195,11 +188,13 @@ void avia_audio_init()
   val |= (0<<1);  // 0:msb 1:lsb first
   wDR(0xE8, val);
 
+  wDR(0x1B0, 0);                // DEBUG: 0: disabled av_sync 6: enable
+
   val = 0;
 
   // AUDIO_CLOCK_SELECTION
-  val |= (0<<2);
-  val |= (0<<1);  // 1:256 0:384 x sampling frequ.
+  val |= (1<<2);
+  val |= (1<<1);   // 1:256 0:384 x sampling frequ.
   val |= (1);      // master,slave mode
 
   wDR(0xEC, val);
@@ -218,17 +213,17 @@ void avia_audio_init()
   buffer_start=0x50000;
   buffer_end=  0x60000;
   buffer_size= 0x10000;
-  buffer_maxptr=buffer_wptr=buffer_rptr=buffer_start;
+  buffer_playptr=buffer_wptr=buffer_rptr=buffer_start;
   memset(gtxmem+buffer_start, 0, buffer_size); // ...
-}
+}  
 
 
 void pcm_dump_reg()
 {
-  printk("PCMA: %08X\n",rw(PCMA));
-  printk("PCMN: %08X\n",rw(PCMN));
+  printk("PCMA: %08lX\n",rw(PCMA));
+  printk("PCMN: %08lX\n",rw(PCMN));
   printk("PCMC: %04X\n",rh(PCMC));
-  printk("PCMD: %08X\n",rw(PCMD));
+  printk("PCMD: %08lX\n",rw(PCMD));
 }
 
 
@@ -306,17 +301,33 @@ static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
 
 static unsigned char swapbuffer[2048];
 
-static void startplay(unsigned long where)
+static void startplay(int start)
 {
-  rw(PCMA)=where;
-  buffer_rptr=where;
-  stopped=0;
+  int byps=1;
+  
+    // 16 bit ?
+  if ( rh(PCMC) & (1<<13) )
+    byps<<=1;
+
+  // stereo ?
+  if ( rh(PCMC) & (1<<12) )
+    byps<<=1;
+ 
+  rw(PCMA)=(512<<22)|buffer_rptr;
+  buffer_rptr+=512*byps;
+  if (buffer_rptr>=buffer_end)
+    buffer_rptr-=buffer_size;
+
+  rw(PCMA)=(512<<22)|buffer_rptr;
+
+  buffer_rptr+=512*byps;
+  if (buffer_rptr>=buffer_end)
+    buffer_rptr-=buffer_size;
 }
 
 static void stopplay(void)
 {
   rw(PCMA)=1;
-  stopped=1;
 }
 
 static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff_t *offset)
@@ -325,7 +336,7 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
 
   int byps=1;     // bytes per sample
   int bit16=0;
-  int i, start=buffer_wptr;
+  int i;
   
   // 16 bit ?
   if ( rh(PCMC) & (1<<13) )
@@ -347,12 +358,12 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
     
     int avail;
     
-    avail=buffer_maxptr-buffer_wptr;
+    avail=buffer_playptr-buffer_wptr;
 
     if (avail<0)
       avail=buffer_end-buffer_wptr;
 
-//    printk("rptr: %x wptr: %x (max %x) (avail: %x)\n", buffer_rptr, buffer_wptr, buffer_maxptr, avail);
+//    printk("rptr: %x wptr: %x (play %x) (avail: %x)\n", buffer_rptr, buffer_wptr, buffer_playptr, avail);
     if (!avail)
     {
       if (file->f_flags&O_NONBLOCK)
@@ -404,9 +415,14 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
     count-=tocopy;
     buf+=tocopy;
   }
+  
+  underrun=0;
 
-  if (stopped)
-    startplay(start);
+  if (rw(PCMA)&1)
+  {
+//    printk("starting playback: %x .. %x\n", buffer_rptr, buffer_wptr);
+    startplay(buffer_rptr);
+  }
 
   return written;
 }
@@ -419,7 +435,7 @@ static ssize_t pcm_read (struct file *file, char *buf, size_t count, loff_t *off
 static int pcm_open (struct inode *inode, struct file *file)
 {
   buffer_rptr=buffer_wptr=buffer_start;
-  buffer_maxptr=buffer_end-4;
+  buffer_playptr=buffer_end-4;
   return 0;
 }
 
@@ -434,46 +450,63 @@ static struct file_operations pcm_fops = {
 static void pcm_interrupt( int reg, int bit )
 {
   int byps=1;
+  
+  if ( (bit != PCM_PF_INTR_BIT) || (reg != PCM_INTR_REG))
+  {
+//    printk("ign %d %d\n", bit, reg);
+    return;
+  }
+  
+  rh(PCMC)&=~1<<10;
 
   if ( rh(PCMC) & (1<<13) )
     byps<<=1;
   if ( rh(PCMC) & (1<<12) )
     byps<<=1;
  
-//  printk("another block played (%x:%x) -> %x.\n", reg, bit, rw(PCMD));
+//  printk("another block played (%x:%x) -> %x (%x) -> %x.\n", reg, bit, rw(PCMD), rw(PCMA), rh(PCMC));
+
   wake_up_interruptible( &pcm_wait );
 
-  buffer_maxptr=buffer_rptr;
-  buffer_rptr+=1024*byps;
-/*  if (buffer_rptr != rw(PCMD))
-    printk("DISCONT!! %x vs. %x\n", buffer_rptr, rw(PCMD));*/
-
-  if (buffer_rptr>=buffer_end)
-    buffer_rptr-=buffer_size;
+  buffer_playptr=rw(PCMD);
+  if (buffer_playptr>=buffer_end)
+    buffer_playptr-=buffer_size;
   
-  if (buffer_rptr == buffer_wptr)       // no data :(
+  buffer_playptr&=~3;
+  
+//    printk("%x, %x\n", buffer_rptr, rw(PCMA));
+//    rw(PCMA)=buffer_rptr;                 // play next block
+
+  if (underrun)
   {
-    printk("stop.\n");
+//    printk("underrun -> stop.\n");
     stopplay();
     return;
   }
-  
-  if ((buffer_rptr <= buffer_wptr) && ((buffer_rptr+1024*byps) > buffer_wptr))
+
+  if ((buffer_rptr <= buffer_wptr) && ((buffer_rptr+512*byps) > buffer_wptr))   // THIS block includes WPTR
   {
+//    printk("silencing from %x to %x (wptr is %x)\n", buffer_wptr, buffer_rptr+512*byps, buffer_wptr);
                 // das hier ist nicht SOOO schön gelöst, aber buffer-underruns sollten ja auch nicht soo häufig sein.
-    memset(gtxmem+buffer_wptr, 0, (buffer_rptr+1024*byps)-buffer_wptr);        // silence. WE ARE SIGNED. :)
-    buffer_wptr=buffer_rptr+1024*byps;
+    memset(gtxmem+buffer_wptr, 0, (buffer_rptr+512*byps)-buffer_wptr);        // silence. WE ARE SIGNED. :)
+    buffer_wptr=buffer_rptr+512*byps;
     if (buffer_wptr>=buffer_end)
       buffer_wptr-=buffer_size;
+    underrun=1;
   }
-  
+
+  rw(PCMA)=(512<<22)|buffer_rptr;
+
+  buffer_rptr+=512*byps;               // next block
+  if (buffer_rptr>=buffer_end)
+    buffer_rptr-=buffer_size;
+    
   if (rh(PCMC)&(1<<9))
   {
     printk("OVERFLOW.\n");
     rh(PCMC)&=~(1<<9);
   }
 
-  rw(PCMA)=buffer_rptr;
 }
 
 /* --------------------------------------------------------------------- */
@@ -569,13 +602,13 @@ static int init_audio(void)
 
   init_waitqueue_head(&pcm_wait);
 
-  if ( gtx_allocate_irq( PCM_INTR_REG, PCM1_INTR_BIT, pcm_interrupt ) < 0 )
+  if ( gtx_allocate_irq( PCM_INTR_REG, PCM_AD_INTR_BIT, pcm_interrupt ) < 0 )
   {
     printk("pcm.o: unable to get interrupt\n");
     return -EIO;
   }
 
-  if ( gtx_allocate_irq( PCM_INTR_REG, PCM2_INTR_BIT, pcm_interrupt ) < 0 )
+  if ( gtx_allocate_irq( PCM_INTR_REG, PCM_PF_INTR_BIT, pcm_interrupt ) < 0 )
   {
     printk("pcm.o: unable to get interrupt\n");
     return -EIO;
@@ -605,8 +638,8 @@ static void __exit cleanup_pcm(void)
 {
   printk(KERN_INFO "pcm: unloading\n");
 
-  gtx_free_irq( PCM_INTR_REG, PCM1_INTR_BIT );
-  gtx_free_irq( PCM_INTR_REG, PCM2_INTR_BIT );
+  gtx_free_irq( PCM_INTR_REG, PCM_AD_INTR_BIT );
+  gtx_free_irq( PCM_INTR_REG, PCM_PF_INTR_BIT );
 
   unregister_sound_dsp(s.dev_audio);
   unregister_sound_mixer(s.dev_mixer);
