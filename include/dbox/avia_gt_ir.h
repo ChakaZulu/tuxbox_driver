@@ -26,7 +26,7 @@
 
 #define AVIA_GT_IR_MAX_PULSE_COUNT	(128 + 1)
 
-#define USEC_TO_CWP(period)			((period) * frequency / 1000000)
+#define USEC_TO_CWP(period)			((((period) * frequency) + 500000) / 1000000)
 
 #define WAIT_IR_UNIT_READY(unit)	if (unit##_unit_busy) { 												\
 																											\
