@@ -148,28 +148,30 @@ main(int argc, char **argv)
 		perror("SEC DEVICE: ");
 		return -1;
 	}
-
+	SecResetOverload(fd_sec);
 	SecGetStatus (fd_sec, &sec_state);
-	SecSetVoltage(fd_sec, SEC_VOLTAGE_18);
+	SecSetVoltage(fd_sec, SEC_VOLTAGE_13);
         SecSetTone(fd_sec, SEC_TONE_ON);       
         SecGetStatus (fd_sec, &sec_state);
 
 	diseqc.addr=0x10;
 	diseqc.cmd=0x38;
 	diseqc.numParams=1;
-	diseqc.params[0]=0x3F;
+	diseqc.params[0]=0xF1;
+
+//F3 / 51 == H 
 
 	cmd.type=SEC_CMDTYPE_DISEQC;
 	cmd.u.diseqc=diseqc;
         
-	seq.voltage=SEC_VOLTAGE_18;
+	seq.voltage=SEC_VOLTAGE_13;
+
 	seq.miniCommand=SEC_MINI_NONE;
 	seq.continuousTone=SEC_TONE_ON;
 	seq.numCommands=1;
 	seq.commands=&cmd;	
 
 	SecSendSequence(fd_sec, &seq);
-
 	close(fd_sec);
 }
 
