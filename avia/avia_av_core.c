@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.18  2001/07/08 02:24:59  fnbrd
+ *   Parameter firmware is now only the path for the ucode.
+ *   The filename itself is now according to the HW avia600.ux or avia500.ux.
+ *
  *   Revision 1.17  2001/05/26 20:39:33  tmbinc
  *   fixed annoying audio bug (thought this was already fixed?!)
  *
@@ -98,7 +102,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -863,17 +867,27 @@ do_firmread (const char *fn, char **fp)
         int    fd;
         loff_t l;
         char  *dp;
+	char firmwarePath[100];
 
-        if ((fd = open (fn, 0, 0)) < 0) {
+	if(!fn)
+	  return 0;
+	strncpy(firmwarePath, fn, sizeof(firmwarePath)-sizeof("/avia600.ux")-1);
+        firmwarePath[sizeof(firmwarePath)-sizeof("/avia600.ux")-2]=0;
+	if(!aviarev)
+	  strcat(firmwarePath, "/avia600.ux");
+        else
+	  strcat(firmwarePath, "/avia500.ux");
+
+        if ((fd = open (firmwarePath, 0, 0)) < 0) {
                 printk (KERN_ERR "%s: %s: Unable to load '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
+                        __FILE__, __FUNCTION__, firmwarePath);
                 return 0;
         }
 
         l = lseek (fd, 0L, 2);
         if (l <= 0 || l >= 128 * 1024) {
                 printk (KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
+                        __FILE__, __FUNCTION__, firmwarePath);
                 sys_close (fd);
                 return 0;
         }
@@ -882,14 +896,14 @@ do_firmread (const char *fn, char **fp)
         dp = vmalloc (l);
         if (dp == NULL) {
                 printk (KERN_ERR "%s: %s: Out of memory loading '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
+                        __FILE__, __FUNCTION__, firmwarePath);
                 sys_close (fd);
                 return 0;
         }
 
         if (read (fd, dp, l) != l) {
                 printk (KERN_ERR "%s: %s: Failed to read '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
+                        __FILE__, __FUNCTION__, firmwarePath);
                 vfree (dp);
                 sys_close (fd);
                 return 0;
@@ -911,19 +925,6 @@ static int init_avia(void)
 
         run_cmd = 0;
 
-        fs = get_fs();
-
-        set_fs(get_ds());
-
-        /* read firmware */
-        if (do_firmread(firmware, (char**) &microcode) == 0)
-        {
-                set_fs(fs);
-                return -EIO;
-        }
-
-        set_fs(fs);
-
         /* remap avia memory */
         aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
 
@@ -935,6 +936,24 @@ static int init_avia(void)
         }
 
         (void)aviamem[0];
+
+	// read revision
+        aviarev=(rGB(0)>>16)&3;
+
+        fs = get_fs();
+
+        set_fs(get_ds());
+
+
+        /* read firmware */
+        if (do_firmread(firmware, (char**) &microcode) == 0)
+        {
+                set_fs(fs);
+                iounmap((void*)aviamem);
+                return -EIO;
+        }
+
+        set_fs(fs);
 
         /* set siumcr for interrupt */
         if ( ppc_set_siumcr() < 0 )
@@ -969,7 +988,7 @@ static int init_avia(void)
 
         wGB(0, 0x1000);
 
-        aviarev=(rGB(0)>>16)&3;
+//        aviarev=(rGB(0)>>16)&3;
         silirev=((rGB(0x22)>>8)&0xFF);
 
         dprintk(KERN_INFO "AVIA: AVIA REV: %02X SILICON REV: %02X\n",aviarev,silirev);
@@ -1206,7 +1225,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.17 2001/05/26 20:39:33 tmbinc Exp $\n");
+        dprintk ("AVIA: $Id: avia_av_core.c,v 1.18 2001/07/08 02:24:59 fnbrd Exp $\n");
         return init_avia ();
 }
 
