@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.1 2002/10/21 11:38:58 obi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.2 2002/10/22 19:28:06 Zwen Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -105,6 +105,10 @@ dbox2_fp_timer_clear (void)
 		return -1;
 
 	boot_trigger = (id[0] == 0) ? BOOT_TRIGGER_USER : BOOT_TRIGGER_TIMER;
+
+	if (manufacturer_id==DBOX_MID_NOKIA)
+		if (fp_cmd(fp_i2c_client, FP_CLEAR_WAKEUP_NOKIA, id, sizeof(id)))
+			return -1;
 
 	return 0;
 }
