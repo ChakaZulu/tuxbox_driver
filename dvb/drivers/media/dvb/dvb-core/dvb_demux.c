@@ -255,8 +255,6 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
 				if (p + tmp >= 187)
 					return -1;
 
-				sec->crc_val = DVB_CRC_SEED;
-
                                 demux->memcopy (feed, sec->secbuf+sec->secbufp,
 					       buf+p+1, tmp);
 
@@ -280,13 +278,14 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
                 count = 188 - p;
 
 		while (count) {
+
+			sec->crc_val = DVB_CRC_SEED;
+
                         if ((count>2) && // enough data to determine sec length?
                             ((sec->seclen = section_length(buf+p)) <= count)) {
 				if (sec->seclen>4096) 
 					return -1;
 					
-				sec->crc_val = DVB_CRC_SEED;
-
 				demux->memcopy (feed, sec->secbuf, buf+p,
 					       sec->seclen);
 

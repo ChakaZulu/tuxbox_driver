@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.162 $
+ *   $Revision: 1.163 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.163  2002/11/11 18:15:51  Jolt
+ *   CRC fixes
+ *
  *   Revision 1.162  2002/11/11 14:03:17  Jolt
  *   CRC handling cleanups
  *
@@ -600,8 +603,8 @@ static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, cons
 		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
 			dvbdmxfeed->feed.sec.crc_val = avia_gt_accel_crc32(src - gt_info->mem_addr, len, dvbdmxfeed->feed.sec.crc_val);
 		else
-			dvbdmxfeed->feed.sec.crc_val = dvb_dmx_crc32(dvbdmxfeed, src, len);
-			
+			dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len);
+
 	}
 
 	memcpy(dst, (void *)src, len);
@@ -945,7 +948,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.162 2002/11/11 14:03:17 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.163 2002/11/11 18:15:51 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
