@@ -1,7 +1,7 @@
 /*
- * $Id: avia_gt_ir.c,v 1.22 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_ir.c,v 1.23 2003/04/14 00:13:10 obi Exp $
  * 
- * AViA eNX ir driver (dbox-II-project)
+ * AViA eNX/GTX ir driver (dbox-II-project)
  *
  * Homepage: http://dbox2.elxsi.de
  *
@@ -39,22 +39,22 @@
 DECLARE_WAIT_QUEUE_HEAD(rx_wait);
 DECLARE_WAIT_QUEUE_HEAD(tx_wait);
 
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
-u32 duty_cycle = 33;
-u16 first_period_low = (u16)0;
-u16 first_period_high = (u16)0;
-u32 frequency = 38000;
+static sAviaGtInfo *gt_info = NULL;
+static u32 duty_cycle = 33;
+static u16 first_period_low = 0;
+static u16 first_period_high = 0;
+static u32 frequency = 38000;
 //sAviaGtRxIrPulse *rx_buffer;
 #define RX_MAX 50000
-sAviaGtIrPulse rx_buffer[RX_MAX];
-u32 rx_period_low = (u32)0;
-u32 rx_period_high = (u32)0;
-u32 rx_buffer_read_position = 0;
-u32 rx_buffer_write_position = 0;
-u8 rx_unit_busy = 0;
-sAviaGtTxIrPulse *tx_buffer = (sAviaGtTxIrPulse *)NULL;
-u8 tx_buffer_pulse_count = 0;
-u8 tx_unit_busy = 0;
+static sAviaGtIrPulse rx_buffer[RX_MAX];
+//static u32 rx_period_low = 0;
+//static u32 rx_period_high = 0;
+static u32 rx_buffer_read_position = 0;
+static u32 rx_buffer_write_position = 0;
+static u8 rx_unit_busy = 0;
+static sAviaGtTxIrPulse *tx_buffer = NULL;
+static u8 tx_buffer_pulse_count = 0;
+static u8 tx_unit_busy = 0;
 
 void avia_gt_ir_enable_rx_dma(unsigned char enable, unsigned char offset);
 
@@ -73,7 +73,7 @@ static void avia_gt_ir_tx_irq(unsigned short irq)
 
 #define TICK_COUNT_TO_USEC(tick_count) ((tick_count) * IR_TICK_LENGTH / 1000)
 
-struct timeval last_timestamp;
+static struct timeval last_timestamp;
 
 static void avia_gt_ir_rx_irq(unsigned short irq)
 {
@@ -105,17 +105,17 @@ void avia_gt_ir_enable_rx_dma(unsigned char enable, unsigned char offset)
 
 	if (avia_gt_chip(ENX)) {
 	
-    	enx_reg_set(IRRO, Offset, 0);
-		
-    	enx_reg_set(IRRE, Offset, offset >> 1);
-	    enx_reg_set(IRRE, E, enable);
+		enx_reg_set(IRRO, Offset, 0);
+
+		enx_reg_set(IRRE, Offset, offset >> 1);
+		enx_reg_set(IRRE, E, enable);
 		
 	} else if (avia_gt_chip(GTX)) {
 
-    	gtx_reg_set(IRRO, Offset, 0);
-		
-    	gtx_reg_set(IRRE, Offset, offset >> 1);
-	    gtx_reg_set(IRRE, E, enable);
+		gtx_reg_set(IRRO, Offset, 0);
+
+		gtx_reg_set(IRRE, Offset, offset >> 1);
+		gtx_reg_set(IRRE, E, enable);
 	
 	}
 
@@ -226,14 +226,14 @@ void avia_gt_ir_reset(unsigned char reenable)
 {
 
 	if (avia_gt_chip(ENX))
-        enx_reg_set(RSTR0, IR, 1);
+		enx_reg_set(RSTR0, IR, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_set(RR0, IR, 1);
 						
-    if (reenable) {
+	if (reenable) {
 
 		if (avia_gt_chip(ENX))
-	        enx_reg_set(RSTR0, IR, 0);
+			enx_reg_set(RSTR0, IR, 0);
 		else if (avia_gt_chip(GTX))
 			gtx_reg_set(RR0, IR, 0);
 
@@ -379,9 +379,9 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq = 0;
 	u16 tx_irq = 0;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.22 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.23 2003/04/14 00:13:10 obi Exp $\n");
 
-    do_gettimeofday(&last_timestamp);
+	do_gettimeofday(&last_timestamp);
 	
 	gt_info = avia_gt_get_info();
 		
@@ -409,15 +409,15 @@ int __init avia_gt_ir_init(void)
 	avia_gt_free_irq(rx_irq);	
 	avia_gt_free_irq(tx_irq);	
 	
-    if (avia_gt_alloc_irq(rx_irq, avia_gt_ir_rx_irq)) {
+	if (avia_gt_alloc_irq(rx_irq, avia_gt_ir_rx_irq)) {
 
 		printk("avia_gt_ir: unable to get rx interrupt\n");
 
 		return -EIO;
 	
-    }
+	}
 	
-    if (avia_gt_alloc_irq(tx_irq, avia_gt_ir_tx_irq)) {
+	if (avia_gt_alloc_irq(tx_irq, avia_gt_ir_tx_irq)) {
 
 		printk("avia_gt_ir: unable to get tx interrupt\n");
 
@@ -425,17 +425,17 @@ int __init avia_gt_ir_init(void)
 	
 		return -EIO;
 	
-    }
+	}
 		
 	avia_gt_ir_reset(1);
 	
-    avia_gt_ir_set_tick_period(IR_TICK_LENGTH);
-    avia_gt_ir_set_filter(0, 3, 5);
-    avia_gt_ir_set_polarity(0);
-    avia_gt_ir_set_queue(AVIA_GT_MEM_IR_OFFS);
+	avia_gt_ir_set_tick_period(IR_TICK_LENGTH);
+	avia_gt_ir_set_filter(0, 3, 5);
+	avia_gt_ir_set_polarity(0);
+	avia_gt_ir_set_queue(AVIA_GT_MEM_IR_OFFS);
 	avia_gt_ir_set_frequency(frequency);
 	
-    return 0;
+	return 0;
     
 }
 
@@ -461,6 +461,10 @@ void __exit avia_gt_ir_exit(void)
 #if defined(STANDALONE)
 module_init(avia_gt_ir_init);
 module_exit(avia_gt_ir_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX infrared rx/tx driver");
+MODULE_LICENSE("GPL");
 #endif
 
 EXPORT_SYMBOL(avia_gt_ir_get_rx_buffer_read_position);

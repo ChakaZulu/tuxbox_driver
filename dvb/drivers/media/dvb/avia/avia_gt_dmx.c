@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.166 2003/04/13 20:13:20 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.167 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -75,7 +75,7 @@ struct tq_struct avia_gt_dmx_queue_tasklet = {
 };
 */
 static int errno = 0;
-static sAviaGtInfo *gt_info	= NULL;
+static sAviaGtInfo *gt_info = NULL;
 static sRISC_MEM_MAP *risc_mem_map = NULL;
 static char *ucode = NULL;
 static s32 hw_sections = 1;
@@ -104,7 +104,8 @@ static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*
 
 static const u8 queue_system_map[] = {2, 0, 1};
 
-static void avia_gt_dmx_enable_disable_system_queue_irqs(void) {
+static void avia_gt_dmx_enable_disable_system_queue_irqs(void)
+{
 	unsigned queue_nr;
 	s8 new_video_queue_client = -1;
 	s8 new_audio_queue_client = -1;
@@ -522,7 +523,7 @@ u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 
 {
 
 	u32 bytes_avail = queue->bytes_avail(queue);
-	u32	done = 0;
+	u32 done = 0;
 	u32 read_pos;
 
 	if (queue->index >= AVIA_GT_DMX_QUEUE_COUNT) {
@@ -829,7 +830,7 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 
 	s32 queue_nr = -EINVAL;
 
-    if (avia_gt_chip(ENX)) {
+	if (avia_gt_chip(ENX)) {
 
 		if (nr == 3)
 			queue_nr = bit + 16;
@@ -838,11 +839,11 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 		else if (nr == 5)
 			queue_nr = bit - 6;
 
-    } else if (avia_gt_chip(GTX)) {
+	} else if (avia_gt_chip(GTX)) {
 
 		queue_nr = (nr - 2) * 16 + bit;
 
-    }
+	}
 
 	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
 
@@ -1046,8 +1047,8 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 
 }
 
-static void avia_gt_dmx_bh_task(void *tl_data) {
-
+static void avia_gt_dmx_bh_task(void *tl_data)
+{
 	int queue_nr = *((u8 *) tl_data);
 	struct avia_gt_dmx_queue *queue_info = &queue_list[queue_nr].info;
 	void *priv_data;
@@ -1276,7 +1277,7 @@ void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block)
 u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr)
 {
 
-	u16	base = 0;
+	u16 base = 0;
 	u32 read_pos = 0xFFFFFFFF;
 	u32 previous_read_pos;
 
@@ -2228,7 +2229,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.166 2003/04/13 20:13:20 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.167 2003/04/14 00:13:10 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2376,6 +2377,8 @@ MODULE_LICENSE("GPL");
 #endif
 MODULE_PARM(hw_sections, "i");
 MODULE_PARM(ucode, "s");
+MODULE_PARM_DESC(hw_sections, "0: software section filtering, 1: hardware section filtering");
+MODULE_PARM_DESC(ucode, "path to risc microcode");
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_audio);

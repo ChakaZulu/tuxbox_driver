@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.6 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_lirc.c,v 1.7 2003/04/14 00:13:10 obi Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -51,14 +51,6 @@
 
 static devfs_handle_t devfs_handle;
 static lirc_t pulse_buffer[AVIA_GT_IR_MAX_PULSE_COUNT * 2];
-
-#ifdef MODULE
-MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("AViA lirc driver");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-#endif
 
 static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -153,7 +145,7 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 
 }
 
-u8 got_pulse = 0;
+static u8 got_pulse = 0;
 
 static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 {
@@ -168,18 +160,18 @@ static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 
 }
 					
-u32 pulse_len = (u32)0;
-u8 got_next = 0;
-u32 next_high = (u32)0;
-u32 next_low = (u32)0;
+static u32 pulse_len = 0;
+//static u8 got_next = 0;
+//static u32 next_high = 0;
+//static u32 next_low = 0;
 
 static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, loff_t *f_pos)
 {
 
-	u32 period_high = (u32)0;
-	u32 period_low = (u32)0;
+	u32 period_high = 0;
+	u32 period_low = 0;
 //	u32 rand_val;
-	int result = (int)0;
+	int result = 0;
 	u32 done = 0;
 	lirc_t *rx_buffer = (lirc_t *)buf;
 
@@ -283,9 +275,9 @@ static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, lof
 static ssize_t avia_gt_lirc_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-	u32 pulse_count = (u32)0;
-	u32 pulse_nr = (u32)0;
-	int result = (int)0;
+	u32 pulse_count = 0;
+	u32 pulse_nr = 0;
+	int result = 0;
 	
 	if (count % sizeof(lirc_t))
 		return -EINVAL;
@@ -311,18 +303,18 @@ static ssize_t avia_gt_lirc_write(struct file *file, const char *buf, size_t cou
 
 static struct file_operations avia_gt_lirc_fops = {
 
-	owner:	THIS_MODULE,
-	ioctl:	avia_gt_lirc_ioctl,
-	poll:	avia_gt_lirc_poll,
-	read:	avia_gt_lirc_read,
-	write:	avia_gt_lirc_write,
+	.owner = THIS_MODULE,
+	.ioctl = avia_gt_lirc_ioctl,
+	.poll = avia_gt_lirc_poll,
+	.read = avia_gt_lirc_read,
+	.write = avia_gt_lirc_write,
 
 };
 
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.6 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.7 2003/04/14 00:13:10 obi Exp $\n");
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 
@@ -350,4 +342,8 @@ static void __exit avia_gt_lirc_exit(void)
 
 module_init(avia_gt_lirc_init);
 module_exit(avia_gt_lirc_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX LIRC driver");
+MODULE_LICENSE("GPL");
 

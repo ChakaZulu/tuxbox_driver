@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gtx.c,v 1.19 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_gtx.c,v 1.20 2003/04/14 00:13:10 obi Exp $
  *
  * AViA GTX core driver (dbox-II-project)
  *
@@ -48,7 +48,7 @@
 
 #include "avia_gt.h"
 
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = NULL;
 
 static int isr[] = {GTX_REG_ISR0, GTX_REG_ISR1, GTX_REG_ISR2, GTX_REG_ISR3};
 static int imr[] = {GTX_REG_IMR0, GTX_REG_IMR1, GTX_REG_IMR2, GTX_REG_IMR3};
@@ -172,7 +172,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.19 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.20 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

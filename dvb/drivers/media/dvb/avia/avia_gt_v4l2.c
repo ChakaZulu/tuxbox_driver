@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_v4l2.c,v 1.7 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_v4l2.c,v 1.8 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX v4l2 driver (dbox-II-project)
  *
@@ -46,7 +46,6 @@
 #define AVIA_GT_V4L2_VERSION	KERNEL_VERSION(0,1,14)
 
 static int avia_gt_v4l2_open(struct inode *inode, struct file *file)
-
 {
 
 	dprintk("avia_gt_v4l2: open\n");
@@ -222,7 +221,7 @@ static struct video_device device_info = {
 static int __init avia_gt_v4l2_init(void)
 {
 
-	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.7 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.8 2003/04/14 00:13:10 obi Exp $\n");
 	
 	return video_register_device(&device_info, VFL_TYPE_GRABBER, -1);
 
@@ -238,5 +237,7 @@ static void __exit avia_gt_v4l2_exit(void)
 module_init(avia_gt_v4l2_init);
 module_exit(avia_gt_v4l2_exit);
 
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX V4L2 driver");
 MODULE_LICENSE("GPL");
 

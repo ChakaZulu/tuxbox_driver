@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_enx.c,v 1.16 2003/01/14 22:37:58 jolt Exp $
+ * $Id: avia_gt_enx.c,v 1.17 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX core driver (dbox-II-project)
  *
@@ -48,7 +48,7 @@
 
 #include "avia_gt.h"
 
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = NULL;
 
 static int isr[] = {0x0100, 0x0102, 0x0104, 0x0106, 0x0108, 0x010A};
 static int imr[] = {0x0110, 0x0112, 0x0114, 0x0116, 0x0118, 0x011A};
@@ -172,7 +172,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-	printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.16 2003/01/14 22:37:58 jolt Exp $\n");
+	printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.17 2003/04/14 00:13:10 obi Exp $\n");
     
 	gt_info = avia_gt_get_info();
     

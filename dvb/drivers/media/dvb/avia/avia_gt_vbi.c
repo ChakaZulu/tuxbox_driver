@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_vbi.c,v 1.21 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_vbi.c,v 1.22 2003/04/14 00:13:10 obi Exp $
  *
  * vbi driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -148,7 +148,7 @@ int __init avia_gt_vbi_init(void)
 	u16 irq_nr = 0;
 #endif
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.21 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.22 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -206,7 +206,7 @@ module_init(avia_gt_vbi_init);
 module_exit(avia_gt_vbi_exit);
 
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("AViA VBI driver");
+MODULE_DESCRIPTION("AViA eNX/GTX VBI driver");
 MODULE_LICENSE("GPL");
 #endif
 

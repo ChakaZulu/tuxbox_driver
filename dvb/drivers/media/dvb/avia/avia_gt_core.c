@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.34 2003/03/08 09:16:41 waldi Exp $
+ * $Id: avia_gt_core.c,v 1.35 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -60,10 +60,6 @@
 #include "avia_gt_vbi.h"
 
 TUXBOX_INFO(dbox2_gt);
-
-#ifdef MODULE
-MODULE_PARM(chip_type, "i");
-#endif
 
 int chip_type = -1;
 unsigned char init_state = 0;
@@ -168,10 +164,10 @@ void avia_gt_free_irq(unsigned short irq)
 static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 {
 
-	unsigned char		irq_reg			= (unsigned char)0;
-	unsigned char		irq_bit			= (unsigned char)0;
-	unsigned short	irq_mask		= (unsigned short)0;
-	unsigned short	irq_status	= (unsigned short)0;
+	unsigned char irq_reg = 0;
+	unsigned char irq_bit = 0;
+	unsigned short irq_mask	= 0;
+	unsigned short irq_status = 0;
 
 	for (irq_reg = 0; irq_reg < 6; irq_reg++) {
 
@@ -215,7 +211,7 @@ int __init avia_gt_init(void)
 
 	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.34 2003/03/08 09:16:41 waldi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.35 2003/04/14 00:13:10 obi Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -240,6 +236,7 @@ int __init avia_gt_init(void)
 		default:
 
 			printk("no supported chip type found\n");
+			break;
 
 		}
 
@@ -516,8 +513,10 @@ module_init(avia_gt_init);
 module_exit(avia_gt_exit);
 
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("Avia eNX/GTX driver");
+MODULE_DESCRIPTION("AViA eNX/GTX driver");
 MODULE_LICENSE("GPL");
+MODULE_PARM(chip_type, "i");
+MODULE_PARM_DESC(chip_type, "-1: autodetect, 0: eNX, 1: GTX");
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);

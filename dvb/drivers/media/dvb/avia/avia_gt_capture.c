@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_capture.c,v 1.26 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_capture.c,v 1.27 2003/04/14 00:13:10 obi Exp $
  * 
  * capture driver for eNX/GTX (dbox-II-project)
  *
@@ -65,7 +65,7 @@ DECLARE_WAIT_QUEUE_HEAD(capture_wait);
 void avia_gt_capture_interrupt(unsigned short irq)
 {
 
-    unsigned char field	= (unsigned char)0;
+	unsigned char field = 0;
 
 //	printk("avia_gt_capture: irq\n");
 //	printk("L%dF%d ", enx_reg_s(VLC)->LINE, enx_reg_s(VLC)->F);
@@ -92,7 +92,7 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 	if (capture_busy)
 		return -EBUSY;
 	
-    dprintk("avia_gt_capture: capture_start\n");
+	dprintk("avia_gt_capture: capture_start\n");
     
 	scale_x = input_width / output_width;
 	scale_y = input_height / output_height;
@@ -289,7 +289,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.26 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.27 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

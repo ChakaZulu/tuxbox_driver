@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.44 2003/03/05 03:38:45 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.45 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -53,20 +53,17 @@
 #include <video/fbcon-cfb8.h>
 #include <video/fbcon-cfb16.h>
 #include <video/fbcon-cfb32.h>
+#include <linux/kd.h>
+#include <linux/vt_kern.h>
+
 #include <linux/dvb/avia/avia_gt_fb.h>
 #include "avia_gt.h"
 #include "avia_gt_gv.h"
-#include <linux/kd.h>
-#include <linux/vt_kern.h>
 
 #define RES_X	   720
 #define RES_Y	   576
 
 static sAviaGtInfo *gt_info = NULL;
-
-#ifdef MODULE
-MODULE_PARM(console_transparent, "i");
-#endif
 
 static int console_transparent = 0;
 
@@ -256,7 +253,7 @@ static int avia_gt_fb_encode_var(struct fb_var_screeninfo *var, const void *fb_p
 
 	var->red.length = 5;
 	var->red.msb_right = 0;
-   var->red.offset = 10;
+	var->red.offset = 10;
 
 	var->green.length = 5;
 	var->green.msb_right = 0;
@@ -264,7 +261,7 @@ static int avia_gt_fb_encode_var(struct fb_var_screeninfo *var, const void *fb_p
 
 	var->blue.length = 5;
 	var->blue.msb_right = 0;
-   var->blue.offset = 0;
+	var->blue.offset = 0;
 
 	var->transp.length = 1;
 	var->transp.msb_right = 0;
@@ -473,16 +470,16 @@ static void avia_gt_fb_set_disp(const void *fb_par, struct display *disp, struct
 
 struct fbgen_hwswitch avia_gt_fb_switch = {
 
-	blank: avia_gt_fb_blank,
-	decode_var: avia_gt_fb_decode_var,
-	detect: avia_gt_fb_detect,
-	encode_fix: avia_gt_fb_encode_fix,
-	encode_var: avia_gt_fb_encode_var,
-	get_par: avia_gt_fb_get_par,
-	getcolreg: avia_gt_fb_getcolreg,
-	set_disp: avia_gt_fb_set_disp,
-	set_par: avia_gt_fb_set_par,
-	setcolreg: avia_gt_fb_setcolreg,
+	.blank = avia_gt_fb_blank,
+	.decode_var = avia_gt_fb_decode_var,
+	.detect = avia_gt_fb_detect,
+	.encode_fix = avia_gt_fb_encode_fix,
+	.encode_var = avia_gt_fb_encode_var,
+	.get_par = avia_gt_fb_get_par,
+	.getcolreg = avia_gt_fb_getcolreg,
+	.set_disp = avia_gt_fb_set_disp,
+	.set_par = avia_gt_fb_set_par,
+	.setcolreg = avia_gt_fb_setcolreg,
 
 };
 
@@ -537,20 +534,20 @@ static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 
 static struct fb_ops avia_gt_fb_ops = {
 
-	owner:			THIS_MODULE,
-	fb_get_fix:		fbgen_get_fix,
-	fb_get_var:		fbgen_get_var,
-	fb_set_var:		fbgen_set_var,
-	fb_get_cmap:	fbgen_get_cmap,
-	fb_set_cmap:	fbgen_set_cmap,
-	fb_ioctl:		fb_ioctl
+	.owner = THIS_MODULE,
+	.fb_get_fix = fbgen_get_fix,
+	.fb_get_var = fbgen_get_var,
+	.fb_set_var = fbgen_set_var,
+	.fb_get_cmap = fbgen_get_cmap,
+	.fb_set_cmap = fbgen_set_cmap,
+	.fb_ioctl = fb_ioctl,
 
 };
 
 int __init avia_gt_fb_init(void)
 {
 
-	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.44 2003/03/05 03:38:45 obi Exp $\n");
+	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.45 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -606,6 +603,12 @@ void __exit avia_gt_fb_exit(void)
 	unregister_framebuffer(&fb_info.gen.info);
 
 }
+
+MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+MODULE_DESCRIPTION("AViA eNX/GTX framebuffer driver");
+MODULE_LICENSE("GPL");
+MODULE_PARM(console_transparent, "i");
+MODULE_PARM_DESC(console_transparent, "1: black in text mode is transparent");
 
 module_init(avia_gt_fb_init);
 module_exit(avia_gt_fb_exit);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pcm.c,v 1.22 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_pcm.c,v 1.23 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX pcm driver (dbox-II-project)
  *
@@ -56,13 +56,13 @@ typedef struct {
 LIST_HEAD(pcm_busy_buffer_list);
 LIST_HEAD(pcm_free_buffer_list);
 
-spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
-spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
-unsigned char swab_samples	= (unsigned char)0;
-sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
-unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE] = { 0 };
+static sAviaGtInfo *gt_info = NULL;
+static unsigned char swab_samples = 0;
+static sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
+static unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE] = { 0 };
 
 // Warning - result is _per_ channel
 unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
@@ -119,9 +119,9 @@ unsigned int avia_gt_pcm_calc_buffer_size(unsigned int sample_count)
 void avia_gt_pcm_queue_buffer(void)
 {
 
-	unsigned long			 flags			= (unsigned long)0;
-	sPcmBuffer				*pcm_buffer	= (sPcmBuffer *)NULL;
-	struct list_head	*ptr				= (struct list_head *)NULL;
+	unsigned long  flags = 0;
+	sPcmBuffer *pcm_buffer = NULL;
+	struct list_head *ptr = NULL;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -172,8 +172,8 @@ void avia_gt_pcm_queue_buffer(void)
 static void avia_gt_pcm_irq(unsigned short irq)
 {
 
-	unsigned long		 flags			= (unsigned long)0;
-	sPcmBuffer			*pcm_buffer	= (sPcmBuffer *)NULL;
+	unsigned long flags = 0;
+	sPcmBuffer *pcm_buffer = NULL;
 	//int i = 0;
 	//struct list_head *ptr;
 
@@ -408,14 +408,14 @@ int avia_gt_pcm_set_endian(unsigned char be)
 
 int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
-	unsigned char bps_16      = (char)'\0';
-	unsigned long flags       = (unsigned long)0;
-	sPcmBuffer *pcm_buffer    = (sPcmBuffer *)NULL;
-	unsigned int sample_nr    = (unsigned int)0;
-	unsigned short *swab_dest = (unsigned short *)NULL;
-	unsigned short *swab_src  = (unsigned short *)NULL;
-	unsigned int sample_count = (unsigned int)0;
-	unsigned char stereo      = (unsigned char)'\0';
+	unsigned char bps_16 = 0;
+	unsigned long flags = 0;
+	sPcmBuffer *pcm_buffer = NULL;
+	unsigned int sample_nr = 0;
+	unsigned short *swab_dest = NULL;
+	unsigned short *swab_src = NULL;
+	unsigned int sample_count = 0;
+	unsigned char stereo = 0;
 
 	sample_count = avia_gt_pcm_calc_sample_count(buffer_size);
 
@@ -512,11 +512,11 @@ void avia_gt_pcm_stop(void)
 int avia_gt_pcm_init(void)
 {
 
-	unsigned char  buf_nr  = (unsigned char)'\0';
-	unsigned short irq_ad  = (unsigned short)0;
-	unsigned short irq_pf  = (unsigned short)0;
+	unsigned char buf_nr = 0;
+	unsigned short irq_ad = 0;
+	unsigned short irq_pf = 0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.22 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.23 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -611,6 +611,10 @@ void avia_gt_pcm_exit(void)
 #if defined(STANDALONE)
 module_init(avia_gt_pcm_init);
 module_exit(avia_gt_pcm_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX PCM driver");
+MODULE_LICENSE("GPL");
 #endif
 
 EXPORT_SYMBOL(avia_gt_pcm_play_buffer);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.30 2003/04/10 14:51:33 zwen Exp $
+ * $Id: avia_gt_gv.c,v 1.31 2003/04/14 00:13:10 obi Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -42,7 +42,7 @@
 
 static u16 input_height = 576;
 static u8 input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = NULL;
 static u16 input_width = 720;
 static u16 output_x = 0;
 static u16 output_y = 0;
@@ -209,7 +209,7 @@ void avia_gt_gv_get_info(u8 **gv_mem_phys, u8 **gv_mem_lin, u32 *gv_mem_size)
 u16 avia_gt_gv_get_stride(void)
 {
 
-	u16 stride = (u16)0;
+	u16 stride = 0;
 
 	if (avia_gt_chip(ENX))
 		stride = enx_reg_s(GMR1)->STRIDE << 2;
@@ -553,7 +553,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.30 2003/04/10 14:51:33 zwen Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.31 2003/04/14 00:13:10 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -705,6 +705,10 @@ void __exit avia_gt_gv_exit(void)
 #if defined(STANDALONE)
 module_init(avia_gt_gv_init);
 module_exit(avia_gt_gv_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX graphics viewport driver");
+MODULE_LICENSE("GPL");
 #endif
 
 EXPORT_SYMBOL(avia_gt_gv_copyarea);
