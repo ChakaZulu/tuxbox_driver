@@ -20,8 +20,12 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.94 $
+ *   $Revision: 1.95 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.95  2002/09/02 19:25:37  Jolt
+ *   - DMX/NAPI cleanup
+ *   - Compile fix
+ *
  *   Revision 1.94  2002/09/01 17:50:51  wjoost
  *   I don't like #ifdef :-(
  *
@@ -1318,46 +1322,25 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 
 static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 {
-	if (!gtxfeed->tap)
-	{
-		gtxfeed->tap=1;
 
-    if (avia_gt_chip(ENX)) {
+	if (gtxfeed->tap)
+		return;
 
-		if (gtxfeed->index>=17)
-		{
-			gtxfeed->int_nr=3;
-			gtxfeed->int_bit=gtxfeed->index-16;
-		} else if (gtxfeed->index>=2)
-		{
-			gtxfeed->int_nr=4;
-			gtxfeed->int_bit=gtxfeed->index-1;
-		}	else
-		{
-			gtxfeed->int_nr=5;
-			gtxfeed->int_bit=gtxfeed->index+6;
-		}
-		avia_gt_alloc_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit), gtx_queue_interrupt);
+	gtxfeed->tap = 1;
 
-    } else if (avia_gt_chip(GTX)) {
-	avia_gt_alloc_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15), gtx_queue_interrupt);
-    }
-	}
+	avia_gt_alloc_irq(avia_gt_dmx_get_queue_irq(gtxfeed->index), gtx_queue_interrupt);
+
 }
 
 static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 {
 
-    if (gtxfeed->tap) {
+    if (!gtxfeed->tap)
+		return;
 
 	gtxfeed->tap = 0;
 
-	if (avia_gt_chip(ENX))
-	    avia_gt_free_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit));
-	else if (avia_gt_chip(GTX))
-	    avia_gt_free_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15));
-
-    }
+    avia_gt_free_irq(avia_gt_dmx_get_queue_irq(gtxfeed->index));
 
 }
 
@@ -1719,7 +1702,9 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed_t* feed)
 {
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+#ifdef GTX_SECTIONS
 	gtx_demux_t *gtx=(gtx_demux_t*)demux;
+#endif
 
 	dprintk("gtx_dmx: dmx_release_section_feed.\n");
 
@@ -1947,7 +1932,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.94 2002/09/01 17:50:51 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.95 2002/09/02 19:25:37 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

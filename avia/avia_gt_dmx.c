@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.99  2002/09/02 19:25:37  Jolt
+ *   - DMX/NAPI cleanup
+ *   - Compile fix
+ *
  *   Revision 1.98  2002/08/27 21:53:09  Jolt
  *   New sync logic
  *
@@ -98,7 +102,7 @@
  *
  *
  *
- *   $Revision: 1.98 $
+ *   $Revision: 1.99 $
  *
  */
 
@@ -691,6 +695,28 @@ void avia_gt_dmx_force_discontinuity(void)
 
 }
 
+u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
+{
+
+	if (avia_gt_chip(ENX)) {
+
+		if (queue_nr >= 17)
+			return AVIA_GT_IRQ(3, queue_nr - 16);
+		else if (queue_nr >= 2)
+			return AVIA_GT_IRQ(4, queue_nr - 1);
+		else
+			return AVIA_GT_IRQ(5, queue_nr + 6);
+			
+	} else if (avia_gt_chip(GTX)) {
+		
+		return AVIA_GT_IRQ(2 + !!(queue_nr & 16), queue_nr & 15);
+
+	}
+	
+	return 0;
+
+}
+
 unsigned char avia_gt_dmx_get_queue_size(unsigned char queue_nr)
 {
 
@@ -1188,7 +1214,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.98 2002/08/27 21:53:09 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.99 2002/09/02 19:25:37 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1284,6 +1310,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
+EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);

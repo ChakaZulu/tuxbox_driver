@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.13  2002/09/02 19:25:37  Jolt
+ *   - DMX/NAPI cleanup
+ *   - Compile fix
+ *
  *   Revision 1.12  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -117,7 +121,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -161,34 +165,34 @@ void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg)
 {
 
-    if (irq_reg <= 5)
-	return enx_reg_16n(imr[irq_reg]);
-    else
-	return 0;
+	if (irq_reg <= 5)
+		return enx_reg_16n(imr[irq_reg]);
+	else
+		return 0;
 	
 }
 
 unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg)
 {
 
-    if (irq_reg <= 5)
-	return enx_reg_16n(isr[irq_reg]);
-    else
-	return 0;
+	if (irq_reg <= 5)
+		return enx_reg_16n(isr[irq_reg]);
+	else
+		return 0;
 	
 }
 
 void avia_gt_enx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    enx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
+	enx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
 	
 }
 
 void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    enx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
+	enx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
 	
 }
 
@@ -270,7 +274,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.12 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.13 2002/09/02 19:25:37 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
     
