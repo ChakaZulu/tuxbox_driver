@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.85  2002/05/08 03:47:26  obi
+ *   changed PRCPID to PCRPID
+ *
  *   Revision 1.84  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -52,7 +55,7 @@
  *
  *
  *
- *   $Revision: 1.84 $
+ *   $Revision: 1.85 $
  *
  */
 
@@ -261,7 +264,7 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_16(PRCPID) = (1 << 13) | pid;
+		gtx_reg_16(PCRPID) = (1 << 13) | pid;
 		avia_gt_free_irq(GTX_IRQ_PCR);
 		avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
@@ -409,11 +412,11 @@ int avia_gt_dmx_risc_init(void)
 	avia_gt_dmx_reset(0);
 
 	if (avia_gt_dmx_load_ucode()) {
-	
+
 		printk("avia_gt_dmx: No valid firmware found! TV mode disabled.\n");
-		
+
 		return 0;
-		
+
 	}
 
 	if (avia_gt_chip(ENX)) {
@@ -660,7 +663,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.84 2002/05/07 16:59:19 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.85 2002/05/08 03:47:26 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
