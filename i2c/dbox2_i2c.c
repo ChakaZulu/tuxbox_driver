@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/commproc.h>
+#include <asm/pgtable.h>
 
 static void i2c_interrupt(void *, struct pt_regs *regs);
 
@@ -231,8 +232,8 @@ static int i2c_init(int speed)
 			return -ENOMEM;
 		}
 
-		I2CBD.rxbd[i].addr = (unsigned char*)__pa(I2CBD.rxbuf[i]);
-		I2CBD.txbd[i].addr = (unsigned char*)__pa(I2CBD.txbuf[i]);
+		I2CBD.rxbd[i].addr = (unsigned char*)iopa((unsigned long)I2CBD.rxbuf[i]);
+		I2CBD.txbd[i].addr = (unsigned char*)iopa((unsigned long)I2CBD.txbuf[i]);
 
 		I2CBD.rxbd[i].status = RXBD_E;
 		I2CBD.txbd[i].status = 0;
