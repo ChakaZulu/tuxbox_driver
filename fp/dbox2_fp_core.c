@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.55  2002/01/23 15:49:32  Hunz
+ *   lala
+ *
  *   Revision 1.54  2002/01/21 15:18:46  Hunz
  *   maybe keyboard fix
  *
@@ -176,7 +179,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.54 $
+ *   $Revision: 1.55 $
  *
  */
 
@@ -1177,7 +1180,7 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	//	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
-        tasklet_schedule(&keyboard_tasklet);
+        //tasklet_schedule(&keyboard_tasklet); // unsure what this should do
 }
 
 
