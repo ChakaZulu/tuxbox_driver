@@ -11,6 +11,8 @@
 #define GTX_FB_OFFSET	0x0100000
 #define GTX_INTERRUPT	SIU_IRQ1
 
+#define AVIA_GT_GTX_IR_CLOCK	40500000
+
 /* Graphics */
 #define GTX_REG_GMR	0x000
 #define GTX_REG_CLTA	0x004

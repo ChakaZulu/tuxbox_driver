@@ -12,6 +12,8 @@
 #define TDP_DATA_RAM			0x2800
 #define CAM_RAM					0x3000
 
+#define AVIA_GT_ENX_IR_CLOCK	AVIA_GT_HALFSYSCLK
+
 #define ENX_REG_PFCR			0x0780			// Parallel FIFO Control Register
 #define ENX_REG_PFQR			0x0782			// Parallel FIFO Quantity Register
 #define ENX_REG_SDTCR			0x0784			// Stale Data Timer Count Register
