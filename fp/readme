@@ -31,3 +31,9 @@ FP_MAJOR        60
 
 FP_MINOR        0
 RC_MINOR        1
+
+fpid
+----
+
+NOKIA: 0x5A
+SAGEM: 0x52
