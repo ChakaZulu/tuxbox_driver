@@ -2,8 +2,8 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = info.o
-obj-m    = info.o
+M_OBJS   = info.o tuxbox.o
+obj-m    = info.o tuxbox.o
 
 EXTRA_CFLAGS=-I$(KERNEL_LOCATION)/arch/ppc -I../include -I../cvs/driver/include -DEXPORT_SYMTAB
 
