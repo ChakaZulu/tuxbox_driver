@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.4 2002/12/02 14:18:36 obi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.5 2002/12/02 15:47:56 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -114,10 +114,10 @@ dbox2_fp_timer_clear (void)
 		break;
 	}
 
-	boot_trigger = (id[0] == 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
-
 	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 		return -1;
+
+	boot_trigger = (id[0] == 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
 
 	return 0;
 }
