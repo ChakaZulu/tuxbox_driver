@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.18  2002/05/30 00:39:03  obi
+ *   fixed 640x480 fullscreen console
+ *
  *   Revision 1.17  2002/05/09 22:23:30  obi
  *   fixed avia_gt_set_blevel()
  *
@@ -74,7 +77,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -352,15 +355,21 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 	} else if (width == 640) {
 
+		/*
+		 * F = 0
+		 * 1 would stretch 640x480 to 720x576
+		 * this allows seeing a full screen console on tv
+		 */
+
 		if (avia_gt_chip(ENX)) {
 
 			enx_reg_s(GMR1)->L = 0;
-			enx_reg_s(GMR1)->F = 1;
+			enx_reg_s(GMR1)->F = 0;
 
 		} else if (avia_gt_chip(GTX)) {
 
 			gtx_reg_s(GMR)->L = 0;
-			gtx_reg_s(GMR)->F = 1;
+			gtx_reg_s(GMR)->F = 0;
 
 		}
 
@@ -584,7 +593,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.17 2002/05/09 22:23:30 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.18 2002/05/30 00:39:03 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.31  2002/05/30 00:39:03  obi
+ *   fixed 640x480 fullscreen console
+ *
  *   Revision 1.30  2002/05/03 16:47:35  obi
  *   changed fb_ioctl
  *
@@ -135,7 +138,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.30 $
+ *   $Revision: 1.31 $
  *
  */
 
@@ -421,7 +424,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
 	avia_gt_gv_set_blevel(0x5D, 0);
 	avia_gt_gv_set_pos(0, 0);
-	avia_gt_gv_set_input_size(720, 576);
+	avia_gt_gv_set_input_size(par->xres, par->yres);
 
 	avia_gt_gv_set_size(par->xres, par->yres);
 	avia_gt_gv_show();
@@ -571,7 +574,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.30 2002/05/03 16:47:35 obi Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.31 2002/05/30 00:39:03 obi Exp $\n");
 
     gt_info = avia_gt_get_info();
 
