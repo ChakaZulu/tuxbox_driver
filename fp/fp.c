@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.12  2001/03/04 18:48:07  gillem
+ *   - fix for sagem box
+ *
  *   Revision 1.11  2001/03/03 18:20:39  waldi
  *   complete move to devfs; doesn't compile without devfs
  *
@@ -36,7 +39,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -729,7 +732,7 @@ static void fp_check_queues(void)
 		fp_cmd(defdata->client, 0x20, &status, 1);
   
 		/* remote control */
-		if (status&1)
+		if (status&9)
 		{
 			fp_handle_rc(defdata);
 		}
@@ -752,7 +755,7 @@ static void fp_check_queues(void)
 			break;
 		}
 
-	} while (status & (0x51));            // only the ones we can handle
+	} while (status & (0x59));            // only the ones we can handle
 
 	if (status)
 		dprintk("fp.o: unhandled interrupt source %x\n", status);
