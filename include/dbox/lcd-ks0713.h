@@ -59,7 +59,7 @@
 #define LCD_IOCTL_ASC_MODE		22
 
 #define LCD_ROWS							8
-#define LCD_COLS							121
+#define LCD_COLS							120
 #define LCD_BUFFER_SIZE				( LCD_ROWS * LCD_COLS )
 
 static void lcd_set_pos( int row, int col );
