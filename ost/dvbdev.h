@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.h,v 1.7 2001/06/24 08:34:53 gillem Exp $
+ * $Id: dvbdev.h,v 1.8 2001/06/24 09:06:11 gillem Exp $
  */
 
 #ifndef _DVBDEV_H_
@@ -38,23 +38,66 @@
 
 #define DVB_DEVICES_NUM         1
 
-#define DVB_SUBDEVICES_NUM      9
+#define DVB_SUBDEVICES_NUM      23
 
-#define DVB_DEVICE_VIDEO        0
-#define DVB_DEVICE_AUDIO        1
-#define DVB_DEVICE_SEC          2
-#define DVB_DEVICE_FRONTEND     3
-#define DVB_DEVICE_DEMUX        4
-#define DVB_DEVICE_DVR          5
-#define DVB_DEVICE_CA           6
-#define DVB_DEVICE_SCART        7
+#define DVB_DEVICE_DVBCLK       0
+#define DVB_DEVICE_DVBFE	    1
+#define DVB_DEVICE_DEMUX        2
+#define DVB_DEVICE_SEC          3
+#define DVB_DEVICE_CC	        4
+#define DVB_DEVICE_SCART        5
+#define DVB_DEVICE_DVBTEST      6
+#define DVB_DEVICE_OPM          7
+#define DVB_DEVICE_SC	        8
+#define DVB_DEVICE_VIDEO        9
+#define DVB_DEVICE_AUDIO        10
+#define DVB_DEVICE_DSCR         11
+#define DVB_DEVICE_FPRTC        12
+#define DVB_DEVICE_DVBFLASH     13
+#define DVB_DEVICE_TTXT         14
+#define DVB_DEVICE_IRRC         15
+#define DVB_DEVICE_CI           16
+#define DVB_DEVICE_FPD          17
+#define DVB_DEVICE_OSTKBD       18
+#define DVB_DEVICE_DVBIO        19
+#define DVB_DEVICE_FRONTEND     20
+#define DVB_DEVICE_DVR          21
+#define DVB_DEVICE_CA           22
 
 #define DVB_DEVFSDIRS_NUM       2
 
 #define DVB_DEVFSDIR_DVB        0
 #define DVB_DEVFSDIR_OST        1
 
-const char * subdevice_names[] = { VIDEO_DEVICE_NAME, AUDIO_DEVICE_NAME, SEC_DEVICE_NAME, "qpskfe", DMX_DEVICE_NAME, "dvr", "ca", SCART_DEVICE_NAME, OSTKBD_DEVICE_NAME };
+#define QPSKFE_DEVICE_NAME		"qpskfe"
+#define DVR_DEVICE_NAME			"dvr"
+#define CA_DEVICE_NAME			"ca"
+
+const char * subdevice_names[] = {
+	DVBCLK_DEVICE_NAME,
+	DVBFE_DEVICE_NAME,
+	DMX_DEVICE_NAME,
+	SEC_DEVICE_NAME,
+	CC_DEVICE_NAME,
+	SCART_DEVICE_NAME,
+	DVBTEST_DEVICE_NAME,
+	OPM_DEVICE_NAME,
+	SC_DEVICE_NAME,
+	VIDEO_DEVICE_NAME,
+	AUDIO_DEVICE_NAME,
+	DSCR_DEVICE_NAME,
+	FPRTC_DEVICE_NAME,
+	DVB_FLASH_DEVICE_NAME,
+	TTXT_DEVICE_NAME,
+	IRRC_DEVICE_NAME,
+	CI_DEVICE_NAME,
+	FPD_DEVICE_NAME,
+	OSTKBD_DEVICE_NAME,
+	DVBIO_DEVICE_NAME,
+	QPSKFE_DEVICE_NAME,
+	DVR_DEVICE_NAME,
+	CA_DEVICE_NAME
+};
 
 struct dvbdev_devfsinfo
 {
