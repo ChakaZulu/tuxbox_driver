@@ -71,49 +71,49 @@ gtx_validate_color (GTXDriverData *gdrv,
   if (gdev->v_color)
     return;
 
-  switch (state->destination->format)
+  if (gtx)
     {
-    case DSPF_LUT8:
-      if (gtx)
-        gtx_out16 (gdrv->mmio_base, GTX_BCLR, state->color_index);
-//    else if (enx)
-	  
-      break;
-    case DSPF_RGB332:
-      if (gtx)
-        gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB332 (state->color.r,
-                                                            state->color.g,
-                                                            state->color.b));
-//    else if (enx)
-//      gtx_out16 (gdrv->mmio_base, ENX_BCLR, PIXEL_RGB332 (state->color.r,
-//                                                           state->color.g,
-//                                                           state->color.b));
-      break;
-    case DSPF_ARGB1555:
-      if (gtx)
-        gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_ARGB1555 (state->color.a,
-        		                          					  state->color.r,
+      switch (state->destination->format)
+        {
+        case DSPF_LUT8:
+          gtx_out32 (gdrv->mmio_base, GTX_BCLR, state->color_index);
+          break;
+        case DSPF_RGB332:
+          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB332 (state->color.r,
                                                               state->color.g,
                                                               state->color.b));
-//      else if (enx)
-//        gtx_out16 (gdrv->mmio_base, ENX_BCLR, PIXEL_ARGB1555 (state->color.a,
-//        							state->color.r,
-//                                                          state->color.g,
-//                                                          state->color.b));
-      break;
-    case DSPF_RGB16:
-      if (gtx)
-        gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB16 (state->color.r,
-                                                           state->color.g,
-                                                           state->color.b));
-//	  else if (enx)
-//        gtx_out16 (gdrv->mmio_base, ENX_BCLR, PIXEL_RGB16 (state->color.r,
-//                                                           state->color.g,
-//                                                           state->color.b));
-    default:
-      BUG ("unexpected pixelformat");
-      break;
+          break;
+        case DSPF_ARGB1555:
+          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_ARGB1555 (state->color.a,
+                                                                state->color.r,
+                                                                state->color.g,
+                                                                state->color.b));
+          break;
+        case DSPF_RGB16:
+          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB16 (state->color.r,
+                                                             state->color.g,
+                                                             state->color.b));
+          break;
+        default:
+          BUG ("unexpected pixelformat");
+          break;
+        }
     }
+  else if (enx)
+    {
+      switch (state->destination->format)
+        {
+        case DSPF_LUT8:
+          //gtx_out32 (gdrv->mmio_base, ENX_BCLR01, xxx);
+          //gtx_out32 (gdrv->mmio_base, ENX_BCLR23, xxx);
+          break;
+        default:
+          BUG ("unexpected pixelformat");
+          break;
+        }
+    }
+  else
+    return;
 
   gdev->v_color = 1;
 }
@@ -231,7 +231,7 @@ gtxSetState (void *drv, void *dev,
   state->modified = 0;
 }
 
-static void
+static bool
 gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
 {
   GTXDriverData *gdrv = (GTXDriverData*) drv;
@@ -259,15 +259,15 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
          * into a series of 240-pixel wide blits
          */
         for (w = width; w > 240; w -= 240)
-    	{
-	    gtx_out16 (mmio, GTX_BPW, 240);
+          {
+            gtx_out16 (mmio, GTX_BPW, 240);
 
-	    /* do 16 pixels per iteration */
-  	    for (i = (239 >> 4) + 1; i != 0; --i)
+            /* do 16 pixels per iteration */
+            for (i = (239 >> 4) + 1; i != 0; --i)
               {
-              gtx_out16 (mmio, GTX_BDR, data);
-            }
-   		}
+                gtx_out16 (mmio, GTX_BDR, data);
+              }
+          }
 
         /* Do the remainder of the last block */
         gtx_out16 (mmio, GTX_BPW, w);
@@ -282,9 +282,11 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
         addr += pitch; /* Do next scanline */
     }
   }
+
+  return true;
 }
 
-static void
+static bool
 gtxBlit (void *drv, void *dev,
 	 DFBRectangle *rect, int dx, int dy )
 {
@@ -314,16 +316,26 @@ gtxBlit (void *drv, void *dev,
           gtx_out32 (mmio, GTX_CDA, cda); /* Set destination address */
           gtx_out32 (mmio, GTX_CSA, csa); /* Set source address */
         } 
-//    else if (enx) 
-//    {
-//    }
+      else if (enx) 
+        {
+          gtx_out32 (mmio, ENX_GCDST, cda); /* Set destination address */
+          gtx_out32 (mmio, ENX_GCSRC, csa); /* Set source address */
+        }
 
       while (w > 0)
         {
-          int cw = (w > 15) ? (16 - odd) : w;
+          int cw = 0;
 
           if (gtx)
-            gtx_out16 (mmio, GTX_CCOM, 0x300 | (cw - 1));
+            {
+	      cw = (w > 15) ? (16 - odd) : w;
+              gtx_out16 (mmio, GTX_CCOM, 0x300 | (cw - 1));
+            }
+          else if (enx)
+            {
+              cw = (w > 63) ? (64 - odd) : w;
+              gtx_out16 (mmio, ENX_GCCMD, 0x300 | (cw - 1));
+            }
 
           /* if both addresses started odd byte then they are even byte now */
           if (odd2)
@@ -335,6 +347,8 @@ gtxBlit (void *drv, void *dev,
       cda += gdev->dst_pitch;
       csa += gdev->src_pitch;
     }
+
+  return true;
 }
 
 static int
@@ -431,9 +445,10 @@ driver_init_device( GraphicsDevice     *device,
   if (gtx) {
     gdev->orig_tcr = gtx_in16 (gdrv->mmio_base, GTX_TCR);
     gtx_out16 (gdrv->mmio_base, GTX_TCR, 0x9153);
-  }else if (enx) {
+  }
+  else if (enx) {
     gdev->orig_tcr = gtx_in32 (gdrv->mmio_base, ENX_TCR1);
-	gtx_out32 (gdrv->mmio_base, ENX_TCR1, 0x00010101); //FIXME
+    gtx_out32 (gdrv->mmio_base, ENX_TCR1, 0x00010101); //FIXME
   }
 
   return DFB_OK;
