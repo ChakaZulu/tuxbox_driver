@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.10  2002/11/25 11:02:25  obi
+ *	clean up kernel symbols
+ *	
  *	Revision 1.9  2002/08/12 17:00:47  obi
  *	removed compiler warning
  *	
@@ -51,7 +54,7 @@
  *	- initial release (not ready today)
  *
  *
- *	$Revision: 1.9 $
+ *	$Revision: 1.10 $
  *
  */
 
@@ -140,7 +143,7 @@ int event_write_message( struct event_t * event, size_t count )
 				{
 					printk("write event ... filter ok\n");
 					event_private[i]->event_data.event_free--;
-					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], &event[s], sizeof(event_t) );
+					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], &event[s], sizeof(struct event_t) );
 					event_private[i]->event_data.event_ptr++;
 					if ( EVENTBUFFERSIZE == event_private[i]->event_data.event_ptr )
 						event_private[i]->event_data.event_ptr = 0;

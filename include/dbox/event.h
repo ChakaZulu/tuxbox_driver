@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.h,v $
+ *	Revision 1.6  2002/11/25 11:02:25  obi
+ *	clean up kernel symbols
+ *	
  *	Revision 1.5  2002/03/02 18:33:13  tmbinc
  *	changed VCR_ON/OFF to _CHANGED, added IOCTL to get status
  *	
@@ -37,7 +40,7 @@
  *	- initial release
  *	
  *
- *	$Revision: 1.5 $
+ *	$Revision: 1.6 $
  *
  */
 
@@ -60,7 +63,7 @@
 
 struct event_t {
 	unsigned int event;
-} event_t;
+};
 
 #ifdef __KERNEL__
 extern int event_write_message( struct event_t * buf, size_t count );
