@@ -537,9 +537,6 @@ DmxDevTSCallback(__u8 *buffer1, size_t buffer1_len,
 	dmxdev_buffer_t *buffer;
         int ret;
         
-        if ((buffer1_len + buffer2_len)%188)
-          printk("strange, callback with %d bytes (%d+%d)\n", buffer1_len + buffer2_len, buffer1_len, buffer2_len);
-        
         //printk ("function : %s\n", __FUNCTION__);
 	// Hmm, this should not happen
 	if (dmxdevfilter->params.pes.output==DMX_OUT_DECODER)
