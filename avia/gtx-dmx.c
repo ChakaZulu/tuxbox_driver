@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.30  2001/03/21 15:30:25  tmbinc
+ *   Added SYNC-delay for avia, resulting in faster zap-time.
+ *
  *   Revision 1.29  2001/03/19 17:48:32  tmbinc
  *   re-fixed a fixed fix by gillem.
  *
@@ -88,7 +91,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.29 $
+ *   $Revision: 1.30 $
  *
  */
 
@@ -284,6 +287,33 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
   rhn(base+2)=((read>>16)&63)|(halt<<15);
 }
 
+void gtx_set_queue_rptr(int queue, u32 read)
+{
+	int base=queue*8+0x1E0;
+  rhn(base)=read&0xFFFF;
+  rhn(base+2)=((read>>16)&63)|(rhn(base+2)&(1<<15));
+}
+
+void gtx_reset_queue(int queue)
+{
+	int rqueue;
+	switch (queue)
+	{
+	case 0:
+		rqueue=Q_VIDEO;
+		break;
+	case 1:
+		rqueue=Q_AUDIO;
+		break;
+	case 2:
+		rqueue=Q_TELETEXT;
+		break;
+	default:
+		return;
+	}
+	gtx_set_queue_rptr(rqueue, gtx_get_queue_wptr(queue));
+}
+
 __u32 datamask=0;
 
 static void gtx_queue_interrupt(int nr, int bit)
@@ -439,6 +469,12 @@ static void gtx_pcr_interrupt(int b, int r)
 WE_HAVE_DISCONTINUITY:
   dprintk("gtx_dmx: WE_HAVE_DISCONTINUITY\n");
   discont=1;
+}
+
+void gtx_flush_pcr(void)
+{
+	discont=1;
+	rh(FCR)|=0x100;
 }
 
 static void gtx_dmx_set_pcr_source(int pid)
@@ -893,14 +929,16 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
     return -EINVAL;
   }
 
+  gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
+  gtx_reset_queue(gtxfeed->index);
+
   filter->start_up=1;
   filter->invalid=0;
   dmx_set_filter(gtxfeed->filter);
   feed->is_filtering=1;
   
-  gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
-  
   dprintk(KERN_DEBUG "gtx_dmx: STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
+  printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
 
   if (gtxfeed->output&TS_PACKET)
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
@@ -924,6 +962,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
   
   feed->is_filtering=0;
   gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+  printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
   gtxfeed->state=DMX_STATE_ALLOCATED;
   return 0;  
 }
@@ -1344,6 +1383,7 @@ void cleanup_module(void)
 EXPORT_SYMBOL(cleanup_module);
 EXPORT_SYMBOL(GtxDmxInit);
 EXPORT_SYMBOL(GtxDmxCleanup);
+EXPORT_SYMBOL(gtx_flush_pcr);
 
 #endif
 

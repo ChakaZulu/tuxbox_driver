@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.11  2001/03/21 15:30:25  tmbinc
+ *   Added SYNC-delay for avia, resulting in faster zap-time.
+ *
  *   Revision 1.10  2001/03/08 20:01:41  gillem
  *   - add display modes + ioctl
  *
@@ -74,7 +77,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -119,6 +122,7 @@ static char *firmware=0;
 #ifdef MODULE
 
 void avia_set_pcr(u32 hi, u32 lo);
+void avia_flush_pcr(void);
 
 volatile u8 *aviamem;
 int aviarev;
@@ -156,6 +160,8 @@ static DECLARE_MUTEX(avia_wait_cmd_mutex);
 #define PAL_20MB_WO_ROM_SRAM    		12
 
 /* ---------------------------------------------------------------------- */
+
+static int avia_delay_sync=-1;
 
 #ifdef CONFIG_PROC_FS
 
@@ -367,7 +373,14 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 	{
 //		dprintk(KERN_INFO "AVIA: User data :-).\n");
 	}
-
+	
+	if (status&(1<<5))
+		if (avia_delay_sync && !--avia_delay_sync)
+		{
+			dprintk("CHCH [DECODE] enabling SYNC.\n");
+			wDR(AV_SYNC_MODE, 6);
+		}
+	
 	/* avia cmd stuff */
 	if(status&(1<<15) || status&(1<<9))
 	{
@@ -442,38 +455,38 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 
 	/* buffer full */
 	if ( status&(1<<16) ) {
-//		printk("BUF-F INTR\n");
+//		dprintk("BUF-F INTR\n");
 
 		if ( rDR(0x2b4)&2 ) {
-//			printk("BUF-F VIDEO\n");
+//			dprintk("BUF-F VIDEO\n");
 		}
 
 		if ( rDR(0x2b4)&2 ) {
-//			printk("BUF-F AUDIO\n");
+//			dprintk("BUF-F AUDIO\n");
 		}
 
 	}
 
 	/* buffer und. */
 	if ( status&(1<<8) ) {
-//		printk("UND INTR\n");
+//		dprintk("UND INTR\n");
 
 		if ( rDR(0x2b8)&1 ) {
-//			printk("UND VIDEO\n");
+//			dprintk("UND VIDEO\n");
 		}
 
 		if ( rDR(0x2b8)&2 ) {
-//			printk("UND AUDIO\n");
+//			dprintk("UND AUDIO\n");
 		}
 	}
 
 
 	/* bitstream error */
 	if ( status&1 ) {
-//		printk("ERR INTR\n");
+//		dprintk("ERR INTR\n");
 
 		if ( rDR(0x2c4)&(1<<1) ) {
-//			printk("ERR SYSTEM BITSTREAM CURR: %d\n",rDR(0x318));
+//			dprintk("ERR SYSTEM BITSTREAM CURR: %d\n",rDR(0x318));
 		}
 
 		if ( rDR(0x2c4)&(1<<2) ) {
@@ -481,7 +494,7 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 		}
 
 		if ( rDR(0x2c4)&(1<<3) ) {
-//			printk("ERR VIDEO BITSTREAM CURR: %d\n",rDR(0x31C));
+//			dprintk("ERR VIDEO BITSTREAM CURR: %d\n",rDR(0x31C));
 		}
 	}
 
@@ -614,6 +627,16 @@ void avia_set_pcr(u32 hi, u32 lo)
 
 	wGB(0x02, timer_high);
 	wGB(0x03, timer_low);
+	dprintk("CHCH [DECODE] delaying sync in 1s\n");
+	avia_delay_sync=50;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void avia_flush_pcr(void)
+{
+	dprintk("CHCH [DECODE] disabling sync\n");
+	wDR(AV_SYNC_MODE, 0);				// no sync
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1020,7 +1043,7 @@ static int init_avia(void)
 	wDR(0x2AC, 0);
 
 	/* enable interrupts */
-	wDR(0x200, (1<<23)|(1<<22)|(1<<16)|(1<<12)|(1<<8)|(1) );
+	wDR(0x200, (1<<23)|(1<<22)|(1<<16)|(1<<12)|(1<<8)|(1<<5)|(1) );
 
 	tries=20;
 
@@ -1077,7 +1100,7 @@ static int init_avia(void)
 		return 0;
 	}
 
-	avia_wait(avia_command(SelectStream, 0, 0xFF));
+	avia_command(SelectStream, 0, 0xFF);
 //	avia_wait(avia_command(SelectStream, 2, 0x100));
 //	avia_wait(avia_command(SelectStream, 3, 0x100));
 	avia_command(Play, 0, 0, 0);
@@ -1158,6 +1181,7 @@ EXPORT_SYMBOL(avia_rd);
 EXPORT_SYMBOL(avia_wait);
 EXPORT_SYMBOL(avia_command);
 EXPORT_SYMBOL(avia_set_pcr);
+EXPORT_SYMBOL(avia_flush_pcr);
 
 /* ---------------------------------------------------------------------- */
 

@@ -222,4 +222,6 @@ typedef struct filter_param_table_3_s {
 	filter_param_entry_3_t filter_param_entry[32];
 } filter_param_table_3_t;
 
+extern void gtx_flush_pcr(void);
+
 #endif

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.21 2001/03/19 18:20:24 gillem Exp $
+ * $Id: dvb.c,v 1.22 2001/03/21 15:30:25 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -76,7 +76,6 @@ static dvb_struct_t dvb;
                                                                 // F R O N T E N D
 static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
 {
-//  printk("setting frequency to %d (it's %d)\n", freq, dvb->front.type);
   if (dvb->front.type==FRONT_DVBS)
   {
     int p, t, os, c, r, pe;
@@ -101,8 +100,6 @@ static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
     u8 buffer[4];
     freq+=36125000;
     freq/=62500;
-    
-    printk("div: %d\n", freq);
     
     buffer[0]=(freq>>8)&0x7F;
     buffer[1]=freq&0xFF;
@@ -424,14 +421,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	  break;
     case VIDEO_STOP:
       dvb->videostate.playState=VIDEO_STOPPED;
-//      avia_wait(avia_command(Pause, 3, 3));		// hierüber lässt sich noch diskutieren...
-			avia_wait(avia_command(Abort, 0));
-//			avia_wait(avia_command(SelectStream, 0, 0xFFFF));
-//			avia_wait(avia_command(SelectStream, 2, 0xFFFF));
-//			avia_wait(avia_command(SelectStream, 3, 0xFFFF));
+      // printk("CHCH [DECODER] ABORT\n");
+			/* avia_wait */ (avia_command(Abort, 0));
       break;
     case VIDEO_PLAY:
+      // printk("CHCH [DECODER] PLAY\n");
       avia_command(Play, 0, 0, 0);
+      avia_flush_pcr();
+      gtx_flush_pcr();
       dvb->videostate.playState=VIDEO_PLAYING;
       break;
     case VIDEO_FREEZE:
@@ -452,6 +449,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
         dvb->videostate.streamSource=(videoStreamSource_t) arg;
         if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
           return -EINVAL;
+	      // printk("CHCH [DECODER] SETSTREAMTYPE\n");
         avia_command(SetStreamType, 0xB);
         avia_command(SelectStream, 0, 0xFF);
         avia_command(SelectStream, 2, 0x100);
@@ -683,7 +681,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       val=para.iFrequency*1000;
       if (dvb->front.freq!=val)
       {
-        printk ("frontend.c: fe.freq != val...\n");
+//        printk ("frontend.c: fe.freq != val...\n");
         tuner_setfreq(dvb, val);
         dvb->front.freq=val;
       }
@@ -692,8 +690,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       dvb->front.srate=val;
       dvb->front.fec=fectab[para.FEC_inner];
       ves_set_frontend(&dvb->front);
-        
-      printk(" TODO: adding QPSK event!\n");
+
+				// TODO: qpsk event        
       break;
     }
     case QPSK_GET_EVENT:
@@ -718,6 +716,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       return -ENOTSUPP;
     default:
       printk("ost_frontend_ioctl: UNEXPECTED cmd: %d.\n", cmd);
+      return -EOPNOTSUPP;
     }
     return 0;
     break;
