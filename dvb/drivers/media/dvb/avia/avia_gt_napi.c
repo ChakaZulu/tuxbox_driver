@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.152 $
+ *   $Revision: 1.153 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.153  2002/11/03 18:40:10  Jolt
+ *   Queue handling changes part2
+ *
  *   Revision 1.152  2002/11/03 17:55:24  Jolt
  *   Performance tweaks
  *
@@ -596,15 +599,15 @@ static void avia_gt_napi_queue_callback_generic(u8 queue_nr, void *data)
 	bytes_avail -= bytes_avail % 188;
 	
 	// Does the buffer wrap around?
-	if ((queue->read_pos + bytes_avail) > (queue->size)) {
+	if (bytes_avail > queue_info->get_buf1_size(queue_nr)) {
 	
-		chunk1 = queue->size - queue->read_pos;
+		chunk1 = queue_info->get_buf1_size(queue_nr);
 		chunk1 -= chunk1 % 188;
 		
 		// Do we have at least one complete packet before buffer wraps?
 		if (chunk1) {
 
-			dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1 / 188);
+			dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue_info->get_buf1_ptr(queue_nr), chunk1 / 188);
 			queue_info->get_data(queue_nr, NULL, chunk1, 0);
 			bytes_avail -= chunk1;
 			
@@ -620,7 +623,7 @@ static void avia_gt_napi_queue_callback_generic(u8 queue_nr, void *data)
 	// Remaining packets after the buffer has wrapped
 	if (bytes_avail) {
 
-		dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos, bytes_avail / 188);
+		dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue_info->get_buf1_ptr(queue_nr), bytes_avail / 188);
 		queue_info->get_data(queue_nr, NULL, bytes_avail, 0);
 				
 	}
@@ -787,7 +790,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.152 2002/11/03 17:55:24 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.153 2002/11/03 18:40:10 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
