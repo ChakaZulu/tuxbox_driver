@@ -257,6 +257,15 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		
 		return 0;
 	}
+	
+	case FP_IOCTL_SET_REGISTER:
+	{
+		if (copy_from_user(&val, (void *) arg, sizeof(val)))
+	                return -EFAULT;
+
+		fp_sendcmd(defdata->client, val & 0xff, (val >> 8) & 0xff);
+		return 0;
+	}
 
 	default:
 		return -EINVAL;
