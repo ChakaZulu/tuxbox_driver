@@ -1,5 +1,5 @@
 /*
- *   gen_vbi.c - vbi driver for gtx (dbox-II-project)
+ *   gen_vbi.c - vbi driver for eNX/GTX (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -47,7 +47,7 @@
 
 #include <ost/demux.h>
 #include <dbox/gtx-dmx.h>
-#include "gen_vbi.h"
+#include <dbox/avia_vbi.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -151,14 +151,14 @@ static int avia_vbi_ioctl(struct inode *inode, struct file *file, unsigned int c
 
     switch (cmd) {
     
-	case VBI_START_VTXT:
+	case AVIA_VBI_START_VTXT:
 	
 	    printk("avia_vbi: start_vtxt (pid = 0x%X)\n", (int)arg);
 	    avia_vbi_start_vtxt(arg);
 	    
 	break;
 	
-	case VBI_STOP_VTXT:
+	case AVIA_VBI_STOP_VTXT:
 	
 	    printk("avia_vbi: stop_vtxt (pid = 0x%X)\n", active_vtxt_pid);
 	    avia_vbi_stop_vtxt();

@@ -1,9 +1,9 @@
 /*
- *   gen_vbi.h - vbi driver for gtx (dbox-II-project)
+ *   avia_pig.h - capture driver for AViA (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Florian Schirmer (jolt@tuxbox.org)
+ *   Copyright (C) 2001 Florian Schirmer <jolt@tuxbox.org>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,5 +21,8 @@
  *
  */
 
-#define VBI_START_VTXT 1
-#define VBI_STOP_VTXT 2
+#define AVIA_PIG_DISABLE 	1
+#define AVIA_PIG_ENABLE 	2
+#define AVIA_PIG_SET_POS 	3
+#define AVIA_PIG_SET_SIZE 	4
+#define AVIA_PIG_SET_STACK 	5
