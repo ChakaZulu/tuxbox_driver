@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.9  2002/04/17 05:56:17  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.8  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -35,7 +38,7 @@
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -111,7 +114,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 	
     }
 									
-    printk("avia_gt_capture: ok\n");
+    printk("avia_gt_capture: ok (writing %d bytes)\n", count);
 				
     /*done=0;
     while (done*output_width < count) {
@@ -135,18 +138,41 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-/*    switch(cmd) {
-    
-	case AVIA_CAPTURE_:
-	break;
-	
-    }*/
-    
-    int x, y;
+//    int x, y;
     
     switch(cmd) {
     
-	case 1:
+	case AVIA_GT_CAPTURE_START:
+	
+	    avia_gt_capture_start(NULL, NULL, NULL);
+
+	break;
+    
+	case AVIA_GT_CAPTURE_STOP:
+	
+	    avia_gt_capture_stop();
+
+	break;
+    
+	case AVIA_GT_CAPTURE_SET_INPUT_POS:
+	
+	    avia_gt_capture_set_input_pos(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+
+	break;
+    
+	case AVIA_GT_CAPTURE_SET_INPUT_SIZE:
+	
+	    avia_gt_capture_set_input_size(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+
+	break;
+    
+	case AVIA_GT_CAPTURE_SET_OUTPUT_SIZE:
+	
+	    avia_gt_capture_set_output_size(arg & 0xFFFF, (arg & 0xFFFF0000) >> 16);
+
+	break;
+    
+	/*case 1:
     
 	    x = arg & 0xFFFF;
 	    y = (arg >> 16);
@@ -168,7 +194,7 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	    enx_reg_s(VCSZ)->HSIZE = x;
 	    enx_reg_s(VCSZ)->VSIZE = y;
 	
-	break;    
+	break;*/
 	
     }	
     
@@ -179,17 +205,14 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 void avia_gt_capture_interrupt(unsigned short irq)
 {
 
-    if (state == 1) {
-    
-	//printk("avia_gt_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
+    //if (state != 2)    
+//	printk("avia_gt_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
 	
-	if (frames++ > 1) {
+    if (frames++ > 1) {
 	
-	    state = 2;
+        state = 2;
 	    
-	    wake_up_interruptible(&capture_wait);
-	    
-	}
+        wake_up_interruptible(&capture_wait);
 	
     }
     
@@ -217,7 +240,8 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
     capture_width = input_width / scale_x;
     delta_x = (capture_width - output_width) / 2;
     delta_y = (capture_height - output_height) / 2;
-    line_stride = (((input_width / scale_x) + 3) & ~3) * 2;
+    //line_stride = (((input_width / scale_x) + 3) & ~3) * 2;
+    line_stride = (((input_width / scale_x) + 3) & ~3);
     buffer_odd_offset = (line_stride * (capture_height / 2)) + 100;
     buffer_odd_offset = line_stride / 2;
 
@@ -278,18 +302,23 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 	*odd_offset = buffer_odd_offset;
     
     return 0;
+    
 }
 
 void avia_gt_capture_stop(void)
 {
+
     if (capture_busy) {
+    
 	printk("avia_gt_capture: capture_stop\n");
     
 	enx_reg_s(VCSA1)->E = 0;
     
 	state=0;
 	capture_busy = 0;
+	
     }	
+    
 }
 
 int avia_gt_capture_update_param(void)
@@ -300,8 +329,9 @@ int avia_gt_capture_update_param(void)
     return 0;
 }
 
-int avia_gt_capture_set_output(unsigned short width, unsigned short height)
+int avia_gt_capture_set_output_size(unsigned short width, unsigned short height)
 {
+
     if (capture_busy)
 	return -EBUSY;
 	
@@ -309,9 +339,10 @@ int avia_gt_capture_set_output(unsigned short width, unsigned short height)
     output_height = height;	
 	
     return 0;
+    
 }
 
-int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height)
+int avia_gt_capture_set_input_pos(unsigned short x, unsigned short y)
 {
 
     if (capture_busy)
@@ -319,6 +350,17 @@ int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short
 
     input_x = x;
     input_y = y;
+
+    return 0;
+    
+}
+
+int avia_gt_capture_set_input_size(unsigned short width, unsigned short height)
+{
+
+    if (capture_busy)
+	return -EBUSY;
+
     input_width = width;
     input_height = height;	
 
@@ -329,7 +371,7 @@ int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.8 2002/04/14 18:06:19 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.9 2002/04/17 05:56:17 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
@@ -338,7 +380,7 @@ int __init avia_gt_capture_init(void)
     if (!devfs_handle)
 	return -EIO;
 
-    if (avia_gt_alloc_irq(ENX_IRQ_CAPTURE, avia_gt_capture_interrupt) < 0) {
+    if (avia_gt_alloc_irq(ENX_IRQ_VL1, avia_gt_capture_interrupt) < 0) {
     
 	printk("avia_gt_capture: unable to get interrupt\n");
 	
@@ -354,7 +396,7 @@ int __init avia_gt_capture_init(void)
     
         printk("avia_gt_pcm: Unsupported chip type\n");
 
-	avia_gt_free_irq(ENX_IRQ_CAPTURE);
+	avia_gt_free_irq(ENX_IRQ_VL1);
 	devfs_unregister(devfs_handle);
 	    
         return -EIO;
@@ -363,11 +405,13 @@ int __init avia_gt_capture_init(void)
     
     enx_reg_s(RSTR0)->VIDC = 1;		
     enx_reg_s(RSTR0)->VIDC = 0;		
+    enx_reg_s(VCP)->U = 0;
     enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
     enx_reg_s(VCSZ)->F = 1;   				// Enable filter
     enx_reg_h(VLI1) = 0;	
-
+    
     return 0;
+    
 }
 
 void __exit avia_gt_capture_exit(void)
@@ -377,7 +421,7 @@ void __exit avia_gt_capture_exit(void)
 
     avia_gt_capture_stop();
 
-    avia_gt_free_irq(ENX_IRQ_CAPTURE);
+    avia_gt_free_irq(ENX_IRQ_VL1);
     
     // Reset video capture
     enx_reg_s(RSTR0)->VIDC = 1;		
@@ -385,8 +429,9 @@ void __exit avia_gt_capture_exit(void)
 }
 
 #ifdef MODULE
-EXPORT_SYMBOL(avia_gt_capture_set_input);
-EXPORT_SYMBOL(avia_gt_capture_set_output);
+EXPORT_SYMBOL(avia_gt_capture_set_input_pos);
+EXPORT_SYMBOL(avia_gt_capture_set_input_size);
+EXPORT_SYMBOL(avia_gt_capture_set_output_size);
 EXPORT_SYMBOL(avia_gt_capture_start);
 EXPORT_SYMBOL(avia_gt_capture_stop);
 #endif

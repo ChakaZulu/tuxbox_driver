@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.9  2002/04/17 05:56:17  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.8  2002/04/15 21:58:57  Jolt
  *   eNX/GTX merge
  *
@@ -46,7 +49,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -251,7 +254,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.8 2002/04/15 21:58:57 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.9 2002/04/17 05:56:17 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -340,14 +343,14 @@ int __init avia_gt_init(void)
 
     init_state = 6;
     
-/*    if (avia_gt_capture_init()) {
+    if (avia_gt_capture_init()) {
 
 	avia_gt_exit();
       
 	return -1;
 	
     }
-*/
+
     init_state = 7;
     
 /*    if (avia_gt_pig_init()) {
@@ -374,10 +377,10 @@ void avia_gt_exit(void)
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
 /*    if (init_state >= 8)
         avia_gt_pig_exit();
-	
+*/	
     if (init_state >= 7)
         avia_gt_capture_exit();
-*/	
+	
     if (init_state >= 6)
 	avia_gt_pcm_exit();
 	

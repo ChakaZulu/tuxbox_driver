@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.13  2002/04/17 05:56:17  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.12  2002/04/15 21:58:57  Jolt
  *   eNX/GTX merge
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 	
@@ -292,7 +295,7 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
     if (pig_busy[pig_nr])
 	return -EBUSY;
 	
-    result = avia_gt_capture_set_output(width, height);
+    result = avia_gt_capture_set_output_size(width, height);
     
     if (result < 0)
 	return result;
@@ -328,7 +331,8 @@ int avia_gt_pig_show(unsigned char pig_nr)
     if (pig_busy[pig_nr])
 	return -EBUSY;
 
-    avia_gt_capture_set_input(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
+    avia_gt_capture_set_input_pos(0, 0);
+    avia_gt_capture_set_input_size(CAPTURE_WIDTH, CAPTURE_HEIGHT);
     avia_gt_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], &odd_offset);
 
     printk("avia_gt_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
@@ -380,7 +384,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.12 2002/04/15 21:58:57 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.13 2002/04/17 05:56:17 Jolt Exp $\n");
 
     pig_chip_type = avia_gt_get_chip_type();
     
