@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.64 2002/03/02 19:42:48 TripleDES Exp $
+ * $Id: dvb.c,v 1.65 2002/03/18 22:35:29 happydude Exp $
  */
 
 #include <linux/config.h>
@@ -878,6 +878,56 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    break;
 				    }
 				    break;	
+
+				case AUDIO_CHANNEL_SELECT:
+				    switch ((audioChannelSelect_t) arg)
+				    {
+					case AUDIO_STEREO:
+					    wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE)&~0x30);
+					    break;
+
+					case 1: /* sucks, but AUDIO_MONO_LEFT is defined twice with different values  */
+						/* see include/ost/audio.h and include/mtdriver/scartApi.h            */
+					    wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE)&~0x30)|0x10);
+					    break;
+
+					case 2: /* sucks, but AUDIO_MONO_RIGHT is defined twice with different values */
+						/* see include/ost/audio.h and include/mtdriver/scartApi.h            */ 
+					    wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE)&~0x30)|0x20);
+					    break;
+				    }
+				    wDR(NEW_AUDIO_CONFIG, 1);
+				    break;
+
+				case AUDIO_SPDIF_SET:
+				    switch ((audioSpdifState_t) arg)
+				    {
+					case SCMS_COPIES_NONE:
+					    wDR(IEC_958_CHANNEL_STATUS_BITS, (rDR(IEC_958_CHANNEL_STATUS_BITS)&~1)|4);
+					    break;
+
+					case SCMS_COPIES_ONE:
+					    wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS)&~5);
+					    break;
+
+					case SCMS_COPIES_UNLIMITED:
+					    wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS)|5);
+					    break;
+
+					case SPDIF_ON:
+					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)|1);
+					    wDR(NEW_AUDIO_CONFIG, 1);
+					    break;
+
+					case SPDIF_OFF:
+					    wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG)&~1);
+					    wDR(NEW_AUDIO_CONFIG, 1);
+					    break;
+
+				    }
+				    wDR(NEW_AUDIO_CONFIG, 1);
+				    break;
+
 				default:
 					return -ENOIOCTLCMD;
 			}

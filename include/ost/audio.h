@@ -51,6 +51,14 @@ typedef enum {
 	AUDIO_MONO_RIGHT, 
 } audioChannelSelect_t;
 
+typedef enum {
+	SCMS_COPIES_NONE,
+	SCMS_COPIES_ONE,
+	SCMS_COPIES_UNLIMITED,
+	SPDIF_ON,
+	SPDIF_OFF
+} audioSpdifState_t;
+
 typedef struct audioStatus { 
         boolean AVSyncState;                /* sync audio and video? */
         boolean muteState;                  /* audio is muted */ 
@@ -117,4 +125,8 @@ typedef uint16_t audioAttributes_t;
 #define AUDIO_SET_EXT_ID           _IOW('o', 16, int)
 #define AUDIO_SET_ATTRIBUTES       _IOW('o', 17, audioAttributes_t)
 #define AUDIO_SET_KARAOKE          _IOW('o', 18, audioKaraoke_t *)
+
+/* Tuxbox Linux extensions, not in LinuxTV API */
+#define AUDIO_SPDIF_SET		   _IOW('o', 100, audioSpdifState_t)
+
 #endif /* _OST_AUDIO_H_ */
