@@ -21,6 +21,14 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.14  2002/03/27 12:54:49  derget
+ *   l33t h4xoring for kernel console on fb :)
+ *   ntsc disabled
+ *   xres -> yres -> vxres -> vyres check disabled
+ *   ioctrls for blev
+ *   ioctrls for Graphics Viewport Position
+ *   ioctrls for Transparent Color Register (schwarz durchsichtig oder nicht)
+ *
  *   Revision 1.13  2002/03/06 09:02:44  gillem
  *   - fix output
  *
@@ -78,7 +86,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -116,6 +124,7 @@
 #include <linux/init.h>
 #include <video/fbcon.h>
 #include <video/fbcon-cfb16.h>
+#include "dbox/fb.h"
 
 #ifdef GTX
 #include "dbox/gtx.h"
@@ -136,13 +145,15 @@ MODULE_PARM(debug,"i");
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
+static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
     RES_X, RES_Y, RES_X, RES_Y,         /* W,H, W, H (virtual) load xres,xres_virtual*/
-    0, 0,                               /* virtual -> visible no offset */
+    80, 96,                               /* virtual -> visible no offset */
     16, 0,                              /* depth -> load bits_per_pixel */
     {10, 5, 0},                         /* ARGB 1555 */
     {5, 5, 0},
@@ -155,6 +166,7 @@ static struct fb_var_screeninfo default_var = {
     20000, 64, 64, 32, 32, 64, 2, 0,    /* sync stuff */
     FB_VMODE_INTERLACED
 };
+
 
 struct gtxfb_info
 {
@@ -222,7 +234,7 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
                           struct fb_info_gen *info)
 {
   struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-  strcpy(fix->id, "AViA eNX/GTX Framebuffer");
+  strcpy(fix->id, "AViA eNX/GTX Framebuffer improved version");
   fix->type=FB_TYPE_PACKED_PIXELS;
   fix->type_aux=0;
   
@@ -256,15 +268,17 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
     return -EINVAL;
     
   par->bpp=var->bits_per_pixel;
-
-  if (var->xres_virtual != var->xres ||
+ /*			//bla schmutzt wer brauch sowas schon virtual res gibt es nicht !! 
+   if (var->xres_virtual != var->xres ||
       var->yres_virtual != var->yres ||
       var->nonstd)
   {
     printk("unmatched vres. %d x %d vs %d x %d  -> %d\n", var->xres_virtual, var->yres_virtual, var->xres, var->yres, var->nonstd);
     return -EINVAL;
   }
-  
+   
+  */      
+
   yres=var->yres;
   
   if (var->xres < 640)
@@ -279,15 +293,18 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
   } else
     par->interlaced=0;
   
+  /*  // ntsc is heavy brocken on enx , who needs ntsc , 640x480 leuft auch mit  pal :)
   if (yres==240)
     par->pal=0;
   else if (yres==288)
     par->pal=1;
   else
   {
-    printk("invalid yres: %d\n", var->yres);
+    printk("invalid yres: %x\n", var->yres);
     return -EINVAL;
   }
+  */
+   par->pal=1;
   
   par->xres=var->xres;
   par->yres=var->yres;
@@ -359,8 +376,16 @@ static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
   struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-  int val,i;
+  int val;
 	int div,rem;
+/*	printk("	   pal : %d",par->pal);
+	printk("	   bpp : %d",par->bpp);
+	printk("	   lowres : %d",par->lowres);
+	printk("	   interlaced : %d\n",par->interlaced);
+	printk("	   xres : %d",par->xres);
+	printk("	   yres : %d",par->yres);
+	printk("	   stride : %x\n",par->stride); */
+
 
 #ifdef GTX
 
@@ -382,7 +407,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
     val|=1<<29;
 
   if (!par->pal)
-    val|=1<<28;                         // NTSC square filter. TODO: do we need this?
+      val|=1<<28;                         // NTSC square filter. TODO: do we need this?
 
                 // TODO: cursor
   if (!par->interlaced)
@@ -390,7 +415,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
   val|=0<<20;                           // BLEV1 = 8/8
-  val|=2<<16;                           // BLEV2 = 6/8	-> BLEVEL
+  val|=2<<16;                           // BLEV2 = 1/8	-> BLEVEL
   val|=par->stride;
 
   rw(GMR)=val;
@@ -425,6 +450,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	// ???
   //val-=(3+20);						//PFUSCHING BY MCCLEAN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   val -= 55;
+   	//GVP_SET_COORD(100,100);
+  	//GVP_SET_COORD(120,620);
+  	//GVP_SET_COORD(130, (par->pal?600:600));
   GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
 
 	/* set SPP */
@@ -458,12 +486,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 #define ENX_GVP_SET_X(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define ENX_GVP_SET_Y(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~0x3FF))|(X&0x3FF))
 #define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
-
-
 #define ENX_GVS_SET_IPS(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&0xFC000000) | ((X&0x3f)<<27))
 #define ENX_GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define ENX_GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
-
 
   enx_reg_w(VBR)=0;
 
@@ -500,9 +525,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   }
 
   val|=par->stride;
-
-  enx_reg_w(TCR1)=0x1000000;
-  enx_reg_w(TCR2)=0x0FF007F;	// disabled - we don't need since we have 7bit true alpha
+    enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
+  //enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+  enx_reg_w(TCR2)=0x0FF007F;	 // disabled - we don't need since we have 7bit true alpha
 
 //	enx_reg_h(P1VPSA)=0;
 //	enx_reg_h(P2VPSA)=0;
@@ -517,7 +542,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_w(GMR2)=0;
   enx_reg_h(GBLEV1)=BLEVEL;
   enx_reg_h(GBLEV2)=0;
-//JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
+        //enx_reg_h(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
 	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
 	enx_reg_h(GVP1)=0;
 
@@ -528,21 +553,19 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   ENX_GVP_SET_COORD(113,42);
 
   ENX_GVP_SET_SPP(63);
-//  ENX_GVP_SET_COORD(90,43);                 // TODO: NTSC?
-                                        // DEBUG: TODO: das ist nen kleiner hack hier.
-/*  if (lowres)
-    ENX_GVS_SET_XSZ(xres);
-  else
-    ENX_GVS_SET_XSZ(xres*2);*/
-
   ENX_GVS_SET_IPS(32);
-  ENX_GVS_SET_XSZ(RES_X);
-  ENX_GVS_SET_YSZ(RES_Y);
 
-/*  if (interlaced)
-    ENX_GVS_SET_YSZ(yres);
+
+/*  if (par->lowres)                  // hm ka warum , aber bei gtx hat tmb das auch so gemacht :)
+     ENX_GVS_SET_XSZ(par->xres*2);
+  else */
+     ENX_GVS_SET_XSZ(par->xres);
+
+
+  if (par->interlaced)
+     ENX_GVS_SET_YSZ(par->yres);
   else
-    ENX_GVS_SET_YSZ(yres*2);*/
+     ENX_GVS_SET_YSZ(par->yres*2);
 
 #endif // ENX
 
@@ -719,7 +742,183 @@ static struct fb_ops gtxfb_ops = {
         fb_set_var:     fbgen_set_var,
         fb_get_cmap:    fbgen_get_cmap,
         fb_set_cmap:    fbgen_set_cmap,
+	fb_ioctl:	fb_ioctl,
 };
+
+
+static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
+                  unsigned long arg)
+{
+int val;
+#ifdef GTX	//jaja das geht auch mit weniger code aber so isses gut 
+             switch (cmd)
+                        {
+                         case GTXFB_BLEV0:
+				switch (arg) 
+				{
+                                        case 0:
+					rw(GMR)=(rw(GMR)&~(15<<20));
+                                        break;
+                                        case 1:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(1<<20);
+                                        break;
+                                        case 2:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(2<<20);
+                                        break;
+                                        case 3:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(3<<20);
+                                        break;
+                                        case 4:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(4<<20);
+                                        break;
+                                        case 5:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(5<<20);
+                                        break;
+                                        case 6:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(6<<20);
+                                        break;
+                                        case 7:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(7<<20);
+                                        break;
+                                        case 8:
+					rw(GMR)=(rw(GMR)&~(15<<20))|(8<<20);
+                                        break;
+				}				
+                        break;
+			case GTXFB_BLEV1:
+                                switch (arg)
+                                {
+					case 0:
+					rw(GMR)=(rw(GMR)&~(15<<16));
+					break;
+                                        case 1: 
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(1<<16);  
+                                        break;
+                                        case 2:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(2<<16);
+                                        break;
+                                        case 3:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(3<<16);
+                                        break;
+                                        case 4:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(4<<16);
+                                        break;
+                                        case 5:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(5<<16);
+                                        break;
+                                        case 6:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(6<<16);
+                                        break;
+                                        case 7:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(7<<16);
+                                        break;
+                                        case 8:
+                                        rw(GMR)=(rw(GMR)&~(15<<16))|(8<<16);
+                                        break;
+				}
+			break;
+			case CCUBEFB_XPOS:
+				GVP_SET_X(arg);
+			break;
+			case CCUBEFB_YPOS:     
+				GVP_SET_Y(arg);
+			break;	
+                        case CCBUBEFB_FBCON_BLACK:
+                                if(!arg)
+                                rh(TCR)=TCR_COLOR;   //  schwarzer consolen hintergrund nicht transpartent
+                                else
+                                rh(TCR)=0x8000;   //  schwarzer consolen hintergrund transparent
+                        break;
+                        default:
+                        return -EINVAL;
+                        }
+#endif //GTX
+#ifdef ENX
+             switch (cmd)
+                        {
+                        case ENXFB_BLEV10:  
+                                switch (arg)   
+                                {
+			 		case 0:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0));
+					break;
+					case 1:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<4);
+					break;
+					case 2:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<5);
+					break;
+					case 3:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<4);
+					break;
+					case 4:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<6);
+					break;
+					case 5:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(5<<4);
+					break;
+					case 6:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<5);
+					break;
+					case 7:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(7<<4);
+					break;
+					case 8:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<7);
+					break;
+				}
+			break;
+			case ENXFB_BLEV11:
+                                switch (arg)   
+                                {
+                                        case 0:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8));
+                                        break;
+					case 1:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<12);
+					break;
+					case 2:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<13);
+					break;
+					case 3:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<12);
+					break;
+					case 4:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<14);
+					break;
+					case 5:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(5<<12);
+					break;
+					case 6:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<13);
+					break;
+					case 7:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(7<<12);
+					break;
+					case 8:
+					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<15);
+					break;
+                                }
+			break;
+                        case CCUBEFB_XPOS:
+                                ENX_GVP_SET_X(arg);
+
+                        break;
+                        case CCUBEFB_YPOS:
+                                ENX_GVP_SET_Y(arg);
+                        break;
+			case CCBUBEFB_FBCON_BLACK:
+				if(!arg)
+				enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
+                                else
+				enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+			break;
+			default:
+                        return -EINVAL;
+			}
+#endif //ENX
+}
+
 
 /*
  *  Initialization
@@ -791,8 +990,8 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.13 2002/03/06 09:02:44 gillem Exp $\n");
-
+	dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.14 2002/03/27 12:54:49 derget Exp $\n");
+	
 	return gtxfb_init();
 }
 
