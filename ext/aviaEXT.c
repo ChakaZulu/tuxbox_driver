@@ -2,7 +2,7 @@
  * Extension device for non-API covered stuff for the Avia
  * (hopefully will disappear at some point)
  *
- * $Id: aviaEXT.c,v 1.1 2004/07/03 01:41:49 carjay Exp $
+ * $Id: aviaEXT.c,v 1.2 2004/07/03 02:36:55 carjay Exp $
  *
  * Copyright (C) 2004 Carsten Juttner <carjay@gmx.net>
  *
@@ -29,7 +29,6 @@
 #include <asm/uaccess.h>
 
 #include "avia_av.h"
-#include <tuxbox/info_dbox2.h>
 #include <dbox/aviaEXT.h>
 
 static devfs_handle_t devfs_h;
@@ -51,7 +50,7 @@ int aviaEXT_ioctl(struct inode *inode, struct file *file,
 	case AVIA_EXT_IEC_GET:	/* true if optical output enabled, false if disabled */
 		if (avia_av_is500())
 			return -EOPNOTSUPP;
-		if (put_user((!avia_av_dram_read(avia_av_dram_read(AUDIO_CONFIG)&0x100)),(int *)arg))
+		if (put_user((!(avia_av_dram_read(AUDIO_CONFIG)&0x100)),(int *)arg))
 			return -EFAULT;
 		break;		
 	default:
