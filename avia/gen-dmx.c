@@ -20,8 +20,12 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.56 $
+ *   $Revision: 1.57 $
  *   $Log: gen-dmx.c,v $
+ *   Revision 1.57  2001/09/09 19:10:43  TripleDES
+ *   changed the user-queue sizes for streaming (cheap workaround)
+ *   - we need a better queue-management
+ *
  *   Revision 1.56  2001/09/02 12:30:41  TripleDES
  *   -more fixes
  *
@@ -286,11 +290,11 @@ const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 	{10,	// video
 	9,	// audio
 	9,	// teletext
-	10, 8, 8, 8, 8,		// user 3..7
+	10, 10, 10, 10, 10,		// user 3..7
 	8, 8, 8, 8, 8, 8, 8, 8,	// user 8..15
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
 	7, 7, 7, 7, 7, 7, 7, 7	// user 24..31
-	};		// 512kb total
+	};		// 512kb total + (a little bit more ;)
 
 #ifdef enx_dmx
 void enx_tdp_start(void)
@@ -1942,7 +1946,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.56 2001/09/02 12:30:41 TripleDES Exp $\n");
+	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.57 2001/09/09 19:10:43 TripleDES Exp $\n");
 
 	return gtx_dmx_init();
 }
