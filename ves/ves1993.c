@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.21 2002/05/05 12:07:37 happydude Exp $
+  $Id: ves1993.c,v 1.22 2002/05/08 00:10:32 derget Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,11 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.22  2002/05/08 00:10:32  derget
+  support für nokia mit ves1993 und tsa5059 eingebaut
+  diseqc tut da noch nicht
+  sonst gehts *hoff*
+
   Revision 1.21  2002/05/05 12:07:37  happydude
   reception improvements
 
@@ -84,6 +89,8 @@ static unsigned short normal_i2c[] = { 0xc2>>1,I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { 0xc2>>1, 0xc2>>1, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
+int mid = 3; // 3 Sagem , 1 Nokia 
+
 struct tuner_data
 {
 	struct i2c_client *tuner_client;
@@ -91,7 +98,7 @@ struct tuner_data
 struct tuner_data *defdata=0;
 
 static struct i2c_driver tuner_driver = {
-	"Mitel tuner driver",
+	"sp5659/tsa5059 tuner driver",
 	TUNER_I2C_DRIVERID,
 	I2C_DF_NOTIFY,
 	&tuner_attach_adapter,
@@ -99,16 +106,6 @@ static struct i2c_driver tuner_driver = {
 	0,
 	0,
 	0,
-};
-
-static struct i2c_client tuner_client =	{
-	"MITEL",
-	TUNER_I2C_DRIVERID,
-	0,
-	0xC2,
-	NULL,
-	&tuner_driver,
-	NULL
 };
 
 static int tuner_detach_client(struct i2c_client *tuner_client)
@@ -154,7 +151,7 @@ static int tuner_detect_client(struct i2c_adapter *adapter, int address, unsigne
 		return err;
 	}
 	
-	dprintk("VES1993: mitel tuner attached @%02x\n", address>>1);
+	dprintk("VES1993: tuner attached @%02x\n", address>>1);
 	
 	return 0;
 }
@@ -167,12 +164,13 @@ static int tuner_attach_adapter(struct i2c_adapter *adapter)
 static int tuner_init(void)
 {
 	int res;
+        char tsa5059init[4]= {0x06,0x5c,0x83,0xa0};
+	char sp5659init[4]= {0x25,0x70,0x92,0x40};  
 	
 	writereg(dclient, 0x00,0x11);	//enable tuner access on ves1993
-	printk("VES1993: DBox2 mitel tuner driver\n");
 	if ((res=i2c_add_driver(&tuner_driver)))
 	{
-		printk("VES1993: mitel tuner driver registration failed!!!\n");
+		printk("VES1993: tuner driver registration failed!!!\n");
 		return res;
 	}
 		
@@ -182,8 +180,11 @@ static int tuner_init(void)
 		printk("VES1993: Couldn't find tuner.\n");
 		return -EBUSY;
 	}
+
+	if (mid==1) {i2c_master_send(defdata->tuner_client, tsa5059init, 4); printk("VES1993: tsa5059 tuner found\n");}
+	   else {i2c_master_send(defdata->tuner_client, sp5659init, 4); printk("VES1993: sp5659 tuner found\n");}
+
 	writereg(dclient, 0x00,0x01);	//disable tuner access on ves1993
-	//mitel_set_freq(1 198 000); // aber untested
 	
 	return 0;
 }
@@ -204,11 +205,13 @@ static int tuner_close(void)
 int set_tuner_dword(u32 tw)
 {
 	char msg[4];
-	int len=4;
+	char tmp[2];
 	*((u32*)(msg))=tw;
-	
+	tmp[0]=msg[0];
+	tmp[1]=msg[1];
+
 	writereg(dclient, 0x00,0x11);
-	if (i2c_master_send(defdata->tuner_client, msg, len)!=len)
+	if (i2c_master_send(defdata->tuner_client, tmp, 2)!=2)
 	{
 		return -1;
 	}
@@ -218,24 +221,27 @@ int set_tuner_dword(u32 tw)
 }
 
 	/* KILOHERTZ!!! */
-static int mitel_set_freq(int freq)		
-{
-	u8 buffer[4]={0x25,0x70,0x92,0x40}; 
-		
-	freq/=125*8;
-	
-	buffer[0]=(freq>>8) & 0x7F;
-	buffer[1]=freq & 0xFF;
-	
-	set_tuner_dword(*((u32*)buffer));
 
-	return 0;
-}
+static int tuner_set_freq(int freq)
+{
+        u8 buffer[4];
+        
+	freq/=1000; 
+        
+	buffer[0]=(freq>>8) & 0x7F;
+        buffer[1]=freq & 0xFF;
+
+        set_tuner_dword(*((u32*)buffer));
+
+        return 0;
+}       
+
+
 
 //----------------------------------------------------------------------------
 
 
-static u8 Init1993Tab[] =
+static u8 Init1993_sagemTab[] =
 {
 				0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0x72, 0x8c,		// 0x00
 				0x09, 0x6b, 0x00, 0x00, 0x4c, 0x08, 0x00, 0x00,		// 0x08
@@ -246,6 +252,20 @@ static u8 Init1993Tab[] =
 				0x00, 0x55, 0x03, 0x00, 0x00, 0x00, 0x00, 0x03,		// 0x30
 				0x00, 0x00, 0x0e, 0x80, 0x00				// 0x38
 };
+
+
+static u8 Init1993_nokiaTab[] =
+{
+				0x00, 0x94, 0x00, 0x80, 0x6a, 0x0b, 0xab, 0x2a,		// 0x00 
+				0x09, 0x70, 0x00, 0x00, 0x4c, 0x02, 0x00, 0x00,     	// 0x08
+				0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,		// 0x10
+				0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x00,		// 0x18
+				0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,		// 0x20
+				0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00,		// 0x28
+				0x00, 0x55, 0x03, 0x00, 0x00, 0x00, 0x01, 0x03,  	// 0x30
+				0x00, 0x00, 0x0e, 0xfd, 0x56   				// 0x38
+};
+
 
 static u8 Init1993WTab[] =
 {	//			0 1 2 3 4 5 6 7	 8 9 a b c d e f
@@ -305,19 +325,38 @@ static int init(struct i2c_client *client)
 		dprintk("ves1993: send error\n");
 		
 	//Init fuer VES1993
-	writereg(client,0x3a, 0x0c);	
+
+	if(mid==1) {
+	dprintk("nokia\n");
+	writereg(client,0x3a, 0x0e); 	
 
 	for (i=0; i<0x3d; i++)
 		if (Init1993WTab[i])
-		writereg(client, i, Init1993Tab[i]);
+		writereg(client, i, Init1993_nokiaTab[i]);
 				
-	writereg(client,0x00, 0x01);
+	writereg(client,0x00, 0x01); 
 			
-	ves->ctr=Init1993Tab[0x1f];
+	ves->ctr=Init1993_nokiaTab[0x1f];
 	ves->srate=0;
 	ves->fec=9;
 	ves->inv=0;
-	
+	}
+	else {
+        dprintk("sagem\n");
+	writereg(client,0x3a, 0x0c); 
+
+        for (i=0; i<0x3d; i++)
+                if (Init1993WTab[i])
+                writereg(client, i, Init1993_sagemTab[i]);
+        
+        writereg(client,0x00, 0x01);
+ 
+        ves->ctr=Init1993_sagemTab[0x1f];
+        ves->srate=0;
+        ves->fec=9;  
+        ves->inv=0;
+        }
+
 	return 0;
 }
 
@@ -353,7 +392,9 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	u8	ADCONF, FCONF, FNR;
 	u32 BDRI;
 	u32 tmp;
-				
+	unsigned long XIN;
+	unsigned long FIN;
+			
 	if (ves->srate==srate) 
 	{
 		if (doclr)
@@ -361,7 +402,12 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 		return 0;
 	}
 
-#define XIN (92160000UL) // 3des sagem dbox Crystal ist 92,16 MHz !!
+	if (mid==1) {
+		XIN = 96000000UL; // ves1993 Nokia Crystal ist 96 Mhz (6 * 16 Mhz)
+	} else {
+		XIN = 92160000UL; // ves1993 sagem Crystal ist 92,16 MHz 
+	}
+	FIN = XIN >> 4;
 
 	if (srate>XIN/2)
 								srate=XIN/2;
@@ -370,7 +416,6 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 				ves->srate=srate;
 				
 #define MUL (1UL<<26)
-#define FIN (XIN>>4)
 				tmp=srate<<6;
 	ratio=tmp/FIN;
 
@@ -588,7 +633,9 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (ves->inv!=param->Inversion)
 		{
 			ves->inv=param->Inversion;
-			writereg(dclient, 0x0c, Init1993Tab[0x0c] ^ (ves->inv ? 0x40 : 0x00));
+			if (mid==1) {writereg(dclient, 0x0c, Init1993_nokiaTab[0x0c] ^ (ves->inv ? 0x40 : 0x00));}
+			    else {writereg(dclient, 0x0c, Init1993_sagemTab[0x0c] ^ (ves->inv ? 0x40 : 0x00));}
+					
 			ClrBit1893(dclient);
 		}
 		SetFEC(dclient, fectab[param->u.qpsk.FEC_inner]);							
@@ -604,7 +651,8 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		secToneMode mode=(secToneMode)arg;
 		ves->tone=(mode==SEC_TONE_ON)?1:0;
-		return fp_sagem_set_SECpower(ves->power, ves->tone);
+		if (mid==1) return fp_set_sec(ves->power, ves->tone);
+		else return fp_sagem_set_SECpower(ves->power, ves->tone);
 	}
 
 	case FE_SEC_SET_VOLTAGE:
@@ -633,7 +681,9 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		default:
 			printk("invalid voltage\n");
 		}
-		return fp_sagem_set_SECpower(ves->power, ves->tone);
+		if (mid==1) return fp_set_sec(ves->power, ves->tone);
+		else return fp_sagem_set_SECpower(ves->power, ves->tone);
+
 	}
 	case FE_SEC_MINI_COMMAND:
 	{
@@ -649,21 +699,32 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		case SEC_CMDTYPE_DISEQC:
 		{
 			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
-			//printk("[VES1993] SEND DiSEqC\n");
+			dprintk("[VES1993] SEND DiSEqC\n");
 			msg[0]=0xE0;
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
-			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
+			if (mid==1) {
+					printk("diseq geht nicht\n");
+				    } 
+				else { 
+					memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
+					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
+			     	     }
 		}
                 case SEC_CMDTYPE_DISEQC_RAW:
 		{
 			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
+			dprintk("[VES1993] SEND DiSEqC_RAW\n");
 			msg[0]=command->u.diseqc.cmdtype;
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
-			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
+                        if (mid==1) {
+                                        printk("diseq geht nicht\n");
+                                    }
+                                else {
+					memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
+					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
+				     }
 		}
 		default:
 			return -EINVAL;
@@ -709,7 +770,9 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 	case FE_SETFREQ:
-		mitel_set_freq(*(u32*)arg);
+		//mitel_set_freq(*(u32*)arg);
+		//tsa5059_set_freq(*(u32*)arg);
+		tuner_set_freq(*(u32*)arg);
 		break;
 	default:
 		return -1;
@@ -757,6 +820,8 @@ static struct i2c_client client_template = {
 #ifdef MODULE
 int init_module(void) {
 	int res;
+	unsigned char *conf=(unsigned char*)ioremap(0x1001FFE0, 0x20);
+	if (conf[0]==1) mid=1; // 1 Nokia , 3 Sagem
 
 	if ((res = i2c_add_driver(&dvbt_driver))) 
 	{
