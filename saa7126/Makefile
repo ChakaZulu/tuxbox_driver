@@ -8,7 +8,7 @@ SAA_OBJS  = saa7126_core.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I$(KERNEL_LOCATION)/arch/ppc -I../include -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
