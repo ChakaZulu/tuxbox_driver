@@ -180,8 +180,10 @@ typedef enum {
 } FrontendPowerState;
 
 #define FE_SELFTEST                   _IO('o', 61)
-#define FE_SET_POWER_STATE            _IOW('o', 62, FrontendPowerState)
-#define FE_GET_POWER_STATE            _IOR('o', 63, FrontendPowerState*)
+#define FE_SET_POWER_STATE            _IOW('o',62,uint32_t)
+#define FE_GET_POWER_STATE            _IOR('o',63,uint32_t *)
+//#define FE_SET_POWER_STATE            _IOW('o', 62, FrontendPowerState)
+//#define FE_GET_POWER_STATE            _IOR('o', 63, FrontendPowerState*)
 #define FE_READ_STATUS                _IOR('o', 64, FrontendStatus*)
 #define FE_READ_BER                   _IOW('o', 65, __u32*)
 #define FE_READ_SIGNAL_STRENGTH       _IOR('o', 66, __s32*)
