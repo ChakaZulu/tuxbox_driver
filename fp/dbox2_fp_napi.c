@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.3 2002/11/12 18:01:41 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.4 2003/01/19 19:26:32 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -95,19 +95,64 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 
 			switch (demod) {
 			case DBOX_DEMOD_VES1820:
+			{
+				/*
+				 * mitel sp5659
+				 * http://assets.zarlink.com/products/datasheets/zarlink_SP5659_MAY_02.pdf
+				 */
+				
 				div = (((struct dvb_frontend_parameters *) arg)->frequency + 36125000) / 125000;
 				buf[0] = (div >> 8) & 0x7f;
 				buf[1] = div & 0xff;
 				buf[2] = 0x80 | (((div >> 15) & 0x03) << 6) | 0x04;
 				buf[3] = div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01;
 				break;
+			}
+
 			case DBOX_DEMOD_VES1893:
-				div = (((struct dvb_frontend_parameters *) arg)->frequency + 479500) / (125 * 4);
-				buf[0] = 0x01;
-				buf[1] = 0x00 | 0x00 | 0x20 | 0x00 | 0x0C | 0x02 | 0x00;
-				buf[2] = (div >> 8) & 0x7f;
+			{
+				/*
+				 * mitel sp5668
+				 * http://assets.zarlink.com/products/datasheets/zarlink_SP5668_JAN_01.pdf
+				 * 
+				 * [31:27] (= 0)
+				 * [26:24] port control bits (= 0)
+				 * [23:23] test mode enable (= 0)
+				 * [22:22] drive output disable switch (= 0)
+				 * [21:21] charge pump current select (= 1)
+				 * [20:18] reference divider ratio
+				 * [17:17] prescaler enable
+				 * [16:00] divider ratio
+				 */
+
+				static const u32 ratio[] = { 2000000, 1000000, 500000, 250000, 125000, 62500, 31250, 15625 };
+				u32 freq = (((struct dvb_frontend_parameters *) arg)->frequency + 479500) * 1000;
+				u8 sel, pe;
+
+				if (freq >= 2000000000)
+					pe = 1;
+				else
+					pe = 0;
+
+				for (sel = 7; sel > 0; sel--)
+					if ((freq / ratio[sel]) < 0x3fff)
+						break;
+
+				div = freq / ratio[sel];
+
+				printk("freq: %u, ratio: %u, div: %x, pe: %hu\n", freq, ratio[sel], div, pe);
+
+				/* port control */
+				buf[0] = 0x00;
+				/* charge pump, ref div ratio, prescaler, div[16] */
+				buf[1] = 0x20 | ((sel + pe) << 2) | (pe << 1) | ((div >> 16) & 0x01);
+				/* div[15:8] */
+				buf[2] = (div >> 8) & 0xff;
+				/* div[7:0] */
 				buf[3] = div & 0xff;
 				break;
+			}
+
 			default:
 				break;
 			}
@@ -167,13 +212,10 @@ dbox2_fp_napi_exit(void)
 }
 
 
-#ifdef MODULE
 module_init(dbox2_fp_napi_init);
 module_exit(dbox2_fp_napi_exit);
+
 MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>");
 MODULE_DESCRIPTION("dbox2 fp dvb api driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
 
