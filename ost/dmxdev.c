@@ -26,9 +26,11 @@
 #include <linux/poll.h>
 #include <asm/uaccess.h>
 
+#include <mtdriver/ostErrors.h>
+
 #include "dmxdev.h"
 
-#define DMXDEV_BUFFER_SIZE		8192*4;
+#define DMXDEV_BUFFER_SIZE		8192*32;
 
 inline dmxdev_filter_t *
 DmxDevFile2Filter(dmxdev_t *dmxdev, struct file *file)
@@ -297,6 +299,8 @@ DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 static int 
 DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 {
+	printk("dmxdev: set buffer size %x -> %x\n", dmxdevfilter->buffer.size , (uint32_t)size );
+
 	if (dmxdevfilter->buffer.size==size)
 		return 0;
 

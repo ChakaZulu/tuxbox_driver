@@ -22,7 +22,7 @@
  *
  * \brief Error codes for OST
  *
- * \version $Id: ostErrors.h,v 1.1 2001/05/25 23:17:44 gillem Exp $
+ * \version $Id: ostErrors.h,v 1.2 2001/05/26 09:20:25 gillem Exp $
  *
  * \date <Add date>
  *
@@ -49,7 +49,7 @@ extern "C" {
  *      OST
  */
 
-/* $Id: ostErrors.h,v 1.1 2001/05/25 23:17:44 gillem Exp $ */
+/* $Id: ostErrors.h,v 1.2 2001/05/26 09:20:25 gillem Exp $ */
 
 /*
  * Defines and consts
@@ -59,9 +59,9 @@ extern "C" {
 
 #define OST_ERROR_BASE      800               /* Base for generic OST errors  */
 
-//#define EBUFFEROVERFLOW   (OST_ERROR_BASE+0)  /* Buffer overflow           */
+#define EBUFFEROVERFLOW   (OST_ERROR_BASE+0)  /* Buffer overflow           */
 #define ECRC              (OST_ERROR_BASE+1)  /* CRC error                 */
-//#define EINTERNAL         (OST_ERROR_BASE+2)  /* Unexpected internal error */
+#define EINTERNAL         (OST_ERROR_BASE+2)  /* Unexpected internal error */
 #define ESTATE            (OST_ERROR_BASE+3)  /* Device not in correct state */
 #define EOLD              (OST_ERROR_BASE+4)  /* DVBSide SW too old        */
 

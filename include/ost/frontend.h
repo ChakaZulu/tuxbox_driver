@@ -27,7 +27,7 @@
 typedef uint32_t feStatus;
 
 #define ENOSIGNAL 768
-#define EBUFFEROVERFLOW 769
+//#define EBUFFEROVERFLOW 769
 
 #define FE_HAS_POWER       1
 #define FE_HAS_SIGNAL      2
