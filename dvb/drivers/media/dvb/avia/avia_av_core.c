@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.76 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_av_core.c,v 1.77 2003/10/07 16:27:45 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -70,11 +70,11 @@ static u8 bypass_mode;
 static u8 bypass_mode_changed;
 static u16 pid_audio;
 static u16 pid_video;
-static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
-static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
-static u16 sample_rate = 44100;
-static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
-static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
+static u8 play_state_audio;
+static u8 play_state_video;
+static u16 sample_rate;
+static u8 stream_type_audio;
+static u8 stream_type_video;
 static u8 sync_mode = AVIA_AV_SYNC_MODE_AV;
 static void (*video_event_handler)(u16 w, u16 h, u16 r);
 static u16 video_width;
@@ -437,10 +437,11 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 int avia_av_standby(const int state)
 {
 	if (state == 0) {
-		if (avia_av_init())
+		if (avia_av_init()) {
 			printk(KERN_ERR "avia_av: wakeup error\n");
-		else
-			dprintk(KERN_INFO "avia_av: wakeup ok\n");
+			return -EREMOTEIO;
+		}
+		dprintk(KERN_INFO "avia_av: wakeup ok\n");
 	}
 	else {
 		avia_av_event_exit();
@@ -1044,6 +1045,14 @@ static int avia_av_init(void)
 		avia_av_dram_read(UCODE_VERSION) >> 8,
 		avia_av_dram_read(UCODE_VERSION));
 
+	/* initialize global state variables */
+	play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
+	play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
+	sample_rate = 44100;
+	stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
+	stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
+	sync_mode = AVIA_AV_SYNC_MODE_AV;
+
 	return 0;
 }
 
@@ -1374,7 +1383,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.76 2003/09/30 05:45:35 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.77 2003/10/07 16:27:45 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
