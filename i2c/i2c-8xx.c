@@ -547,7 +547,7 @@ static int parse_send_msg( unsigned char address, unsigned short size,
   for(j=0; j<size; i++,j++)
     I2CBD.txbuf[I2CBD.txnum][i]=dataout[j];
 
-	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S /*| TXBD_I*/ /*| TXBD_W*/;
+	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S/*| TXBD_I*/ /*| TXBD_W*/;
 
 	if(last)
 	{
@@ -582,13 +582,13 @@ static int parse_recv_msg( unsigned char address, unsigned short size,
   I2CBD.txbd[I2CBD.txnum].length = 1 + size;
   I2CBD.rxbd[I2CBD.rxnum].length = 0;
 
-	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S /*| TXBD_W*/ /*| TXBD_I*/;
-	I2CBD.rxbd[I2CBD.txnum].status = RXBD_E | RXBD_I | RXBD_W;
+	I2CBD.txbd[I2CBD.txnum].status = TXBD_R | TXBD_S/*| TXBD_W*/ /*| TXBD_I*/;
+	I2CBD.rxbd[I2CBD.txnum].status = RXBD_E | RXBD_I;
 
 	if (last)
 	{
 		dprintk("LAST RECV\n");
-//		I2CBD.rxbd[I2CBD.rxnum].status |= RXBD_I | RXBD_W;
+		I2CBD.rxbd[I2CBD.rxnum].status |= RXBD_I | RXBD_W;
 		I2CBD.txbd[I2CBD.txnum].status |= TXBD_L | TXBD_W;
 	}
 
