@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.91 2004/05/17 17:40:31 derget Exp $
+ * $Id: avia_av_core.c,v 1.92 2004/05/31 15:34:34 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -69,6 +69,7 @@ static spinlock_t avia_command_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_av_wdt_sleep;
+static long kernel_thread_pid;
 static u8 bypass_mode;
 static u8 bypass_mode_changed;
 static u16 pid_audio;
@@ -968,12 +969,13 @@ static int avia_av_init(void)
 	/* init queue */
 	init_waitqueue_head(&avia_cmd_wait);
 
-        /* init avia_av_wdt_sleep queue */
-        init_waitqueue_head(&avia_av_wdt_sleep);
-		
-	/* start avia_av_wdt_sleep  kernel_thread */
-	kernel_thread ((int (*)(void *)) avia_av_wdt_thread, NULL, 0);
-
+	/* start avia_av_wdt_sleep  kernel_thread if it's not already running */
+	if (!kernel_thread_pid){
+		/* init avia_av_wdt_sleep queue */
+		init_waitqueue_head(&avia_av_wdt_sleep);
+		kernel_thread_pid = kernel_thread ((int (*)(void *)) avia_av_wdt_thread, NULL, 0);
+	}
+	
 	/* init spinlocks */
 	spin_lock_init(&avia_command_lock);
 	spin_lock_init(&avia_register_lock);
@@ -1497,7 +1499,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.91 2004/05/17 17:40:31 derget Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.92 2004/05/31 15:34:34 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
