@@ -21,6 +21,11 @@
  *
  *
  *   $Log: lcd-ks0713.h,v $
+ *   Revision 1.9  2001/11/25 21:37:46  gillem
+ *   - fix adc
+ *   - add new ioctl (LCD_IOCTL_INIT)
+ *   - remove init from reset
+ *
  *   Revision 1.8  2001/11/25 21:11:39  gillem
  *   - update reset function (test only!)
  *   - add sirc
@@ -37,7 +42,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -83,6 +88,7 @@
 #define LCD_IOCTL_SET_POS       (24)
 #define LCD_IOCTL_CLEAR         (25)
 #define LCD_IOCTL_SIRC			(26|LCDSET)
+#define	LCD_IOCTL_INIT			(27)
 
 #define LCD_ROWS				8
 #define LCD_COLS				120
