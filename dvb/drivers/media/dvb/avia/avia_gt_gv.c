@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.28 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_gv.c,v 1.29 2003/03/03 20:52:45 zwen Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -262,7 +262,6 @@ void avia_gt_gv_set_blevel(u8 class0, u8 class1)
 
 void avia_gt_gv_set_clut(u8 clut_nr, u32 transparency, u32 red, u32 green, u32 blue)
 {
-
 	if (avia_gt_chip(ENX)) {
 
 		transparency >>= 8;
@@ -274,7 +273,7 @@ void avia_gt_gv_set_clut(u8 clut_nr, u32 transparency, u32 red, u32 green, u32 b
 
 		mb();
 
-		enx_reg_32(CLUTD) = ((transparency << 24) | (blue << 16) | (green << 8) | (red));
+		enx_reg_32(CLUTD) = ((transparency << 24) | (red << 16) | (green << 8) | (blue));
 
 	} else if (avia_gt_chip(GTX)) {
 
@@ -554,7 +553,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.28 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.29 2003/03/03 20:52:45 zwen Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -638,8 +637,10 @@ int avia_gt_gv_init(void)
 		enx_reg_set(VBR, Cr, 0x00);
 		enx_reg_set(VBR, Cb, 0x00);
 
+
 		enx_reg_set(VCR, D, 0x1);
-		enx_reg_set(VCR, C, 0x1);
+/*    Chroma Sense: do not activate , otherwise red and blue will be swapped */
+/*		enx_reg_set(VCR, C, 0x1); */
 
 		enx_reg_set(VMCR, FFM, 0x0);
 
