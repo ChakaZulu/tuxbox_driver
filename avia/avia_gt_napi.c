@@ -20,8 +20,12 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.95 $
+ *   $Revision: 1.96 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.96  2002/09/02 20:56:06  Jolt
+ *   - HW section fix (GTX)
+ *   - DMX/NAPI cleanups
+ *
  *   Revision 1.95  2002/09/02 19:25:37  Jolt
  *   - DMX/NAPI cleanup
  *   - Compile fix
@@ -467,6 +471,7 @@ static void gtx_queue_interrupt(unsigned short irq)
 
 	if (gtx_tasklet.data)
 		schedule_task(&gtx_tasklet);
+		
 }
 
 extern int register_demux(struct dmx_demux_s *demux);
@@ -474,32 +479,19 @@ extern int unregister_demux(struct dmx_demux_s *demux);
 
 void gtx_dmx_close(void)
 {
-	int i = (int)0;
-	int j = (int)0;
+
+	u8 queue_nr;
+
+	for (queue_nr = 0; queue_nr < 32; queue_nr++)
+		avia_gt_free_irq(avia_gt_dmx_get_queue_irq(queue_nr));
+
+	if (avia_gt_chip(ENX))
+		avia_gt_free_irq(ENX_IRQ_PCR);
+	else if (avia_gt_chip(GTX))
+		avia_gt_free_irq(GTX_IRQ_PCR);					
 
 	unregister_demux(&gtx.dmx);
 	GtxDmxCleanup(&gtx);
-
-    if (avia_gt_chip(ENX)) {
-
-	for (i=1; i<16; i++)
-	{
-		avia_gt_free_irq(AVIA_GT_IRQ(3, i));
-		avia_gt_free_irq(AVIA_GT_IRQ(4, i));
-	}
-	avia_gt_free_irq(AVIA_GT_IRQ(5, 6));
-	avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
-	avia_gt_free_irq(ENX_IRQ_PCR);					 // PCR
-
-    } else if (avia_gt_chip(GTX)) {
-
-	for (j=0; j<2; j++)
-		for (i=0; i<16; i++)
-			avia_gt_free_irq(AVIA_GT_IRQ(j+2, i));
-
-	avia_gt_free_irq(GTX_IRQ_PCR);					 // PCR
-
-    }
 
 }
 
@@ -621,14 +613,6 @@ static void gtx_task(void *data)
 
 	if (datamask == 0)
 		return;
-
-#ifdef GTX_SECTIONS
-//	ugly hack for gtx because msg-queue irq doesn't work
-	if (avia_gt_chip(GTX) && gtx->hw_sec_filt_enabled)
-	{
-		set_bit(31,&datamask);
-	}
-#endif
 
 	for (queue=31; datamask && queue>= 0; queue--)	// msg queue must have priority
 		if (test_bit(queue,&datamask))
@@ -1346,19 +1330,35 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 
 static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 {
-	int i=(int)0, used=(int)0;
-	for (i=0; i<LAST_USER_QUEUE; i++)
-		if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid) && (gtx->feed[i].output&TS_PACKET))
-			used++;
 
-	for (i=0; i<LAST_USER_QUEUE; i++)
-		if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid))
-		{
-			if ( used && ((gtx->feed[i].type != DMX_TYPE_HW_SEC) || avia_gt_chip(GTX)) )
+	u8 i = 0;
+	u8 used = 0;
+	
+	for (i = 0; i < LAST_USER_QUEUE; i++) {
+	
+		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid) && (gtx->feed[i].output & TS_PACKET)) {
+		
+			used++;
+			
+			break;
+			
+		}
+			
+	}
+
+	for (i = 0; i < LAST_USER_QUEUE; i++) {
+	
+		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid)) {
+		
+			if (used && (gtx->feed[i].type != DMX_TYPE_HW_SEC))
 				dmx_enable_tap(&gtx->feed[i]);
 			else
 				dmx_disable_tap(&gtx->feed[i]);
+				
 		}
+		
+	}
+		
 }
 
 static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
@@ -1894,15 +1894,17 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		return -1;
 
 #ifdef GTX_SECTIONS
-	if ( gtxdemux->hw_sec_filt_enabled )
-	{
-		gtx_reset_queue(gtxdemux->feed+MESSAGE_QUEUE);
+	if (gtxdemux->hw_sec_filt_enabled) {
+	
+		gtx_reset_queue(gtxdemux->feed + MESSAGE_QUEUE);
+
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
 		gtxdemux->feed[MESSAGE_QUEUE].pid = 0x2000;
 		gtxdemux->feed[MESSAGE_QUEUE].output = TS_PAYLOAD_ONLY;
 		gtxdemux->feed[MESSAGE_QUEUE].state = DMX_STATE_GO;
-		if (avia_gt_chip(ENX))
-			dmx_enable_tap(gtxdemux->feed+MESSAGE_QUEUE);
+
+		dmx_enable_tap(gtxdemux->feed + MESSAGE_QUEUE);
+		
 	}
 #endif
 
@@ -1932,7 +1934,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.95 2002/09/02 19:25:37 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.96 2002/09/02 20:56:06 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

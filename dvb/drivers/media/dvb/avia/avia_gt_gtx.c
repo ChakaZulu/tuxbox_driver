@@ -20,6 +20,10 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.16  2002/09/02 20:56:06  Jolt
+ *   - HW section fix (GTX)
+ *   - DMX/NAPI cleanups
+ *
  *   Revision 1.15  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -129,7 +133,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -204,7 +208,7 @@ unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg)
 unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg)
 {
 
-	if (irq_reg <= 2) // FIXME mhh tmb??
+	if (irq_reg <= 3)
 		return gtx_reg_16n(isr[irq_reg]);
 	else
 		return 0;
@@ -303,7 +307,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.15 2002/08/22 13:39:33 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.16 2002/09/02 20:56:06 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
