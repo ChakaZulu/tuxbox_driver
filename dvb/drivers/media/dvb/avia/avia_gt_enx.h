@@ -184,7 +184,7 @@
 #define PCMN		0x0904			// PCM Attenuation Register
 #define PCMC		0x0908			// PCM Control Register
 #define PCMS		0x090A			// PCM Number of Samples Register
-#define DMAADDR		0x090C			// PCM DMA Address Register
+#define PCMD		0x090C			// PCM DMA Address Register
 #define MC		0x0380			// Memory Configuration Register
 #define SCTMA_1		0x0A40			// Smart Card Transmit Memory Address Register
 #define SCTMA_2		0x0A80			// Smart Card Transmit Memory Address Register
