@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.41 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.42 2003/02/19 23:03:29 thegoodguy Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -252,7 +252,6 @@ static int avia_gt_fb_encode_var(struct fb_var_screeninfo *var, const void *fb_p
 
 	var->red.length = 5;
 	var->red.msb_right = 0;
-	var->red.offset = 10;
 
 	var->green.length = 5;
 	var->green.msb_right = 0;
@@ -260,7 +259,17 @@ static int avia_gt_fb_encode_var(struct fb_var_screeninfo *var, const void *fb_p
 
 	var->blue.length = 5;
 	var->blue.msb_right = 0;
-	var->blue.offset = 0;
+
+	if (avia_gt_chip(GTX))
+	{
+		var->red.offset = 10;
+		var->blue.offset = 0;
+	}
+	else /* if (avia_gt_chip(ENX)) */
+	{
+		var->red.offset = 0;
+		var->blue.offset = 10;
+	}
 
 	var->transp.length = 1;
 	var->transp.msb_right = 0;
@@ -546,7 +555,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.41 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.42 2003/02/19 23:03:29 thegoodguy Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
