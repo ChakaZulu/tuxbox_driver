@@ -249,4 +249,10 @@ extern void avia_flush_pcr(void);
 #define AUDIO_SEQUENCE_ID		0x0540
 #define NEW_AUDIO_SEQUENCE		0x0544
 
+#define PROC_STATE_INITIALIZATION	0x0001
+#define PROC_STATE_IDLE			0x0002
+#define PROC_STATE_PLAY			0x0004
+#define PROC_STATE_FREEZE		0x0020
+#define PROC_STATE_NEWCHANNEL		0x0080
+
 #endif
