@@ -140,4 +140,7 @@ void dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf);
 void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, size_t count);
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count);
 
+int dvbdmx_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend);
+int dvbdmx_disconnect_frontend(dmx_demux_t *demux);
+
 #endif /* _DVB_DEMUX_H_ */

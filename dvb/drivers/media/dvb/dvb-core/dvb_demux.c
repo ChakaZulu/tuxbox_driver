@@ -1163,7 +1163,7 @@ dvbdmx_get_frontends(dmx_demux_t *demux)
 	return &dvbdemux->frontend_list;
 }
 
-static int dvbdmx_connect_frontend(dmx_demux_t *demux, 
+int dvbdmx_connect_frontend(dmx_demux_t *demux, 
 				   dmx_frontend_t *frontend)
 {
 	struct dvb_demux *dvbdemux=(struct dvb_demux *) demux;
@@ -1179,7 +1179,7 @@ static int dvbdmx_connect_frontend(dmx_demux_t *demux,
 	return 0;
 }
 
-static int dvbdmx_disconnect_frontend(dmx_demux_t *demux)
+int dvbdmx_disconnect_frontend(dmx_demux_t *demux)
 {
 	struct dvb_demux *dvbdemux=(struct dvb_demux *) demux;
 
