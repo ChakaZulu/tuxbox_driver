@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.144 $
+ *   $Revision: 1.145 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.145  2002/11/07 20:07:32  wjoost
+ *   streamen des aktuellen Programms im SPTS-Modus gefixed.
+ *
  *   Revision 1.144  2002/11/06 19:34:41  wjoost
  *   oops--;
  *
@@ -1034,6 +1037,10 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	u32 need_payload;
 	s32 payload_len;
 	sDVBTsHeader ts_header;
+	unsigned char pid1_high, pid1_low;
+#ifdef AVIA_SPTS
+	unsigned char pid2_high, pid2_low;
+#endif
 
 	if (gtxfeed->state != DMX_STATE_GO) {
 
@@ -1056,14 +1063,38 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				   SPTS-Modus).
 				 */
 
+				pid1_high = gtxfeed->pid >> 8;
+				pid1_low  = gtxfeed->pid & 0xFF;
+#ifdef AVIA_SPTS
+				if (queue_nr == 0)
+				{
+					pid2_high = gtx->feed[1].pid >> 8;
+					pid2_low  = gtx->feed[1].pid & 0xFF;
+				}
+				else
+				{
+					pid2_high = pid1_high;
+					pid2_low  = pid1_low;
+				}
+#endif
+
 				queue_info->get_data(queue_nr, ts_header_old, sizeof(ts_header_old), 1);
 
 				while (buf_len >= 188) {
 
 					if ((ts_header_old[0] != 0x47) ||
-						((ts_header_old[1] & 0x1F) != (gtxfeed->pid >> 8)) ||
-						(ts_header_old[2] != (gtxfeed->pid & 0xFF))) {
-
+						(
+						  ( ((ts_header_old[1] & 0x1F) != pid1_high) ||
+						    (ts_header_old[2] != pid1_low)
+						  )
+#ifdef AVIA_SPTS
+						  &&
+						  ( ((ts_header_old[1] & 0x1F) != pid2_high) ||
+						    (ts_header_old[2] != pid2_low)
+						  )
+#endif
+						)
+					   ) {
 						queue_info->get_data(queue_nr, NULL, 1, 0);
 						queue_info->get_data(queue_nr, ts_header_old, sizeof(ts_header_old), 1);
 
@@ -2181,7 +2212,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.144 2002/11/06 19:34:41 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.145 2002/11/07 20:07:32 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
