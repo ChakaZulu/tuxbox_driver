@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.155 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.156 2003/01/10 20:26:51 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -53,6 +53,7 @@
 
 //#define DEBUG
 #include "../dvb-core/demux.h"
+#include "../dvb-core/dvb_demux.h"
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_accel.h"
@@ -78,17 +79,19 @@ static u8 force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
+static s8 section_filter_umap[32];
+static sFilter_Definition_Entry filter_definition_table[32];
 
 static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
-																// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
-	10,						// video
-	9,						// audio
-	9,						// teletext
-	10, 10, 10, 10, 10,		// user 3..7
+									// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
+	10,			// video
+	9,			// audio
+	9,			// teletext
+	10, 10, 10, 10, 10,	// user 3..7
 	8, 8, 8, 8, 8, 8, 8, 8,	// user 8..15
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
 	7, 7, 7, 7, 7, 7, 7,	// user 24..30
-	7						// message
+	7			// message
 
 };
 
@@ -125,6 +128,7 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	queue_list[queue_nr].qim_mode = 0;
 	queue_list[queue_nr].read_pos = 0;
 	queue_list[queue_nr].write_pos = 0;
+	queue_list[queue_nr].info.hw_sec_index = -1;
 
 	avia_gt_dmx_queue_reset(queue_nr);
 	avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
@@ -210,7 +214,6 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
-#if 0
 	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00)) {
 
 		switch (risc_mem_map->Version_no[1]) {
@@ -229,497 +232,10 @@ u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 		return 1;
 
 	}
-#else
-	hw_sections = 1;
-#endif
-	return 0;
-
-}
-#if 0
-void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry)
-{
-	gtx_demux_t *gtx = v_gtx;
-	sPID_Parsing_Control_Entry e;
-	unsigned i;
-
-	dprintk("avia_gt_dmx_release_section_filter, entry %d\n",entry);
-
-	*((u32 *) &e) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]);
-	e.no_of_filter = 0;
-	e.filt_tab_idx = entry;
-	e._PSH = 1;
-	*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]) = *((u32 *) &e);
-	avia_gt_dmx_set_filter_definition_table(entry,1,31);
-
-	for (i = 0; i < 31; i++)
-	{
-		if (gtx->filter_definition_table_entry_user[i] == entry)
-		{
-			gtx->filter_definition_table_entry_user[i] = -1;
-		}
-	}
-}
-
-int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what)
-{
-
-	sPID_Entry e;
-	int rc;
-
-	*((u16 *) &e) = *((u16 *) &risc_mem_map->PID_Search_Table[entry]);
-	rc = e.VALID;
-
-	dprintk("avia_gt_dmx_start_stop_feed, entry %d, what %d, old %d\n",entry,what,rc);
-
-	if (what != e.VALID) {
-	
-		e.VALID = what;
-		e.wait_pusi = 1;
-		*((u16 *) &risc_mem_map->PID_Search_Table[entry]) = *((u16 *) &e);
-		
-	}
-
-	return rc;
-
-}
-
-
-int avia_gt_dmx_compress_filter_parameter_table(gtx_demux_t *gtx)
-{
-
-	unsigned char valid[32];
-	unsigned i;
-	unsigned j;
-	unsigned start;
-	unsigned stop;
-	sPID_Parsing_Control_Entry e;
-	sPID_Entry f;
-
-	/*
-	 * stop all feeds with type GTX_OUTPUT_8BYTE.
-	 */
-
-
-	dprintk("avia_gt_dmx_compress_filter_parameter_table\n");
-
-	i = 0;
-
-	while (i < 32)
-	{
-		*((u32 *) &e) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[i]);
-		*((u16 *) &f) = *((u16 *) &risc_mem_map->PID_Search_Table[i]);
-		if ( (e.type == 4) && (f.VALID == 0) ) {
-			valid[i] = 0;
-			avia_gt_dmx_start_stop_feed(i,1);
-			queue_list[i].read_pos = avia_gt_dmx_queue_get_write_pos(gtx->feed[i].index);
-			avia_gt_dmx_queue_set_write_pos(gtx->feed[i].index, queue_list[i].read_pos);
-			gtx->feed[i].sec_len = 0;
-			gtx->feed[i].sec_recv = 0;
-		}
-		else
-		{
-			valid[i] = 1;
-		}
-		i++;
-	}
-
-	/*
-	 * compress
-	 */
-
-	for (i = 0; (i < 31) && (gtx->filter_definition_table_entry_user[i] != -1); i++);
-
-	start = i;
-
-	j = start + 1;
-	while (j <31)
-	{
-		if (gtx->filter_definition_table_entry_user[j] != -1)
-		{
-			gtx->filter_definition_table_entry_user[i] = gtx->filter_definition_table_entry_user[j];
-			gtx->filter_definition_table_entry_user[j] = -1;
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[i]) + 0) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table1[j]) + 0);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[i]) + 1) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table1[j]) + 1);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[i]) + 2) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table1[j]) + 2);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[i]) + 0) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table2[j]) + 0);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[i]) + 1) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table2[j]) + 1);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[i]) + 2) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table2[j]) + 2);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[i]) + 0) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table3[j]) + 0);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[i]) + 1) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table3[j]) + 1);
-			*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[i]) + 2) = *(((u16 *) &risc_mem_map->Filter_Parameter_Table3[j]) + 2);
-			i++;
-		}
-		j++;
-	}
-	stop = i;
-
-	dprintk("start = %d, stop =%d\n",start,stop);
-
-	/*
-	 * update filter_definition_table
-	 */
-
-	j = -1;
-	for (i = start; i < stop; i++)
-	{
-		if (gtx->filter_definition_table_entry_user[i] != j) {
-			avia_gt_dmx_set_filter_definition_table(gtx->filter_definition_table_entry_user[i],1,i);
-			j = i;
-		}
-	}
-
-	/*
-	 * start stopped feeds
-	 */
-
-	for (i = 0; i < 32; i++)
-	{
-		if (valid[i] == 0)
-		{
-			*((u32 *) &e) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[i]);
-			e.start_up = 1;
-			*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[i]) = *((u32 *) &e);
-			avia_gt_dmx_start_stop_feed(i,0);
-		}
-	}
-
-	return stop;
-}
-
-int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id)
-{
-	sFilter_Definition_Entry e;
-	u16 w,d;
-
-	if (entry > 31) {
-
-		printk("avia_gt_napi: pid control table entry out of bounce (entry=%d)!\n", entry);
-
-		return -EINVAL;
-
-	}
-
-	e.and_or_flag = !!and_or_flag;
-	e.filter_param_id = filter_param_id;
-	e.Reserved = 0;
-
-	/* my sagem doesn't like 8bit write access */
-
-	w = *((u16 *) &risc_mem_map->Filter_Definition_Table[entry & 0xFE]);
-	d = w;
-	if (entry & 0x01)
-	{
-		w = (w & 0xFF00) | *((u8 *) &e);
-	}
-	else
-	{
-		w = (w & 0x00FF) | (*((u8 *) &e) << 8);
-	}
-
-	dprintk("avia_gt_dmx_set_filter_definition_table, entry %d, and_or_flag %d, filter_param_id %d, old=%04X, new=%04X\n",
-		entry,and_or_flag,filter_param_id,d,w);
-
-
-	*((u16 *) &risc_mem_map->Filter_Definition_Table[entry & 0xFE]) = w;
 
 	return 0;
 
 }
-
-int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[], u8 param[], u8 not_flag, u8 not_flag_ver_id_byte)
-{
-	sFilter_Parameter_Entry1 e1;
-	sFilter_Parameter_Entry2 e2;
-	sFilter_Parameter_Entry3 e3;
-
-	if (entry > 31) {
-
-		printk("avia_gt_napi: pid control table entry out of bounce (entry=%d)!\n", entry);
-
-		return -EINVAL;
-
-	}
-
-	dprintk("avia_gt_dmx_set_filter_parameter_table, entry %d\n",entry);
-
-	e1.mask_0 = mask[0];
-	e1.param_0 = param[0];
-	e1.mask_1 = mask[3];	// mask and param contain the section-length bytes,
-	e1.param_1 = param[3];	// but the dmx-ucode skips these bytes
-	e1.mask_2 = mask[4];
-	e1.param_2 = param[4];
-
-	e2.mask_3 = mask[5];
-	e2.param_3 = param[5];
-	e2.mask_4 = mask[6];
-	e2.param_4 = param[6];
-	e2.mask_5 = mask[7];
-	e2.param_5 = param[7];
-
-	e3.mask_6 = mask[8];
-	e3.param_6 = param[8];
-	e3.mask_7 = mask[9];
-	e3.param_7 = param[9];
-	e3.not_flag = !!not_flag;
-	e3.not_flag_ver_id_byte = !!not_flag_ver_id_byte;
-	e3.Reserved1 = 0;
-	e3.Reserved2 = 0;
-	e3.Reserved3 = 0;
-	e3.Reserved4 = 0;
-
-	*((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) = *((u16 *) &e1);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) + 1) = *(((u16 *) &e1) + 1);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) + 2) = *(((u16 *) &e1) + 2);
-	*((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) = *((u16 *) &e2);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) + 1) = *(((u16 *) &e2) + 1);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) + 2) = *(((u16 *) &e2) + 2);
-	*((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) = *((u16 *) &e3);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) + 1) = *(((u16 *) &e3) + 1);
-	*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) + 2) = *(((u16 *) &e3) + 2);
-
-	return 0;
-
-}
-
-int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_filters, void *v_secfilter)
-{
-	gtx_demux_t *gtx = v_gtx;
-	gtx_demux_secfilter_t *secfilter = v_secfilter;
-	gtx_demux_secfilter_t filter[32];
-	gtx_demux_secfilter_t *ptr,*prev;
-	int beststart;
-	int bestlen;
-	int i;
-	int j;
-	int k;
-	int is_active;
-	unsigned in_use_count;
-	int base, len;
-	unsigned total_free;
-	sPID_Parsing_Control_Entry e;
-
-	dprintk("avia_gt_dmx_set_section_filter, entry %d, no_of_filters %d\n",entry,no_of_filters);
-
-	if (no_of_filters == 0)
-	{
-		avia_gt_dmx_release_section_filter(gtx,entry);
-		return 0;
-	}
-
-	/*
-	 * copy section filters and "normalize" filter_value
-	 */
-	for (i = 0; (i < no_of_filters) && (secfilter != NULL); i++)
-	{
-		filter[i].next = filter + i + 1;
-		k = 0;
-		for (j = 0; j < 10; j++)
-		{
-			filter[i].filter.filter_value[j] = secfilter->filter.filter_value[j] & secfilter->filter.filter_mask[j];
-			if (secfilter->filter.filter_mask[j] != 0)
-			{
-				k = j + 1;
-			}
-			dprintk("%02X/%02X ",secfilter->filter.filter_value[j],secfilter->filter.filter_mask[j]);
-		}
-
-		dprintk("Length %d\n",k);
-		memcpy(filter[i].filter.filter_mask,secfilter->filter.filter_mask,10);
-		filter[i].filter.filter_value[1] = 0;	// section length cannot be filtered
-		filter[i].filter.filter_mask[1] = 0;
-		filter[i].filter.filter_value[2] = 0;
-		filter[i].filter.filter_mask[2] = 0;
-		filter[i].index = k;
-		secfilter = secfilter->next;
-
-		if (k == 0)
-		{
-			avia_gt_dmx_release_section_filter(gtx,entry);
-			return 0;
-		}
-	}
-	if (i != no_of_filters)
-	{
-		printk(KERN_ERR "avia_gt_dmx: no_of_filters != count of secfilters\n");
-		return -EINVAL;
-	}
-	filter[i-1].next = NULL;
-
-	/*
-	 * search duplicate entries
-	 */
-	secfilter = filter;
-	while (secfilter)
-	{
-		ptr = secfilter->next;
-		prev = secfilter;
-		while (ptr)
-		{
-			if (secfilter->index < ptr->index)
-			{
-				k = secfilter->index;
-			}
-			else
-			{
-				k = ptr->index;
-			}
-			if (memcmp(secfilter->filter.filter_value,ptr->filter.filter_value,k) ||
-			    memcmp(secfilter->filter.filter_mask,ptr->filter.filter_mask,k))
-			{
-				prev = ptr;
-			}
-			else
-			{
-				while (k < 10)
-				{
-					secfilter->filter.filter_value[k] = 0;
-					secfilter->filter.filter_mask[k++] = 0;
-				}
-				prev->next = ptr->next;
-				no_of_filters--;
-			}
-			ptr = ptr->next;
-		}
-		secfilter = secfilter->next;
-	}
-
-	dprintk("after dupcheck %d filter entries\n",no_of_filters);
-
-	/*
-	 * only 1 filter with no mask?
-	 */
-
-	if (no_of_filters == 1)
-	{
-		k = 1;
-		for (i = 0; (i < 10) && k; i++)
-		{
-			if (filter[0].filter.filter_mask[i] != 0)
-			{
-				k = 0;
-			}
-		}
-		if (k)
-		{
-			avia_gt_dmx_release_section_filter(gtx,entry);
-			return 0;
-		}
-	}
-
-	if (no_of_filters > 12)
-	{
-		printk(KERN_ERR "avia_gt_dmx: Too many different section filters!\n");
-		no_of_filters = 12;
-	}
-	/*
-	 * test whether this feed is already active
-	 */
-	is_active = -1;
-	in_use_count = 0;
-	for (i = 0; i < 31; i++)
-	{
-		if (gtx->filter_definition_table_entry_user[i] == entry)
-		{
-			if (is_active == -1)
-			{
-				is_active = i;
-			}
-			in_use_count++;
-			gtx->filter_definition_table_entry_user[i] = -1;
-		}
-	}
-
-	dprintk("feed active: %d, len %d\n",is_active,in_use_count);
-
-	/*
-	 * look for space in the filter_definition_table
-	 */
-
-	total_free = 0;
-	base = -1;
-	bestlen = 256;
-	beststart = -1;
-	len = 0;
-	for (i = 0; i < 31; i++)
-	{
-		if (gtx->filter_definition_table_entry_user[i] != -1)
-		{
-			if ( (len >= no_of_filters) && (len < bestlen) )
-			{
-				bestlen = len;
-				beststart = base;
-			}
-			base = -1;
-			len = 0;
-		}
-		else
-		{
-			if (len == 0)
-			{
-				base = i;
-			}
-			len++;
-			total_free++;
-		}
-	}
-
-	if ( (len >= no_of_filters) && (len < bestlen) )
-	{
-		bestlen = len;
-		beststart = base;
-	}
-
-	dprintk("search gives base = %d, len = %d, beststart %d, bestlen %d, totalfree %d\n",
-		base,len,beststart,bestlen,total_free);
-
-	/*
-	 * not enough space ?
-	 */
-	if (total_free < no_of_filters)
-	{
-		dprintk("not enough space!\n");
-		while (in_use_count--)
-		{
-			gtx->filter_definition_table_entry_user[is_active++] = entry;
-		}
-		return -1;
-	}
-
-	/*
-	 * stop feed
-	 */
-
-	avia_gt_dmx_start_stop_feed(entry,1);
-
-	/*
-	 * do we have to defragment ?
-	 */
-
-	if (beststart == -1)
-	{
-		beststart = avia_gt_dmx_compress_filter_parameter_table(gtx);
-	}
-
-	/*
-	 * let's rock
-	 */
-
-	avia_gt_dmx_set_filter_definition_table(entry,1,beststart);
-	ptr = filter;
-	for (i = beststart; i < beststart + no_of_filters; i++) {
-		avia_gt_dmx_set_filter_parameter_table(i,ptr->filter.filter_mask,ptr->filter.filter_value,0,0);
-		gtx->filter_definition_table_entry_user[i] = entry;
-		ptr = ptr->next;
-	}
-
-	*((u32 *) &e) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]);
-	e.no_of_filter = no_of_filters-1;
-	e._PSH = 1;
-	*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]) = *((u32 *) &e);
-
-	return 0;
-}
-#endif
 
 unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 {
@@ -1177,7 +693,7 @@ u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
 		queue_list[queue_nr].write_pos = 0;
 
 		avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
-	
+
 		return 0;
 			
 	}
@@ -1383,7 +899,7 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 
 }
 
-int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi)
+int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter)
 {
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
@@ -1395,7 +911,7 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi)
 	}
 
 	avia_gt_dmx_queue_reset(queue_nr);
-	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, 0, 0);
+	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, filt_tab_idx, (mode == AVIA_GT_DMX_QUEUE_MODE_SEC8) ? 1 : 0,no_of_filter);
 	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
 
 	return 0;
@@ -1476,7 +992,7 @@ void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
 
 }
 
-int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh)
+int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh, u8 no_of_filter)
 {
 
 	sPID_Parsing_Control_Entry ppc_entry;
@@ -1512,6 +1028,8 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 	ppc_entry.PEC = !!pec;
 	ppc_entry.filt_tab_idx = filt_tab_idx;
 	ppc_entry.State = 0;
+	ppc_entry.Reserved1 = 0;
+	ppc_entry.no_of_filter = no_of_filter;
 //FIXME	ppc_entry.State = 7;
 
 	avia_gt_dmx_risc_write(&ppc_entry, &risc_mem_map->PID_Parsing_Control_Table[queue_nr], sizeof(ppc_entry));
@@ -1961,7 +1479,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 	} else if (remote_diff < 0) {
 
-		if (remote_diff < last_remote_diff) 
+		if (remote_diff < last_remote_diff)
 			gain += 2*GAIN;
 		else
 			gain -= GAIN;
@@ -1970,7 +1488,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	}
 
 	avia_gt_dmx_set_dac(gain);
-	
+
 	last_remote_diff = remote_diff;
 
 	dprintk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
@@ -1989,6 +1507,545 @@ static void gtx_pcr_interrupt(unsigned short irq)
 }
 
 
+void avia_gt_dmx_free_section_filter(u8 index)
+{
+	unsigned nr = index;
+	
+	if ( (index > 31) || (section_filter_umap[index] != index) )
+	{
+		printk(KERN_CRIT "avia_gt_dmx: trying to free section filters with wrong index!\n");
+		return;
+	}
+
+	while (index < 32)
+	{
+		if (section_filter_umap[index] == nr)
+		{
+			section_filter_umap[index] = -1;
+		}
+		else
+		{
+			break;
+		}
+		index++;
+	}
+}
+
+/*
+ * Analyzes the section filters and convert them into an usable format.
+ */
+
+#define MAX_SECTION_FILTERS	16
+
+int avia_gt_dmx_alloc_section_filter(void *f)
+{
+	u8 mask[MAX_SECTION_FILTERS][8];
+	u8 value[MAX_SECTION_FILTERS][8];
+	u8 mode[MAX_SECTION_FILTERS][8];
+	s8 in_use[MAX_SECTION_FILTERS];
+	u8 ver_not[MAX_SECTION_FILTERS];
+	u8 unchanged[MAX_SECTION_FILTERS];
+	u8 new_mask[8];
+	u8 new_value[8];
+	u8 new_valid;
+	u8 not_value[MAX_SECTION_FILTERS];
+	u8 not_mask[MAX_SECTION_FILTERS];
+	u8 temp_mask;
+	u8 and_or;
+	u8 anz_not;
+	u8 anz_mixed;
+	u8 anz_normal;
+	u8 compare_len;
+	s8 different_bit_index;
+	u8 xor;
+	u8 not_the_first = 0;
+	u8 not_the_second = 0;
+	struct dvb_demux_filter *filter = (struct dvb_demux_filter *) f;
+
+	unsigned anz_filters = 0;
+	unsigned old_anz_filters;
+	unsigned i,j,k;
+	signed entry;
+	unsigned entry_len;
+	signed new_entry;
+	unsigned new_entry_len;
+	sFilter_Parameter_Entry1 fpe1[MAX_SECTION_FILTERS];
+	sFilter_Parameter_Entry2 fpe2[MAX_SECTION_FILTERS];
+	sFilter_Parameter_Entry3 fpe3[MAX_SECTION_FILTERS];
+
+	/*
+	 * Copy and "normalize" the filters. The section-length cannot be filtered.
+	 */
+
+	if (!filter)
+	{
+		return -1;
+	}
+
+	while (filter && anz_filters < MAX_SECTION_FILTERS)
+	{
+		mask[anz_filters][0]  = filter->filter.filter_mask[0];
+		value[anz_filters][0] = filter->filter.filter_value[0] & filter->filter.filter_mask[0];
+		mode[anz_filters][0]  = filter->filter.filter_mode[0] | !filter->filter.filter_mask[0];
+
+		if (mask[anz_filters][0])
+		{
+			in_use[anz_filters] = 0;
+		}
+		else
+		{
+			in_use[anz_filters] = -1;
+		}
+
+		for (i = 1; i < 8; i++)
+		{
+			mask[anz_filters][i]  = filter->filter.filter_mask[i+2];
+			value[anz_filters][i] = filter->filter.filter_value[i+2] & filter->filter.filter_mask[i+2];
+			mode[anz_filters][i]  = filter->filter.filter_mode[i+2] | !filter->filter.filter_mask[i+2];
+			in_use[anz_filters] = mask[anz_filters][i] ? i : in_use[anz_filters];
+		}
+
+		unchanged[anz_filters] = 1;
+		if ( (mode[anz_filters][3] != 0xFF) && ((mode[anz_filters][3] & mask[anz_filters][3]) == 0) )
+		{
+			ver_not[anz_filters] = 1;
+			not_value[anz_filters] = value[anz_filters][3];
+			not_mask[anz_filters] = mask[anz_filters][3];
+		}
+		else
+		{
+			ver_not[anz_filters] = 0;
+		}
+
+		/*
+		 * Don't need to filter because one filter does contain a mask with
+		 * all bits set to zero.
+		 */
+
+		if (in_use[anz_filters] == -1)
+		{
+			return -1;
+		}
+
+		anz_filters++;
+		filter = filter->next;
+	}
+
+	if (filter)
+	{
+		printk(KERN_WARNING "too many section filters for hw-acceleration in this feed.\n");
+		return -1;
+	}
+
+	i = anz_filters;
+	while (i < MAX_SECTION_FILTERS)
+	{
+		in_use[i++] = -1;
+	}
+
+	/*
+	 * Special case: only one section filter in this feed.
+	 */
+
+	if (anz_filters == 1)
+	{
+
+		/*
+		 * Check wether we need a not filter
+		 */
+
+		anz_not = 0;
+		anz_mixed = 0;
+		anz_normal = 0;
+		and_or = 0;	// AND
+
+		for (i = 0; i < 8; i++)
+		{
+			if (mode[0][i] != 0xFF)
+			{
+				anz_not++;
+				if (mode[0][i] & mask[0][i])
+				{
+					anz_mixed++;
+				}
+			}
+			else if (mask[0][i])
+			{
+				anz_normal++;
+			}
+		}
+
+		/*
+		 * Only the byte with the version has a mode != 0xFF.
+		 */
+		if ( (anz_not == 1) && (anz_mixed == 0) && (mode[0][3] != 0xFF) )
+		{
+		}
+		/*
+		 * Mixed mode.
+		 */
+		else if ( (anz_not > 0) && (anz_normal > 0) )
+		{
+			anz_filters = 2;
+			for (i = 0; i < 8; i++)
+			{
+				value[1][i] = value[0][i] & ~mode[0][i];
+				mask[1][i] = ~mode[0][i];
+				mask[0][i] = mask[0][i] & mode[0][i];
+				value[0][i] = value[0][i] & mask[0][i];
+				in_use[1] = in_use[0];
+				not_the_second = 1;
+			}
+		}
+		/*
+		 * All relevant bits have mode-bit 0.
+		 */
+		else if (anz_not > 0)
+		{
+			not_the_first = 1;
+		}
+	}
+
+	/*
+	 * More than one filter
+	 */
+
+	else
+	{
+		and_or = 1;	// OR
+
+		/*
+		 * Cannot check for "mode-0" bits. Delete them from the mask.
+		 */
+
+		for (i = 0; i < anz_filters; i++)
+		{
+			in_use[i] = -1;
+			for (j = 0; j < 8; j++)
+			{
+				mask[i][j] = mask[i][j] & mode[i][j];
+				value[i][j] = value[i][j] & mask[i][j];
+				if (mask[i][j])
+				{
+					in_use[i] = j;
+				}
+			}
+			if (in_use[i] == -1)
+			{
+				return -1;	// We cannot filter. Damn, thats a really bad case.
+			}
+		}
+
+		/*
+		 * Eliminate redundant filters.
+		 */
+
+		old_anz_filters = anz_filters + 1;
+		while (anz_filters != old_anz_filters)
+		{
+			old_anz_filters = anz_filters;
+			for (i = 0; (i < MAX_SECTION_FILTERS - 1) && (anz_filters > 1); i++)
+			{
+				if (in_use[i] == -1)
+				{
+					continue;
+				}
+				for (j = i + 1; j < MAX_SECTION_FILTERS && (anz_filters > 1); j++)
+				{
+					if (in_use[j] == -1)
+					{
+						continue;
+					}
+
+					if (in_use[i] < in_use[j])
+					{
+						compare_len = in_use[i] + 1;
+					}
+					else
+					{
+						compare_len = in_use[j] + 1;
+					}
+
+					different_bit_index = -1;
+
+					/*
+					 * Check wether the filters are equal or different only in
+					 * one bit.
+					 */
+
+					for (k = 0; k < compare_len; k++)
+					{
+						if ( (mask[i][k] == mask[j][k]) && (value[i][k] != value[j][k]) )
+						{
+							if (different_bit_index != -1)
+							{
+								goto next_check;
+							}
+
+							xor = value[i][k] ^ value[j][k];
+							if ( (xor == 0x01) ||
+							     (xor == 0x02) ||
+							     (xor == 0x04) ||
+							     (xor == 0x08) ||
+							     (xor == 0x10) ||
+							     (xor == 0x20) ||
+							     (xor == 0x40) ||
+							     (xor == 0x80) )
+							{
+								different_bit_index = k;
+							}
+							else
+							{
+								goto next_check;
+							}
+						}
+						else
+						{
+							goto next_check;
+						}
+					}
+
+					if (different_bit_index != -1)
+					{
+						mask[i][different_bit_index] -= xor;
+						value[i][different_bit_index] &= mask[i][different_bit_index];
+						if (different_bit_index == in_use[i])
+						{
+							in_use[i] = -1;
+							for (k = 0; k < compare_len; k++)
+							{
+								if (mask[i][k])
+								{
+									in_use[i] = k;
+								}
+							}
+						}
+						else
+						{
+							in_use[i] = compare_len - 1;
+						}
+						if (in_use[i] == -1)
+						{
+							return -1;	// Uups, eliminated all filters...
+						}
+					}
+					else
+					{
+						in_use[i] = compare_len - 1;
+					}
+
+					if ( (not_value[i] != not_value[j]) || (not_mask[i] != not_mask[j]) || (ver_not[i] != ver_not[j]) )
+					{
+						unchanged[i] = 0;
+					}
+					k = compare_len;
+					while (k < 8)
+					{
+						mask[i][k] = 0;
+						value[i][k++] = 0;
+					}
+					in_use[j] = -1;
+					anz_filters--;
+					continue;
+
+
+next_check:
+					/*
+					 * If mask1 has less bits set than mask2 and all bits set in mask1 are set in mask2, too, then
+					 * they are redundant if the corresponding bits in both values are equal.
+					 */
+
+					new_valid = 1;
+					memset(new_mask,0,sizeof(new_mask));
+					memset(new_value,0,sizeof(new_value));
+					for (k = 0; k < compare_len; k++)
+					{
+						temp_mask = mask[i][k] & mask[j][k];
+						if ( ((temp_mask == mask[i][k]) ||
+						      (temp_mask == mask[j][k]) ) &&
+						      ( (value[i][k] & temp_mask) == (value[j][k] & temp_mask) ) )
+						{
+							new_mask[k] = temp_mask;
+							new_value[k] = value[i][k] & temp_mask;
+						}
+						else
+						{
+							new_valid = 0;
+							break;
+						}
+					}
+					if (new_valid)
+					{
+						memcpy(mask[i],new_mask,8);
+						memcpy(value[i],new_value,8);
+						if ( (not_value[i] != not_value[j]) || (not_mask[i] != not_mask[j]) || (ver_not[i] != ver_not[j]) )
+						{
+							unchanged[i] = 0;
+						}
+						in_use[i] = compare_len - 1;
+						in_use[j] = -1;
+						anz_filters--;
+						continue;
+					}
+				}
+			}
+		}
+	}
+
+	/*
+	 * Now we have anz_filters filters in value and mask. Look for best space
+	 * in the filter_param_table.
+	 */
+
+	i = 0;
+	j = 0;
+	entry_len = 33;
+	entry = -1;
+	new_entry_len = 33;
+	new_entry = -1;
+
+	while (i < 32)
+	{
+		if (section_filter_umap[i] == -1)
+		{
+			if (j == 1)
+			{
+				new_entry_len++;
+			}
+			else
+			{
+				if ( (new_entry_len < entry_len) && (new_entry_len >= anz_filters) )
+				{
+					entry_len = new_entry_len;
+					entry = new_entry;
+				}
+				new_entry_len = 1;
+				new_entry = i;
+				j = 1;
+			}
+		}
+		else
+		{
+			j = 0;
+		}
+		i++;
+	}
+
+	if ( ((entry == -1) && (new_entry != -1) && (new_entry_len >= anz_filters)) ||
+	     ((new_entry_len < entry_len) && (new_entry_len >= anz_filters) ) )
+	{
+		entry = new_entry;
+		entry_len = new_entry_len;
+	}
+
+	if (entry == -1)
+	{
+		return -1;
+	}
+
+	/*
+	 * Mark filter_param_table as used.
+	 */
+
+	i = entry;
+	while (i < entry + anz_filters)
+	{
+		section_filter_umap[i++] = entry;
+	}
+
+	/*
+	 * Set filter_definition_table.
+	 */
+
+	filter_definition_table[entry].and_or_flag = and_or;
+	avia_gt_dmx_risc_write(((u8*) filter_definition_table) + (entry & 0xFE), ((u8 *) (&risc_mem_map->Filter_Definition_Table)) + (entry & 0xFE), 2);
+
+	/*
+	 * Set filter parameter tables.
+	 */
+
+	i = 0;
+	j = 0;
+	while (j < anz_filters)
+	{
+		if (in_use[i] == -1)
+		{
+			i++;
+			continue;
+		}
+
+
+		fpe1[j].mask_0  = mask[i][0];
+		fpe1[j].param_0 = value[i][0];
+		fpe1[j].mask_1  = mask[i][1];
+		fpe1[j].param_1 = value[i][1];
+		fpe1[j].mask_2  = mask[i][2];
+		fpe1[j].param_2 = value[i][2];
+
+		fpe2[j].mask_4  = mask[i][4];
+		fpe2[j].param_4 = value[i][4];
+		fpe2[j].mask_5  = mask[i][5];
+		fpe2[j].param_5 = value[i][5];
+
+		fpe3[j].mask_6  = mask[i][6];
+		fpe3[j].param_6 = value[i][6];
+		fpe3[j].mask_7  = mask[i][7];
+		fpe3[j].param_7 = value[i][7];
+		fpe3[j].Reserved1 = 0;
+		fpe3[j].not_flag = 0;
+		fpe3[j].Reserved2 = 0;
+
+		if (unchanged[i] && ver_not[i])
+		{
+			fpe3[j].not_flag_ver_id_byte = 1;
+			fpe2[j].mask_3 = not_mask[i];
+			fpe2[j].param_3 = not_value[i];
+		}
+		else
+		{
+			fpe3[j].not_flag_ver_id_byte = 0;
+			fpe2[j].mask_3  = mask[i][3];
+			fpe2[j].param_3 = value[i][3];
+		}
+
+		fpe3[j].Reserved3 = 0;
+		fpe3[j].Reserved4 = 0;
+
+		j++;
+		i++;
+	}
+
+	fpe3[0].not_flag = not_the_first;
+	fpe3[1].not_flag = not_the_second;
+
+	avia_gt_dmx_risc_write(fpe1,&risc_mem_map->Filter_Parameter_Table1[entry],anz_filters * sizeof(sFilter_Parameter_Entry1));
+	avia_gt_dmx_risc_write(fpe2,&risc_mem_map->Filter_Parameter_Table2[entry],anz_filters * sizeof(sFilter_Parameter_Entry2));
+	avia_gt_dmx_risc_write(fpe3,&risc_mem_map->Filter_Parameter_Table3[entry],anz_filters * sizeof(sFilter_Parameter_Entry3));
+
+#if 0
+	printk("I programmed following filters, And-Or: %d:\n",filter_definition_table[entry].and_or_flag);
+	for (j = 0; j <anz_filters; j++)
+	{
+		printk("%d: %02X %02X %02X %02X %02X %02X %02X %02X\n",j,
+			fpe1[j].param_0,fpe1[j].param_1,fpe1[j].param_2,
+			fpe2[j].param_3,fpe2[j].param_4,fpe2[j].param_5,
+			fpe3[j].param_6,fpe3[j].param_7);
+		printk("   %02X %02X %02X %02X %02X %02X %02X %02X\n",
+			fpe1[j].mask_0,fpe1[j].mask_1,fpe1[j].mask_2,
+			fpe2[j].mask_3,fpe2[j].mask_4,fpe2[j].mask_5,
+			fpe3[j].mask_6,fpe3[j].mask_7);
+		printk("Not-Flag: %d, Not-Flag-Version: %d\n",fpe3[j].not_flag,fpe3[j].not_flag_ver_id_byte);
+	}
+#endif
+
+	/*
+	 * Tell caller the allocated filter_definition_table entry and the amount of used filters - 1.
+	 */
+
+	return entry | ((anz_filters - 1) << 8);
+
+}
+
 int __init avia_gt_dmx_init(void)
 {
 
@@ -1996,7 +2053,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.155 2003/01/02 05:26:43 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.156 2003/01/10 20:26:51 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2069,25 +2126,25 @@ int __init avia_gt_dmx_init(void)
 	}
 
 	memset(queue_list, 0, sizeof(queue_list));
-	
+
 	queue_addr = AVIA_GT_MEM_DMX_OFFS;
-	
+
 	for (queue_nr = 0; queue_nr < AVIA_GT_DMX_QUEUE_COUNT; queue_nr++) {
-	
+
 		queue_list[queue_nr].size = (1 << queue_size_table[queue_nr]) * 64;
-		
+
 		if (queue_addr & (queue_list[queue_nr].size - 1)) {
-		
+
 			printk(KERN_WARNING "avia_gt_dmx: warning, misaligned queue %d (is 0x%X, size %d), aligning...\n", queue_nr, queue_addr, queue_list[queue_nr].size);
-			
+
 			queue_addr += queue_list[queue_nr].size;
 			queue_addr &= ~(queue_list[queue_nr].size - 1);
-			
+
 		}
-		
+
 		queue_list[queue_nr].mem_addr = queue_addr;
 		queue_addr += queue_list[queue_nr].size;
-		
+
 		queue_list[queue_nr].info.index = queue_nr;
 		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_queue_get_bytes_avail;
 		queue_list[queue_nr].info.bytes_free = avia_gt_dmx_queue_get_bytes_free;
@@ -2106,10 +2163,18 @@ int __init avia_gt_dmx_init(void)
 		if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
 			avia_gt_dmx_system_queue_set_pos(queue_nr, 0, 0);
 
-		avia_gt_dmx_queue_set_write_pos(queue_nr, 0);    
+		avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 		avia_gt_dmx_queue_irq_disable(queue_nr);
 
+	}
+
+	for (queue_nr = 0; queue_nr < 32; queue_nr++)
+	{
+		section_filter_umap[queue_nr] = -1;
+		filter_definition_table[queue_nr].and_or_flag = 0;
+		filter_definition_table[queue_nr].filter_param_id = queue_nr;
+		filter_definition_table[queue_nr].Reserved = 0;
 	}
 
 	return 0;
@@ -2166,7 +2231,6 @@ EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
 EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
-//EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
-//EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);
-//EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
 
+EXPORT_SYMBOL(avia_gt_dmx_free_section_filter);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_section_filter);
