@@ -1,5 +1,5 @@
 /*
- *   enx_gv.c - AViA eNX graphic viewport driver (dbox-II-project)
+ *   avia_gt_gv.c - AViA eNX graphic viewport driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,11 +21,14 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.2  2002/04/14 18:14:08  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.1  2001/11/01 18:19:09  Jolt
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -46,65 +49,67 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
-#include <dbox/avia_gv.h>
-#include <dbox/enx.h>
-#include <dbox/enx_gv.h>
-
-#define ENX_MEM_GV_OFFSET	ENX_FB_OFFSET
-#define ENX_MEM_GV_SIZE		(720 * 576 * 4)
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_gv.h>
 
 unsigned short input_height = 576;
-unsigned char input_mode = AVIA_GV_INPUT_MODE_RGB32;
+unsigned char input_mode = AVIA_GT_GV_INPUT_MODE_RGB32;
 unsigned short input_width = 720;
 unsigned short output_x = 0;
 unsigned short output_y = 0;
 
-void enx_gv_set_stride(void);
+void avia_gt_gv_set_stride(void);
 
-void enx_gv_cursor_hide(void) {
+void avia_gt_gv_cursor_hide(void) {
 
     enx_reg_s(GMR1)->C = 0;
+    
 }
 
-void enx_gv_cursor_show(void) {
+void avia_gt_gv_cursor_show(void) {
 
     enx_reg_s(GMR1)->C = 1;
+    
 }
 
-void enx_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size) {
+void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size) {
 
     if (gv_mem_phys)
-	*gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + ENX_MEM_GV_OFFSET);
+	*gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + AVIA_GT_MEM_GV_OFFSET);
 	
     if (gv_mem_lin)
-	*gv_mem_lin = enx_get_mem_addr() + ENX_MEM_GV_OFFSET;
+	*gv_mem_lin = enx_get_mem_addr() + AVIA_GT_MEM_GV_OFFS;
 	
     if (gv_mem_size)
-	*gv_mem_size = ENX_MEM_GV_SIZE;
+	*gv_mem_size = AVIA_GT_MEM_GV_SIZE;
+	
 }
 
-unsigned short enx_gv_get_stride(void) {
+unsigned short avia_gt_gv_get_stride(void) {
 
     return enx_reg_s(GMR1)->STRIDE << 2;
+    
 }
 
-void enx_gv_hide(void) {
+void avia_gt_gv_hide(void) {
 
-    enx_reg_s(GMR1)->GMD = AVIA_GV_INPUT_MODE_OFF;
+    enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+    
 }
 
-void enx_gv_set_input_mode(unsigned char mode) {
+void avia_gt_gv_set_input_mode(unsigned char mode) {
 
-    if (input_mode != AVIA_GV_INPUT_MODE_OFF)
+    if (input_mode != AVIA_GT_GV_INPUT_MODE_OFF)
 	enx_reg_s(GMR1)->GMD = mode;
 
     // Since mode changed, we have to recalculate some stuff
-    enx_gv_set_stride();
+    avia_gt_gv_set_stride();
 	
     input_mode = mode;
+    
 }
 
-int enx_gv_set_input_size(unsigned short width, unsigned short height) {
+int avia_gt_gv_set_input_size(unsigned short width, unsigned short height) {
 
     if (width == 720) {
 	enx_reg_s(GMR1)->L = 0;
@@ -134,13 +139,14 @@ int enx_gv_set_input_size(unsigned short width, unsigned short height) {
     input_width = width;
     
     // Since width changed, we have to recalculate some stuff
-    enx_gv_set_pos(output_x, output_y);
-    enx_gv_set_stride();
+    avia_gt_gv_set_pos(output_x, output_y);
+    avia_gt_gv_set_stride();
     
     return 0;
+    
 }
 
-int enx_gv_set_pos(unsigned short x, unsigned short y) {
+int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
 
     unsigned char input_div;
 
@@ -168,53 +174,58 @@ int enx_gv_set_pos(unsigned short x, unsigned short y) {
     output_y = y;
     
     return 0;
+    
 }
 
-void enx_gv_set_size(unsigned short width, unsigned short height) {
+void avia_gt_gv_set_size(unsigned short width, unsigned short height) {
 
     enx_reg_s(GVSZ1)->IPP = 0;
     enx_reg_s(GVSZ1)->XSZ = width;
     enx_reg_s(GVSZ1)->YSZ = height;
+    
 }
 
-void enx_gv_set_stride(void) {
+void avia_gt_gv_set_stride(void) {
 
     unsigned char input_bpp = 4;
 
     switch(input_mode) {
-	case AVIA_GV_INPUT_MODE_RGB4:
+	case AVIA_GT_GV_INPUT_MODE_RGB4:
 	    input_bpp = 1;
 	break;
-	case AVIA_GV_INPUT_MODE_RGB8:
+	case AVIA_GT_GV_INPUT_MODE_RGB8:
 	    input_bpp = 1;
 	break;
-	case AVIA_GV_INPUT_MODE_RGB16:
+	case AVIA_GT_GV_INPUT_MODE_RGB16:
 	    input_bpp = 2;
 	break;
-	case AVIA_GV_INPUT_MODE_RGB32:
+	case AVIA_GT_GV_INPUT_MODE_RGB32:
 	    input_bpp = 4;
 	break;
     }
 
     enx_reg_s(GMR1)->STRIDE = (((input_width * input_bpp) + 3) & ~3) >> 2;
+    
 }
 
-void enx_gv_show(void) {
+void avia_gt_gv_show(void) {
 
     enx_reg_s(GMR1)->GMD = input_mode;
+    
 }
 
-static int enx_gv_init(void)
+static int avia_gt_gv_init(void)
 {
-    printk("$Id: avia_gt_gv.c,v 1.1 2001/11/01 18:19:09 Jolt Exp $\n");
+
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.2 2002/04/14 18:14:08 Jolt Exp $\n");
     
     //enx_reg_w(RSTR0) &= ~(1 << );	// TODO: which one?
     
-    //enx_gv_hide();
-    enx_gv_cursor_hide();
-    enx_gv_set_pos(0, 0);
-    enx_gv_set_input_size(720, 576);
-    enx_gv_set_size(720, 576);
+    //avia_gt_gv_hide();
+    avia_gt_gv_cursor_hide();
+    avia_gt_gv_set_pos(0, 0);
+    avia_gt_gv_set_input_size(720, 576);
+    avia_gt_gv_set_size(720, 576);
     
     //enx_reg_s(GMR1)->P = 1;
     enx_reg_s(GMR1)->S = 1;
@@ -229,23 +240,25 @@ static int enx_gv_init(void)
     enx_reg_s(TCR1)->Blue = 0x00;
     enx_reg_s(TCR1)->E = 1;
 
-    // It's time for enx_malloc() :-(
-    enx_reg_s(GVSA1)->Addr = ENX_MEM_GV_OFFSET >> 2;
-    printk("enx_gv: GVSA1=0x08%X ENX_FB=0x%08X\n", enx_reg_32(GVSA1), ENX_MEM_GV_OFFSET);
+    enx_reg_s(GVSA1)->Addr = AVIA_GT_MEM_GV_OFFS >> 2;
+    printk("avia_gt_gv: GVSA1=0x08%X ENX_FB=0x%08X\n", enx_reg_32(GVSA1), ENX_MEM_GV_OFFSET);
     
     return 0;
 }
 
-static void __exit enx_gv_cleanup(void)
+static void __exit avia_gt_gv_exit(void)
 {
-    printk("enx_gv: cleanup\n");
 
-//    enx_gv_hide();
+//    avia_gt_gv_hide();
     
     //enx_reg_w(RSTR0) |= (1 << );	// TODO: which one?
 }
 
 #ifdef MODULE
-module_init(enx_gv_init);
-module_exit(enx_gv_cleanup);
+//EXPORT_SYMBOL(avia_gt_pcm_get_block_size);
+#endif
+
+#if defined(MODULE) && defined(STANDALONE)
+module_init(avia_gt_gv_init);
+module_exit(avia_gt_gv_exit);
 #endif
