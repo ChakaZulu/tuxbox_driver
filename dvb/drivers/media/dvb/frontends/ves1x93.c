@@ -37,11 +37,11 @@ static int debug = 0;
 #define dprintk	if (debug) printk
 
 
-static int board_type = 0;
+static int board_type = 2;
 #define SIEMENS_PCI_1893	0x01
 #define NOKIA_DBOX2_1893	0x02
-#define	NOKIA_DBOX2_1993	0x03
-#define	SAGEM_DBOX2_1993	0x04
+#define NOKIA_DBOX2_1993	0x03
+#define SAGEM_DBOX2_1993	0x04
 
 
 static
@@ -197,12 +197,49 @@ static
 int sp5659_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 {
         u32 div = (freq + 479500) / 125;
-        u8 buf [4] = { (div >> 8) & 0x7f, div & 0xff, 0x95, (pwr << 5) | 0x30 };
+        u8 buf [4];
 
 #ifdef DBOX2
-	if (board_type == NOKIA_DBOX2_1893)
+	/*
+	 * FIXME: use i2c
+	 */
+
+	if (board_type == NOKIA_DBOX2_1893) {
+		
+		div /= 4;
+
+		/*
+		 * 25-31: ?	0
+		 * 24: p	1
+		 * 
+		 * 23: t	0
+		 * 22: os	0
+		 * 21: c	1
+		 * 20: ?	0
+		 * 18-19: r	3
+		 * 17: pe	1
+		 * 16: ?	0
+		 * 
+		 * 0-15: div	(freq + 479500) / (125 * 4);
+		 */
+
+		buf[0] = 0x01;
+		buf[1] = 0x00 | 0x00 | 0x20 | 0x00 | 0x0C | 0x02 | 0x00;
+		buf[2] = (div >> 8) & 0x7f;
+		buf[3] = div & 0xff;
+
+		dprintk("div: %u\n", div);
+		dprintk("buf: %02x%02x%02x%02x\n", buf[0], buf[1], buf[2], buf[3]);
+
 		return dbox2_fp_tuner_write(buf, sizeof(buf));
+	}
 #endif
+
+	buf[0] = (div >> 8) & 0x7f;
+	buf[1] = div & 0xff;
+	buf[2] = 0x95;
+	buf[3] = (pwr << 5) | 0x30;
+
 	return tuner_write (i2c, buf, sizeof(buf));
 }
 
@@ -489,7 +526,7 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         case FE_READ_STATUS:
 	{
 		fe_status_t *status = arg;
-		int sync = ves1x93_readreg (i2c, 0x0e);
+		u8 sync = ves1x93_readreg (i2c, 0x0e);
 
 		*status = 0;
 
@@ -507,6 +544,8 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 		if ((sync & 0x1f) == 0x1f)
 			*status |= FE_HAS_LOCK;
+
+		dprintk("FE_READ_STATUS: sync %02x, status: %02x\n", sync, *status);
 
 		break;
 	}
