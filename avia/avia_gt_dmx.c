@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.106  2002/09/04 14:26:49  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.105  2002/09/04 13:25:01  Jolt
  *   DMX/NAPI cleanup
  *
@@ -121,7 +124,7 @@
  *
  *
  *
- *   $Revision: 1.105 $
+ *   $Revision: 1.106 $
  *
  */
 
@@ -841,6 +844,18 @@ void avia_gt_dmx_force_discontinuity(void)
 
 }
 
+u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
+{
+
+	u32 write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+
+	if (queue_list[queue_nr].read_pos > write_pos)
+		return (write_pos - queue_list[queue_nr].read_pos);
+	else
+		return ((queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos) + (write_pos - queue_list[queue_nr].mem_addr));
+
+}
+
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 {
 
@@ -998,6 +1013,41 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 
 	queue_list[queue_nr].info.irq_count++;
 	
+}
+
+u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
+{
+
+	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
+	u32 write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+	
+	if (count > bytes_avail)
+		count = bytes_avail;
+		
+	if (!dest)
+		return count;
+
+	if (queue_list[queue_nr].read_pos > write_pos) {
+	
+		if (count >= (write_pos - queue_list[queue_nr].read_pos)) {
+
+//			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].read_pos, queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos);
+//			count -= write_pos - queue_list[queue_nr].read_pos;
+//			queue_list[queue_nr].read_pos = queue_list[queue_nr].mem_addr;
+		
+		} else {
+		
+			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].read_pos, count);
+			queue_list[queue_nr].read_pos += count;
+			
+			return count;
+		
+		}
+		
+	}
+		
+	return count;
+
 }
 
 static void avia_gt_dmx_queue_interrupt(unsigned short irq)
@@ -1459,7 +1509,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.105 2002/09/04 13:25:01 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.106 2002/09/04 14:26:49 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1555,6 +1605,9 @@ int __init avia_gt_dmx_init(void)
 		
 		queue_list[queue_nr].mem_addr = queue_addr;
 		queue_addr += queue_list[queue_nr].size;
+		
+		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_get_queue_bytes_avail;
+		queue_list[queue_nr].info.move_data = avia_gt_dmx_queue_data_move;
 		
 		avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);

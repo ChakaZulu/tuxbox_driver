@@ -36,6 +36,8 @@
 
 typedef struct {
 
+	u32	(*bytes_avail)(u8 queue_nr);
+	u32	(*move_data)(u8 queue_nr, void *dest, u32 count);
 	u32 irq_count;
 
 } sAviaGtDmxQueueInfo;
@@ -49,6 +51,7 @@ typedef struct {
 	AviaGtDmxQueueProc *cb_proc;
 	sAviaGtDmxQueueInfo info;
 	u32 mem_addr;
+	u32 read_pos;
 	u32 size;
 
 } sAviaGtDmxQueue;
