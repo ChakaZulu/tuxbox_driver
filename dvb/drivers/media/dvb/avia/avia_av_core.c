@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.54 2003/01/16 22:48:35 obi Exp $
+ * $Id: avia_av_core.c,v 1.55 2003/01/18 01:22:10 obi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -109,26 +109,25 @@ static u8 sync_mode = AVIA_AV_SYNC_MODE_AV;
 /* ---------------------------------------------------------------------- */
 
 static void avia_htd_interrupt(void);
-
-static int avia_standby( int state );
+static int avia_standby(int state);
 
 /* ---------------------------------------------------------------------- */
-u32
-avia_rd (int mode, int address)
+
+u32 avia_rd(int mode, int address)
 {
 
 	u32 result;
 
 	spin_lock_irq(&avia_register_lock);
 
-	address   &= 0x3FFFFF;
-	
+	address &= 0x3FFFFF;
+
 	aviamem[6] = ((address >> 16) | mode) & 0xFF;
 	aviamem[5] = (address >>  8) & 0xFF;
 	aviamem[4] = address & 0xFF;
-	
+
 	mb();
-	
+
 	result  = aviamem[3] << 24;
 	result |= aviamem[2] << 16;
 	result |= aviamem[1] << 8;
@@ -137,12 +136,12 @@ avia_rd (int mode, int address)
 	spin_unlock_irq(&avia_register_lock);
 
 	return result;
-	
+
 }
 
 /* ---------------------------------------------------------------------- */
-void
-avia_wr (int mode, u32 address, u32 data)
+
+void avia_wr (int mode, u32 address, u32 data)
 {
 
 	spin_lock_irq(&avia_register_lock);
@@ -162,18 +161,18 @@ avia_wr (int mode, u32 address, u32 data)
 }
 
 /* ---------------------------------------------------------------------- */
-inline void
-wIM (u32 addr, u32 data)
+
+inline void wIM(u32 addr, u32 data)
 {
 
-	wGB (0x36, addr);
-	wGB (0x34, data);
+	wGB(0x36, addr);
+	wGB(0x34, data);
 	
 }
 
 /* ---------------------------------------------------------------------- */
-inline u32
-rIM (u32 addr)
+
+inline u32 rIM (u32 addr)
 {
 
 	wGB(0x3A, 0x0B);
@@ -185,8 +184,8 @@ rIM (u32 addr)
 }
 
 /* ---------------------------------------------------------------------- */
-static void
-InitialGBus (u32 *microcode)
+
+static void InitialGBus(u32 *microcode)
 {
 	unsigned long *ptr = ((unsigned long*) microcode) + 0x306;
 	int words = *ptr--, data, addr;
@@ -197,13 +196,13 @@ InitialGBus (u32 *microcode)
 	while (words--) {
 		addr = *ptr--;
 		data = *ptr--;
-		wGB (addr, data);
+		wGB(addr, data);
 	}
 }
 
 /* ---------------------------------------------------------------------- */
-static void
-FinalGBus (u32 *microcode)
+
+static void FinalGBus(u32 *microcode)
 {
 	unsigned long *ptr = ((unsigned long*) microcode) + 0x306;
 	int words = *ptr--, data, addr;
@@ -223,18 +222,18 @@ FinalGBus (u32 *microcode)
 }
 
 /* ---------------------------------------------------------------------- */
-static void
-dram_memcpyw (u32 dst, u32 *src, int words)
+
+static void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords)
 {
-	while (words--) {
-		wDR (dst, *src++);
+	while (dwords--) {
+		wDR(dst, *src++);
 		dst += 4;
 	}
 }
 
 /* ---------------------------------------------------------------------- */
-static void
-load_dram_image (u32 *microcode, u32 section_start)
+
+static void load_dram_image(u32 *microcode, u32 section_start)
 {
 	u32 dst, *src, words, errors=0;
 
@@ -247,7 +246,7 @@ load_dram_image (u32 *microcode, u32 section_start)
 	dprintk ("%s: %s: Microcode at: %.8x (%.8x)\n",
 		 __FILE__, __FUNCTION__, (u32) dst, (u32) words * 4);
 
-	dram_memcpyw (dst, src, words);
+	avia_av_dram_memcpy32 (dst, src, words);
 
 	while (words--) {
 		if (rDR(dst) != *src++)
@@ -272,9 +271,9 @@ load_imem_image (u32 *microcode, u32 data_start)
 	for (i = 0; i < words; i++)
 		wIM (i, src[i]);
 
-	wGB (0x3A, 0xB);	       // CPU_RMADR2
-	wGB (0x3B,   0);	       // set starting address
-	wGB (0x3A, 0xE);	       // indirect regs
+	wGB(0x3A, 0xB); /* CPU_RMADR2 */
+	wGB(0x3B, 0x0); /* set starting address */
+	wGB(0x3A, 0xE); /* indirect regs */
 
 	for (i = 0; i < words; i++)
 		if (rGB (0x3B) != src[i])
@@ -313,8 +312,8 @@ avia_htd_interrupt()
 void
 avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 {
-	u32 status	= (u32)0;
-	u32 sem			= (u32)0;
+	u32 status = 0;
+	u32 sem = 0;
 
 	spin_lock(&avia_lock);
 
@@ -337,33 +336,31 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 		dprintk (KERN_DEBUG "%s: %s: AUD INTR %.8x\n",
 			 __FILE__, __FUNCTION__, sem);
 
-		// E0 AUDIO_CONFIG
-		// E8 AUDIO_DAC_MODE
-		// EC AUDIO_CLOCK_SELECTION
-		// F0 I2C_958_DELAY
+		/*
+		 * E0 AUDIO_CONFIG
+		 * E8 AUDIO_DAC_MODE
+		 * EC AUDIO_CLOCK_SELECTION
+		 * F0 I2C_958_DELAY
+		 */
 
 		/* new sample freq. */
 		if (sem & 7) {
 			switch (sem & 7) {
-				// 44.1
-				case 1: 
-					wDR (0xEC, (rDR (0xEC) & ~(7 << 2)) | (1 << 2));
-					sample_rate = 44100;
+			case 1: /* 44.1 */
+				wDR(0xEC, (rDR(0xEC) & ~(7 << 2)) | (1 << 2));
+				sample_rate = 44100;
 				break;
-				// 48
-				case 2: 
-					wDR (0xEC, (rDR (0xEC) & ~(7 << 2)));
-					sample_rate = 48000;
+
+			case 2: /* 48.0 */
+				wDR(0xEC, (rDR(0xEC) & ~(7 << 2)));
+				sample_rate = 48000;
 				break;
-				// 32
-				case 7:
-					wDR (0xEC, (rDR (0xEC) & ~(7 << 2)) | (2 << 2));
-					sample_rate = 32000;
+
+			case 7: /* 32.0 */
+				wDR(0xEC, (rDR(0xEC) & ~(7 << 2)) | (2 << 2));
+				sample_rate = 32000;
 				break;
 			}
-
-			//dprintk (KERN_INFO "%s: %s: New sample freq: %d.\n",
-			//	__FILE__, __FUNCTION__, sem & 7);
 		}
 
 		/* reserved */
@@ -489,10 +486,10 @@ u32 avia_command(u32 command, ...)
 	for (; i < 8; i++)
 		wDR(0x44 + i * 4, 0);
 
-	// RUN
+	/* RUN */
 	wDR(0x5C, 0);
 
-	// host-to-decoder interrupt
+	/* host-to-decoder interrupt */
 	avia_htd_interrupt();
 
 	spin_unlock_irq(&avia_lock);
@@ -542,14 +539,11 @@ void avia_set_pcr(u32 hi, u32 lo)
 
 void avia_flush_pcr(void)
 {
-
+#if 0
 	dprintk("CHCH [DECODE] disabling sync\n");
-	
-//	wDR(AV_SYNC_MODE, 0);			   // no sync
-	
+	wDR(AV_SYNC_MODE, 0);
+#endif
 }
-
-/* ---------------------------------------------------------------------- */
 
 /*
 static int wait_audio_sequence(void)
@@ -572,37 +566,37 @@ static int new_audio_sequence( u32 val )
 	return wait_audio_sequence();
 }
 */
-/* ---------------------------------------------------------------------- */
 
 static void avia_audio_init(void)
 {
 
 	u32 val;
 
-	/* AUDIO_CONFIG
-	 *
+	/* 
+	 * AUDIO_CONFIG
 	 * 12,11,7,6,5,4 reserved or must be set to 0
 	 */
 	val  = 0;
-	val |= (0<<10);	// 1: 64 0: 32/48
-	val |= (0<<9);	// 1: I2S 0: other
-	val |= (0<<8);	// 1: no clock on da-iec
-	val |= (1<<3);	// 0: normal 1:I2S output
-	val |= (1<<2);	// 0:off 1:on channels
-	val |= (1<<1);	// 0:off 1:on IEC-958
-	val |= (1);	// 0:encoded 1:decoded output
+	val |= (0<<10);	/* 1: 64 0: 32/48 */
+	val |= (0<<9);	/* 1: I2S 0: other */
+	val |= (0<<8);	/* 1: no clock on da-iec */
+	val |= (1<<3);	/* 0: normal 1:I2S output */
+	val |= (1<<2);	/* 0:off 1:on channels */
+	val |= (1<<1);	/* 0:off 1:on IEC-958 */
+	val |= (1);	/* 0:encoded 1:decoded output */
 	wDR(AUDIO_CONFIG, val);
 
-	/* AUDIO_DAC_MODE
+	/*
+	 * AUDIO_DAC_MODE
 	 * 0 reserved
 	 */
 	val  = 0;
-	val |= (0<<8);	//
-	val |= (3<<6);	//
-	val |= (0<<4);	//
-	val |= (0<<3);	// 0:high 1:low DA-LRCK polarity
-	val |= (1<<2);	// 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
-	val |= (0<<1);	// 0:msb 1:lsb first
+	val |= (0<<8);
+	val |= (3<<6);
+	val |= (0<<4);
+	val |= (0<<3);	/* 0:high 1:low DA-LRCK polarity */
+	val |= (1<<2);	/* 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit */
+	val |= (0<<1);	/* 0:msb 1:lsb first */
 	wDR(AUDIO_DAC_MODE, val);
 
 	/* AUDIO_CLOCK_SELECTION */
@@ -610,26 +604,22 @@ static void avia_audio_init(void)
 	val |= (1<<2);
 
 	/* 500/600 test */
-	if ( (aviarev == 0x00) && (silirev == 0x80) )
-	{
-		val |= (0<<1);	// 1:256 0:384 x sampling frequ.
-	}
+	if ((aviarev == 0x00) && (silirev == 0x80))
+		val |= (0<<1);	/* 1:256 0:384 x sampling frequ. */
 	else
-	{
-		val |= (1<<1);	// 1:256 0:384 x sampling frequ.
-	}
+		val |= (1<<1);	/* 1:256 0:384 x sampling frequ. */
 
-	val |= (1);	// master,slave mode
+	val |= (1);	/* master, slave mode */
 	wDR(AUDIO_CLOCK_SELECTION, val);
 
 	/* AUDIO_ATTENUATION */
 	wDR(AUDIO_ATTENUATION, 0);
 
 	/* SET SCMS */
-	wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS)&~4);
-	
+	wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS) | 5);
+
 	sample_rate = 44100;
-	
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -640,9 +630,9 @@ void avia_set_default(void)
 	struct dbox_info_struct *dinfo = (struct dbox_info_struct *)NULL;
 
 	val  = 0;
-	val |= (0<<2);  // 1: tristate
-	val |= (0<<0);  // 0: slave 1: master HSYNC/VSYNC
-	val |= (0<<0);  // 0: BT.601 1: BT.656
+	val |= (0<<2);	/* 1: tristate */
+	val |= (0<<0);	/* 0: slave 1: master HSYNC/VSYNC */
+	val |= (0<<0);	/* 0: BT.601 1: BT.656 */
 
 	wDR(VIDEO_MODE, val);
 
@@ -676,16 +666,12 @@ void avia_set_default(void)
 	/* 0: Demux interface 2: Host Interface */
 	wDR(BITSTREAM_SOURCE, 0);
 
-	/* */
 	dbox_get_info_ptr(&dinfo);
-	if(dinfo->enxID==-1) {
-		wDR(TM_MODE, 0x0a); //gtx
-//	      dprintk("AVIA: GTX\n");
-	}
-	else {
-		wDR(TM_MODE, 0x18); // eNX
-//	      dprintk("AVIA: eNX\n");
-	}
+
+	if (dinfo->enxID==-1)
+		wDR(TM_MODE, 0x0a); /* GTX */
+	else
+		wDR(TM_MODE, 0x18); /* eNX */
 
 	wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 
@@ -837,7 +823,7 @@ static int init_avia(void)
 
 	(void)aviamem[0];
 
-	// read revision
+	/* read revision */
 	aviarev=(rGB(0)>>16)&3;
 
 	fs = get_fs();
@@ -890,12 +876,13 @@ static int init_avia(void)
 
 	wGB(0, 0x1000);
 
-//	aviarev=(rGB(0)>>16)&3;
+	/*aviarev=(rGB(0)>>16)&3;*/
 	silirev=((rGB(0x22)>>8)&0xFF);
 
 	dprintk(KERN_INFO "AVIA: AVIA REV: %02X SILICON REV: %02X\n",aviarev,silirev);
 
-	/* AR SR CHIP FILE
+	/*
+	 * AR SR CHIP FILE
 	 * 00 80 600L 600...
 	 * 03 00 600L 500... ???
 	 * 03 00 500  500
@@ -923,7 +910,7 @@ static int init_avia(void)
 	switch (aviarev)
 	{
 		case 0:
-//	      case 3:
+		/* case 3: */
 			wGB(0x22, 0x10000);
 			wGB(0x23, 0x5FBE);
 			wGB(0x22, 0x12);
@@ -954,7 +941,7 @@ static int init_avia(void)
 
 	avia_audio_init();
 
-//      init_audio_sequence();
+	/* init_audio_sequence(); */
 
 	FinalGBus(microcode);
 
@@ -1021,14 +1008,18 @@ static int init_avia(void)
 
 	avia_command(Abort, 0);
 
-//      wDR(OSD_BUFFER_START, 0x1f0000);
-//      wDR(OSD_BUFFER_END,   0x200000);
+	/*
+	wDR(OSD_BUFFER_START, 0x1f0000);
+	wDR(OSD_BUFFER_END,   0x200000);
+	*/
 
 	avia_command(Reset);
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
-	
+
+	/* needed for first selectstream */
+	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
 	return 0;
 }
 
@@ -1084,12 +1075,8 @@ void avia_av_bypass_mode_set(u8 enable)
 
 	wDR(NEW_AUDIO_CONFIG, 1);
 
-	//FIXME change stream
-
 	bypass_mode = !!enable;
 	bypass_mode_changed = 1;
-
-	printk("bypass_mode: %hu\n", bypass_mode);
 }
 
 int avia_av_pid_set(u8 type, u16 pid)
@@ -1099,10 +1086,14 @@ int avia_av_pid_set(u8 type, u16 pid)
 
 	switch (type) {
 	case AVIA_AV_TYPE_AUDIO:
+		if (pid_audio == pid)
+			return 0;
 		pid_audio = pid;
 		break;
 
 	case AVIA_AV_TYPE_VIDEO:
+		if (pid_video == pid)
+			return 0;
 		pid_video = pid;
 		break;
 
@@ -1110,6 +1101,12 @@ int avia_av_pid_set(u8 type, u16 pid)
 		printk("avia_av: invalid pid type\n");
 		return -EINVAL;
 	}
+
+	/*
+	 * flush if audio and video demux are both stopped
+	 */
+	if (((pid_audio & 0x1FFF) == 0x1FFF) && ((pid_video & 0x1FFF) == 0x1FFF))
+		avia_command(NewChannel, 0, pid_video, pid_audio);
 
 	return 0;
 }
@@ -1126,12 +1123,8 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 		break;
 
 	case AVIA_AV_PLAY_STATE_PLAYING:
-		printk("avia_av: audio play (apid=0x%04X, vpid=0x%04X)\n", pid_audio, pid_video);
-		avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-		if (pid_video != 0xFFFF)
-			avia_command(SelectStream, 0x00, pid_video);
-		if (pid_audio != 0xFFFF)
-			avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+		printk("avia_av: audio play (apid=0x%04X)\n", pid_audio);
+		avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
 		break;
 
 	case AVIA_AV_PLAY_STATE_STOPPED:
@@ -1170,12 +1163,8 @@ int avia_av_play_state_set_video(u8 new_play_state)
 		else if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
 			avia_command(Resume);
 		else {
-			printk("avia_av: video play (apid=0x%04X, vpid=0x%04X)\n", pid_audio, pid_video);
-			avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-			if (pid_video != 0xFFFF)
-				avia_command(SelectStream, 0x00, pid_video);
-			if (pid_audio != 0xFFFF)
-				avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+			printk("avia_av: video play (vpid=0x%04X)\n", pid_video);
+			avia_command(SelectStream, 0x00, pid_video);
 		}
 		break;
 
@@ -1211,130 +1200,86 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 
 	dprintk("avia_av: setting stream type %d/%d\n", new_stream_type_video, new_stream_type_audio);
 
-	switch(new_stream_type_video) {
-	
+	switch (new_stream_type_video) {
+	case AVIA_AV_STREAM_TYPE_ES:
+		switch (new_stream_type_audio) {
 		case AVIA_AV_STREAM_TYPE_ES:
-
-			switch(new_stream_type_audio) {
-	
-				case AVIA_AV_STREAM_TYPE_ES:
-		
-					avia_command(SetStreamType, 0x08, 0x0000);
-					
-					break;
-			
-				case AVIA_AV_STREAM_TYPE_PES:
-
-					avia_command(SetStreamType, 0x0A, 0x0000);
-					
-					break;
-			
-				case AVIA_AV_STREAM_TYPE_SPTS:
-				
-					printk("avia_av: video ES with audio SPTS stream type is not supported\n");
-				
-					return -EINVAL;
-				
-				default:
-
-					printk("avia_av: invalid audio stream type\n");
-		
-					return -EINVAL;
-			
-			}
-			
-		break;
+			avia_command(SetStreamType, 0x08, 0x0000);
+			break;
 			
 		case AVIA_AV_STREAM_TYPE_PES:
-
-			switch(new_stream_type_audio) {
-	
-				case AVIA_AV_STREAM_TYPE_ES:
-		
-					avia_command(SetStreamType, 0x09, 0x0000);
-					
-					break;
+			avia_command(SetStreamType, 0x0A, 0x0000);
+			break;
 			
-				case AVIA_AV_STREAM_TYPE_PES:
-
-					avia_command(SetStreamType, 0x0B, 0x0000);
-					
-					break;
-			
-				case AVIA_AV_STREAM_TYPE_SPTS:
-				
-					printk("avia_av: video PES with audio SPTS stream type is not supported\n");
-				
-					return -EINVAL;
-				
-				default:
-
-					printk("avia_av: invalid audio stream type\n");
-		
-					return -EINVAL;
-			
-			}
-			
-		break;
-		
 		case AVIA_AV_STREAM_TYPE_SPTS:
-
-			switch(new_stream_type_audio) {
+			printk("avia_av: video ES with audio SPTS stream type is not supported\n");
+			return -EINVAL;
+				
+		default:
+			printk("avia_av: invalid audio stream type\n");
+			return -EINVAL;
+		}	
+		break;
 	
-				case AVIA_AV_STREAM_TYPE_ES:
-		
-					printk("avia_av: video SPTS with audio ES stream type is not supported\n");
-					
-					return -EINVAL;
-					
-				case AVIA_AV_STREAM_TYPE_PES:
-
-					printk("avia_av: video SPTS with audio PES stream type is not supported\n");
-					
-					return -EINVAL;
-					
-				case AVIA_AV_STREAM_TYPE_SPTS:
-
-					// AViA 500 doesn't support SetStreamType 0x10/0x11
-					// So we Reset the AViA 500 back to SPTS mode
-					
-//					if (aviarev) {
-					
-//						avia_command(Reset);				
-
-//					} else {
-					
-//						avia_command(SetStreamType, 0x10, pid_audio);
-//						avia_command(SetStreamType, 0x11, pid_video);
-						
-//					}
-					
-					break;
+	case AVIA_AV_STREAM_TYPE_PES:
+		switch (new_stream_type_audio) {
+		case AVIA_AV_STREAM_TYPE_ES:
+			avia_command(SetStreamType, 0x09, 0x0000);
+			break;
 			
-				default:
-
-					printk("avia_av: invalid audio stream type\n");
-		
-					return -EINVAL;
+		case AVIA_AV_STREAM_TYPE_PES:
+			avia_command(SetStreamType, 0x0B, 0x0000);
+			break;
 			
-			}
-			
+		case AVIA_AV_STREAM_TYPE_SPTS:
+			printk("avia_av: video PES with audio SPTS stream type is not supported\n");
+			return -EINVAL;
+				
+		default:
+			printk("avia_av: invalid audio stream type\n");
+			return -EINVAL;
+		}
 		break;
 		
-		default:
-		
-			printk("avia_av: invalid video stream type\n");
-			
+	case AVIA_AV_STREAM_TYPE_SPTS:
+		switch (new_stream_type_audio) {
+		case AVIA_AV_STREAM_TYPE_ES:
+			printk("avia_av: video SPTS with audio ES stream type is not supported\n");
 			return -EINVAL;
-			
+
+		case AVIA_AV_STREAM_TYPE_PES:
+			printk("avia_av: video SPTS with audio PES stream type is not supported\n");
+			return -EINVAL;
+					
+		case AVIA_AV_STREAM_TYPE_SPTS:
+			/*
+			 * AViA 500 doesn't support SetStreamType 0x10/0x11
+			 * So we Reset the AViA 500 back to SPTS mode
+			 */
+			if (aviarev) {
+				avia_command(Reset);
+			} else {
+				avia_command(SetStreamType, 0x10, pid_audio);
+				avia_command(SetStreamType, 0x11, pid_video);
+			}
+			break;
+
+		default:
+			printk("avia_av: invalid audio stream type\n");
+			return -EINVAL;
+		}
+		break;
+
+	default:
+		printk("avia_av: invalid video stream type\n");
+		return -EINVAL;
 	}
 
 	stream_type_audio = new_stream_type_audio;
 	stream_type_video = new_stream_type_video;
-
 	return 0;
-	
-}	
+
+}
 
 int avia_av_sync_mode_set(u8 new_sync_mode)
 {
@@ -1349,8 +1294,7 @@ int avia_av_sync_mode_set(u8 new_sync_mode)
 		wDR(AV_SYNC_MODE, new_sync_mode);
 
 	sync_mode = new_sync_mode;
-
-	return 0;	
+	return 0;
 
 }
 
@@ -1361,7 +1305,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.54 2003/01/16 22:48:35 obi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.55 2003/01/18 01:22:10 obi Exp $\n");
 
 	aviamem = 0;
 
