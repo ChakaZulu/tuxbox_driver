@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.16  2002/04/24 09:08:57  obi
+ *   fixed check for S
+ *
  *   Revision 1.15  2002/04/23 00:11:10  Jolt
  *   Capture/PIG fixes
  *
@@ -47,7 +50,7 @@
  *
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 	
@@ -183,8 +186,7 @@ int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y
 	
     } else if (avia_gt_chip(GTX)) {
     
-	//FIXME check for S
-        gtx_reg_s(VPP)->HPOS = 63 + (x / 2);
+        gtx_reg_s(VPP)->HPOS = 63 + (x / 2) - (gtx_reg_s(VPS)->S ? 3 : 0);
 	gtx_reg_s(VPP)->VPOS = 21 + (y / 2);
 	
     }
@@ -308,7 +310,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.15 2002/04/23 00:11:10 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.16 2002/04/24 09:08:57 obi Exp $\n");
 
     gt_info = avia_gt_get_info();
     
