@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.20 2002/04/30 14:54:01 happydude Exp $
+  $Id: ves1993.c,v 1.21 2002/05/05 12:07:37 happydude Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.21  2002/05/05 12:07:37  happydude
+  reception improvements
+
   Revision 1.20  2002/04/30 14:54:01  happydude
   fix ASTRA MTV-Transponder, please test thoroughly, it works on my 2 dishes
 
@@ -234,22 +237,22 @@ static int mitel_set_freq(int freq)
 
 static u8 Init1993Tab[] =
 {
-				0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0xab, 0xaa,
-				0x0e, 0x45, 0x00, 0x00, 0x4c, 0x0a, 0x00, 0x00,
-				0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	
-				0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x10,
-				0x89, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x02, 0x55, 0x03, 0x00, 0x00, 0x00, 0x00, 0x03,
-	0x00, 0x00, 0x0c, 0x80, 0x00
+				0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0x72, 0x8c,		// 0x00
+				0x09, 0x6b, 0x00, 0x00, 0x4c, 0x08, 0x00, 0x00,		// 0x08
+				0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,		// 0x10
+				0x80, 0x40, 0x21, 0xb0, 0x00, 0x00, 0x00, 0x10,		// 0x18
+				0x81, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,		// 0x20
+				0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00,		// 0x28
+				0x00, 0x55, 0x03, 0x00, 0x00, 0x00, 0x00, 0x03,		// 0x30
+				0x00, 0x00, 0x0e, 0x80, 0x00				// 0x38
 };
 
 static u8 Init1993WTab[] =
-{		 //0 1 2 3 4 5 6 7	8 9 a b c d e f
-				0,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,
-				0,1,0,0,0,0,0,0, 1,1,1,1,0,0,0,1,
-				1,1,1,0,0,0,0,0, 0,0,1,1,0,0,0,0,
-				1,1,1,0,1,1,1,1, 1,1,1,1,1
+{	//			0 1 2 3 4 5 6 7	 8 9 a b c d e f
+				0,1,1,1,1,1,1,1, 1,1,0,0,1,1,0,0,			// 0x00
+				0,1,0,0,0,0,0,0, 1,1,1,1,0,0,0,1,			// 0x10
+				1,1,1,0,0,0,0,0, 0,0,1,1,0,0,0,0,			// 0x20
+				1,1,1,0,1,1,1,1, 1,1,1,1,1				// 0x30
 };
 
 struct ves1993 {
@@ -308,17 +311,7 @@ static int init(struct i2c_client *client)
 		if (Init1993WTab[i])
 		writereg(client, i, Init1993Tab[i]);
 				
-	writereg(client,0x3a, 0x0e);
-	writereg(client,0x21, 0x81);
-	writereg(client,0x00, 0x00);
-	writereg(client,0x06, 0x72);
-	writereg(client,0x07, 0x8c);
-	writereg(client,0x08, 0x09);
-	writereg(client,0x09, 0x6b);
-	writereg(client,0x20, 0x81);
-	writereg(client,0x21, 0x80);
 	writereg(client,0x00, 0x01);
-	writereg(client,0x0d, 0x0a);
 			
 	ves->ctr=Init1993Tab[0x1f];
 	ves->srate=0;
@@ -376,7 +369,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 								srate=500000;
 				ves->srate=srate;
 				
-#define MUL (1UL<<25)
+#define MUL (1UL<<26)
 #define FIN (XIN>>4)
 				tmp=srate<<6;
 	ratio=tmp/FIN;
@@ -389,16 +382,16 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	
 	FNR = 0xFF;
 	
-	if (ratio < MUL/3)					 FNR = 0;
-	if (ratio < (MUL*11)/50)		 FNR = 1;
-	if (ratio < MUL/6)					 FNR = 2;
-	if (ratio < MUL/9)					 FNR = 3;
+	if (ratio < MUL/3)					FNR = 0;
+	if (ratio < (MUL*11)/50)	 			FNR = 1;
+	if (ratio < MUL/6)					FNR = 2;
+	if (ratio < MUL/9)					FNR = 3;
 	if (ratio < MUL/12)					FNR = 4;
-	if (ratio < (MUL*11)/200)		FNR = 5;
+	if (ratio < (MUL*11)/200)				FNR = 5;
 	if (ratio < MUL/24)					FNR = 6;
-	if (ratio < (MUL*27)/1000)	 FNR = 7;
+	if (ratio < (MUL*27)/1000)				FNR = 7;
 	if (ratio < MUL/48)					FNR = 8;
-	if (ratio < (MUL*137)/10000) FNR = 9;
+	if (ratio < (MUL*137)/10000)				FNR = 9;
 
 	if (FNR == 0xFF)
 	{
@@ -407,7 +400,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 		FNR	= 0;
 	} else	{
 		ADCONF = 0x81;
-		FCONF	= 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5); //default | DFN | AFS
+		FCONF	= 0x80 | ((FNR > 1) << 3) | (FNR >> 1) | ((FNR & 0x01) << 5); //default | DFN | AFS
 	}
 
 
@@ -420,18 +413,18 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	writereg(client, 0x20, ADCONF);
 	writereg(client, 0x21, FCONF);
 
+#if 0	// This makes reception worse in my experience
 	if (srate<6000000) 
 		writereg(client, 5, Init1993Tab[0x05] | 0x80);
 	else
 		writereg(client, 5, Init1993Tab[0x05] & 0x7f);
+#endif
 
 	writereg(client, 0x00,0x00);
 	writereg(client, 6, 0xff&BDR);
 	writereg(client, 7, 0xff&(BDR>>8));
 	writereg(client, 8, 0x0f&(BDR>>16));
 	writereg(client, 9, BDRI);
-	writereg(client, 0x20,0x81);
-	writereg(client, 0x21,0x80);
 	writereg(client, 0x00,0x01);
 
 	return 0;
