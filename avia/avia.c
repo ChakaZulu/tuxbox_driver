@@ -18,7 +18,7 @@
 #include <asm/uaccess.h>
 
 #include "../fp/fp.h"
-#include "avia.h"
+#include "dbox/avia.h"
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");

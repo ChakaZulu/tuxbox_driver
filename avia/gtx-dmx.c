@@ -18,9 +18,9 @@
 
 #include <ost/demux.h>
 
-#include "gtx.h"
-#include "gtx-dmx.h"
-#include "avia.h"
+#include "dbox/gtx.h"
+#include "dbox/gtx-dmx.h"
+#include "dbox/avia.h"
 
 // #define DF printk("%s\n", __FUNCTION__);
 #define DF

@@ -19,7 +19,7 @@
 #include <video/fbcon.h>
 #include <video/fbcon-cfb16.h>
 
-#include "gtx.h"
+#include "dbox/gtx.h"
 
 #define RES_X           720
 #define RES_Y           576
