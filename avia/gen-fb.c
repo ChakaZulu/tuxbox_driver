@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.7  2001/06/09 18:49:55  tmbinc
+ *   fixed gtx-setcolreg.
+ *
  *   Revision 1.6  2001/05/27 20:47:51  TripleDES
  *
  *   fixed the transparency for fb-console but this works not very fine with other modes (no black) :(  ...only that the fb-console runs, again ;)
@@ -57,7 +60,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -72,6 +75,9 @@
     
     roh suxx.
  */
+
+#define TCR_COLOR 0xFC0F
+#define BLEVEL		0x20
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -366,7 +372,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
   val|=0<<20;                           // BLEV1 = 8/8
-  val|=2<<16;                           // BLEV2 = 6/8
+  val|=2<<16;                           // BLEV2 = 6/8	-> BLEVEL
   val|=par->stride;
 
   rw(GMR)=val;
@@ -406,7 +412,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	rw(GVP) |= (rem<<27);
 
   rh(GFUNC)=0x10;			// enable dynamic clut
-  rh(TCR)=0xFC0F;                       // ekelhaftes rosa als transparent
+  rh(TCR)=TCR_COLOR;                       // ekelhaftes rosa als transparent
 
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
@@ -475,7 +481,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   val|=par->stride;
 
   enx_reg_w(TCR1)=0x1000000;
-  enx_reg_w(TCR2)=0x1FF007F;
+  enx_reg_w(TCR2)=0x0FF007F;	// disabled - we don't need since we have 7bit true alpha
 
 	enx_reg_h(P1VPSA)=0;
 	enx_reg_h(P2VPSA)=0;
@@ -487,7 +493,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
 	enx_reg_w(GMR1)=val;
 	enx_reg_w(GMR2)=0;
-  enx_reg_h(GBLEV1)=20;
+  enx_reg_h(GBLEV1)=BLEVEL;
   enx_reg_h(GBLEV2)=0;
 //JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
 	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
@@ -536,11 +542,17 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   // 03e0 g
   // 001F b
   val=rh(CLTD);
-  *red=((val&0x7C00)>>10)<<19;
-  *green=((val&0x3E0)>>5)<<19;
-  *blue=(val&0x1F)       <<19;
-  *transp=(val&0x8000)>>15;
-
+  if (val==TCR_COLOR)
+  {
+  	*red=*green=*blue=0;
+  	*transp=255;
+  } else
+  {
+	  *red=((val&0x7C00)>>10)<<19;
+	  *green=((val&0x3E0)>>5)<<19;
+	  *blue=(val&0x1F)       <<19;
+	  *transp=(val&0x8000)?BLEVEL:0;
+	}
 #endif
 
 #ifdef ENX
@@ -578,11 +590,21 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   red>>=11;
   green>>=11;
   blue>>=11;
+  transp>>=8;
   
-  transp=!!transp;
   rh(CLTA)=regno;
   mb();
-  rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
+  if (transp>=0x80)		// full transparency
+  {
+  	rh(CLTD)=TCR_COLOR;
+  } else
+  {
+  	if (!transp)
+			transp=1;
+		else
+			transp=0;
+		rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
+	}
   
 #endif // GTX
 
@@ -745,7 +767,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: gen-fb.c,v 1.6 2001/05/27 20:47:51 TripleDES Exp $\n");
+  dprintk("Framebuffer: $Id: gen-fb.c,v 1.7 2001/06/09 18:49:55 tmbinc Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
