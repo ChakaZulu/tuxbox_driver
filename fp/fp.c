@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.38  2001/12/08 15:20:14  gillem
+ *   - add global event handler now
+ *
  *   Revision 1.37  2001/12/02 10:33:01  TripleDES
  *   added low-band support (never missed ;)
  *
@@ -117,7 +120,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.37 $
+ *   $Revision: 1.38 $
  *
  */
 
@@ -144,6 +147,7 @@
 #include <asm/uaccess.h>
 #include <asm/signal.h>
 
+#include "dbox/event.h"
 #include "dbox/fp.h"
 #include "dbox/info.h"
 
@@ -738,17 +742,24 @@ static void fp_handle_button(struct fp_data *dev)
 
 static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 {
+	struct event_t event;
+
+	memset(&event,0,sizeof(event_t));
+
 	if (dev->fpVCR!=fpVCR)
 	{
 		dev->fpVCR = fpVCR;
 
 		if (dev->fpVCR)
 		{
-			dprintk("fp.o: vcr turned on\n");
+			event.event = EVENT_VCR_ON;
+			event_write_message( &event, 1 );
 		}
 		else
 		{
-			dprintk("fp.o: vcr turned off\n");
+			event.event = EVENT_VCR_OFF;
+			event_write_message( &event, 1 );
+
 		}
 
 		/* todo: event erweitern !? evtl 0xFE<00/01> ??? */
