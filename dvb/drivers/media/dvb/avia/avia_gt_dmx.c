@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.174 2003/05/25 23:54:25 woglinde Exp $
+ * $Id: avia_gt_dmx.c,v 1.175 2003/05/27 04:45:52 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1470,7 +1470,7 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 {
 
 	u32 pos;
-	//u32 flags;
+	u32 flags;
 
 	if (count & 1) {
 
@@ -1488,7 +1488,7 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 
 	}
 
-	//local_irq_save(flags);
+	local_irq_save(flags);
 
 	for (pos = 0; pos < count; pos += 2) {
 
@@ -1516,7 +1516,7 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 
 	}
 
-	//local_irq_restore(flags);
+	local_irq_restore(flags);
 
 }
 
@@ -2373,7 +2373,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.174 2003/05/25 23:54:25 woglinde Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.175 2003/05/27 04:45:52 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
