@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.24 2002/05/05 12:34:20 happydude Exp $
+   $Id: ves1893.c,v 1.25 2002/06/01 15:25:19 kwon Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.25  2002/06/01 15:25:19  kwon
+    - less verbose
+
     Revision 1.24  2002/05/05 12:34:20  happydude
     reception improvements
 
@@ -534,11 +537,11 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		switch (minicmd) {
 		case SEC_MINI_A:
-			printk ("minidiseqc: A\n");
+			dprintk ("minidiseqc: A\n");
 			return fp_send_diseqc (1, "\x00\x00\x00\x00", 4);
 
 		case SEC_MINI_B:
-			printk ("minidiseqc: B\n");
+			dprintk ("minidiseqc: B\n");
 			return fp_send_diseqc (1, "\xff", 1);
 
 		default:
