@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.137  2002/10/09 09:42:59  Jolt
+ *   Some small fixes
+ *
  *   Revision 1.136  2002/10/08 13:47:52  Jolt
  *   Queue handling changes
  *
@@ -218,7 +221,7 @@
  *
  *
  *
- *   $Revision: 1.136 $
+ *   $Revision: 1.137 $
  *
  */
 
@@ -332,6 +335,9 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmx
 
 	queue_list[queue_nr].busy = 1;
 	queue_list[queue_nr].cb_proc = cb_proc;
+	queue_list[queue_nr].hw_read_pos = 0;
+	queue_list[queue_nr].hw_write_pos = 0;
+	queue_list[queue_nr].irq_count = 0;
 	queue_list[queue_nr].irq_proc = irq_proc;
 	queue_list[queue_nr].priv_data = priv_data;
 	queue_list[queue_nr].read_pos = 0;
@@ -390,7 +396,7 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
     
-		printk("avia_gt_dmx:  free_queue: queue %d out of bounce\n", queue_nr);
+		printk("avia_gt_dmx: free_queue: queue %d out of bounce\n", queue_nr);
 	
 		return -EINVAL;
 
@@ -1392,29 +1398,26 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	queue_list[queue_nr].hw_write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 	
 	// Cases:
+	// 
+	//    [    R     OW    ] (R < OW)
 	//
-	// (R < OW)
+	// 1. [    R     OW  W ] OK
+	// 2. [ W  R     OW    ] OK
+	// 3. [    R  W  OW    ] OVERFLOW (incl. R == W)
 	//
-	// 1. [  W    R    OW  ] OK
-	// 2. [   R   OW  W    ] OK
-	// 3. [    W   R  OW   ] OVERFLOW
+	//    [    OW     R    ] (OW < R)
 	//
-	// (R > OW)
-	//
-	// 4. [   OW   W   R   ] OK
-	// 5. [  OW   R   W    ] OVERFLOW
-	// 6. [  W   OW    R   ] OVERFLOW
+	// 4. [    OW  W  R    ] OK
+	// 5. [    OW     R  W ] OVERFLOW (incl. R == W)
+	// 6. [ W  OW  R       ] OVERFLOW
 
 #if 0
 
-		// (R < OW)												Case 3.
-	if (((old_hw_write_pos < queue_list[queue_nr].read_pos) && (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)) ||
-		// (R > OW)												Case 5.																Case 6.
-		((old_hw_write_pos > queue_list[queue_nr].read_pos) && ((queue_list[queue_nr].write_pos > queue_list[queue_nr].read_pos) ||	(queue_list[queue_nr].write_pos < old_hw_write_pos))))
-		// We can't recovery here or we will break queue handling (get_data*, bytes_avail, ...)
-		queue_list[queue_nr].overflow_count++;
+	if (((queue_list[queue_nr].read_pos < old_hw_write_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) && (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))) ||
+		((old_hw_write_pos < queue_list[queue_nr].read_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) || (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))))
+		queue_list[queue_nr].overflow_count++;	// We can't recovery here or we will break queue handling (get_data*, bytes_avail, ...)
 
-#endif		
+#endif
 	
 	if (queue_list[queue_nr].irq_proc)
 		queue_list[queue_nr].irq_proc(queue_nr, queue_list[queue_nr].priv_data);
@@ -1988,7 +1991,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.136 2002/10/08 13:47:52 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.137 2002/10/09 09:42:59 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
