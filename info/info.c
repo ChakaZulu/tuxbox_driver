@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.18  2002/05/07 19:54:13  derget
+ *   info.fe wieder eingebaut :)
+ *
  *   Revision 1.17  2002/05/07 01:17:42  derget
  *   bla
  *
@@ -70,7 +73,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -377,12 +380,15 @@ static int dbox_info_init(void)
 	}	else if (info.mID==DBOX_MID_NOKIA)
 	{
 		if (checkForVES1820())
-			{ info.feID=0x7a ;
+			{ info.fe=0;
+			  info.feID=0x7a ;
 			  info.demod=DBOX_DEMOD_VES1820;}
 		else if (checkForVES1993())
-			{info.feID=0x00  ;
+			{info.fe=1;
+			 info.feID=0x00  ;
 			 info.demod=DBOX_DEMOD_VES1993;}
-		else {info.feID=0xdd ;
+		else {info.fe=1;
+		      info.feID=0xdd ;
 		      info.demod=DBOX_DEMOD_VES1893;}
 
 		info.fpID=0x5a;
