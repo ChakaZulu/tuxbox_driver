@@ -20,13 +20,16 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.3  2002/06/11 22:37:18  Jolt
+ *   DVR fixes
+ *
  *   Revision 1.2  2002/06/11 22:12:52  Jolt
  *   DVR merge
  *
- *   Revision 1.1  2002/11/06 22:09:18  TripleDES   
+ *   Revision 1.1  2002/06/11 22:09:18  Jolt
  *   DVR driver added
  *
- *   Revision 1.0  2001/31/07 00:37:12  TripleDES
+ *   Revision 1.0  2001/07/31 00:37:12  TripleDES
  *   - initial release
  *
  */
@@ -36,7 +39,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -220,6 +223,7 @@ static void audioint(u16 irq)
 static ssize_t iframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
 		int write=count;
+		DECLARE_WAITQUEUE(wait,current);
 
 		if((vpointer + count) >= vqsize)
 		{
@@ -250,7 +254,6 @@ static ssize_t iframe_write (struct file *file, const char *buf, size_t count,lo
 		if(vpointer >= vqsize) vpointer=0;
 		
 #if 1		
-		DECLARE_WAITQUEUE(wait,current);
 		add_wait_queue(&frame_wait,&wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		vstate=1;
@@ -350,7 +353,7 @@ static int enx_iframe_init(void)
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
 				  &aiframe_fops,NULL);
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.2 2002/06/11 22:12:52 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.3 2002/06/11 22:37:18 Jolt Exp $\n");
 	
     gt_info = avia_gt_get_info();
 		
