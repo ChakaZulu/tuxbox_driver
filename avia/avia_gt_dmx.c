@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.90  2002/07/07 16:55:42  wjoost
+ *
+ *   Meine Sagem hustet mir sonst was :-(
+ *
  *   Revision 1.89  2002/06/11 20:35:43  Jolt
  *   Sections cleanup
  *
@@ -67,7 +71,7 @@
  *
  *
  *
- *   $Revision: 1.89 $
+ *   $Revision: 1.90 $
  *
  */
 
@@ -260,6 +264,7 @@ int avia_gt_dmx_load_ucode(void)
 
 int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id)
 {
+	sFilter_Definition_Entry e;
 
 	if (entry > 31) {
 	
@@ -269,8 +274,10 @@ int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_
 	
 	}
 
-	risc_mem_map->Filter_Definition_Table[entry].and_or_flag = !!and_or_flag;
-	risc_mem_map->Filter_Definition_Table[entry].filter_param_id = filter_param_id;
+	e.and_or_flag = !!and_or_flag;
+	e.filter_param_id = filter_param_id;
+	e.Reserved = 0;
+	*((u8 *) &risc_mem_map->Filter_Definition_Table[entry]) = *((u8 *) &e); 
 	
 	return 0;
 	
@@ -278,6 +285,9 @@ int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_
 
 int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[8], u8 param[8], u8 not_flag, u8 not_flag_ver_id_byte)
 {
+	sFilter_Parameter_Entry1 e1;
+	sFilter_Parameter_Entry2 e2;
+	sFilter_Parameter_Entry3 e3;
 
 	if (entry > 31) {
 	
@@ -287,29 +297,44 @@ int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[8], u8 param[8], u8
 	
 	}
 
-	risc_mem_map->Filter_Parameter_Table1[entry].mask_0 = mask[0];
-	risc_mem_map->Filter_Parameter_Table1[entry].param_0 = param[0];
-	risc_mem_map->Filter_Parameter_Table1[entry].mask_1 = mask[1];
-	risc_mem_map->Filter_Parameter_Table1[entry].param_1 = param[1];
-	risc_mem_map->Filter_Parameter_Table1[entry].mask_2 = mask[2];
-	risc_mem_map->Filter_Parameter_Table1[entry].param_2 = param[2];
-	risc_mem_map->Filter_Parameter_Table2[entry].mask_3 = mask[3];
-	risc_mem_map->Filter_Parameter_Table2[entry].param_3 = param[3];
-	risc_mem_map->Filter_Parameter_Table2[entry].mask_4 = mask[4];
-	risc_mem_map->Filter_Parameter_Table2[entry].param_4 = param[4];
-	risc_mem_map->Filter_Parameter_Table2[entry].mask_5 = mask[5];
-	risc_mem_map->Filter_Parameter_Table2[entry].param_5 = param[5];
-	risc_mem_map->Filter_Parameter_Table3[entry].mask_6 = mask[6];
-	risc_mem_map->Filter_Parameter_Table3[entry].param_6 = param[6];
-	risc_mem_map->Filter_Parameter_Table3[entry].mask_7 = mask[7];
-	risc_mem_map->Filter_Parameter_Table3[entry].param_7 = param[7];
-	risc_mem_map->Filter_Parameter_Table3[entry].not_flag = !!not_flag;
-	risc_mem_map->Filter_Parameter_Table3[entry].not_flag_ver_id_byte = !!not_flag_ver_id_byte;
-	
+	e1.mask_0 = mask[0];
+	e1.param_0 = param[0];
+	e1.mask_1 = mask[1];
+	e1.param_1 = param[1];
+	e1.mask_2 = mask[2];
+	e1.param_2 = param[2];
+
+	e2.mask_3 = mask[3];
+	e2.param_3 = param[3];
+	e2.mask_4 = mask[4];
+	e2.param_4 = param[4];
+	e2.mask_5 = mask[5];
+	e2.param_5 = param[5];
+
+	e3.mask_6 = mask[6];
+	e3.param_6 = param[6];
+	e3.mask_7 = mask[7];
+	e3.param_7 = param[7];
+	e3.not_flag = !!not_flag;
+	e3.not_flag_ver_id_byte = !!not_flag_ver_id_byte;
+	e3.Reserved1 = 0;
+	e3.Reserved2 = 0;
+	e3.Reserved3 = 0;
+	e3.Reserved4 = 0;
+
+	*((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) = *((u16 *) &e1);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) + 1) = *(((u16 *) &e1) + 1);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table1[entry]) + 2) = *(((u16 *) &e1) + 2);
+	*((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) = *((u16 *) &e2);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) + 1) = *(((u16 *) &e2) + 1);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table2[entry]) + 2) = *(((u16 *) &e2) + 2);
+	*((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) = *((u16 *) &e3);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) + 1) = *(((u16 *) &e3) + 1);
+	*(((u16 *) &risc_mem_map->Filter_Parameter_Table3[entry]) + 2) = *(((u16 *) &e3) + 2);
+
 	return 0;
 	
 }
-
 
 void avia_gt_dmx_set_pcr_pid(u16 pid)
 {
@@ -339,6 +364,7 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 
 int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 no_of_filter)
 {
+	sPID_Parsing_Control_Entry e;
 
 	if (entry > 31) {
 	
@@ -351,15 +377,17 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 	if (risc_mem_map->Version_no[0] < 0xA0)
 		queue++;
 
-	risc_mem_map->PID_Parsing_Control_Table[entry].type = type;
-	risc_mem_map->PID_Parsing_Control_Table[entry].QID = queue;
-	risc_mem_map->PID_Parsing_Control_Table[entry].fork = !!fork;
-	risc_mem_map->PID_Parsing_Control_Table[entry].CW_offset = cw_offset;
-	risc_mem_map->PID_Parsing_Control_Table[entry].CC = cc;
-	risc_mem_map->PID_Parsing_Control_Table[entry].start_up = !!start_up;
-	risc_mem_map->PID_Parsing_Control_Table[entry].PEC = pec;
-	risc_mem_map->PID_Parsing_Control_Table[entry].filt_tab_idx = filt_tab_idx;
-	risc_mem_map->PID_Parsing_Control_Table[entry].no_of_filter = no_of_filter;
+	e.type = type;
+	e.QID = queue;
+	e.fork = !!fork;
+	e.CW_offset = cw_offset;
+	e.CC = cc;
+	e.start_up = !!start_up;
+	e.PEC = pec;
+	e.filt_tab_idx = filt_tab_idx;
+	e.no_of_filter = no_of_filter;
+
+	*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]) = *((u32 *) &e);
 
 	return 0;
 	
@@ -367,6 +395,7 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 {
+	sPID_Entry e;
 
 	if (entry > 31) {
 	
@@ -376,9 +405,10 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 	
 	}
 
-	risc_mem_map->PID_Search_Table[entry].wait_pusi = wait_pusi;
-	risc_mem_map->PID_Search_Table[entry].VALID = !!valid;			// 0 = VALID, 1 = INVALID
-	risc_mem_map->PID_Search_Table[entry].PID = pid;
+	e.wait_pusi = wait_pusi;
+	e.VALID = !!valid;			// 0 = VALID, 1 = INVALID
+	e.PID = pid;
+	*((u16 *) &risc_mem_map->PID_Search_Table[entry]) = *((u16 *) &e);
 	
 	return 0;
 
@@ -773,7 +803,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.89 2002/06/11 20:35:43 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.90 2002/07/07 16:55:42 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
