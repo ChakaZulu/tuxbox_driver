@@ -28,21 +28,27 @@ int main(int argc, char **argv)
     return -fd;
   }
 
+  memset(&flt.filter.filter, 0, DMX_FILTER_SIZE);
+  memset(&flt.filter.mask, 0, DMX_FILTER_SIZE);
+
   flt.pid=0;
+
   if (argc>=2)
   {
     int pid;
     sscanf(argv[1], "%x", &pid);
     flt.pid=pid;
+    flt.filter.filter[0]=2;
   }
 
-  memset(&flt.filter.filter, 0, DMX_FILTER_SIZE);
-  memset(&flt.filter.mask, 0, DMX_FILTER_SIZE);
+  if (argc>=3)
+  {
+    int filter;
+    sscanf(argv[2], "%x", &filter);
+    flt.filter.filter[0]=filter;
+  }
+
   flt.filter.mask[0]  =0xFF;
-  if (flt.pid)
-    flt.filter.filter[0]=0x50;                 // PMT
-  else
-    flt.filter.filter[0]=0;                 // PAT
   flt.timeout=10000;
   flt.flags=DMX_ONESHOT;
 
