@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.50 $
+ *   $Revision: 1.51 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.51  2001/08/18 18:20:21  TripleDES
+ *   moved the ucode loading to dmx
+ *
  *   Revision 1.50  2001/08/15 14:57:44  tmbinc
  *   fixed queue-reset
  *
@@ -173,10 +176,16 @@
     
     writing isn't supported, either.
  */
-
+#define __KERNEL_SYSCALLS__ 
+ 
+#include <linux/string.h> 
+#include <linux/fs.h>
+#include <linux/unistd.h>
+#include <linux/fcntl.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
+#include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/malloc.h>
@@ -234,6 +243,7 @@ MODULE_DESCRIPTION("Avia eNX demux driver");
 
 static int debug = 0;
 static int type = DMX_AUTO;
+static char *ucode = 0;
 
 static gtx_demux_t gtx;
 
@@ -269,6 +279,106 @@ const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
 	7, 7, 7, 7, 7, 7, 7, 7	// user 24..31
 	};		// 512kb total
+
+#ifdef enx_dmx
+void enx_tdp_start(void)
+{
+	enx_reg_w(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
+	enx_reg_w(EC) = 0;  		//start tdp
+}
+
+void enx_tdp_stop(void)
+{
+	enx_reg_w(EC) = 2;  		//stop tdp
+}
+
+void enx_tdp_init(u8 *microcode)
+{
+  unsigned short *instr_ram = (unsigned short*)enx_reg_o(TDP_INSTR_RAM);
+  unsigned short *src = (unsigned short*)microcode;
+  int     words=0x800/2;
+  
+  while (words--) {
+    udelay(100);
+    *instr_ram++ = *src++;
+  }
+}
+#else
+void LoaduCode (u8 * microcode)
+{
+        unsigned short *dst   = (unsigned short*) &rh (RISC);
+        unsigned short *src   = (unsigned short*) microcode;
+        int             words = 0x800 / 2;
+
+        rh (RR1) |= 1 << 5;         // reset RISC
+        udelay (10);
+        rh(RR1) &= ~(1 << 5);
+
+        while (words--) {
+                udelay (100);
+                *dst++ = *src++;
+        }
+
+        dst   = (unsigned short*) &rh (RISC);
+        src   = (unsigned short*) microcode;
+        words = 0x800 / 2;
+        while (words--)
+                if (*dst++ != *src++)
+                        break;
+
+        if (words >= 0) {
+                printk (KERN_CRIT "microcode validation failed at %x\n",
+                        0x800 - words);
+                return;
+        }
+}
+#endif
+
+static int errno;
+
+static int
+do_firmread (const char *fn, char **fp)
+{
+        int    fd;
+        loff_t l;
+        char  *dp;
+
+        if ((fd = open (fn, 0, 0)) < 0) {
+                printk (KERN_ERR "%s: %s: Unable to load '%s'.\n",
+                        __FILE__, __FUNCTION__, fn);
+                return 0;
+        }
+
+        l = lseek (fd, 0L, 2);
+        if (l <= 0) {
+                printk (KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
+                        __FILE__, __FUNCTION__, fn);
+                sys_close (fd);
+                return 0;
+        }
+
+        lseek (fd, 0L, 0);
+        dp = vmalloc (l);
+        if (dp == NULL) {
+                printk (KERN_ERR "%s: %s: Out of memory loading '%s'.\n",
+                        __FILE__, __FUNCTION__, fn);
+                sys_close (fd);
+                return 0;
+        }
+
+        if (read (fd, dp, l) != l) {
+                printk (KERN_ERR "%s: %s: Failed to read '%s'.\n",
+                        __FILE__, __FUNCTION__, fn);
+                vfree (dp);
+                sys_close (fd);
+                return 0;
+        }
+
+        close (fd);
+        *fp = dp;
+        return (int) l;
+}
+
 
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
@@ -698,7 +808,7 @@ static void gtx_pcr_interrupt(int b, int r)
 
   rw(DPCR)=((-deltaClk)<<16)|0x0009; */
 
-  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
+  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*32);
 
 #ifdef enx_dmx
   enx_reg_h(DAC_PC)=deltaClk;
@@ -745,7 +855,29 @@ extern int register_demux(struct dmx_demux_s *demux);
 
 int gtx_dmx_init(void)
 {
+
+  u8 *microcode;
+  mm_segment_t fs;
+
   printk(KERN_DEBUG "gtx_dmx: \n");
+
+  fs = get_fs();
+  set_fs(get_ds());
+  
+  if(do_firmread(ucode,(char**)&microcode)==0){
+  	set_fs(fs);
+	return -EIO;
+  }
+  set_fs(fs);
+  
+#ifdef enx_dmx
+  enx_tdp_init(microcode);
+  enx_tdp_start();
+#else
+  LoaduCode(microcode);
+#endif  		  
+  vfree(microcode);
+
 #ifdef enx_dmx
   gtxmem=enx_get_mem_addr();
   gtxreg=enx_get_reg_addr();
@@ -1773,6 +1905,8 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 #ifdef MODULE
 
 MODULE_PARM(debug,"i");
+MODULE_PARM(ucode,"s");
+
 MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
@@ -1797,7 +1931,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.50 2001/08/15 14:57:44 tmbinc Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.51 2001/08/18 18:20:21 TripleDES Exp $\n");
 
 	return gtx_dmx_init();
 }
