@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.197 2003/12/19 00:53:30 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.198 2003/12/22 04:03:14 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -982,16 +982,16 @@ void avia_gt_dmx_bh_task(void *tl_data)
 			}
 		}
 
-		avail = avia_gt_dmx_queue_get_bytes_avail(queue_info);
+		avail = queue_info->bytes_avail(queue_info);
 
 		while (avail >= 188) {
-			avia_gt_dmx_queue_data_get(queue_info, &ts, 3, 1);
+			queue_info->get_data(queue_info, &ts, 3, 1);
 
 			if ((ts.sync_byte == 0x47) && ((ts.pid == pid1) || (ts.pid == pid2)))
 				break;
 
 			avail--;
-			avia_gt_dmx_queue_data_get8(queue_info, 0);
+			queue_info->get_data(queue_info, NULL, 1, 0);
 		}
 
 		if (avail < 188)
@@ -2063,7 +2063,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.197 2003/12/19 00:53:30 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.198 2003/12/22 04:03:14 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
