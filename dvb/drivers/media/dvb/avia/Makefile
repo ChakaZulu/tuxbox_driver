@@ -43,7 +43,7 @@ install:
 	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(AVIA_OSD)	\
+	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_AV) $(AVIA_OSD)	\
 		$(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~
 
 avia_av.o: $(AVIA_AV)
