@@ -15,10 +15,9 @@
 #include <asm/io.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-
 #include <linux/i2c.h>
 
-#include "fp.h"
+#include "dbox/fp.h"
 
 /*
       exported functions:
