@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.14  2001/03/04 13:03:17  tmbinc
+ *   Removed %188 bytes check (for PES)
+ *
  *   Revision 1.13  2001/02/27 14:15:22  tmbinc
  *   added sections.
  *
@@ -39,7 +42,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -81,7 +84,6 @@ static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
         // #undef GTX_SECTIONS
-
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia GTX demux driver");
@@ -113,7 +115,10 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 {
   u8 w[4];
   w[0]=type<<5;
-  w[0]|=(queue)&31;
+  if (rh(RISC+0x7FE)&0xFF00)
+    w[0]|=(queue)&31;
+  else
+    w[0]|=(queue+1)&31;
   w[1]=(!!fork)<<7;
   w[1]|=cw_offset<<4;
   w[1]|=cc;
@@ -459,11 +464,11 @@ static void gtx_task(void *data)
             b2l=wptr-gtx->feed[queue].base;
           }
           
-          if ((b1l+b2l) % 188)
+/*          if ((b1l+b2l) % 188)
           { 
             printk("wantirq: %d\n", wantirq);
             printk("%p %d %p %d w %x r %x lw %x lr %x\n", b1, b1l, b2, b2l, wptr, rptr, lastw, lastr);
-          }
+          } */
         
           switch (gtx->feed[queue].type)
           {
@@ -1164,3 +1169,4 @@ EXPORT_SYMBOL(GtxDmxInit);
 EXPORT_SYMBOL(GtxDmxCleanup);
 
 #endif
+
