@@ -388,8 +388,6 @@ dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 			free += dmxdevfilter->buffer.size;
 			
 		}
-		printk("Overflow, size: %d, free: %d\n",
-			dmxdevfilter->buffer.size,free);
 		dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread;    
 		dmxdevfilter->buffer.error=-EOVERFLOW;
 	}
@@ -954,7 +952,7 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 			up(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
-		if ( (arg < 1024) || (arg > 256 * 1024) )
+		if ( (arg < 1024) || (arg > 512 * 1024) )
 		{
 			ret = -EINVAL;
 		}
