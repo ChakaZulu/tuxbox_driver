@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.24 2002/06/16 19:49:35 Homar Exp $
+   $Id: ves1820.c,v 1.25 2002/06/27 19:55:08 Homar Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -20,19 +20,11 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    Revision 1.24b3  2002/06/10 23:29:56  Homar
-    Sync-Grenze verschoben
-
-    Revision 1.24b2  2002/06/09 02:10:56  Homar
-    dumme Fehler beseitigt, lesen sollte mann können
-
-    Revision 1.24b1  2002/06/06 01:19:56  Homar
-    Auto-Inversion eingefügt
-
-    Revision 1.24  2002/06/04 11:04:56  Homar
-    Nokia-Kabel scan gefixt
 
     $Log: ves1820.c,v $
+    Revision 1.25  2002/06/27 19:55:08  Homar
+    Scan Mix-mode eingebaut
+
     Revision 1.24  2002/06/16 19:49:35  Homar
     AutoInversion eingefügt
 
@@ -79,15 +71,76 @@ static struct i2c_client client_template;
 
 u8 Init1820PTab[] =
 {
-  // changed by tmbinc, according to sniffed i2c-stuff. not validated at all.
+/*  // changed by tmbinc, according to sniffed i2c-stuff. not validated at all.
   // does NO spectral inversion.
-  0x69, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,
+  0x49, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,
   0x43, 0x6A, 0x1A, 0x61, 0x19, 0xA1, 0x63, 0x00,
   0xB8, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x01, 0x32, 0xc8, 0x00, 0x00
+};
+*/
+  0x49, //0  noStdBy / internADC / noInversion / 64-QAM / outputs active / CLB-Softreset default
+  0x6A, //1  AGC-Reference set to 64-QAM
+  0x13, //2  Frontend Lock-Indicator /  internADC / AGC in PWM ?? (def=1) / AGC nonInverted / AGC Time constant is minimum (def=00)
+  0x0A, //3  NDEC=0 / gain(3.decimation filter)=1 / gain(2.decimation filter)=1 / DYN=1 acquisition range for clock recovery is ± 240 ppm / CLK_C=def.
+  0x15, //4  carrier acquisition range is ± 2.5% / loop bandwith (BW/RS)=0.03
+  0x46, //5  carrier lock detection = 64-QAM
+  0x26, //6  reference coefficient of the equalizer=def. / coefficients of the equalizer are continuously adjusted / linear transversal equalizer
+  0x1A, //7  convergence steps during the acquisition phase / tracking phase
+  0x43, //8  threshold value used to switch from the acquisition phase to the tracking phase=64-QAM
+  0x6A, //9  reference parameter that optimizes the equalizer convergence during the acquisition phase=64-QAM
+  0x1A, //A  LSB of the BAUD rate frequency to program
+  0x61, //B  MID of the BAUD rate frequency to program
+  0x19, //C  MSB of the BAUD rate frequency to program
+  		//   according to int((2^24*SymbolRate*2^NDEC)/SYSCLK)
+  0xA1, //D  BAUD rate inverse (If BDRI > 255, then set BDRI to 255)
+  		//   according to int(16*SYSCLK /(SymbolRate*2^NDEC))
+  0x63, //E  gain of the Nyquist filter=3 GNYQ=011 / SFIL=0 / gain of the antialiasing filter=1 GLPF=00 / number of samples=16384 SSAT=11
+  0x00, //F  Test-Byte
+  0xB8, //10 PVBER=10 (def=01) / CLB_UNC=1 / sync-unsync detection C=11 / correction capability of RS decoder validated RSI=0 / descrambler validated DESCI=0 / IEI=0
+  0x00, //11 Status-Read-Register: 0 / (FEL but) NODVB / rough idea of the Bit Error Rate: BER[1] BER[0] / DVB lock: FEL=(FSYNC&&CARLOCK) / MPEG2 sync: if(FSYNC) / CarrierLock: if(CARLOCK) / Phase detection: acquisition=0 tracking=1 EQ_ALGO
+  0xE1, //12 if some output Pins inverted or not
+  0x00, //13 7-bit counter uncorractable Packets
+  0x00, //14 8-bit LSB of the BER=OUTPUT SIGNAL QUALITY MEASUREMENT (BER)
+  0x00, //15 8-bit MID of the BER
+  0x00, //16 4-bit MSB of the BER
+  0x00, //17 AGC information 0xFF is maximum
+  0x00, //18 MSE Mean Square Error = representation of the signal quality
+  0x00, //19 VAFC indicates the frequency offset when the carrier has been recovered
+  		//	 sigmaF = (VAFC * SymbolRate) / 1024
+  0x00, //1A IDENTITY
+  0x01, //1B if(PDOWN) internal ADC in STDBY / PCLK polarity of SamplingClock SACLOCK if internal ADC is used
+  0x00, //1C EQCONF2
+  0x00, //1D CKOFF symbol clock frequency offset
+  		//   If DYN=0 SRoffset = (CKOFF * 120 / 128) ppm
+		//	 If DYN=1 SRoffset = (CKOFF * 240 / 128) ppm
+  0x00, //1E PLL config
+  0x00, //1F
+  0x00, //20 INTSEL config
+  0x00, //21 SATNYQ represents the number of saturations that occur at the output of the Nyquist filter
+  0x00, //22 SATADC represents the number of saturations that occur at the output of the ADC
+  0x00, //23 HALFADC HLFADC represents the number of times that the output of the ADC exceeds the mid-range
+  0x00, //24 SATDEC1 SDEC1represents the number of saturations that occur at the output of first decimation filter
+  0x00, //25 SATDEC2 SDEC2 represents the number of saturations that occur at the output of second decimation filter
+  0x00, //26 SATDEC3 SDEC3 represents the number of saturations that occur at the output of third decimation filter
+  0x00, //27 SATAAF SAAF represents the number of saturations that occur at the output of the antialiasing filter
+  0x00, //28
+  0x00, //29
+  0x00, //2A
+  0x00, //2B
+  0x00, //2C
+  0x00, //2D
+  0x00, //2E
+  0x00, //2F
+  0x01, //30 SATTHR STHR is a threshold value, compared to the register SATADC. If SATADC > STHR then an interrupt can be generated on pin IT. (See register ITSEL)
+  0x32, //31 HALFTHR HLFTHR is a threshold value, compared to the register HLFADC
+		//	 If HLFADC < HLFTHR then an interrupt can be generated on pin IT (See register ITSEL)
+  0xc8, //32 ITSEL ITEN=INTerrupt Enable / ITSEL[6]=interrupt if AGC is saturated (AGC = 0 or ACG = 255) / ITSEL[3]=interrupt if VBER is refreshed
+  0x00, //33 ITSTAT interrupt status register corresponds to ITSEL(i)
+  0x00  //34 PWM off
 };
 
 struct ves1820 {
@@ -127,6 +180,13 @@ u8 readreg(struct i2c_client *client, u8 reg)
         return mm2[0];
 }
 
+void ClrBit1820(struct i2c_client *client)
+{
+        struct ves1820 *ves=(struct ves1820 *) client->data;
+        writereg(client, 0, ves->reg0 & 0xfe);
+        writereg(client, 0, ves->reg0);
+}
+
 int init(struct i2c_client *client)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
@@ -146,8 +206,8 @@ int init(struct i2c_client *client)
         msgs[0].buf=mm1; msgs[1].buf=mm2;
         i2c_transfer(adap, msgs, 2);
         ves->pwm=*mm2;
-        if (ves->pwm == 0xff)
-                ves->pwm=0x48;
+//        if (ves->pwm == 0xff)
+//                ves->pwm=0x48;
         if (writereg(client, 0, 0)<0)
                 printk("VES1820: send error\n");
         for (i=0; i<53; i++)
@@ -156,18 +216,11 @@ int init(struct i2c_client *client)
         ves->inversion=0;
         ves->srate=0;
         ves->reg0=Init1820PTab[0];
-
-        writereg(client, 0x34, ves->pwm);
+//        writereg(client, 0x34, ves->pwm);
+		ClrBit1820(client);
         return 0;
 }
 
-
-void ClrBit1820(struct i2c_client *client)
-{
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        writereg(client, 0, ves->reg0 & 0xfe);
-        writereg(client, 0, ves->reg0);
-}
 
 static int SetInversion(struct i2c_client *client, int inversion)
 {
@@ -202,43 +255,54 @@ static int SetInversion(struct i2c_client *client, int inversion)
 
 void SetPWM(struct i2c_client* client)
 {
-        struct ves1820 *ves=(struct ves1820 *) client->data;
+/*        struct ves1820 *ves=(struct ves1820 *) client->data;
 		printk("SetPWM: Einsprung \n");
 
-        writereg(client, 0x34, ves->pwm);
+//        writereg(client, 0x34, ves->pwm);
 		printk("SetPWM: %u \n",ves->pwm);
+*/
 }
 
 int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 {
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        s32 BDR;
-        s32 BDRI;
-        s16 SFIL=0;
+
 #define XIN 69600000UL
+#define SYSCLK 69600000UL
+#define SACLK (SYSCLK>>1)
 #define FIN (XIN>>4)
-        u16 NDEC = 0;
+
+        struct ves1820 *ves=(struct ves1820 *) client->data;
+        u32 BDR;
+        u16 BDRI;
+        u8 SFIL = 0;
+        u8 NDEC = 0;
         u32 tmp, ratio;
 
 		printk("SetSymbolrate: Einsprung \n");
-        if (Symbolrate > XIN/2)
-                Symbolrate=XIN/2;
-        if (Symbolrate < 500000)
-                Symbolrate=500000;
+
+        if (Symbolrate >= (SACLK >> 2))
+			Symbolrate = (SACLK >> 2);
+        if (Symbolrate < (SACLK >> 6))
+			Symbolrate = (SACLK >> 6);
+
         ves->srate=Symbolrate;
-		printk("Symbolrate: %u\n",ves->srate);
 
-        if (Symbolrate < XIN/16) NDEC = 1;
-        if (Symbolrate < XIN/32) NDEC = 2;
-        if (Symbolrate < XIN/64) NDEC = 3;
+        if (Symbolrate <= (SACLK >> 2)) NDEC = 0;
+        if (Symbolrate < (SACLK>>3)) NDEC = 1;
+        if (Symbolrate < (SACLK>>4)) NDEC = 2;
+        if (Symbolrate < (SACLK>>5)) NDEC = 3;
 
-        if (Symbolrate < (u32)(XIN/12.3)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/16))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/24.6)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/32))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/49.2)) SFIL = 1;
-        if (Symbolrate < (u32)(XIN/64))	 SFIL = 0;
-        if (Symbolrate < (u32)(XIN/98.4)) SFIL = 1;
+        if (Symbolrate < (u32)(SYSCLK>>3)) SFIL = 0;
+        if (Symbolrate < (u32)(SYSCLK/12.3)) SFIL = 1;
+        if (Symbolrate < (u32)(SYSCLK>>4))	 SFIL = 0;
+        if (Symbolrate < (u32)(SYSCLK/24.6)) SFIL = 1;
+        if (Symbolrate < (u32)(SYSCLK>>5))	 SFIL = 0;
+        if (Symbolrate < (u32)(SYSCLK/49.2)) SFIL = 1;
+        if (Symbolrate < (u32)(SYSCLK>>6))	 SFIL = 0;
+        if (Symbolrate < (u32)(SYSCLK/98.4)) SFIL = 1;
+
+//		BDR=int((2^24*SymbolRate*2^NDEC)/SYSCLK)
+//		BDR = (BDR<<(16+NDEC))/(SYSCLK>>8);
 
         Symbolrate<<=NDEC;
         ratio=(Symbolrate<<4)/FIN;
@@ -248,10 +312,12 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
         ratio=(ratio<<8)+(tmp+FIN/2)/FIN;
 
         BDR= ratio;
-        BDRI= (((XIN<<5) / Symbolrate)+1)/2;
+
+//		BDRI=int(16*SYSCLK /(SymbolRate*2^NDEC))
+		BDRI  = (SYSCLK << 4) / (Symbolrate << NDEC);
 
         if (BDRI > 0xFF)
-                BDRI = 0xFF;
+			BDRI = 0xFF;
 
         SFIL = (SFIL << 4) | Init1820PTab[0x0E];
 
@@ -264,8 +330,6 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 
         writereg(client, 0x0d, BDRI);
         writereg(client, 0x0e, SFIL);
-
-        SetPWM(client);
 
         if (DoCLB) ClrBit1820(client);
 
@@ -289,7 +353,6 @@ QAM_SETTING QAM_Values[] = {
         {QAM_128, 128, 126,  54,  52, 126},
         {QAM_256, 256, 107,  38,  35, 107}
 };
-
 
 int SetQAM(struct i2c_client* client, Modulation QAM_Mode, int DoCLB)
 {
@@ -404,7 +467,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("VES1820: mod by Homar V1.24b3 10/06/2002 23:29\n");
+        printk("$Id: ves1820.c,v 1.25 2002/06/27 19:55:08 Homar Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -489,56 +552,48 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			FrontendStatus *status=(FrontendStatus *) arg;
 			struct ves1820 *ves=(struct ves1820 *) client->data;
 			int sync;
+			int ber;
 			printk ("FE_READ_STATUS: Einsprung \n");
 
 			*status=0;
 
 			sync=readreg(client,0x11);
 
-			if (sync & FE_HAS_POWER)
+			if (!sync)
 	        {
-//				*status|=FE_HAS_POWER;
-				printk ("FE_HAS_POWER\n");
+				printk ("Searching Transponder...\n");
 			}
-			if (sync & FE_HAS_SIGNAL)
+			if (sync & 1)
 	        {
-				*status|=FE_HAS_CARRIER;
-				*status|=FE_HAS_SIGNAL;
-				printk ("FE_HAS_SIGNAL\n");
+				*status|=FE_HAS_POWER;
+				printk ("Tracking...\n");
 			}
-			if (sync & FE_SPECTRUM_INV)
-	        {
-//				*status|=FE_SPECTRUM_INV;
-				*status|=FE_HAS_SYNC;
-				printk ("FE_SPECTRUM_INV\n");
-			}
-			if (sync & FE_HAS_LOCK)
+			if (sync & 2)
 	        {
 				*status|=FE_HAS_LOCK;
-				printk ("FE_HAS_LOCK\n");
+				printk ("Demodulator has locked...\n");
 			}
-			if (sync & FE_HAS_CARRIER)
+			if (sync & 4)
 	        {
-//				*status|=FE_HAS_CARRIER;
-				printk ("FE_HAS_CARRIER\n");
+				*status|=FE_HAS_SYNC;
+				printk ("MPEG2 sync pattern have been detected...\n");
 			}
-			if (sync & FE_HAS_VITERBI)
+			if (sync & 8)
 	        {
-//				*status|=FE_HAS_VITERBI;
-				printk ("FE_HAS_VITERBI\n");
+				*status|=FE_TUNER_HAS_LOCK;//austesten
+				printk ("Front End Locked 8-)\n");
 			}
-			if (sync & FE_HAS_SYNC)
+			if (sync & 64)
 	        {
-//				*status|=FE_HAS_SYNC;
-				printk ("FE_HAS_SYNC\n");
-			}
-			if (sync & FE_TUNER_HAS_LOCK)
-	        {
-//				*status|=FE_TUNER_HAS_LOCK;
-				printk ("FE_TUNER_HAS_LOCK\n");
+				*status|=FE_SPECTRUM_INV;
+				printk ("framing is not DVB compliant 8-(\n");
 			}
 
+			ber = (sync >> 4);
+			printk ("bit error rate arround: ");
+			printk (!ber?">10E-2\n":ber==1?"10E-3\n":ber==2?"10E-4\n":"<10E-4\n");
 			printk ("Status of sync: %d\n",sync);
+			printk ("Status of status: %d\n",*status);
 /*
 #define FE_HAS_POWER         1
 #define FE_HAS_SIGNAL        2
@@ -549,9 +604,11 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 #define FE_HAS_SYNC         64
 #define FE_TUNER_HAS_LOCK  128
 */
-			if (sync < 32)
+			if (sync & 64)
 			{
+				printk("inv autom.\n");
 				SetInversion	(client,ves->inversion==INVERSION_ON?INVERSION_AUTO:INVERSION_ON);
+				ClrBit1820(client);
 			}
 		break;
 		}
@@ -596,25 +653,23 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				break;
         }
 		case FE_SETFREQ:
-        {
-				u32 freq;
+		{
+				u32 freq=*(u32*)arg;
 				u8 buffer[4];
-				freq=*(u32*)arg;
+				freq+=36125;
+				freq/=125;
 
-				freq+=36125;//36125
-				freq*=10;
-				freq/=625;
-				buffer[0]=(freq>>8)&0x7F;
-				buffer[1]=freq&0xFF;
-				buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
+				buffer[0]=(freq>>8) & 0x7F;
+				buffer[1]=freq & 0xFF;
+				buffer[2]=0x84;
+//				buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
 				buffer[3]=1;
 				printk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
 
 				fp_set_tuner_dword(T_QAM, *((u32*)buffer));
 
 				break;
-        }
-
+		}
         default:
 		{
  				printk ("dvb_command: !!!ERROR!!!\n");
