@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.41 2001/07/14 22:58:52 TripleDES Exp $
+ * $Id: dvb.c,v 1.42 2001/07/14 23:00:08 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -904,7 +904,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				case VIDEO_PLAY:
 				{
 					printk("CHCH [DECODER] PLAY\n");
-					avia_command(Play, 150, 0, 0);
+					avia_command(Play, 50, 0, 0);
 					udelay(100*1000);
 					avia_flush_pcr();
 					if (dvb->dmxdev.demux)
