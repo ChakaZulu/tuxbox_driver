@@ -26,11 +26,11 @@
 #include <linux/poll.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
-#include "dvb.h"
+#include <dbox/dvb.h>
 
 #include <asm/8xx_immap.h>
 
-#include "ves.h"
+#include <dbox/ves.h>
 /*
   exported functions:
     void ves_write_reg(int reg, int val);
