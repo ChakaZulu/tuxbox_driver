@@ -227,11 +227,9 @@ dat7021_set_tv_freq(struct dvb_i2c_bus *i2c, u32 freq)
 	 *      or: dw=0x4E28E06+(freq-42000) / 125 * 0x20000
 	 */
 
-	    freq=freq/1000;
-	    freq-=42;
-	    freq/=8;
-	    freq*=0x800000;
-	    dw+=freq;
+	dw = (freq - 42000) * 4096;
+	dw = dw / 125;
+	dw = dw * 32;
 
 	if (freq > 394000)
 		dw += 0x4E28E85;
