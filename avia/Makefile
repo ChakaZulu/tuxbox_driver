@@ -2,19 +2,19 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
-obj-m    = gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
+M_OBJS   = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
+obj-m    = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 
-AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
+AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
+AVIA_GT_FB = fbgen.o
 
 GTX_DMX   = gtx-dmx.o crc32.o
 GTX_FB    = gtx-fb.o fbgen.o
 
 ENX_DMX   = enx-dmx.o crc32.o
-ENX_FB    = enx-fb.o fbgen.o
 
 EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
 
@@ -30,10 +30,9 @@ install:
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(AVIA_OSD)	\
 		$(GTX_DMX) $(GTX_FB) 		\
-		$(ENX_DMX) $(AVIA_GT) $(ENX_FB) .*.o.flags *~
+		$(ENX_DMX) $(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~
 
 gtx-fb.o: gen-fb.c
-enx-fb.o: gen-fb.c
 gtx-dmx.o: gen-dmx.c
 enx-dmx.o: gen-dmx.c
 
@@ -52,10 +51,10 @@ gtx_fb.o: $(GTX_FB)
 avia_gt.o: $(AVIA_GT)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT)
 
+avia_gt_fb.o: $(AVIA_GT_FB)
+	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT_FB)
+
 enx_dmx.o: $(ENX_DMX)
 	$(LD) -m elf32ppclinux -r -o $@ $(ENX_DMX)
-
-enx_fb.o: $(ENX_FB)
-	$(LD) -m elf32ppclinux -r -o $@ $(ENX_FB)
 
 include $(KERNEL_LOCATION)/Rules.make
