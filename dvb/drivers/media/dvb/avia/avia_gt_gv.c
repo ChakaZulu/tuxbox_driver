@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.38 2004/03/17 18:42:18 zwen Exp $
+ * $Id: avia_gt_gv.c,v 1.39 2004/08/28 16:44:56 carjay Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -116,7 +116,7 @@ void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u3
 
 		if (val == TCR_COLOR) {
 			 if (transparency)
-				*transparency = 0xFFFF;
+				*transparency = 0xFFFF; /* transparent */
 			 if (red)
 				*red = 0;
 			 if (green)
@@ -125,8 +125,8 @@ void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u3
 				*blue = 0;
 		}
 		else {
-			 //if (transparency)
-				//*transparency = (val & 0x8000) ? BLEVEL : 0;
+			if (transparency)
+				*transparency = 0x0000;	/* opaque */
 			 if (red)
 				*red   = ((val & 0x7C00) >> 7) | ((val & 0x7C00) << 1);
 			 if (green)
@@ -445,7 +445,7 @@ int avia_gt_gv_show(void)
 
 int avia_gt_gv_init(void)
 {
-	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.38 2004/03/17 18:42:18 zwen Exp $\n");
+	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.39 2004/08/28 16:44:56 carjay Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
