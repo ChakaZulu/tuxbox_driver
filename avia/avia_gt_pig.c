@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.24  2002/06/06 00:07:35  dirch
+ *   fixed bitmask - alexW
+ *
  *   Revision 1.23  2002/06/05 18:24:47  dirch
  *   workaround for enx stretch problem, tuxtxt works now - alexW
  *
@@ -72,7 +75,7 @@
  *
  *
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 	
@@ -296,9 +299,9 @@ int avia_gt_pig_show(unsigned char pig_nr)
 		enx_reg_16(VPSTR1) = 0;
 			
 		if( ((unsigned int)(pig_stride[pig_nr])) < 240 )
-			enx_reg_16(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 4) & 0x7FF) << 2);
+			enx_reg_16(VPSTR1) |= ((unsigned int)(pig_stride[pig_nr]));
 		else
-			enx_reg_16(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 2) & 0x7FF) << 2);
+			enx_reg_16(VPSTR1) |= ((((unsigned int)(pig_stride[pig_nr])) * 2) & 0x7FF);
 
 		enx_reg_16(VPSTR1) |= 0;				// Enable hardware double buffering
     
@@ -339,7 +342,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.23 2002/06/05 18:24:47 dirch Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.24 2002/06/06 00:07:35 dirch Exp $\n");
 
     gt_info = avia_gt_get_info();
     
