@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.157 $
+ *   $Revision: 1.158 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.158  2002/11/04 18:41:55  Jolt
+ *   HW TS and PES support
+ *
  *   Revision 1.157  2002/11/04 16:37:58  Jolt
  *   HW CRC support
  *
@@ -518,8 +521,8 @@
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 static struct dvb_demux demux;
 static int hw_crc = 1;
-static int hw_dmx_ts = 0;
-static int hw_dmx_pes = 0;
+static int hw_dmx_ts = 1;
+static int hw_dmx_pes = 1;
 static int hw_dmx_sec = 1;
 static int hw_sections = 0;
 
@@ -696,6 +699,20 @@ static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue,
 
 }
 
+static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, void *data)
+{
+
+	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
+
+	dvbdmxfeed->cb.ts(gt_info->mem_addr + queue->get_buf1_ptr(queue),
+					  queue->get_buf1_size(queue), 
+					  gt_info->mem_addr + queue->get_buf2_ptr(queue), 
+					  queue->get_buf2_size(queue), &dvbdmxfeed->feed.ts, DMX_OK);
+					  
+	queue->flush(queue);
+
+}
+
 static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 
@@ -715,20 +732,38 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 {
 
+	struct avia_gt_dmx_queue *queue;
+
 	if (!hw_dmx_ts)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	return -EINVAL;
+	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
+		return -EBUSY;
+
+	dvbdmxfeed->priv = queue;
+		
+	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0);
+
+	return 0;
 
 }
 
 static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 {
 
+	struct avia_gt_dmx_queue *queue;
+	
 	if (!hw_dmx_pes)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	return -EINVAL;
+	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
+		return -EBUSY;
+
+	dvbdmxfeed->priv = queue;
+		
+	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0);
+
+	return 0;
 
 }
 
@@ -764,7 +799,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 		avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
 
-		if (!(dvbdmxfeed->type & TS_PACKET))
+		if (!(dvbdmxfeed->ts_type & TS_PACKET))
 			return 0;
 
 	}
@@ -774,7 +809,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		case DMX_TYPE_TS:
 		case DMX_TYPE_PES:
 		
-			if (!(dvbdmxfeed->type & TS_PAYLOAD_ONLY))
+			if (!(dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY))
 				result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
 			else		
 				result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
@@ -820,7 +855,7 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		//FIXME: disable pcr_pid
 		//avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
 	
-		if (!(dvbdmxfeed->type & TS_PACKET))
+		if (!(dvbdmxfeed->ts_type & TS_PACKET))
 			return 0;
 			
 	}
@@ -842,7 +877,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.157 2002/11/04 16:37:58 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.158 2002/11/04 18:41:55 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

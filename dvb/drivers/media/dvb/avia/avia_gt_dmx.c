@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.145  2002/11/04 18:41:55  Jolt
+ *   HW TS and PES support
+ *
  *   Revision 1.144  2002/11/04 08:06:54  Jolt
  *   Queue handling changes part4
  *
@@ -242,7 +245,7 @@
  *
  *
  *
- *   $Revision: 1.144 $
+ *   $Revision: 1.145 $
  *
  */
 
@@ -1408,6 +1411,13 @@ u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
 
 }
 
+void avia_gt_dmx_queue_flush(struct avia_gt_dmx_queue *queue)
+{
+
+	queue_list[queue->index].read_pos = queue_list[queue->index].write_pos;
+
+}
+
 static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 {
 
@@ -2047,7 +2057,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.144 2002/11/04 08:06:54 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.145 2002/11/04 18:41:55 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2156,6 +2166,7 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].info.get_data8 = avia_gt_dmx_queue_data_get8;
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;
+		queue_list[queue_nr].info.flush = avia_gt_dmx_queue_flush;
 		queue_list[queue_nr].info.put_data = avia_gt_dmx_queue_data_put;
 
 		if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))

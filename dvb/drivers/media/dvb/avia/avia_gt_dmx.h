@@ -49,6 +49,7 @@ struct avia_gt_dmx_queue {
 	u8 (*get_data8)(struct avia_gt_dmx_queue *queue, u8 peek);
 	u16 (*get_data16)(struct avia_gt_dmx_queue *queue, u8 peek);
 	u32 (*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
+	void (*flush)(struct avia_gt_dmx_queue *queue);
 	u32	(*put_data)(struct avia_gt_dmx_queue *queue, void *src, u32 count, u8 src_is_user_space);
 
 };
