@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.190 2003/11/20 01:45:38 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.191 2003/11/24 08:51:48 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -57,6 +57,9 @@ static struct dmx_frontend fe_hw;
 static struct dmx_frontend fe_mem;
 static int hw_crc = 1;
 static int mode;
+
+/* only used for playback */
+static int need_audio_pts;
 
 static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
 
@@ -408,7 +411,7 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 	 * so there is always exactly one ts packet in buf.
 	 */
 
-	struct ts_header *ts = (struct ts_header *)buf;
+	const struct ts_header *ts = (const struct ts_header *)buf;
 	int pes_offset;
 	int err;
 
@@ -419,7 +422,7 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 		if ((err = avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, 0)) < 0)
 			return err;
 
-		if (dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO)
+		if ((!need_audio_pts) || (dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO))
 			return 0;
 
 		if (!((ts->payload_unit_start_indicator) && (ts->payload)))
@@ -433,7 +436,9 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 		if (pes_offset > (188 - sizeof(struct ts_header) - sizeof(struct pes_header)))
 			return 0;
 
-		avia_av_audio_pts_to_stc((struct pes_header *)&buf[pes_offset]);
+		if (avia_av_audio_pts_to_stc((const struct pes_header *)&buf[pes_offset]) == 0)
+			need_audio_pts = 0;
+
 		return 0;
 	}
 
@@ -458,6 +463,11 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		 (!(dvbdmxfeed->ts_type & TS_DECODER)) ||
 		 (dvbdmxfeed->type == DMX_TYPE_SEC)))
 			return 0;
+
+	if ((dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) &&
+		(dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) &&
+		(dvbdmxfeed->ts_type & TS_DECODER))
+			need_audio_pts = 1;
 
 	if (mode == 0)	/* Dual PES mode */
 		if ((dvbdmx->dmx.frontend->source != DMX_MEMORY_FE) &&
@@ -676,7 +686,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.190 2003/11/20 01:45:38 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.191 2003/11/24 08:51:48 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
