@@ -37,7 +37,7 @@ static int debug = 0;
 #define dprintk	if (debug) printk
 
 
-static int board_type = 2;
+static int board_type = 0;
 #define SIEMENS_PCI_1893	0x01
 #define NOKIA_DBOX2_1893	0x02
 #define NOKIA_DBOX2_1993	0x03
@@ -179,7 +179,9 @@ int tuner_write (struct dvb_i2c_bus *i2c, u8 *data, u8 len)
         int ret;
         struct i2c_msg msg = { addr: 0x61, flags: 0, buf: data, len: len };
 
+	ves1x93_writereg(i2c, 0x00, 0x11);
         ret = i2c->xfer (i2c, &msg, 1);
+	ves1x93_writereg(i2c, 0x00, 0x01);
 
         if (ret != 1)
                 printk("%s: i/o error (ret == %i)\n", __FUNCTION__, ret);
@@ -245,7 +247,7 @@ int sp5659_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 
 
 static
-int gnarf_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq)
+int tsa5059_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq)
 {
 	int ret;
 	u8 buf [2];
@@ -255,9 +257,7 @@ int gnarf_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq)
 	buf[0] = (freq >> 8) & 0x7F;
 	buf[1] = freq & 0xFF;
 
-	ves1x93_writereg(i2c, 0x00, 0x11);
 	ret = tuner_write(i2c, buf, sizeof(buf));
-	ves1x93_writereg(i2c, 0x00, 0x01);
 
 	return ret;
 }
@@ -272,7 +272,7 @@ int tuner_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 		return sp5659_set_tv_freq (i2c, freq, pwr);
 	case NOKIA_DBOX2_1993:
 	case SAGEM_DBOX2_1993:
-		return gnarf_set_tv_freq (i2c, freq);
+		return tsa5059_set_tv_freq (i2c, freq);
 	default:
 		return -EINVAL;
 	}
@@ -317,6 +317,17 @@ int ves1x93_init (struct dvb_i2c_bus *i2c)
 		if (init_1x93_wtab[i])
 			ves1x93_writereg (i2c, i, init_1x93_tab[i]);
 
+	switch (board_type) {
+	case NOKIA_DBOX2_1993:
+		tuner_write(i2c, "\x06\x5c\x83\x60", 4);
+		break;
+	case SAGEM_DBOX2_1993:
+		tuner_write(i2c, "\x25\x70\x92\x40", 4);
+		break;
+	default:
+		break;
+	}
+	
 	return 0;
 }
 
@@ -440,7 +451,8 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 		FNR	= 0;
 	} else {
 		ADCONF = 0x81;
-		FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5);
+		/* FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5); */
+		FCONF  = 0x80 | ((FNR & 0x01) << 5) | (((FNR > 1) & 0x03) << 3) | ((FNR >> 1) & 0x07);
 	}
 
 	BDR = (( (ratio << (FNR >> 1)) >> 4) + 1) >> 1;
@@ -470,7 +482,10 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 	ves1x93_writereg (i2c, 0x00, 0x00);
 	ves1x93_writereg (i2c, 0x00, 0x01);
 
+#if 0
+	/* ves1993 hates this, will lose lock */
 	ves1x93_clr_bit (i2c);
+#endif
 
 	return 0;
 }
@@ -502,11 +517,10 @@ int ves1x93_set_tone (struct dvb_i2c_bus *i2c, fe_sec_tone_mode_t tone)
 		return -EOPNOTSUPP;
 #ifdef DBOX2
 	case NOKIA_DBOX2_1893:
-		return dbox2_fp_sec_set_tone((tone == SEC_TONE_OFF) ? 0x00 : 0x01);
-#endif
 	case NOKIA_DBOX2_1993:
 	case SAGEM_DBOX2_1993:
-		return ves1x93_writereg(i2c, 0x36, (tone == SEC_TONE_OFF) ? 0x00 : 0x01);
+		return dbox2_fp_sec_set_tone((tone == SEC_TONE_OFF) ? 0x00 : 0x01);
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -663,6 +677,9 @@ void ves1x93_detach (struct dvb_i2c_bus *i2c)
 static
 int __init init_ves1x93 (void)
 {
+	if ((board_type < SIEMENS_PCI_1893) || (board_type > SAGEM_DBOX2_1993))
+		return -ENODEV;
+
 	return dvb_register_i2c_device (THIS_MODULE, ves1x93_attach, ves1x93_detach);
 }
 
