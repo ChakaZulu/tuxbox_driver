@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.3 2002/12/25 22:50:47 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.4 2002/12/26 09:14:56 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -30,7 +30,6 @@
 
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/fp.h>
-#include "input_fake.h"
 
 #define RCBUFFERSIZE		16
 #define UP_TIMEOUT (HZ/2)
