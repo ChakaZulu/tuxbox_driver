@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.11  2001/09/29 23:49:04  TripleDES
+ *   small fx in avia-detection
+ *
  *   Revision 1.10  2001/09/29 23:44:00  TripleDES
  *   added avia-type
  *
@@ -49,7 +52,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -301,7 +304,7 @@ static int aviatype(void)
 	aviamem[4] = 0;
 	aviarev=(aviamem[2] & 3);
 	
-	return aviarev;	
+	return aviarev ? 500:600;	
 }
 
 static int dbox_info_init(void)
@@ -315,7 +318,7 @@ static int dbox_info_init(void)
 	get_dsid();
 	memcpy(info.dsID,dsid,8);
 	info.mID=conf[0];
-	info.avia=aviatype() ? 500:600;
+	info.avia=aviatype();
 //	info.fe=fe;
 	if (info.mID==DBOX_MID_SAGEM)								// das suckt hier, aber ich kenn keinen besseren weg.
 	{
