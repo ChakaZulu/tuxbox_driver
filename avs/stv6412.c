@@ -131,22 +131,19 @@ int stv6412_set_volume( struct i2c_client *client, int vol )
 
 	c = vol;
 
-	// not smart ;-)
-	if ( c == 63 )
-	{
-		c--;
-	}
+// not needed
+//	// not smart ;-)
+//	if ( c == 63 )
+//	{
+//		c--;
+//	}
 
-	if ( c <= 62 )
-	{
-		if ( c > 0 )
-		{
-			c /= 2;
-		}
-	} else
-	{
+	if (c > 63 || c < 0)
 		return -EINVAL;
-	}
+
+	// Valid Range for Volume: 31 - 63 ?
+	c /= 2;
+	c += 32;
 
 	stv6412_data.t_vol_c = c;
 
