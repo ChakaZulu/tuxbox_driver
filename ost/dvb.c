@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.51 2001/12/15 20:33:08 Hunz Exp $
+ * $Id: dvb.c,v 1.52 2001/12/15 21:38:31 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -1195,6 +1195,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						stat|=FE_HAS_POWER;
 					if ((dvb->front.sync&0x1f)==0x1f)
 						stat|=FE_HAS_SIGNAL;
+        		                if ((dvb->front.sync&1))
+	                	                stat|=FE_HAS_LOCK;
 					if (dvb->front.inv)
 						stat|=QPSK_SPECTRUM_INV;
 
