@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.21  2001/12/18 19:39:21  TheDOC
+ *   Changed event-delay to 30, which works well.
+ *
  *   Revision 1.20  2001/12/18 18:01:51  gillem
  *   - add events
  *   - add timer
@@ -112,7 +115,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -1336,7 +1339,7 @@ void avia_event_func(unsigned long data)
 	spin_unlock_irq(&avia_cmd_state_lock);
 
 	// TODO: optimize
-	if((++event_delay)==1000)
+	if((++event_delay)==30)
 	{
 		event_delay = 0;
 
@@ -1411,7 +1414,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.20 2001/12/18 18:01:51 gillem Exp $\n");
+        dprintk ("AVIA: $Id: avia_av_core.c,v 1.21 2001/12/18 19:39:21 TheDOC Exp $\n");
         return init_avia ();
 }
 
