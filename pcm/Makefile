@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS       = pcm.o
+M_OBJS       = pcm.o pcm_enx.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
