@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.115  2002/09/05 17:08:08  Jolt
+ *   DMX fix
+ *
  *   Revision 1.114  2002/09/05 13:00:30  Jolt
  *   DMX sanity checks
  *
@@ -149,7 +152,7 @@
  *
  *
  *
- *   $Revision: 1.114 $
+ *   $Revision: 1.115 $
  *
  */
 
@@ -1067,7 +1070,7 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
 {
 
 	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
-	u32	part1_len = 0;
+	u32	done = 0;
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
@@ -1085,21 +1088,22 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
 		
 	}
 
-	part1_len = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
+	if ((queue_list[queue_nr].read_pos > queue_list[queue_nr].write_pos) && 
+		(count >= (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos))) {
 
-	if ((queue_list[queue_nr].read_pos > queue_list[queue_nr].write_pos) && (count >= part1_len)) {
+		done = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
 
 		if (dest)
-			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].read_pos, part1_len);
+			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].read_pos, done);
 
 		queue_list[queue_nr].read_pos = queue_list[queue_nr].mem_addr;
 
 	}
 
 	if (dest)
-		memcpy(((u8 *)dest) + part1_len, gt_info->mem_addr + queue_list[queue_nr].read_pos, count - part1_len);
+		memcpy(((u8 *)dest) + done, gt_info->mem_addr + queue_list[queue_nr].read_pos, count - done);
 
-	queue_list[queue_nr].read_pos += (count - part1_len);
+	queue_list[queue_nr].read_pos += (count - done);
 
 	return count;
 
@@ -1236,6 +1240,7 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 		if ((queue_list[queue_nr].info.irq_count) && (queue_list[queue_nr].cb_proc))
 			queue_list[queue_nr].cb_proc(queue_nr, &queue_list[queue_nr].info, queue_list[queue_nr].cb_data, &queue_list[queue_nr]);
 
+		queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
 		queue_list[queue_nr].info.irq_count = 0;
 
 	}
@@ -1626,7 +1631,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.114 2002/09/05 13:00:30 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.115 2002/09/05 17:08:08 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
