@@ -48,7 +48,7 @@
 #error no devfs
 #endif
 
-static int TTX = 0;
+static int ttx_flag = 0;
 
 static devfs_handle_t devfs_handle;
 static int active_vtxt_pid = -1;
@@ -75,7 +75,7 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 
 	if (reenable) {
 
-		TTX = 1;
+		ttx_flag = 1;
 
 		if (avia_gt_chip(ENX))
 			enx_reg_set(RSTR0, TTX, 0);
@@ -135,7 +135,7 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
 	}
 
-	if(!TTX) avia_gt_vbi_reset(1);
+	if(!ttx_flag) avia_gt_vbi_reset(1);
 
 	if (avia_gt_chip(ENX))
 		enx_reg_set(TCNTL, GO, 1);
@@ -195,7 +195,7 @@ static int __init avia_gt_vbi_init(void)
 
 	struct list_head *dmx_list;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.14 2002/06/13 18:32:14 LazyT Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.15 2002/07/02 09:31:22 LazyT Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
