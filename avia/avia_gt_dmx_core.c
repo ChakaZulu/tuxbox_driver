@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.42 $
+ *   $Revision: 1.43 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.43  2001/04/28 22:43:13  fnbrd
+ *   Added fix from tmbinc. ;)
+ *
  *   Revision 1.42  2001/04/24 17:54:14  tmbinc
  *   fixed 188bytes-on-callback bug
  *
@@ -727,13 +730,15 @@ int gtx_dmx_init(void)
   enx_reg_h(BQ) = 0x00BC;
   
   enx_reg_w(CFGR0) |= 1 << 24;		// enable dac output
-  
+
 	enx_reg_h(AVI_0) = 0xF;					// 0x6CF geht nicht (ordentlich)
 	enx_reg_h(AVI_1) = 0xA;
 
-  enx_reg_h(PCMC) = 0xF4C0;
+  enx_reg_w(PCMN)=0x80808080;
+  enx_reg_h(PCMC) = 0xF80a;
+//  enx_reg_h(PCMC) = 0xF4C0; // -> Viel rauschen ;)
 	enx_reg_w(CFGR0) &= ~3; 				// disable clip mode
-	
+
   printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
   if (!enx_reg_h(FIFO_PDCT))
   	printk("there MIGHT be no TS :(\n");
@@ -1699,11 +1704,12 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
+  dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.43 2001/04/28 22:43:13 fnbrd Exp $\n");
   return gtx_dmx_init();
 }
 
 void cleanup_module(void)
-{ 
+{
   printk(KERN_INFO "dmx: close\n");
   gtx_dmx_close();
 }
