@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.13 2004/01/14 21:23:29 derget Exp $
+ * $Id: dbox2_fp_napi.c,v 1.14 2004/04/26 17:46:36 derget Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -62,8 +62,9 @@ int sp5659_set_tv_freq(const struct dvb_frontend_parameters *p)
 	buf[1] = div & 0xff;
 	buf[2] = 0x85 | ((div >> 10) & 0x60);
 	buf[3] = (freq < 174000000 ? 0x02 :
-		  freq < 470000000 ? 0x01 : 0x04);
-
+		  freq < 455000000 ? 0x01 : 0x04);
+			 
+	//printk("freq = %d buf[3] = %x\n",freq,buf[3]);
 	if (dbox2_fp_tuner_write_qam(buf, sizeof(buf)) < 0)
 		return -EREMOTEIO;
 
