@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.36  2001/04/10 03:07:29  Hunz
+ *   1st nokia/sat fix - supported by Wodka Gorbatschow *oerks* ;)
+ *
  *   Revision 1.35  2001/04/09 23:26:42  TripleDES
  *   some changes
  *
@@ -112,7 +115,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.35 $
+ *   $Revision: 1.36 $
  *
  */
 
@@ -156,7 +159,7 @@
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
-#define enx_dmx   /uncomment for enx-support
+//#define enx_dmx   /uncomment for enx-support
         // #undef GTX_SECTIONS
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");

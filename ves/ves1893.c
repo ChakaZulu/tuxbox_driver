@@ -43,7 +43,7 @@ static void ves_get_frontend(struct frontend *front);
 static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int ves_get_unc_packet(u32 *uncp);
-static int mitel_set_freq(int freq);
+static int mitel_set_freq(unsigned int freq);
 
 struct demod_function_struct ves1893={
 		write_reg:			ves_write_reg, 
@@ -395,7 +395,7 @@ int ves_get_unc_packet(u32 *uncp)
   return -1;
 }
 
-static int mitel_set_freq(int freq)
+static int mitel_set_freq(unsigned int freq)
 {
 	int p, t, os, c, r, pe;
 	unsigned long b;
