@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.6  2001/03/10 18:53:06  gillem
+ *   - change to ca
+ *
  *   Revision 1.5  2001/03/10 12:23:04  gillem
  *   - add exports
  *
@@ -31,7 +34,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -141,6 +144,8 @@ static int cam_release(struct inode *inode, struct file *file);
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
 
 int cam_reset(void);
+int cam_write_message( char * buf, size_t count );
+int cam_read_message( char * buf, size_t count );
 
         /*
           queue data:
@@ -211,48 +216,20 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
     
     *offset+=numb;
   
-/*    if ((*offset==size) && (minor==CAM_CODE_MINOR))
-    {
-      immap_t *immap=(immap_t *)IMAP_ADDR ;
-      volatile cpm8xx_t *cp=&immap->im_cpm;
-      int i;
-      printk("der moment ist gekommen...\n");
-      cp->cp_pbpar&=~15;  // GPIO (not cpm-io)
-      cp->cp_pbodr&=~15;  // driven output (not tristate)
-      cp->cp_pbdir|=15;   // output (not input)
-
-      cp->cp_pbdat|=0xF;
-      cp->cp_pbdat&=~2;
-      cp->cp_pbdat|=2;
-      for (i=0; i<8; i++)
-      {
-        cp->cp_pbdat&=~8;
-        udelay(100);
-        cp->cp_pbdat|=8;
-        udelay(100);
-      }
-
-      fp_do_reset(0xAF);
-      cp->cp_pbdat&=~1;
-//      memcpy(code_base, cam_code_buffer, CAM_CODE_SIZE);
-      memset(data_base, 'Z', CAM_DATA_SIZE);
-      cp->cp_pbdat|=1;
-      cp->cp_pbdat&=~2;
-      cp->cp_pbdat|=2;
-      udelay(100);
-      fp_do_reset(0xAF);
-    } */
     return numb;
   } else
   if (minor==CAM_MINOR)
   {
-    int res;
-    if ((res=down_interruptible(&cam_busy)))
-      return res;
-                // check userspace pointer? use buffer?
-    res=i2c_master_send(dclient, buf, count);
-    up(&cam_busy);
-    return res;
+	char buffer[128];
+
+	if(copy_from_user(buffer, buf, count))
+	{
+		printk("cam.o: write ... buffer error !!! %d\n",count);
+		return -EFAULT;
+	}
+
+    // check userspace pointer? use buffer?
+	return cam_write_message( buffer, count );
   } else
     return -ENODEV;
 }                             
@@ -293,7 +270,7 @@ static ssize_t cam_read (struct file *file, char *buf, size_t count, loff_t *off
     return numb;
   } else if (minor==CAM_MINOR)
   {
-    int cb;
+//    int cb;
     DECLARE_WAITQUEUE(wait, current);
     
 again:
@@ -311,6 +288,8 @@ again:
       goto again;
     } 
     
+	return cam_read_message(buf,count);
+/*
     cb=cam_queuewptr-cam_queuerptr;
     if (cb<0)
       cb+=CAM_QUEUE_SIZE;
@@ -334,6 +313,7 @@ again:
       cam_queuerptr+=cb;
       return cb;            
     }
+*/
   } else
     return -ENODEV;
 }
@@ -472,6 +452,78 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 int cam_reset()
 {
 	return fp_do_reset(0xAF);
+}
+
+/* ---------------------------------------------------------------------- */
+
+int cam_write_message( char * buf, size_t count )
+{
+	int res;
+
+	// TODO: fix this
+//	if ( !buf )
+//		return -EFAULT;
+
+//	if (count<=0)
+//		return 0;
+	// TODO
+
+	if ((res=down_interruptible(&cam_busy)))
+	{
+		return res;
+	}
+
+	res = i2c_master_send(dclient, buf, count);
+
+	up(&cam_busy);
+
+	return res;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int cam_read_message( char * buf, size_t count )
+{
+	int cb;
+
+	cb=cam_queuewptr-cam_queuerptr;
+
+	if (cb<0)
+		cb+=CAM_QUEUE_SIZE;
+
+	if (count<cb)
+		cb=count;
+
+	if ((cam_queuerptr+cb)>CAM_QUEUE_SIZE)
+	{
+		if (copy_to_user(buf, cam_queue+cam_queuerptr, CAM_QUEUE_SIZE-cam_queuerptr))
+		{
+			printk("cam.o fault 1\n");
+			return -EFAULT;
+		}
+
+		if (copy_to_user(buf, cam_queue, cb-(CAM_QUEUE_SIZE-cam_queuerptr)))
+		{
+			printk("cam.o fault 2\n");
+			return -EFAULT;
+		}
+
+		cam_queuerptr=cb-(CAM_QUEUE_SIZE-cam_queuerptr);
+
+		return cb;
+	} else
+	{
+		if (copy_to_user(buf, cam_queue+cam_queuerptr, cb))
+		{
+			printk("cam.o fault 3: %d %d\n",cb,count);
+			return -EFAULT;
+		}
+		cam_queuerptr+=cb;
+
+		return cb;
+	}
+
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -712,6 +764,8 @@ void cam_fini(void)
 /* ---------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(cam_reset);
+EXPORT_SYMBOL(cam_write_message);
+EXPORT_SYMBOL(cam_read_message);
 
 /* ---------------------------------------------------------------------- */
 
