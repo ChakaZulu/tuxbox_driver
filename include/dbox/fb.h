@@ -1,15 +1,15 @@
-#ifndef __FB_H__
-#define __FB_H__
+#ifndef __DBOX_FB_H__
+#define __DBOX_FB_H__
+
+#include <asm/types.h>
 
 typedef struct {
-
-	uint32_t sx;	/* screen-relative */
-	uint32_t sy;
-	uint32_t width;
-	uint32_t height;
-	uint32_t dx;
-	uint32_t dy;
-	
+	__u32 sx;	/* screen-relative */
+	__u32 sy;
+	__u32 width;
+	__u32 height;
+	__u32 dx;
+	__u32 dy;
 } fb_copyarea;
 
 #define AVIA_GT_GV_SET_BLEV	0	/* blend level */
@@ -19,4 +19,4 @@ typedef struct {
 #define AVIA_GT_GV_COPYAREA	4	/* copy area */
 #define AVIA_GT_GV_GET_BLEV	5	/* blend level */
 
-#endif /* __FB_H__ */
+#endif /* __DBOX_FB_H__ */
