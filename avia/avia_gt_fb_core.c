@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.4  2001/05/04 21:07:55  fnbrd
+ *   Rand gefixed.
+ *
  *   Revision 1.3  2001/04/30 21:51:38  tmbinc
  *   fixed setcolreg for eNX
  *
@@ -45,7 +48,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -54,7 +57,7 @@
     Report bugs as usual.
     
     CLUTs completely untested. (just saw: they work.)
-    
+
     There were other attempts to rewrite this driver, but i don't
     know the state of this work.
     
@@ -64,7 +67,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/malloc.h>
 #include <linux/version.h>
@@ -93,6 +95,14 @@
 #define RES_X           720
 #define RES_Y           576
 
+static int debug=0;
+
+#ifdef MODULE
+MODULE_PARM(debug,"i");
+#endif
+
+#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
+
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
@@ -102,8 +112,8 @@ static struct fb_var_screeninfo default_var = {
     0, 0,                               /* virtual -> visible no offset */
     16, 0,                              /* depth -> load bits_per_pixel */
     {10, 5, 0},                         /* ARGB 1555 */
-    {5, 5, 0}, 
-    {0, 5, 0}, 
+    {5, 5, 0},
+    {0, 5, 0},
     {15, 1, 0},                         /* transparency */
     0,                                  /* standard pixel format */
     FB_ACTIVATE_NOW,
@@ -174,7 +184,7 @@ static void gtx_detect(void)
 {
   return;
 }
-    
+
 static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
                           struct fb_info_gen *info)
 {
@@ -213,7 +223,7 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
     return -EINVAL;
     
   par->bpp=var->bits_per_pixel;
-  
+
   if (var->xres_virtual != var->xres ||
       var->yres_virtual != var->yres ||
       var->nonstd)
@@ -280,8 +290,8 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
     var->lower_margin=5;
   }
   var->hsync_len=var->vsync_len=0;              // TODO
-  var->sync=0;      
-  
+  var->sync=0;
+
   var->xres_virtual=var->xres;
   var->yres_virtual=var->yres;
   var->xoffset=var->yoffset=0;
@@ -294,7 +304,7 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
   var->red.length=var->green.length=var->blue.length=5;
   var->transp.length=1;
   var->red.msb_right=var->green.msb_right=var->blue.msb_right=var->transp.msb_right=0;
-  
+
   var->xoffset=var->yoffset=0;
   var->pixclock=0;
   var->nonstd=0;
@@ -334,7 +344,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   case 16:
     val=3<<30; break;
   }
-  
+
   if (par->lowres)
     val|=1<<29;
 
@@ -344,7 +354,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
                 // TODO: cursor
   if (!par->interlaced)
     val|=1<<26;
-  
+
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
   val|=0<<20;                           // BLEV1 = 8/8
   val|=2<<16;                           // BLEV2 = 6/8
@@ -388,7 +398,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   rh(GFUNC)=0x10;			// enable dynamic clut
   rh(TCR)=0xFC0F;                       // ekelhaftes rosa als transparent
-  
+
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
     GVS_SET_XSZ(par->xres*2);
@@ -403,7 +413,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 //	rw(GVS)|=(0<<27);
 
   rw(VBR)=0;                       // disable background..
-  
+
 #endif // GTX
 
 #ifdef ENX
@@ -415,12 +425,14 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 #define ENX_GVP_SET_Y(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~0x3FF))|(X&0x3FF))
 #define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
 
+
+#define ENX_GVS_SET_IPS(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&0xFC000000) | ((X&0x3f)<<26))
 #define ENX_GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define ENX_GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
 
   enx_reg_w(VBR)=0;
-	
+
   enx_reg_h(VCR)=0x040|(1<<13);
   enx_reg_h(BALP)=0;
   enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
@@ -450,9 +462,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	case 32:
 		val|=7<<20; break;
   }
-	
+
   val|=par->stride;
-  
+
   enx_reg_w(TCR1)=0x1FF007F;
   enx_reg_w(TCR2)=0x1FF007F;
 
@@ -472,23 +484,27 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
 	enx_reg_h(GVP1)=0;
 
-  ENX_GVP_SET_COORD(90,43);                 // TODO: NTSC?
+//  dprintk("Framebuffer: val: 0x%08x\n", val);
+  ENX_GVP_SET_COORD(129,43);                 // TODO: NTSC?
+  ENX_GVP_SET_SPP(63);
+//  ENX_GVP_SET_COORD(90,43);                 // TODO: NTSC?
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (lowres)
     ENX_GVS_SET_XSZ(xres);
   else
     ENX_GVS_SET_XSZ(xres*2);*/
 
-  ENX_GVS_SET_XSZ(720);
-  ENX_GVS_SET_YSZ(576);
+//  ENX_GVS_SET_IPS(32);
+  ENX_GVS_SET_XSZ(RES_X);
+  ENX_GVS_SET_YSZ(RES_Y);
 
 /*  if (interlaced)
     ENX_GVS_SET_YSZ(yres);
   else
     ENX_GVS_SET_YSZ(yres*2);*/
-    
+
 #endif // ENX
-  
+
   current_par = *par;
   current_par_valid=1;
 }
@@ -500,9 +516,9 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   u16 val;
   if (regno>255)
     return 1;
-    
+
 #ifdef GTX
-    
+
   rh(CLTA)=regno;
   mb();
   // ARRR RRGG GGGB BBBB
@@ -515,7 +531,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   *green=((val&0x3E0)>>5)<<19;
   *blue=(val&0x1F)       <<19;
   *transp=(val&0x8000)>>15;
-  
+
 #endif
 
 #ifdef ENX
@@ -524,7 +540,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   mb();
   val=enx_reg_h(CLUTD);
 
-  if (transp)    
+  if (transp)
     *transp = ((val & 0xFF000000) >> 24);
 
   if (red)
@@ -533,7 +549,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   if (green)    
     *green = ((val & 0x0000FF00) >> 8);
     
-  if (blue)    
+  if (blue)
     *blue = (val & 0x000000FF);
 
 #endif  
@@ -664,7 +680,7 @@ int __init gtxfb_init(void)
   fb_info.offset=1*1024*1024;
   fb_info.videobase=gtxmem+fb_info.offset;
   fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
-#endif  
+#endif
 
 #ifdef ENX
   gtxmem=enx_get_mem_addr();
@@ -720,6 +736,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
+  dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.4 2001/05/04 21:07:55 fnbrd Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
