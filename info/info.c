@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.7  2001/07/07 23:05:34  fnbrd
+ *   Probe auf AT/VES1993 und kleine Fehler bei Philips behoben
+ *
  *   Revision 1.6  2001/06/09 23:51:44  tmbinc
  *   added fe.
  *
@@ -40,7 +43,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -57,6 +60,7 @@
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/i2c.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
@@ -87,6 +91,85 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 
 #endif /* CONFIG_PROC_FS */
 
+static int attach_dummy_adapter(struct i2c_adapter *);
+
+static struct i2c_driver dummy_i2c_driver = {
+        "FOR_PROBE_ONLY",
+        I2C_DRIVERID_EXP2, // experimental use id
+	I2C_DF_NOTIFY,
+        &attach_dummy_adapter,
+        0,
+        0,
+	0,
+	0
+};
+
+static struct i2c_client dummy_i2c_client = {
+        "FOR_PROBE_ONLY_CLIENT",
+        I2C_DRIVERID_EXP2, // experimental use id
+        0,
+        0,
+        NULL,
+        &dummy_i2c_driver,
+        NULL
+};
+
+static u8 i2c_addr_of_device;
+static u8 i2c_device_addr_to_read;
+static u8 i2c_should_value;
+static int i2c_found;
+
+// k.A. ob das noch wer anders so (wegen Protokoll) gebrauchen kann,
+// deswegen lass ich das mal so hier drin
+// Routine sieht etwas merkwuerdig aus, habe ich aber groesstenteils so
+// aus ves1820 uebernommen und keine Lust das zu cleanen
+static u8 readreg(struct i2c_client *client, u8 reg)
+{
+        struct i2c_adapter *adap=client->adapter;
+        unsigned char mm1[1];
+        unsigned char mm2[] = {0x00};
+        struct i2c_msg msgs[2];
+
+        msgs[0].flags=0;
+        msgs[1].flags=I2C_M_RD;
+        msgs[0].addr=msgs[1].addr=client->addr;
+        mm1[0]=reg;
+        msgs[0].len=1; msgs[1].len=1;
+        msgs[0].buf=mm1; msgs[1].buf=mm2;
+        i2c_transfer(adap, msgs, 2);
+
+        return mm2[0];
+}
+
+static int attach_dummy_adapter(struct i2c_adapter *adap)
+{
+  dummy_i2c_client.adapter=adap;
+  dummy_i2c_client.addr=i2c_addr_of_device;
+  if (readreg(&dummy_i2c_client, i2c_device_addr_to_read)!=i2c_should_value) {
+//    printk("device not found\n");
+    i2c_found=0;
+  }
+  else {
+//    printk("device found\n");
+    i2c_found=1;
+  }
+  return -1; // we don't need to attach, probing was done
+}
+
+static void probeDevice(void)
+{
+  i2c_add_driver(&dummy_i2c_driver); // fails allways
+  i2c_del_driver(&dummy_i2c_driver);
+}
+
+static int checkForAT76C651(void)
+{
+  i2c_addr_of_device=0x0d; // =0x1a >> 1
+  i2c_device_addr_to_read=0x0e;
+  i2c_should_value=0x65;
+  probeDevice();
+  return i2c_found;
+}
 
 static int dbox_info_init(void)
 {
@@ -107,7 +190,8 @@ static int dbox_info_init(void)
 		info.gtxID=-1;
 		info.hwREV=fe?0x21:0x41;
 		info.fpREV=0x23;
-		info.demod=fe?DBOX_DEMOD_VES1993:DBOX_DEMOD_AT76C651;
+		info.demod= checkForAT76C651() ? DBOX_DEMOD_AT76C651 : DBOX_DEMOD_VES1993 ;
+//		info.demod=fe?DBOX_DEMOD_VES1993:DBOX_DEMOD_AT76C651;
 	}	else if (info.mID==DBOX_MID_PHILIPS)		// never seen a cable-philips
 	{
 		info.feID=0;
@@ -156,7 +240,7 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
 	return sprintf(buf, "mID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nfe=%d\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod], info.fe);
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod], info.fe);
 }
 
 static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
@@ -165,7 +249,7 @@ static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
 	return sprintf(buf, "#!/bin/sh\nexport mID=%02x\nexport feID=%02x\nexport fpID=%02x\nexport enxID=%02x\nexport gtxID=%02x\nexport hwREV=%02x\nexport fpREV=%02x\nexport DEMOD=%s\nexport fe=%d\n",
 //	return sprintf(buf, "#!/bin/sh\nexport mID=%02x feID=%02x fpID=%02x enxID=%02x gtxID=%02x hwREV=%02x fpREV=%02x DEMOD=%s\n\n",
 //	return sprintf(buf, "#!/bin/sh\nmID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nexport mID feID fpID enxID gtxID hwREV fpREV DEMOD\n\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod], info.fe);
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod], info.fe);
 }
 
 int info_proc_init(void)
