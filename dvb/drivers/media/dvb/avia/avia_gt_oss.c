@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.9  2002/09/22 14:19:00  Jolt
+ *   Misc fixes/cleanups
+ *
  *   Revision 1.8  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -304,14 +307,14 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-    int result = (int)0;
+    int result;
 
     dprintk("avia_oss: dsp write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
 
-    return avia_gt_pcm_play_buffer((void *)buf, count, !(file->f_flags & O_NONBLOCK));
+    result = avia_gt_pcm_play_buffer((void *)buf, count, !(file->f_flags & O_NONBLOCK));
 
-    if (result > 0)
-	*offset += result;
+    if ((result > 0) && (offset))
+		*offset += result;
 
     return result;
 
@@ -319,15 +322,18 @@ static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t cou
 
 unsigned int avia_oss_dsp_poll(struct file *file, struct poll_table_struct *wait)
 {
+
 	return avia_gt_pcm_poll(file, wait);
+	
 }
 
 static struct file_operations dsp_fops = {
 
     ioctl: avia_oss_dsp_ioctl,
     owner: THIS_MODULE,
-    write: avia_oss_dsp_write,
     poll: avia_oss_dsp_poll,
+    write: avia_oss_dsp_write,
+	
 };
 
 static struct file_operations mixer_fops = {
@@ -340,7 +346,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.8 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.9 2002/09/22 14:19:00 Jolt Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 
