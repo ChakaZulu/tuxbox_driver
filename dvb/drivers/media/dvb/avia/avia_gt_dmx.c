@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.161 2003/01/17 20:07:21 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.162 2003/01/19 10:56:46 gandalfx Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -39,6 +39,7 @@
 #include <linux/init.h>
 #include <linux/byteorder/swab.h>
 #include <linux/bitops.h>
+#include <linux/interrupt.h>
 
 #include <linux/fs.h>
 #include <linux/fcntl.h>
@@ -61,15 +62,17 @@
 
 //#define dprintk printk
 
-static void avia_gt_dmx_queue_task(void *tl_data);
+//static void avia_gt_dmx_queue_task(void *tl_data);
+static void avia_gt_dmx_bh_task(void *tl_data);
 
+/*
 struct tq_struct avia_gt_dmx_queue_tasklet = {
 
 	routine: avia_gt_dmx_queue_task,
 	data: 0
 
 };
-
+*/
 static int errno = 0;
 static sAviaGtInfo *gt_info	= NULL;
 static sRISC_MEM_MAP *risc_mem_map = NULL;
@@ -130,6 +133,10 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	queue_list[queue_nr].write_pos = 0;
 	queue_list[queue_nr].info.hw_sec_index = -1;
 
+	queue_list[queue_nr].queue_nr=queue_nr;
+	queue_list[queue_nr].task_struct.routine=avia_gt_dmx_bh_task;
+	queue_list[queue_nr].task_struct.data=&(queue_list[queue_nr].queue_nr);
+	
 	avia_gt_dmx_queue_reset(queue_nr);
 	avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 
@@ -397,8 +404,7 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 
 	queue_list[queue_nr].irq_count++;
 
-	schedule_task(&avia_gt_dmx_queue_tasklet);
-
+	schedule_task(&(queue_list[queue_nr].task_struct));
 }
 
 u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed)
@@ -825,9 +831,18 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 
 	if (queue_list[queue_nr].irq_proc)
 		queue_list[queue_nr].irq_proc(&queue_list[queue_nr].info, queue_list[queue_nr].priv_data);
-	else	
-		schedule_task(&avia_gt_dmx_queue_tasklet);
+	else {
+		
+		if (queue_list[queue_nr].cb_proc) {
+			queue_task(&(queue_list[queue_nr].task_struct), &tq_immediate);
+			mark_bh(IMMEDIATE_BH);
+		}
+//		schedule_task(&avia_gt_dmx_queue_tasklet);
+	}
 
+
+
+		
 }
 
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr)
@@ -935,6 +950,22 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 
 }
 
+static void avia_gt_dmx_bh_task(void *tl_data) {
+
+	int queue_nr = *((int *) tl_data);
+
+	queue_list[queue_nr].write_pos = queue_list[queue_nr].hw_write_pos;
+
+	if (queue_list[queue_nr].overflow_count) {
+		printk(KERN_WARNING "avia_gt_dmx: queue %d overflow (count: %d)\n", queue_nr, queue_list[queue_nr].overflow_count);
+		queue_list[queue_nr].overflow_count = 0;
+		queue_list[queue_nr].read_pos = queue_list[queue_nr].hw_write_pos;
+		return;
+	}
+	
+	queue_list[queue_nr].cb_proc(&queue_list[queue_nr].info, queue_list[queue_nr].priv_data);
+}
+/*
 static void avia_gt_dmx_queue_task(void *tl_data)
 {
 
@@ -967,7 +998,7 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 	}
 
 }
-
+*/
 void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
 {
 
@@ -2033,7 +2064,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.161 2003/01/17 20:07:21 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.162 2003/01/19 10:56:46 gandalfx Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

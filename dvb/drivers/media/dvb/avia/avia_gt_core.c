@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.30 2003/01/14 22:37:58 jolt Exp $
+ * $Id: avia_gt_core.c,v 1.31 2003/01/19 10:56:46 gandalfx Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
+#include <linux/tqueue.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/version.h>
@@ -212,7 +213,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.30 2003/01/14 22:37:58 jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.31 2003/01/19 10:56:46 gandalfx Exp $\n");
 
 	if (chip_type == -1) {
 
