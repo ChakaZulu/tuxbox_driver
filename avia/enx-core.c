@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx-core.c,v $
+ *   Revision 1.5  2002/04/10 22:23:18  Jolt
+ *   Cleanups Part2
+ *
  *   Revision 1.4  2002/04/10 21:59:59  Jolt
  *   Cleanups
  *
@@ -91,7 +94,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -132,10 +135,8 @@ MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("Avia eNX driver");
 
 static int debug = 0;
-static char *ucode = 0;
 
 MODULE_PARM(debug, "i");
-MODULE_PARM(ucode, "s");
 #endif
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
@@ -295,108 +296,30 @@ void enx_sdram_ctrl_init(void) {
   
 }
 
-void enx_tdp_start(void) 
-{
-
-  enx_reg_w(RSTR0) &= ~(1 << 22);	// Clear TDP reset bit
-  enx_reg_w(EC) = 0x00;			// Start TDP
-  
-}
-
-void enx_tdp_stop(void) 
-{
-
-  enx_reg_w(EC) = 0x02;			// Stop TDP
-  
-}
-
-
-void enx_tdp_init(u8 *microcode)
-{
-
-  unsigned short *instr_ram = (unsigned short*)enx_reg_o(TDP_INSTR_RAM);
-  unsigned short *src = (unsigned short*)microcode;
-  int     words=0x800/2;
-
-  while (words--) {
-  
-    udelay(100);
-    *instr_ram++ = *src++;
-    
-  }
-  
-}
-
-/* ---------------------------------------------------------------------- */
-/* shamelessly stolen from sound_firmware.c */
-static int errno;
-
-static int
-do_firmread (const char *fn, char **fp)
-{
-        int    fd;
-        loff_t l;
-        char  *dp;
-
-        if ((fd = open (fn, 0, 0)) < 0) {
-                printk (KERN_ERR "%s: %s: Unable to load '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                return 0;
-        }
-
-        l = lseek (fd, 0L, 2);
-        if (l <= 0) {
-                printk (KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                sys_close (fd);
-                return 0;
-        }
-
-        lseek (fd, 0L, 0);
-        dp = vmalloc (l);
-        if (dp == NULL) {
-                printk (KERN_ERR "%s: %s: Out of memory loading '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                sys_close (fd);
-                return 0;
-        }
-
-        if (read (fd, dp, l) != l) {
-                printk (KERN_ERR "%s: %s: Failed to read '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                vfree (dp);
-                sys_close (fd);
-                return 0;
-        }
-
-        close (fd);
-        *fp = dp;
-        return (int) l;
-}
-
-/* ---------------------------------------------------------------------- */
 static int enx_init(void)
 {
   enx_reg_addr = (unsigned char*)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
 
   if (!enx_reg_addr) {
+  
     printk(KERN_ERR "enx-core: Failed to remap memory.\n");
+    
     return -1;
+    
   }
 
   enx_mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
 
   if (!enx_mem_addr) {
+  
     iounmap(enx_reg_addr);
+    
     printk(KERN_ERR "enx-core: Failed to remap memory.\n");
+    
     return -1;
+    
   }
 
-
-  //printk(KERN_NOTICE "enx-core: MEM: 0x%X->0x%X REG: 0x%X->0x%X\n", ENX_MEM_BASE, (unsigned int)enx_mem_addr, ENX_REG_BASE, (unsigned int)enx_reg_addr);
-  //printk(KERN_NOTICE "enx-core: ARCH_ID: 0x%X API_VERSION: 0x%X\n", enx_reg_s(CRR)->ARCH_ID, enx_reg_s(CRR)->API_VERSION);
-  //printk(KERN_NOTICE "enx-core: VERSION: 0x%X REVISION: 0x%X\n", enx_reg_s(CRR)->VERSION, enx_reg_s(CRR)->REVISION);
-  //printk(KERN_NOTICE "enx-core: BRD_ID: 0x%X BIU_SEL: 0x%X\n", enx_reg_s(CFGR0)->BRD_ID, enx_reg_s(CFGR0)->BIU_SEL);
   printk(KERN_NOTICE "enx-core: Loaded AViA eNX core driver\n");
 
   enx_reset();
@@ -432,18 +355,6 @@ static int enx_init(void)
   enx_reg_w(CFGR0) &= ~(1 << 1);   // disable clip mode audio
   enx_reg_w(CFGR0) &= ~(1 << 0);   // disable clip mode video
 
-		// initialize sound
-	enx_reg_w(PCMN) = 0x80808080;
-	enx_reg_h(PCMC) = 0;
-	enx_reg_h(PCMC) |= (3<<14);
-	enx_reg_h(PCMC) |= (1<<13);
-	enx_reg_h(PCMC) |= (1<<12);
-	enx_reg_h(PCMC) |= (1<<11);
-	enx_reg_h(PCMC) &= ~(0<<6);   // 0: use external (avia) clock
-	enx_reg_h(PCMC) |= 0;
-	enx_reg_h(PCMC) |= 2<<2;
-	enx_reg_h(PCMC) |= 2;
-
   return 0;
 }
 
@@ -452,7 +363,6 @@ static void enx_close(void)
 	if (enx_reg_addr)
 	{
 		enx_irq_disable();
-		enx_tdp_stop();
 		iounmap(enx_mem_addr);
 		iounmap(enx_reg_addr);
 		enx_reg_addr = NULL;
@@ -483,18 +393,3 @@ void cleanup_module(void) {
 }
 
 #endif
-
-#if 0
-	enx_reg_w(RSTR0)|=/*(1<<31)|*/(1<<23)|(1<<22);
-		
-	enx_reg_w(RSTR0)&=~(1<<23);
-	enx_reg_h(FC)=0x9147;
-	enx_reg_h(SYNC_HYST)=0x21;
-	enx_reg_h(BQ)=0x00BC;
-	//enx_reg_w(RSTR0)&=~(1<<31);
-
-
-	enx_reg_w(RSTR0)&=~(1<<22);
-	enx_reg_w(EC)=0;
-#endif
-
