@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.6  2001/03/04 22:17:46  gillem
+ *   - add read function ... avia500 multiframe not work
+ *
  *   Revision 1.5  2001/03/04 20:04:41  gillem
  *   - show 16 frames ... avia600 only ????
  *
@@ -37,7 +40,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -66,44 +69,44 @@
 
 typedef struct osd_header {
 
-	u32 res01 	: 8;
-	u32 next  	: 22;	// next frame pointer
-	u32 res02 	: 2;
+	u32 res01 	: 8   __attribute__((packed));
+	u32 next  	: 22  __attribute__((packed));	// next frame pointer
+	u32 res02 	: 2   __attribute__((packed));
 
-	u32 res03 	: 8;
-	u32 bmsize1 : 18;
-	u32 n1 		: 1; 	// set to 1
-	u32 res05 	: 5;
+	u32 res03 	: 8   __attribute__((packed));
+	u32 bmsize1 : 18  __attribute__((packed));
+	u32 n1 		: 1   __attribute__((packed)); 	// set to 1
+	u32 res05 	: 5   __attribute__((packed));
 
-	u32 res06 	: 14;
-	u32 n2 		: 1; 	// set to 1
-	u32 res08 	: 3;
-	u32 n3 		: 1; 	// set to 1
-	u32 res10 	: 2;
-	u32 bmsize2 : 9; 	// 8:0 bms
-	u32 res11 	: 2;
+	u32 res06 	: 14  __attribute__((packed));
+	u32 n2 		: 1   __attribute__((packed)); 	// set to 1
+	u32 res08 	: 3   __attribute__((packed));
+	u32 n3 		: 1   __attribute__((packed)); 	// set to 1
+	u32 res10 	: 2   __attribute__((packed));
+	u32 bmsize2 : 9   __attribute__((packed)); 	// 8:0 bms
+	u32 res11 	: 2   __attribute__((packed));
 
-	u32 res12 	: 8;
-	u32 bmp 	: 22;
-	u32 res13 	: 2;
+	u32 res12 	: 8   __attribute__((packed));
+	u32 bmp 	: 22  __attribute__((packed));
+	u32 res13 	: 2   __attribute__((packed));
 
-	u32 res14 	: 23;
-	u32 peltyp	: 2;
-	u32 n4 		: 1; 	// set to 1
-	u32 gbf 	: 5;
-	u32 n5 		: 1; 	// set to 1
+	u32 res14 	: 23  __attribute__((packed));
+	u32 peltyp	: 2   __attribute__((packed));
+	u32 n4 		: 1   __attribute__((packed)); 	// set to 1
+	u32 gbf 	: 5   __attribute__((packed));
+	u32 n5 		: 1   __attribute__((packed)); 	// set to 1
 
-	u32 res17 	: 12;
-	u32 colstart: 10;
-	u32 colstop : 10;
+	u32 res17 	: 12  __attribute__((packed));
+	u32 colstart: 10  __attribute__((packed));
+	u32 colstop : 10  __attribute__((packed));
 
-	u32 res18 	: 12;
-	u32 rowstart: 10;
-	u32 rowstop : 10;
+	u32 res18 	: 12  __attribute__((packed));
+	u32 rowstart: 10  __attribute__((packed));
+	u32 rowstop : 10  __attribute__((packed));
 
-	u32 res19 	: 8;
-	u32 palette : 22;
-	u32 res20 	: 2;
+	u32 res19 	: 8   __attribute__((packed));
+	u32 palette : 22  __attribute__((packed));
+	u32 res20 	: 2   __attribute__((packed));
 } osd_header;
 
 #define OSDH_SIZE sizeof(osd_header)
@@ -215,7 +218,7 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 
 /* ---------------------------------------------------------------------- */
 
-static void osd_copy_frame( struct osd_frame * frame )
+static void osd_read_frame( struct osd_frame * frame )
 {
 	u32 *odd,*even;
 	u32 osdsp;
@@ -229,10 +232,33 @@ static void osd_copy_frame( struct osd_frame * frame )
 	even = (u32*)&frame->even;
 	odd  = (u32*)&frame->odd;
 
-	for(i=0;i<OSDH_SIZE/4;i++)
+	for(i=0;i<OSDH_SIZE;i+=4,osdsp+=4,even++,odd++)
 	{
-		wDR(osdsp+(i*4),*(even+i));
-		wDR(osdsp+(i*4)+OSDH_SIZE,*(odd+i));
+		*even = rDR(osdsp);
+		*odd  = rDR(osdsp+OSDH_SIZE);
+	}
+}
+
+/* ---------------------------------------------------------------------- */
+
+static void osd_write_frame( struct osd_frame * frame )
+{
+	u32 *odd,*even;
+	u32 osdsp;
+    int i;
+
+	osdsp = osds+(OSDH_SIZE*2*frame->framenr);
+
+	printk("OSD FP: %08X\n",osdsp);
+
+	/* copy header */
+	even = (u32*)&frame->even;
+	odd  = (u32*)&frame->odd;
+
+	for(i=0;i<OSDH_SIZE;i+=4,osdsp+=4,even++,odd++)
+	{
+		wDR(osdsp,*even);
+		wDR(osdsp+OSDH_SIZE,*odd);
 	}
 
 	printk("OSD FNR: %d E: %08X O: %08X\n",frame->framenr,frame->even.next<<2,frame->odd.next<<2);
@@ -242,7 +268,7 @@ static void osd_copy_frame( struct osd_frame * frame )
 
 static void osd_init_frame( struct osd_frame * frame, int framenr )
 {
-	memset(frame,0,sizeof(osd_frame));
+	memset(frame,1,sizeof(osd_frame));
 
 	frame->framenr = framenr;
 
@@ -274,7 +300,7 @@ static void osd_init_frames( struct osd_frames * frames )
 	for(i=0;i<16;i++)
 	{
 		osd_init_frame(&frames->frame[i],i);
-		osd_copy_frame(&frames->frame[i]);
+		osd_write_frame(&frames->frame[i]);
 	}
 }
 
@@ -289,9 +315,6 @@ static int init_avia_osd(void)
 
 	printk("OSD STATUS: %08X\n", rDR(OSD_VALID));
 
-//	wDR(OSD_BUFFER_IDLE_START,rDR(OSD_BUFFER_START));
-//	wDR(OSD_BUFFER_IDLE_START,0);
-
 	osds = (rDR(OSD_BUFFER_START)&(~3));
 	osde = rDR(OSD_BUFFER_END);
 
@@ -300,11 +323,14 @@ static int init_avia_osd(void)
 		osds+=4;
 	}
 
+	for(i=osds;i<osde;i+=4)
+		wDR(i,0);
+
     osd_init_frames(&frames);
 
-	rgb2crycb( 100, 0, 0, 3, &pale );
+	rgb2crycb( 100, 0, 100, 3, &pale );
 	palette[0] = pale;
-	rgb2crycb( 0, 100, 0, 3, &pale );
+	rgb2crycb( 1000, 100, 100, 3, &pale );
 
 	/* set palette */
 	for(i=1;i<16;i++)
@@ -321,8 +347,8 @@ static int init_avia_osd(void)
 	for(i=0;i<16;i++)
 	{
 		osd_create_frame( &frames.frame[i], 60+(i*22), 60+(i*22), 20, 20, 0x1f, 1 );
-		osd_show_frame( &frames.frame[i], palette, bitmap, 0x1000 );
-		osd_copy_frame( &frames.frame[i] );
+		osd_show_frame( &frames.frame[i], palette, bitmap, 20*20*4/8 );
+		osd_write_frame( &frames.frame[i] );
 	}
 
 	/* enable osd */
