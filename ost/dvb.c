@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.55 2002/01/22 23:38:28 fnbrd Exp $
+ * $Id: dvb.c,v 1.56 2002/01/31 18:59:00 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -1634,6 +1634,9 @@ unsigned int dvb_poll(struct dvb_device *dvbdev, int type, struct file *file, po
 		return 0;
 	case DVB_DEVICE_DEMUX:
 		return DmxDevPoll(&dvb->dmxdev, file, wait);
+	case DVB_DEVICE_DVR:
+		return DmxDevDVRPoll(&dvb->dmxdev, file, wait);
+
 //	case DVB_DEVICE_VIDEO:
 //	case DVB_DEVICE_AUDIO:
 	default:
