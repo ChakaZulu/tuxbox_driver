@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.19  2002/05/09 19:54:19  obi
+ *   added some tabs
+ *
  *   Revision 1.18  2002/05/09 07:29:21  waldi
  *   add correct license
  *
@@ -77,7 +80,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -268,7 +271,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct *dbox_info;
 	int result;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.18 2002/05/09 07:29:21 waldi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.19 2002/05/09 19:54:19 obi Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -314,7 +317,7 @@ int __init avia_gt_init(void)
 
 		avia_gt_exit();
 
-	return -1;
+		return -1;
 
 	}
 
@@ -365,7 +368,7 @@ int __init avia_gt_init(void)
 
 		avia_gt_exit();
 
-	return -1;
+		return -1;
 
 	}
 
@@ -481,10 +484,10 @@ void avia_gt_exit(void)
 
 	if (init_state >= 4) {
 
-	if (avia_gt_chip(ENX))
-		free_irq(ENX_INTERRUPT, 0);
-	else if (avia_gt_chip(GTX))
-		free_irq(GTX_INTERRUPT, 0);
+		if (avia_gt_chip(ENX))
+			free_irq(ENX_INTERRUPT, 0);
+		else if (avia_gt_chip(GTX))
+			free_irq(GTX_INTERRUPT, 0);
 
 	}
 
