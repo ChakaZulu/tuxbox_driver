@@ -1,6 +1,6 @@
 /*
- * $Id: avia_av_event.c,v 1.8 2003/07/01 08:21:57 obi Exp $
- *   
+ * $Id: avia_av_event.c,v 1.9 2003/07/24 01:14:19 homar Exp $
+ *
  * AViA 500/600 event driver (dbox-II-project)
  *
  * Homepage: http://www.tuxbox.org
@@ -95,7 +95,7 @@ static void avia_av_event_timer_function(unsigned long data)
 
 int avia_av_event_init(void)
 {
-	printk(KERN_INFO "avia_av_event: $Id: avia_av_event.c,v 1.8 2003/07/01 08:21:57 obi Exp $\n");
+	dprintk(KERN_INFO "avia_av_event: $Id: avia_av_event.c,v 1.9 2003/07/24 01:14:19 homar Exp $\n");
 
 	event_delay = 0;
 
@@ -111,7 +111,7 @@ int avia_av_event_init(void)
 
 	init_timer(&event_timer);
 	add_timer(&event_timer);
-		
+
 	return 0;
 }
 

@@ -1,6 +1,6 @@
 /*
  * at76c651.c
- * 
+ *
  * Atmel DVB-C Frontend Driver (at76c651/dat7021)
  *
  * Copyright (C) 2001 fnbrd <fnbrd@gmx.de>
@@ -137,7 +137,7 @@ at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
 	at76c651_writereg(i2c, 0x06, 0x01);
 
 	/*
-	 * performance optimizations 
+	 * performance optimizations
 	 */
 
 	at76c651_writereg(i2c, 0x10, 0x06);
@@ -227,9 +227,11 @@ dat7021_set_tv_freq(struct dvb_i2c_bus *i2c, u32 freq)
 	 *      or: dw=0x4E28E06+(freq-42000) / 125 * 0x20000
 	 */
 
-	dw = (freq - 42000) * 4096;
-	dw = dw / 125;
-	dw = dw * 32;
+	    freq=freq/1000;
+	    freq-=42;
+	    freq/=8;
+	    freq*=0x800000;
+	    dw+=freq;
 
 	if (freq > 394000)
 		dw += 0x4E28E85;
@@ -384,7 +386,7 @@ at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			u8 sync;
 
 			/*
-			 * Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0) 
+			 * Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
 			 */
 			sync = at76c651_readreg(fe->i2c, 0x80);
 

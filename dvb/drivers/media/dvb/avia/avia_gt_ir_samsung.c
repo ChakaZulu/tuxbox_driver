@@ -2,15 +2,11 @@
  * Treiber für Samsung Infrarot-Tastatur SEM-CIR am AVIA GTX/ENX
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "avia_gt.h"
 
@@ -19,9 +15,6 @@
 #define MAX_RECV 16
 
 #define BREAK_KEY_TIMEOUT 13
-
-#define dprintk(...)
-//#define dprintk(fmt,args...) printk(fmt,## args)
 
 /*
  * Keyboard-Mapping
@@ -158,7 +151,7 @@ static unsigned queue_data_avail(void)
 
 static void break_missed(unsigned long data)
 {
-	dprintk(KERN_INFO "timeout reached, code: %d, value: 0\n",data);
+	dprintk(KERN_INFO "timeout reached, code: %lu, value: 0\n",data);
 	input_report_key(&idev,data,0);
 }
 
@@ -171,7 +164,7 @@ void do_input_report_key(unsigned int code, int value)
 	if (!value)
 	{
 		del_timer(&key_timeout);
-		dprintk(KERN_INFO "1 code: %d, value: 0\n",code);
+		dprintk(KERN_INFO "1 code: %u, value: 0\n",code);
 		input_report_key(&idev,code,0);
 	}
 	else
@@ -181,17 +174,17 @@ void do_input_report_key(unsigned int code, int value)
 			if (code != key_timeout.data)
 			{
 				input_report_key(&idev,key_timeout.data,0);
-				dprintk(KERN_INFO "2 code: %d, value: 0\n",key_timeout.data);
+				dprintk(KERN_INFO "2 code: %lu, value: 0\n",key_timeout.data);
 				input_report_key(&idev,code,1);
 				key_timeout.data = code;
-				dprintk(KERN_INFO "3 code: %d, value: 1\n",code);
+				dprintk(KERN_INFO "3 code: %u, value: 1\n",code);
 			}
 		}
 		else
 		{
 			input_report_key(&idev,code,1);
 			key_timeout.data = code;
-			dprintk(KERN_INFO "4 code: %d, value: 1\n",code);
+			dprintk(KERN_INFO "4 code: %u, value: 1\n",code);
 		}
 		mod_timer(&key_timeout,jiffies + BREAK_KEY_TIMEOUT);
 	}
@@ -215,7 +208,7 @@ void samsung_task(unsigned long unused)
 	{
 		longkey = read_from_queue();
 
-		dprintk(KERN_INFO "longkey: 0x%08X\n",jiffies,longkey);
+		dprintk(KERN_INFO "longkey: 0x%08X\n",longkey);
 
 		/*
 		 * Mouse ?
@@ -522,12 +515,11 @@ static void samsung_ir_receive_irq(u16 irq)
 	unsigned char pulse_on, pulse_len, pulse_off;
 	unsigned char next_irq_at;
 
-	receive_buffer_end_offset = (avia_gt_chip(ENX) ? enx_reg_16(IRRO) : gtx_reg_16(IRRO)) & 0x7F;
+	receive_buffer_end_offset = avia_gt_readw(IRRO) & 0x7f;
 
-//	printk(KERN_INFO "on entry: start: %d, end: %d\n",receive_buffer_start_offset,receive_buffer_end_offset);
+//	dprintk(KERN_INFO "on entry: start: %d, end: %d\n",receive_buffer_start_offset,receive_buffer_end_offset);
 
-
-	while (receive_buffer_start_offset != (receive_buffer_end_offset = (avia_gt_chip(ENX) ? enx_reg_16(IRRO) : gtx_reg_16(IRRO)) & 0x7F) )
+	while (receive_buffer_start_offset != (receive_buffer_end_offset = avia_gt_readw(IRRO) & 0x7f))
 	{
 		pulse_on = receive_buffer[receive_buffer_start_offset << 1];
 		pulse_len = receive_buffer[(receive_buffer_start_offset << 1) + 1] + extra_len;
@@ -563,13 +555,13 @@ static void samsung_ir_receive_irq(u16 irq)
 			rec_time = 0;
 			lanz = 0;
 			lbufidx = lbuf;
-//			printk(KERN_INFO "off: %d\n",pulse_off);
+//			dprintk(KERN_INFO "off: %d\n",pulse_off);
 			continue;
 		}
 
 		if (!lanz && (pulse_len < 50) )
 		{
-//			printk(KERN_INFO "off: too short for start: %d\n",pulse_len);
+//			dprintk(KERN_INFO "off: too short for start: %d\n",pulse_len);
 			continue;
 		}
 
@@ -579,7 +571,7 @@ static void samsung_ir_receive_irq(u16 irq)
 
 		if ( !lanz && ( (pulse_on < 10 ) || (pulse_on > 18) ) )
 		{
-//			printk(KERN_INFO "start on-range: %d\n",pulse_on);
+//			dprintk(KERN_INFO "start on-range: %d\n",pulse_on);
 			continue;
 		}
 
@@ -589,7 +581,7 @@ static void samsung_ir_receive_irq(u16 irq)
 
 		if ( lanz && (pulse_on > 14) )
 		{
-//			printk(KERN_INFO "on-range: %d\n",pulse_on);
+//			dprintk(KERN_INFO "on-range: %d\n",pulse_on);
 			rec_time = 0;
 			lanz = 0;
 			lbufidx = lbuf;
@@ -664,25 +656,13 @@ static void samsung_ir_receive_irq(u16 irq)
 	}
 
 	if (!lanz)
-	{
 		next_irq_at = (receive_buffer_end_offset + 12) & 0x7F;
-	}
 	else
-	{
 		next_irq_at = receive_buffer_end_offset;
-	}
 
-	if (avia_gt_chip(ENX))
-	{
-		enx_reg_16(IRRE) = 0x8000 + next_irq_at;
-	}
-	else
-	{
-		gtx_reg_16(IRRE) = 0x8000 + next_irq_at;
-	}
+	avia_gt_writew(IRRE, 0x8000 | next_irq_at);
 
 	dprintk(KERN_INFO "on exit: %d, next: %d\n",receive_buffer_end_offset,next_irq_at);
-
 }
 
 /*
@@ -695,11 +675,8 @@ static int __init samsung_ir_init(void)
 
 	gt_info = avia_gt_get_info();
 
-	if ( !gt_info || (!avia_gt_chip(ENX) && !avia_gt_chip(GTX)) )
-	{
-		printk(KERN_ERR "dbox_samsung: Unsupported chip type.\n");
-		return -EIO;
-	}
+	if (!avia_gt_supported_chipset(gt_info))
+		return -ENODEV;
 
 	receive_buffer = gt_info->mem_addr + AVIA_GT_MEM_IR_OFFS;
 
@@ -712,62 +689,34 @@ static int __init samsung_ir_init(void)
 	set_bit(REL_Y,idev.relbit);
 
 	for (zaehler = 0; zaehler < sizeof(keyboard_mapping); zaehler++)
-	{
 		if (keyboard_mapping[zaehler] != KEY_RESERVED)
-		{
 			set_bit(keyboard_mapping[zaehler],idev.keybit);
-		}
-	}
 
 	for (zaehler = 0; zaehler < sizeof(extra_keyboard) / 2; zaehler++)
-	{
 		set_bit(extra_keyboard[zaehler],idev.keybit);
-	}
 
 	input_register_device(&idev);
 
 	init_timer(&key_timeout);
 	key_timeout.function = break_missed;
 
-	if (avia_gt_chip(ENX))
-	{
-		enx_reg_set(RSTR0,IR,1);		// Reset
-		if (avia_gt_alloc_irq(ENX_IRQ_IR_RX,samsung_ir_receive_irq))
-		{
-			printk(KERN_ERR "dbox_samsung: Cannot allocate irq.\n");
-			input_unregister_device(&idev);
-			return -EIO;
-		}
+	avia_gt_reg_set(RSTR0, IR, 1);		// Reset
 
-		enx_reg_set(RSTR0,IR,0);	// Reset off
-		enx_reg_32(IRQA) = AVIA_GT_MEM_IR_OFFS;
-		enx_reg_16(RTP) = 2830;		// divider 50 MHz
-		enx_reg_16(RFR) = 0;		// Polarity, start pulse length-values
-		enx_reg_16(RTC) = 0;		// no start pulse
-		enx_reg_16(IRRO) = 0;		// Reset receive queue
-		enx_reg_16(IRRE) = 0x8001;	// irq after 1 received value, dma
-		enx_reg_16(IRTE) = 0;		// no transmits
+	if (avia_gt_alloc_irq(gt_info->irq_irrx, samsung_ir_receive_irq)) {
+		dprintk(KERN_ERR "avia_gt_ir_samsung: Cannot allocate irq.\n");
+		input_unregister_device(&idev);
+		return -EIO;
 	}
-	else
-	{
-		gtx_reg_set(RR0,IR,1);		// Reset
 
-		if (avia_gt_alloc_irq(GTX_IRQ_IR_RX,samsung_ir_receive_irq))
-		{
-			printk(KERN_ERR "dbox_samsung: Cannot allocate irq.\n");
-			input_unregister_device(&idev);
-			return -EIO;
-		}
+	avia_gt_reg_set(RSTR0, IR, 0);		// Reset off
 
-		gtx_reg_set(RR0,IR,0);		// Reset off
-		gtx_reg_32(IRQA) = AVIA_GT_MEM_IR_OFFS;
-		gtx_reg_16(RTP) = 2292;		// divider 40.5 MHz
-		gtx_reg_16(RFR) = 0;		// Polarity, start pulse length-values
-		gtx_reg_16(RTC) = 0;		// no start pulse
-		gtx_reg_16(IRRO) = 0;		// Reset receive queue
-		gtx_reg_16(IRRE) = 0x8001;	// irq after 1 received value, dma
-		gtx_reg_16(IRTE) = 0;		// no transmits
-	}
+	avia_gt_writel(IRQA, AVIA_GT_MEM_IR_OFFS);
+	avia_gt_writew(RTP, gt_info->ir_clk / 17667);
+	avia_gt_writew(RFR, 0);			// Polarity, start pulse length-values
+	avia_gt_writew(RTC, 0);			// no start pulse
+	avia_gt_writew(IRRO, 0);		// Reset receive queue
+	avia_gt_writew(IRRE, 0x8001);		// irq after 1 received value, dma
+	avia_gt_writew(IRTE, 0);		// no transmits
 
 	return 0;
 }
@@ -778,34 +727,24 @@ static int __init samsung_ir_init(void)
 
 static void __exit samsung_ir_exit(void)
 {
+	avia_gt_reg_set(RSTR0, IR, 1);		// Reset
+	avia_gt_free_irq(gt_info->irq_irrx);
 
-	if (avia_gt_chip(ENX))
-	{
-		enx_reg_set(RSTR0,IR,1);	// Reset
-		avia_gt_free_irq(ENX_IRQ_IR_RX);
-	}
-	else
-	{
-		gtx_reg_set(RR0,IR,1);		// Reset
-		avia_gt_free_irq(GTX_IRQ_IR_RX);
-	}
-
-	if (timer_pending(&key_timeout))
-	{
+	if (timer_pending(&key_timeout)) {
 		del_timer(&key_timeout);
 		input_report_key(&idev,key_timeout.data,0);
 	}
 
 	input_unregister_device(&idev);
-
 }
 
 /*
  * Modul-Kram
  */
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Wolfram Joost");
-MODULE_DESCRIPTION("Driver for samsung infrared keyboard SEM-CIR on dbox2.");
 module_init(samsung_ir_init);
 module_exit(samsung_ir_exit);
+
+MODULE_AUTHOR("Wolfram Joost");
+MODULE_DESCRIPTION("Driver for samsung infrared keyboard SEM-CIR on dbox2.");
+MODULE_LICENSE("GPL");

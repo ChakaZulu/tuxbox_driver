@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_gtx.c,v 1.20 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_gtx.c,v 1.21 2003/07/24 01:14:20 homar Exp $
  *
  * AViA GTX core driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
@@ -23,80 +23,50 @@
  *
  */
 
-#define __KERNEL_SYSCALLS__
-
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/unistd.h>
-#include <linux/fcntl.h>
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #include "avia_gt.h"
 
 static sAviaGtInfo *gt_info = NULL;
 
-static int isr[] = {GTX_REG_ISR0, GTX_REG_ISR1, GTX_REG_ISR2, GTX_REG_ISR3};
-static int imr[] = {GTX_REG_IMR0, GTX_REG_IMR1, GTX_REG_IMR2, GTX_REG_IMR3};
+static int isr[] = { GTX_REG_ISR0, GTX_REG_ISR1, GTX_REG_ISR2, GTX_REG_ISR3 };
+static int imr[] = { GTX_REG_IMR0, GTX_REG_IMR1, GTX_REG_IMR2, GTX_REG_IMR3 };
 
 void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-
-	gtx_reg_16n(isr[irq_reg]) |= (1 << irq_bit);
-
+	avia_gt_reg_16n(isr[irq_reg]) |= (1 << irq_bit);
 }
 
 unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg)
 {
-
 	if (irq_reg <= 3)
-		return gtx_reg_16n(imr[irq_reg]);
+		return avia_gt_reg_16n(imr[irq_reg]);
 	else
 		return 0;
-
 }
 
 unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg)
 {
-
 	if (irq_reg <= 3)
-		return gtx_reg_16n(isr[irq_reg]);
+		return avia_gt_reg_16n(isr[irq_reg]);
 	else
 		return 0;
-
 }
 
 void avia_gt_gtx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-
-	gtx_reg_16n(imr[irq_reg]) &= ~(1 << irq_bit);
-
+	avia_gt_reg_16n(imr[irq_reg]) &= ~(1 << irq_bit);
 }
 
 void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-
-	gtx_reg_16n(imr[irq_reg]) |= (1 << irq_bit);
-
+	avia_gt_reg_16n(imr[irq_reg]) |= (1 << irq_bit);
 }
 
 static void avia_gt_gtx_intialize_interrupts(void)
 {
-
 	gtx_reg_16(IPR0) = -1;
 	gtx_reg_16(IPR1) = -1;
 	gtx_reg_16(IPR2) = -1;
@@ -112,17 +82,15 @@ static void avia_gt_gtx_intialize_interrupts(void)
 	gtx_reg_16(ISR2) = 0;
 	gtx_reg_16(ISR3) = 0;
 
-	gtx_reg_set(RR0, INT, 0);
+	gtx_reg_set(RSTR0, INT, 0);
 
 	gtx_reg_16(IMR0) = 0xFFFF;
 	gtx_reg_16(IMR1) = 0xFFFF;
-
 }
 
 static void avia_gt_gtx_close_interrupts(void)
 {
-
-	gtx_reg_set(RR0, INT, 1);
+	gtx_reg_set(RSTR0, INT, 1);
 
 	gtx_reg_16(IMR0) = 0;
 	gtx_reg_16(IMR1) = 0;
@@ -138,97 +106,86 @@ static void avia_gt_gtx_close_interrupts(void)
 	gtx_reg_16(ISR1) = 0;
 	gtx_reg_16(ISR2) = 0;
 	gtx_reg_16(ISR3) = 0;
-
 }
 
 void avia_gt_gtx_reset(void)
 {
-	gtx_reg_set(RR0, PIG, 1);
-	gtx_reg_set(RR0, VCAP, 1);
-	gtx_reg_set(RR0, VID, 1);
-	gtx_reg_set(RR0, ACLK, 1);
-	gtx_reg_set(RR0, COPY, 1);
-	gtx_reg_set(RR0, DRAM, 1);
-	gtx_reg_set(RR0, PCM, 1);
-	gtx_reg_set(RR0, SPI, 1);
-	gtx_reg_set(RR0, IR, 1);
-	gtx_reg_set(RR0, BLIT, 1);
-	gtx_reg_set(RR0, CRC, 1);
-	gtx_reg_set(RR0, INT, 1);
-	gtx_reg_set(RR0, SCD, 1);
-	gtx_reg_set(RR0, SRX, 1);
-	gtx_reg_set(RR0, STX, 1);
-	gtx_reg_set(RR0, GV, 1);
-	gtx_reg_set(RR1, TTX, 1);
-	gtx_reg_set(RR1, DAC, 1);
-	gtx_reg_set(RR1, RISC, 1);
-	gtx_reg_set(RR1, FRMR, 1);
-	gtx_reg_set(RR1, CHAN, 1);
-	gtx_reg_set(RR1, AVD, 1);
-	gtx_reg_set(RR1, IDC, 1);
-	gtx_reg_set(RR1, DESC, 1);
+	gtx_reg_set(RSTR0, PIG1, 1);
+	gtx_reg_set(RSTR0, VIDC, 1);
+	gtx_reg_set(RSTR0, VID, 1);
+	gtx_reg_set(RSTR0, PCMA, 1);
+	gtx_reg_set(RSTR0, COPY, 1);
+	gtx_reg_set(RSTR0, DRAM, 1);
+	gtx_reg_set(RSTR0, PCM, 1);
+	gtx_reg_set(RSTR0, SPI, 1);
+	gtx_reg_set(RSTR0, IR, 1);
+	gtx_reg_set(RSTR0, BLIT, 1);
+	gtx_reg_set(RSTR0, CRC, 1);
+	gtx_reg_set(RSTR0, INT, 1);
+	gtx_reg_set(RSTR0, SCD, 1);
+	gtx_reg_set(RSTR0, SRX, 1);
+	gtx_reg_set(RSTR0, STX, 1);
+	gtx_reg_set(RSTR0, GFIX, 1);
+	gtx_reg_set(RSTR0, TTX, 1);
+	gtx_reg_set(RSTR0, DAC, 1);
+	gtx_reg_set(RSTR0, TDMP, 1);
+	gtx_reg_set(RSTR0, FRMR, 1);
+	gtx_reg_set(RSTR0, CHAN, 1);
+	gtx_reg_set(RSTR0, AVD, 1);
+	gtx_reg_set(RSTR0, IDC, 1);
+	gtx_reg_set(RSTR0, DESC, 1);
 }
 
 void avia_gt_gtx_init(void)
 {
-
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.20 2003/04/14 00:13:10 obi Exp $\n");
+	dprintk(KERN_INFO "avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.21 2003/07/24 01:14:20 homar Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
-	if (!avia_gt_chip(GTX)) {
-
-		printk("avia_gt_gtx: Unsupported chip type\n");
-
+	if ((!gt_info) || (!avia_gt_chip(GTX))) {
+		dprintk(KERN_ERR "avia_gt_gtx: GTX not found\n");
 		return;
-
 	}
 
 	avia_gt_gtx_reset();
 
 	// solle nach avia_gt_gtx_reset() wenn ueberhaupt noetig ...
-	udelay (500);
+	udelay(500);
 
-	gtx_reg_set(RR0, VID, 0);
-	gtx_reg_set(RR0, DRAM, 0);
-	gtx_reg_set(RR0, BLIT, 0);
+	gtx_reg_set(RSTR0, VID, 0);
+	gtx_reg_set(RSTR0, DRAM, 0);
+	gtx_reg_set(RSTR0, BLIT, 0);
 
 	// ?
-	udelay (500);
+	udelay(500);
 
-	memset (gt_info->mem_addr, 0xFF, GTX_MEM_SIZE);	  // clear ram
+	memset(gt_info->mem_addr, 0xFF, GTX_MEM_SIZE);	  // clear ram
 
-	gtx_reg_set(CR0, DOD, 0);	// DAC Output Disable (0: enable)
-	gtx_reg_set(CR0, _16M, 1);	// 16 Mbit DRAM Select (1: 16 Mbit)
-	gtx_reg_set(CR0, DD1, 0);	// Delay DTACK (2 clocks delay)
-	gtx_reg_set(CR0, DD0, 1);
-	gtx_reg_set(CR0, RFD, 0);	// Refresh Disable
+	gtx_reg_set(CFGR0, DOD, 0);	// DAC Output Disable (0: enable)
+	gtx_reg_set(CFGR0, _16M, 1);	// 16 Mbit DRAM Select (1: 16 Mbit)
+	gtx_reg_set(CFGR0, DD1, 0);	// Delay DTACK (2 clocks delay)
+	gtx_reg_set(CFGR0, DD0, 1);
+	gtx_reg_set(CFGR0, RFD, 0);	// Refresh Disable
 
-	avia_gt_gtx_intialize_interrupts ();
-
-	// workaround for framebuffer?
-	//atomic_set (&THIS_MODULE->uc.usecount, 1);
-
+	avia_gt_gtx_intialize_interrupts();
 }
 
 void avia_gt_gtx_exit(void)
 {
-
 	avia_gt_gtx_close_interrupts();
 
-	//gtx_reg_16(CR0) = 0x0030;
-	//gtx_reg_16(CR1) = 0x0000;
-	gtx_reg_set(CR0, DOD, 1);
-	gtx_reg_set(CR0, RFD, 1);
+	//gtx_reg_16(CFGR0) = 0x0030;
+	//gtx_reg_16(CFGR1) = 0x0000;
+	gtx_reg_set(CFGR0, DOD, 1);
+	gtx_reg_set(CFGR0, RFD, 1);
 
 	avia_gt_gtx_reset();
 
 	// take modules in reset state
-	//gtx_reg_16(RR0) = 0xFBFF;
-	//gtx_reg_16(RR1) = 0x00FF;
+	//gtx_reg_16(RSTR0) = 0xFBFF;
+	//gtx_reg_16(RSTR1) = 0x00FF;
 
 	// disable dram module, don't work :-/ why ????
-	//gtx_reg_16(RR0) |= (1<<10);
-
+	//gtx_reg_16(RSTR0) |= (1<<10);
 }
 

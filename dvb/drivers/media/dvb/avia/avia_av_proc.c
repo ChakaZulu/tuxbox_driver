@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.8 2003/07/01 08:21:57 obi Exp $
+ * $Id: avia_av_proc.c,v 1.9 2003/07/24 01:14:19 homar Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -39,7 +39,7 @@ int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, 
 	int nr = 0;
 
 	nr = sprintf(buf, "Bitstream Settings:\n");
-	
+
 	nr += sprintf(buf + nr, "H_SIZE:  %d\n", avia_av_dram_read(H_SIZE) & 0xFFFF);
 	nr += sprintf(buf + nr, "V_SIZE:  %d\n", avia_av_dram_read(V_SIZE) & 0xFFFF);
 	nr += sprintf(buf + nr, "A_RATIO: %d\n", avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
@@ -101,17 +101,17 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.8 2003/07/01 08:21:57 obi Exp $\n");
+	dprintk("avia_av_proc: $Id: avia_av_proc.c,v 1.9 2003/07/24 01:14:19 homar Exp $\n");
 
 	if (!proc_bus) {
-		printk("avia_av_proc: /proc/bus does not exist");
+		dprintk("avia_av_proc: /proc/bus does not exist");
 		return -ENOENT;
 	}
 
 	proc_bus_avia = create_proc_read_entry("bitstream", 0, proc_bus, &avia_av_proc_read_bitstream_settings, NULL);
 
 	if (!proc_bus_avia) {
-		printk("avia_av_proc: could not create /proc/bus/bitstream");
+		dprintk("avia_av_proc: could not create /proc/bus/bitstream");
 		return -ENOENT;
 	}
 
@@ -120,7 +120,7 @@ int avia_av_proc_init(void)
 	proc_bus_avia_dram = create_proc_read_entry("avia_dram", 0, proc_bus, &avia_av_proc_read_dram, NULL);
 
 	if (!proc_bus_avia_dram) {
-		printk("avia_av_proc: could not create /proc/bus/avia_dram");
+		dprintk("avia_av_proc: could not create /proc/bus/avia_dram");
 		return -ENOENT;
 	}
 
