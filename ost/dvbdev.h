@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.h,v 1.11 2002/01/22 23:38:28 fnbrd Exp $
+ * $Id: dvbdev.h,v 1.12 2002/02/01 08:06:26 gillem Exp $
  */
 
 #ifndef _DVBDEV_H_
@@ -111,7 +111,7 @@ struct dvbdev_devfsinfo
   int type;
 };
 
-struct dvb_device
+typedef struct dvb_device
 {
   char name[32];
   int type;
@@ -130,10 +130,9 @@ struct dvb_device
   ssize_t ( * write ) ( struct dvb_device *, int, struct file *, const char *, size_t, loff_t * );
   int ( * ioctl ) ( struct dvb_device *, int, struct file *, unsigned int , unsigned long );
   unsigned int ( * poll ) ( struct dvb_device *, int type, struct file *, poll_table * wait );
-};
+} dvb_device_t;
 
 typedef struct dvbdev_devfsinfo dvbdev_devfsinfo_t;
-typedef struct dvb_device dvb_device_t;
 
 int dvb_register_device ( struct dvb_device * );
 void dvb_unregister_device ( struct dvb_device * );
