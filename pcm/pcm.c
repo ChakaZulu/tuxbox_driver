@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.8  2001/02/01 20:02:56  gillem
+ *   - tests
+ *
  *   Revision 1.7  2001/01/07 20:52:31  gillem
  *   add volume to mixer ioctl
  *
@@ -37,7 +40,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -61,8 +64,8 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 #include "pcm.h"
-#include "../avia/gtx.h"
-#include "../avia/avia.h"
+#include "gtx.h"
+#include "avia.h"
 
 #define wDR(a, d) avia_wr(TM_DRAM, a, d)
 #define rDR(a) avia_rd(TM_DRAM, a)
