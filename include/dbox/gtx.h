@@ -382,6 +382,24 @@ typedef struct {
 
 
 
+/* Infrared */
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned char S: 1;
+	unsigned char RTC: 8;
+
+} sGTX_REG_RTC;
+
+typedef struct {
+
+	unsigned char Reserved1: 3;
+	unsigned short TickPeriod: 13;
+
+} sGTX_REG_RTP;
+
+
+
 /* PCM Audio */
 typedef struct {
 
@@ -700,6 +718,42 @@ typedef struct {
 	unsigned char Data_ID: 8;
 
 } sGTX_REG_TTCR;
+
+
+
+/* Infrared */
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned char P: 1;
+	unsigned char Filt_H: 4;
+	unsigned char Filt_L: 4;
+
+} sGTX_REG_RFR;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned short Address: 13;
+	unsigned short Reserved2: 9;
+
+} sGTX_REG_IRQA;
+
+typedef struct {
+
+	unsigned char E: 1;
+	unsigned char L: 1;
+	unsigned char Reserved1: 7;
+	unsigned short Offset: 7;
+
+} sGTX_REG_IRRE;
+
+typedef struct {
+
+	unsigned short Reserved1: 9;
+	unsigned char Offset: 7;
+
+} sGTX_REG_IRRO;
 
 #pragma pack()
 
