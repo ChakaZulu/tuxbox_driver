@@ -25,7 +25,6 @@
 
 #include "compat.h"
 #include "dvb_frontend.h"
-#include "dvb_i2c.h"
 
 
 static int debug = 0;
@@ -56,7 +55,6 @@ static int debug = 0;
 #define GET_REG0(frontend) ((u8) (((int) frontend->data >> 8) & 0xff))
 #define GET_TUNER(frontend) ((u8) (((int) frontend->data >> 16) & 0xff))
 
-#define GET_I2C(frontend) ((struct dvb_i2c_bus *)(frontend->data))
 
 
 static
@@ -181,14 +179,14 @@ int tuner_set_tv_freq (struct dvb_frontend *frontend, u32 freq)
 				 freq < 454000000 ? 0x92 : 0x34);
 	}
 
-        return tuner_write (GET_I2C(frontend), addr[tuner_type], buf, offs + 4);
+        return tuner_write (frontend->i2c, addr[tuner_type], buf, offs + 4);
 }
 
 
 static
 int probe_tuner (struct dvb_frontend *frontend)
 {
-	struct dvb_i2c_bus *i2c = GET_I2C(frontend);
+	struct dvb_i2c_bus *i2c = frontend->i2c;
 	struct i2c_msg msg = { addr: 0x61, flags: 0, buf: NULL, len: 0 };
 
 	if (i2c->xfer(i2c, &msg, 1) == 1) {
@@ -212,7 +210,7 @@ int probe_tuner (struct dvb_frontend *frontend)
 static
 int ves1820_init (struct dvb_frontend *frontend)
 {
-	struct dvb_i2c_bus *i2c = GET_I2C(frontend);
+	struct dvb_i2c_bus *i2c = frontend->i2c;
 	u8 b0 [] = { 0xff };
 	u8 pwm;
 	int i;
@@ -250,7 +248,7 @@ static
 int ves1820_setup_reg0 (struct dvb_frontend *frontend,
 			u8 real_qam, fe_spectral_inversion_t inversion)
 {
-	struct dvb_i2c_bus *i2c = GET_I2C(frontend);
+	struct dvb_i2c_bus *i2c = frontend->i2c;
 	u8 reg0 = (ves1820_inittab[0] & 0xe3) | (real_qam << 2);
 
 	switch (inversion) {
@@ -278,7 +276,7 @@ int ves1820_setup_reg0 (struct dvb_frontend *frontend,
 static
 int ves1820_reset (struct dvb_frontend *frontend)
 {
-	struct dvb_i2c_bus *i2c = GET_I2C(frontend);
+	struct dvb_i2c_bus *i2c = frontend->i2c;
 	u8 reg0 = GET_REG0(frontend);
 
 	ves1820_writereg (i2c, 0x00, reg0 & 0xfe);
@@ -366,7 +364,7 @@ void ves1820_reset_pwm (struct dvb_frontend *frontend)
 {
 	u8 pwm = GET_PWM(frontend);
 
-	ves1820_writereg (GET_I2C(frontend), 0x34, pwm); 
+	ves1820_writereg (frontend->i2c, 0x34, pwm); 
 }
 
 
@@ -393,7 +391,7 @@ static
 int ves1820_set_parameters (struct dvb_frontend *frontend,
 			    struct dvb_frontend_parameters *p)
 {
-	struct dvb_i2c_bus* i2c = GET_I2C(frontend);
+	struct dvb_i2c_bus* i2c = frontend->i2c;
         int real_qam;
         
         switch (p->u.qam.modulation) {
@@ -437,7 +435,7 @@ int ves1820_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 
 		*status = 0;
 
-                sync = ves1820_readreg (GET_I2C(frontend), 0x11);
+                sync = ves1820_readreg (frontend->i2c, 0x11);
 
 		if (sync & 2)
 			*status |= FE_HAS_SIGNAL;
@@ -458,31 +456,31 @@ int ves1820_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	}
 
 	case FE_READ_BER:
-		*((u32*) arg) = ves1820_readreg(GET_I2C(frontend), 0x14) |
-			        (ves1820_readreg(GET_I2C(frontend), 0x15) << 8) |
-			        (ves1820_readreg(GET_I2C(frontend), 0x16) << 16);
+		*((u32*) arg) = ves1820_readreg(frontend->i2c, 0x14) |
+			        (ves1820_readreg(frontend->i2c, 0x15) << 8) |
+			        (ves1820_readreg(frontend->i2c, 0x16) << 16);
                 *((u32*) arg) *= 10;
 		break;
 
 	case FE_READ_SIGNAL_STRENGTH:
 	{
-		u8 gain = ves1820_readreg(GET_I2C(frontend), 0x17);
+		u8 gain = ves1820_readreg(frontend->i2c, 0x17);
 		*((u16*) arg) = (gain << 8) | gain;
 		break;
 	}
 
 	case FE_READ_SNR:
 	{
-		u8 quality = ~ves1820_readreg(GET_I2C(frontend), 0x18);
+		u8 quality = ~ves1820_readreg(frontend->i2c, 0x18);
 		*((u16*) arg) = (quality << 8) | quality;
 		break;
 	}
 
 	case FE_READ_UNCORRECTED_BLOCKS:
-		*((u32*) arg) = ves1820_readreg (GET_I2C(frontend), 0x13) & 0x7f;
+		*((u32*) arg) = ves1820_readreg (frontend->i2c, 0x13) & 0x7f;
 		if (*((u32*) arg) == 0x7f)
 			*((u32*) arg) = 0xffffffff;
-		ves1820_reset_uncorrected_block_counter (GET_I2C(frontend));
+		ves1820_reset_uncorrected_block_counter (frontend->i2c);
 		break;
 
         case FE_SET_FRONTEND:
@@ -499,8 +497,8 @@ int ves1820_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 		break;
 
 	case FE_SLEEP:
-		ves1820_writereg (GET_I2C(frontend), 0x1b, 0x02);  /* pdown ADC */
-		ves1820_writereg (GET_I2C(frontend), 0x00, 0x80);  /* standby */
+		ves1820_writereg (frontend->i2c, 0x1b, 0x02);  /* pdown ADC */
+		ves1820_writereg (frontend->i2c, 0x00, 0x80);  /* standby */
 		break;
 
         case FE_INIT:
@@ -524,7 +522,7 @@ int ves1820_attach (struct dvb_i2c_bus *i2c)
         if ((ves1820_readreg (i2c, 0x1a) & 0xf0) != 0x70)
                 return -ENODEV;
         
-        dvb_register_frontend (ves1820_ioctl, i2c->adapter, i2c, &ves1820_info);
+        dvb_register_frontend (ves1820_ioctl, i2c, NULL, &ves1820_info);
 
         return 0;
 }
@@ -533,7 +531,7 @@ int ves1820_attach (struct dvb_i2c_bus *i2c)
 static
 void ves1820_detach (struct dvb_i2c_bus *i2c)
 {
-	dvb_unregister_frontend (ves1820_ioctl, i2c->adapter);
+	dvb_unregister_frontend (ves1820_ioctl, i2c);
 }
 
 
