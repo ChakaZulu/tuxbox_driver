@@ -65,6 +65,9 @@ static unsigned short output_width = 360;
 
 static int state = 0, frames;		 // 0: idle, 1: frame is capturing, 2: frame is done
 
+int hpos_delta = 55;
+int vpos_delta = 46;
+
 static wait_queue_head_t frame_wait;
 static DECLARE_MUTEX_LOCKED(lock_open);		// lock for open
 
@@ -81,6 +84,9 @@ static struct file_operations gtx_capture_fops = {
 static int capture_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+    return -EINVAL;	
+	
 	switch (minor)
 	{
 	case 0:
@@ -104,6 +110,8 @@ static int capture_open(struct inode *inode, struct file *file)
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
 	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read, done;
+
+	return -EINVAL;
 
 	switch (minor)
 	{
@@ -170,7 +178,7 @@ static int capture_release(struct inode *inode, struct file *file)
     switch (minor)
     {
 	case 0:
-	    up(&lock_open);
+//FIXME	    up(&lock_open);
 	    return 0;
 	}
     return -EINVAL;
@@ -229,7 +237,7 @@ void gtx_capture_interrupt(int reg, int no)
 	if (frames++>1)
 	{
 	    state=2;
-	    wake_up(&frame_wait);
+//FIXME	    wake_up(&frame_wait);
 	}
     }
 }
@@ -256,14 +264,18 @@ int gtx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     delta_x = (capture_width - output_width) / 2;
     delta_y = (capture_height - output_height) / 2;
     line_stride = ((input_width / scale_x) + 3) & ~3;
+    line_stride *= 2;
 
     printk("gtx_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
     printk("gtx_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
 
-    gtx_reg_s(VCSP)->HPOS = 63 + ((input_x + delta_x) / 2);
+
+//    gtx_reg_s(VCSP)->HPOS = 63 + ((input_x + delta_x) / 2);
+    gtx_reg_s(VCSP)->HPOS = hpos_delta + ((input_x + delta_x) / 2);		
 //    gtx_reg_s(VCSP)->OVOFFS = (scale_y - 1) / 2;
     gtx_reg_s(VCSP)->OVOFFS = 0;
-    gtx_reg_s(VCSP)->EVPOS = 21 + ((input_y + delta_y) / 2);
+//    gtx_reg_s(VCSP)->EVPOS = 42 + ((input_y + delta_y) / 2);
+    gtx_reg_s(VCSP)->EVPOS = vpos_delta + ((input_y + delta_y) / 2);	
 
     gtx_reg_s(VCS)->HDEC = scale_x - 1;
     gtx_reg_s(VCS)->HSIZE = input_width / 2;
@@ -297,7 +309,7 @@ int gtx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     capture_busy = 1;
     
     if (capture_buffer)
-	*capture_buffer = (unsigned char *)(gtx_reg_s(VCSA)->Addr << 1);
+	*capture_buffer = (unsigned char *)capt_buf_addr;
 	
     if (stride)
 	*stride = line_stride;
@@ -358,12 +370,12 @@ int gtx_capture_init(void)
     gtx_reg_s(VCS)->F = 1;   				// Enable filter
     gtx_reg_s(VCS)->B = 0;				// Enable hardware double buffering
     
-/*    if (gtx_allocate_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
+    if (gtx_allocate_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
     {
 	printk("gtx_capture: unable to get interrupt\n");
 	return -EIO;
     }
-*/
+
     gtx_reg_16(VLI1) = 0;	// at beginning of every frame.
 
     return 0;
@@ -373,24 +385,24 @@ void gtx_capture_cleanup(void)
 {
     gtx_capture_stop();
 
-//    gtx_free_irq(1, 13);
+    gtx_free_irq(1, 13);
     gtx_reg_16(RR0) |= (1 << 14);		
 }
 
 static int init_capture(void)
 {
-    printk("$Id: gtx_capture.c,v 1.1 2001/11/01 18:17:31 Jolt Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.2 2001/11/02 00:26:08 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
 
     if (!devfs_handle)
 	return -EIO;
 
-    init_waitqueue_head(&frame_wait);
+//FIXME    init_waitqueue_head(&frame_wait);
   
     gtx_capture_init();
 
-    up(&lock_open);
+//FIXME    up(&lock_open);
     
     return 0;
 }
@@ -401,7 +413,7 @@ static void __exit cleanup_capture(void)
     
     gtx_capture_cleanup();
     
-    down(&lock_open);
+//FIXME    down(&lock_open);
 }
 
 EXPORT_SYMBOL(gtx_capture_set_input);
@@ -410,6 +422,8 @@ EXPORT_SYMBOL(gtx_capture_start);
 EXPORT_SYMBOL(gtx_capture_stop);
 
 #ifdef MODULE
+MODULE_PARM(hpos_delta, "i");
+MODULE_PARM(vpos_delta, "i");
 module_init(init_capture);
 module_exit(cleanup_capture);
 #endif

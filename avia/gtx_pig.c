@@ -58,8 +58,10 @@ extern int gtx_pig_show(unsigned char pig_nr);
 //#define CAPTURE_WIDTH 720
 #define CAPTURE_WIDTH 640
 #define CAPTURE_HEIGHT 576
-#define PIG_WIDTH (160*3)
-#define PIG_HEIGHT (72*3)
+//#define PIG_WIDTH (160*1)
+//#define PIG_HEIGHT (72*1)
+#define PIG_WIDTH (CAPTURE_WIDTH / 2)
+#define PIG_HEIGHT (CAPTURE_HEIGHT / 2)
 
 static devfs_handle_t devfs_handle[GTX_PIG_COUNT];
 static unsigned char pig_busy[GTX_PIG_COUNT] = {0};
@@ -241,7 +243,7 @@ int gtx_pig_set_stack(unsigned char pig_nr, unsigned char stack_order)
     if (pig_nr >= GTX_PIG_COUNT)
 	return -ENODEV;
 	
-    gtx_reg_s(VPS)->S = stack_order;							
+    gtx_reg_s(VPS)->P = stack_order;							
     
     return 0;
 }
@@ -265,7 +267,7 @@ int gtx_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short 
     gtx_reg_s(VPS)->S = stretch;
     gtx_reg_s(VPS)->HEIGHT = height / 2;
     
-    printk("gtx_pig: WIDTH=0x%X, S=0x%X, HEIGHT=0x%X\n", gtx_reg_s(VPS)->WIDTH, gtx_reg_s(VPS)->S, gtx_reg_s(VPS)->HEIGHT);
+    printk("gtx_pig: WIDTH=%d, S=%d, HEIGHT=%d\n", gtx_reg_s(VPS)->WIDTH, gtx_reg_s(VPS)->S, gtx_reg_s(VPS)->HEIGHT);
     
     return 0;
 }
@@ -283,12 +285,13 @@ int gtx_pig_show(unsigned char pig_nr)
 
     printk("gtx_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
-//    gtx_reg_s(VPO)->OFFSET = (unsigned int)(pig_stride[pig_nr]);
+//    gtx_reg_s(VPO)->OFFSET = ((unsigned int)(pig_stride[pig_nr])) >> 2;
     gtx_reg_s(VPO)->OFFSET = 0;
     gtx_reg_s(VPO)->STRIDE = ((unsigned int)(pig_stride[pig_nr])) >> 2;
     gtx_reg_s(VPO)->B = 0;								// Enable hardware double buffering
-
+    
     gtx_reg_s(VPSA)->Addr = ((unsigned int)(pig_buffer[pig_nr])) >> 1;			// Set buffer address (for non d-buffer mode)
+//    gtx_reg_s(VPSA)->Addr = ((unsigned int)(pig_buffer[pig_nr] + (pig_stride[pig_nr] * PIG_HEIGHT))) >> 1;			// Set buffer address (for d-buffer mode)
 
     gtx_reg_s(VPP)->F = 0;
 
@@ -303,10 +306,10 @@ static int gtx_pig_init(void)
 {
     unsigned char pig_nr = 0;
     
-    printk("$Id: gtx_pig.c,v 1.1 2001/11/01 18:25:54 Jolt Exp $\n");
     printk("gtx_pig: init\n");
     
     devfs_handle[pig_nr] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_pig_fops, NULL);
+    
     if (!devfs_handle[pig_nr])
 	return -EIO;
     
@@ -314,9 +317,9 @@ static int gtx_pig_init(void)
 
     gtx_pig_set_pos(pig_nr, 150, 50);
     gtx_pig_set_size(pig_nr, PIG_WIDTH, PIG_HEIGHT, 0);
-    gtx_pig_set_stack(pig_nr, 2);
+    gtx_pig_set_stack(pig_nr, 1);
     
-    gtx_pig_show(pig_nr);
+    //gtx_pig_show(pig_nr);
 
     return 0;
 }
