@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.108 $
+ *   $Revision: 1.109 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.109  2002/09/05 12:30:53  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.108  2002/09/05 11:57:44  Jolt
  *   NAPI bugfix
  *
@@ -571,13 +574,170 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
+void avia_gt_napi_message_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data, void *qdata)
+{
+
+	gtx_demux_t *gtx=(gtx_demux_t*)data;
+	static char sync_lost = 0;
+	sCC_ERROR_MESSAGE msg;
+	sSECTION_COMPLETED_MESSAGE comp_msg;
+	sPRIVATE_ADAPTION_MESSAGE adaption;
+	unsigned i;
+	u8 type;
+	__u32 blocked = 0;
+							
+	while (queue_info->bytes_avail(queue_nr) > 0) {
+							
+		type = queue_info->get_data8(queue_nr);
+							
+		switch(type) {
+		
+			case DMX_MESSAGE_CC_ERROR:
+			
+				sync_lost = 0;
+				msg.type = type;					
+				
+				if (queue_info->bytes_avail(queue_nr) < (sizeof(msg) - 1)) {
+									
+					printk("avia_gt_napi: short CC-error-message received.\n");
+										
+					gtx_reset_queue(queue_nr);
+										
+					break;
+										
+				}
+									
+				queue_info->move_data(queue_nr, ((u8 *)&msg) + 1, sizeof(msg) - 1);
+									
+				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+				
+					if ((gtx->feed[i].state == DMX_STATE_GO) && 
+					    (gtx->feed[i].type == DMX_TYPE_HW_SEC) && 
+						(gtx->feed[i].filter->pid == (msg.pid & 0x1FFF))) {
+					
+						dprintk("avia_gt_napi: cc discontinuity on feed %d\n", i);
+
+						gtx->feed[i].filter->invalid = 1;
+						dmx_set_filter(gtx->feed[i].filter);
+						gtx->feed[i].filter->invalid = 0;
+						gtx_reset_queue(i);
+						gtx->feed[i].sec_len = 0;
+						gtx->feed[i].sec_recv = 0;
+						blocked |= 1 << i;
+						dmx_set_filter(gtx->feed[i].filter);
+						
+						break;
+						
+					}
+					
+				}
+				
+			break;
+									
+			case DMX_MESSAGE_ADAPTION:
+								
+				sync_lost = 0;
+				adaption.type = type;
+									
+				if (queue_info->bytes_avail(queue_nr) < (sizeof(adaption) - 1))	{
+									
+					printk("avia_gt_napi: short private adaption field message.\n");
+
+					gtx_reset_queue(queue_nr);										
+										
+					break;
+										
+				}
+
+				queue_info->move_data(queue_nr, ((u8 *)&adaption) + 1, sizeof(adaption) - 1);
+									
+				if (queue_info->bytes_avail(queue_nr) < adaption.length) {
+									
+					printk("avia_gt_napi: short private adaption field message.\n");
+
+					gtx_reset_queue(queue_nr);
+
+					break;
+										
+				}
+
+				queue_info->move_data(queue_nr, NULL, adaption.length);
+
+			break;
+#if 0	
+			case DMX_MESSAGE_SYNC_LOSS:
+						
+				if (!sync_lost) {
+									
+					sync_lost = 1;
+					printk("avia_gt_napi: lost sync\n");
+										
+					for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+					
+						if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].type == DMX_TYPE_HW_SEC))	{
+						
+							gtx->feed[i].filter->invalid = 1;
+							dmx_set_filter(gtx->feed[i].filter);
+							gtx->feed[i].filter->invalid = 0;
+							gtx_reset_queue(i);
+							gtx->feed[i].sec_len = 0;
+							gtx->feed[i].sec_recv = 0;
+							blocked |= 1 << i;
+							dmx_set_filter(gtx->feed[i].filter);
+							
+							break;
+							
+						}
+						
+					}
+					
+				}
+				
+			break;
+#endif
+			case DMX_MESSAGE_SECTION_COMPLETED:
+								
+				comp_msg.type = type;
+									
+				if (queue_info->bytes_avail(queue_nr) < (sizeof(comp_msg) - 1))	{
+									
+					printk("avia_gt_napi: short section completed message.\n");
+										
+					break;
+										
+				}
+									
+				queue_info->move_data(queue_nr, ((u8 *)&comp_msg) + 1, sizeof(comp_msg) - 1);
+									
+				if (!(blocked & (1 << comp_msg.filter_index))) {
+									
+//					printk("got section completed %d\n",comp_msg.filter_index);
+
+					sync_lost = 0;
+					avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
+						
+				}
+
+			break;
+			
+			default:									
+#if 0
+				printk("bad message, type-value %02X, len = %d\n",type,queue_info->bytes_avail(queue_nr));
+#endif
+			break;
+
+		}
+								
+	}
+						
+}
+
 void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data, void *qdata)
 {
 
 	sAviaGtDmxQueue *queue = (sAviaGtDmxQueue *)qdata;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int ccn = (int)0;
-	static char sync_lost = 0;
 
 		{
 			gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
@@ -590,76 +750,84 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 			{
 //				if (gtxfeed->output&TS_PACKET)
 				{
-					int wptr = (int)0;
-					int rptr = (int)0;
+
 					int i = (int)0;
 
 					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
 					size_t b1l = (size_t)0, b2l = (size_t)0;
 
-					wptr = queue->write_pos;
-					rptr = queue->read_pos;
-
 					// can happen if a queue has been reset but an interrupt is pending
-					if (wptr == rptr)
+					if (queue->write_pos == queue->read_pos)
+						return;
+
+					if (queue->write_pos < queue->mem_addr)
 					{
+						printk("avia_gt_napi: queue->write_pos < base (is: %x, base is %x, queue %d)!\n", queue->write_pos, queue->mem_addr, queue_nr);
 						return;
 					}
 
-					if (wptr < queue->mem_addr)
+					if (queue->write_pos >= (queue->mem_addr + queue->size))
 					{
-						printk("avia_gt_napi: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, queue->mem_addr, queue_nr);
-						return;
-					}
-					if (wptr >= (queue->mem_addr + queue->size))
-					{
-						printk("avia_gt_napi: wptr out of bounds! (is %x)\n", wptr);
+						printk("avia_gt_napi: queue->write_pos out of bounds! (is %x)\n", queue->write_pos);
 						return;
 					}
 
-					b1 = gt_info->mem_addr + rptr;
+					b1 = gt_info->mem_addr + queue->read_pos;
 
-					if (wptr>rptr)	// normal case
-					{
-						b1l=wptr-rptr;
-						b2=0;
-						b2l=0;
-					} else
-					{
-						b1l = queue->mem_addr + queue->size - rptr;
+					if (queue->write_pos > queue->read_pos) {	// normal case
+
+						b1l = queue->write_pos - queue->read_pos;
+						b2 = 0;
+						b2l = 0;
+						
+					} else {
+					
+						b1l = queue->mem_addr + queue->size - queue->read_pos;
 						b2 = gt_info->mem_addr + queue->mem_addr;
-						b2l = wptr - queue->mem_addr;
+						b2l = queue->write_pos - queue->mem_addr;
+						
 					}
 
 					if (gtxfeed->type != DMX_TYPE_MESSAGE) {
 					
 					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
 					{
-						int rlen=b1l+b2l;
+
+						int rlen = b1l + b2l;
+
 						if (*b1 != 0x47)
 						{
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
 							gtx_reset_queue(queue_nr);
 							return;
 						}
-						rlen-=rlen%188;
-						if (!rlen)
-						{
+
+						rlen -= rlen % 188;
+
+						if (!rlen) {
+						
 							dprintk("this SHOULDN'T happen (tm) (incomplete packet)\n");
+							
 							return;
+							
 						}
-						if (rlen<=b1l)
-						{
-							b1l=rlen;
-							b2l=0;
-							queue->read_pos = rptr + b1l;
+
+						if (rlen <= b1l) {
+						
+							b1l = rlen;
+							b2l = 0;
+							queue->read_pos += b1l;
+							
 							if (queue->read_pos == (queue->mem_addr + queue->size))
 								queue->read_pos = queue->mem_addr;
-						} else
-						{
-							b2l=rlen-b1l;
+								
+						} else {
+						
+							b2l = rlen - b1l;
 							queue->read_pos = queue->mem_addr + b2l;
+							
 						}
+						
 					} else
 						gtx_reset_queue(queue_nr);
 
@@ -677,152 +845,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 									gtx->feed[i].cb.ts(b1, b1l, b2, b2l, &gtx->feed[i].feed.ts, 0);
 							break;
 
-						// handle message from dmx
-						case DMX_TYPE_MESSAGE:
-						
-						{
-
-							sCC_ERROR_MESSAGE msg;
-							sSECTION_COMPLETED_MESSAGE comp_msg;
-							sPRIVATE_ADAPTION_MESSAGE adaption;
-							u8 type;
-							unsigned i;
-							__u32 blocked = 0;
-							
-							while (queue_info->bytes_avail(queue_nr) > 0) {
-							
-								type = queue_info->get_data8(queue_nr);
-							
-								if (type == DMX_MESSAGE_CC_ERROR) {
-								
-									sync_lost = 0;
-									msg.type = type;
-
-									if (queue_info->bytes_avail(queue_nr) < (sizeof(msg) - 1)) {
-									
-										printk("avia_gt_napi: short CC-error-message received.\n");
-										
-										//FIXME: reset queue? wjoost?
-										
-										break;
-										
-									}
-									
-									queue_info->move_data(queue_nr, ((u8 *)&msg) + 1, sizeof(msg) - 1);
-									
-									for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++)
-									{
-										if ( (gtx->feed[i].state == DMX_STATE_GO) &&
-										     (gtx->feed[i].type == DMX_TYPE_HW_SEC) &&
-											 (gtx->feed[i].filter->pid == (msg.pid & 0x1FFF)) )
-										{
-											dprintk("avia_gt_napi: cc discontinuity on feed %d\n",i);
-											gtx->feed[i].filter->invalid = 1;
-											dmx_set_filter(gtx->feed[i].filter);
-											gtx->feed[i].filter->invalid = 0;
-											gtx_reset_queue(i);
-											gtx->feed[i].sec_len = 0;
-											gtx->feed[i].sec_recv = 0;
-											blocked |= 1 << i;
-											dmx_set_filter(gtx->feed[i].filter);
-											break;
-										}
-									}
-									
-								} else if (type == DMX_MESSAGE_ADAPTION) {
-								
-									sync_lost = 0;
-									adaption.type = type;
-									
-									if (queue_info->bytes_avail(queue_nr) < (sizeof(adaption) - 1))	{
-									
-										printk("avia_gt_napi: short private adaption field message.\n");
-										
-										//FIXME: reset queue? wjoost?
-										
-										break;
-										
-									}
-
-									queue_info->move_data(queue_nr, ((u8 *)&adaption) + 1, sizeof(adaption) - 1);
-									
-									if (queue_info->bytes_avail(queue_nr) < adaption.length) {
-									
-										printk("avia_gt_napi: short private adaption field message.\n");
-
-										//FIXME: reset queue? wjoost?
-
-										break;
-										
-									}
-
-									queue_info->move_data(queue_nr, NULL, adaption.length);
-
-								}
-#if 0	
-								else if (type == DMX_MESSAGE_SYNC_LOSS) {
-								
-									if (!sync_lost) {
-									
-										sync_lost = 1;
-										printk("avia_gt_napi: lost sync\n");
-										
-										for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++)
-										{
-											if ( (gtx->feed[i].state == DMX_STATE_GO) &&
-											     (gtx->feed[i].type == DMX_TYPE_HW_SEC) )
-											{
-												gtx->feed[i].filter->invalid = 1;
-												dmx_set_filter(gtx->feed[i].filter);
-												gtx->feed[i].filter->invalid = 0;
-												gtx_reset_queue(i);
-												gtx->feed[i].sec_len = 0;
-												gtx->feed[i].sec_recv = 0;
-												blocked |= 1 << i;
-												dmx_set_filter(gtx->feed[i].filter);
-												break;
-											}
-										}
-									}
-								}
-#endif
-								else if (type == DMX_MESSAGE_SECTION_COMPLETED)	{
-								
-									comp_msg.type = type;
-									
-									if (queue_info->bytes_avail(queue_nr) < (sizeof(comp_msg) - 1))	{
-									
-										printk("avia_gt_napi: short section completed message.\n");
-										
-										break;
-										
-									}
-									
-									queue_info->move_data(queue_nr, ((u8 *)&comp_msg) + 1, sizeof(comp_msg) - 1);
-									
-									if (!(blocked & (1 << comp_msg.filter_index))) {
-									
-//										printk("got section completed %d\n",comp_msg.filter_index);
-										sync_lost = 0;
-										avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
-										
-									}
-									
-								} else {
-#if 0
-									printk("bad message, type-value %02X, len = %d\n",type,queue_info->bytes_avail(queue_nr));
-#endif
-//									dump(b1,b1l,b2,b2l);
-
-									break;
-									
-								}
-								
-							}
-						
-						}
-						
-						break;
 						// handle prefiltered section
 						case DMX_TYPE_HW_SEC:
 						{
@@ -1791,7 +1813,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
-		avia_gt_dmx_alloc_queue_message(avia_gt_napi_queue_callback, gtxdemux);
+		avia_gt_dmx_alloc_queue_message(avia_gt_napi_message_callback, gtxdemux);
 		gtx_reset_queue(MESSAGE_QUEUE);
 
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
@@ -1830,7 +1852,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.108 2002/09/05 11:57:44 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.109 2002/09/05 12:30:53 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
