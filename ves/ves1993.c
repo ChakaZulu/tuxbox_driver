@@ -170,7 +170,7 @@ static int tuner_init(void)
 		return -EBUSY;
 	}
 	ves_write_reg(0x00,0x01);  //disable tuner access on ves1993
-	mitel_set_freq(1198000000);
+	//mitel_set_freq(1198000000);
 	
 	return 0;
 }
@@ -208,15 +208,18 @@ int set_tuner_dword(u32 tw)
 
 static int mitel_set_freq(int freq)		/* NOT SURE */
 {
-	u8 buffer[4]={0x25,0x70,0x95,0x00};
+
+	u8 buffer[4]={0x25,0x70,0x92,0x40}; //95
 
 	dprintk("SET:%x\n",freq);
-	freq/=125000;
+	freq/=125000*8;
 	
-	buffer[0]=freq>>8;
-	buffer[1]=freq;
+	buffer[0]=(freq>>8) & 0x7F;
+	buffer[1]=freq & 0xFF;
+	
 	dprintk("SET:%x\n",*((u32*)buffer));
 	set_tuner_dword(*((u32*)buffer));
+
 	return 0;
 }
 
@@ -362,9 +365,9 @@ static inline void ddelay(int i)
 static void ClrBit1893(struct i2c_client *client)
 {
         dprintk("VES_clrbit1893\n");
-        ddelay(2);
-//        writereg(client, 0, Init1993Tab[0] & 0xfe);
-//        writereg(client, 0, Init1993Tab[0]);
+        //ddelay(2);
+        writereg(client, 0, 0);
+        writereg(client, 0, 1);
 }
 
 static int SetFEC(struct i2c_client *client, u8 fec)
@@ -376,7 +379,9 @@ static int SetFEC(struct i2c_client *client, u8 fec)
         if (ves->fec==fec)
                 return 0;
         ves->fec=fec;
-        return writereg(client, 0x0d, ves->fec);
+	//return writereg(client, 0x0d, ves->fec);
+	return writereg(client, 0x0d, 0x08);
+	 
 }
 
 static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
@@ -462,8 +467,8 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
         else
                 writereg(client, 5, Init1993Tab[0x05] & 0x7f);
 
-	writereg(client, 0, 0);
-	writereg(client, 0, 1);
+	//writereg(client, 0, 0);
+	//writereg(client, 0, 1);
 
 	if (doclr)
 	  ClrBit1893(client);
@@ -611,7 +616,8 @@ static struct i2c_client client_template = {
 
 int ves_send_diseqc(u8 *cmd, unsigned int len)
 {
-        return fp_send_diseqc(2,cmd,len);
+        //return fp_send_diseqc(2,cmd,len);
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -654,10 +660,10 @@ int init_module(void) {
 	
 	ves_set_sec(3,0);                    //switch to highband
 
-        mitel_set_freq(1198000000);          
+        //mitel_set_freq(1198000000);          
 		
-        SetSymbolrate(dclient, 27500000 , 1);
-	SetFEC(dclient,2);
+        //SetSymbolrate(dclient, 27500000 , 1);
+	//SetFEC(dclient,2);
 
 	
         return 0;
