@@ -324,6 +324,9 @@ static int at76c651_set_parameters(struct dvb_i2c_bus *i2c,
 	if ((ret = at76c651_set_symbol_rate(i2c, p->u.qam.symbol_rate)))
 		return ret;
 
+	if ((ret = at76c651_set_qam(i2c, p->u.qam.modulation)))
+		return ret;
+
 	if ((ret = at76c651_set_inversion(i2c, p->inversion)))
 		return ret;
 
