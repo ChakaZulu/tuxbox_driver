@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvr.c,v 1.1 2001/03/03 08:24:01 waldi Exp $
+ * $Id: dvr.c,v 1.2 2001/03/03 11:49:17 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -97,7 +97,7 @@ int __init dvr_init_module ()
 {
   devfs_handle = devfs_register ( NULL, "ost/dvr0", DEVFS_FL_DEFAULT,
                                   0, 0,
-                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                                   &ost_dvr_fops, NULL );
 
   return 0;
