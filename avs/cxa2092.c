@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.16  2001/03/22 21:11:36  gillem
+ *   - add default values
+ *
  *   Revision 1.15  2001/03/16 20:49:21  gillem
  *   - fix errors
  *
@@ -62,7 +65,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -541,7 +544,13 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 
 int cxa2092_init(struct i2c_client *client)
 {
+	int i;
+
 	memset((void*)&cxa2092_data,0,CXA2092_DATA_SIZE);
+
+	/* default values */
+	cxa2092_data.asw1 = 1;
+	cxa2092_data.vsw1 = 5;
 
 	return cxa2092_set(client);
 }
