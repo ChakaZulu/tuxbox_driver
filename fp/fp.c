@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.42  2002/01/19 03:38:06  Hunz
+ *   initial keyboard kernel support
+ *
  *   Revision 1.41  2002/01/17 22:38:09  tmbinc
  *   added keyboard support. keyboard events are ignored.
  *
@@ -129,7 +132,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.41 $
+ *   $Revision: 1.42 $
  *
  */
 
@@ -163,6 +166,10 @@
 #include <linux/devfs_fs_kernel.h>
 
 #include <ost/sec.h>
+
+#include <linux/kbd_ll.h>
+#include <linux/kbd_kern.h>
+#include <asm/keyboard.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -265,6 +272,13 @@ static int fp_get_wakeup_timer(void);
 static void fp_restart(char *cmd);
 static void fp_power_off(void);
 static void fp_halt(void);
+
+static int irkbd_setkeycode(unsigned int scancode, unsigned int keycode);
+static int irkbd_getkeycode(unsigned int scancode);
+static int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode);
+static char irkbd_unexpected_up(unsigned char keycode);
+static void irkbd_leds(unsigned char leds);
+static void __init irkbd_init_hw(void);
 
 /* ------------------------------------------------------------------------- */
 
@@ -778,6 +792,36 @@ static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 	}
 }
 
+/* ------------------------------------------------------------------------ */
+
+int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
+  /* TODO? :-) */
+  return keycode;
+}
+
+int irkbd_getkeycode(unsigned int scancode) {
+  /* TODO? :-| */
+  return scancode;
+}
+
+int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
+  /* TODO :-( */
+  return scancode;
+}
+
+char irkbd_unexpected_up(unsigned char keycode) {
+  printk("fp.o: irkbd_unexpected_up\n");
+  return 0;
+}
+
+void irkbd_leds(unsigned char leds) {
+  printk("fp.o: irkbd_leds 0x%02X\n",leds);
+}
+
+void __init irkbd_init_hw(void) {
+  printk("fp.o: IR-Keyboard initialized\n");
+}
+
 /* ------------------------------------------------------------------------- */
 
 static void fp_handle_unknown(struct fp_data *dev)
@@ -856,6 +900,17 @@ static int fp_init(void)
 	ppc_md.power_off=fp_power_off;
 	ppc_md.halt=fp_halt;
 
+	/* keyboard */
+	ppc_md.kbd_setkeycode    = irkbd_setkeycode;
+        ppc_md.kbd_getkeycode    = irkbd_getkeycode;
+        ppc_md.kbd_translate     = irkbd_translate;
+        ppc_md.kbd_unexpected_up = irkbd_unexpected_up;
+        ppc_md.kbd_leds          = irkbd_leds;
+        ppc_md.kbd_init_hw       = irkbd_init_hw;
+#ifdef CONFIG_MAGIC_SYSRQ
+        ppc_md.kbd_sysrq_xlate   = irkbd_sysrq_xlate;
+#endif
+
 	return 0;
 }
 
@@ -894,6 +949,22 @@ static int fp_close(void)
 	{
 		ppc_md.halt=0;
 	}
+	if(ppc_md.kbd_setkeycode==irkbd_setkeycode)
+	  ppc_md.kbd_setkeycode=NULL;
+        if(ppc_md.kbd_getkeycode==irkbd_getkeycode)
+	  ppc_md.kbd_getkeycode=NULL;
+        if(ppc_md.kbd_translate==irkbd_translate)
+	  ppc_md.kbd_translate=NULL;
+	if(ppc_md.kbd_unexpected_up==irkbd_unexpected_up)
+	  ppc_md.kbd_unexpected_up=NULL;
+	if(ppc_md.kbd_leds==irkbd_leds)
+	  ppc_md.kbd_leds=NULL;
+	if(ppc_md.kbd_init_hw==irkbd_init_hw)
+	  ppc_md.kbd_init_hw=NULL;
+#ifdef CONFIG_MAGIC_SYSRQ
+	if(ppc_md.kbd_sysrq_xlate==irkbd_sysrq_xlate)
+	  ppc_md.kbd_sysrq_xlate=NULL;
+#endif
         
 	return 0;
 }
@@ -950,6 +1021,7 @@ static void fp_handle_keyboard(struct fp_data *dev)
 
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	printk("keyboard scancode: %02x\n", scancode);
+        handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
 }
 
 
