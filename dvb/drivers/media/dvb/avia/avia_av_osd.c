@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.3  2001/03/03 00:24:44  gillem
+ *   - not ready ...
+ *
  *   Revision 1.2  2001/02/22 22:49:08  gillem
  *   - add functions
  *
@@ -28,7 +31,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -101,6 +104,7 @@ typedef struct osd_header {
 typedef struct osd_frame {
 	struct osd_header even;
 	struct osd_header odd;
+	struct osd_header header[16*2]; // max 16 * (odd&even)
 } osd_frame;
 
 /* ---------------------------------------------------------------------- */
