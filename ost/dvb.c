@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.35 2001/06/24 11:35:05 gillem Exp $
+ * $Id: dvb.c,v 1.36 2001/06/24 12:10:51 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -45,6 +45,8 @@
 #include <ost/frontend.h>
 #include <ost/sec.h>
 #include <ost/video.h>
+#include <ost/osd.h>
+#include <ost/net.h>
 
 #include <dbox/dvb.h>
 #include <dbox/ves.h>
@@ -296,31 +298,7 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 	}
 	return ret;
 }
-/*
-		case DVB_DEVICE_DVBCLK:
-		case DVB_DEVICE_DVBFE:
-		case DVB_DEVICE_DEMUX:
-		case DVB_DEVICE_SEC:
-		case DVB_DEVICE_CC:
-		case DVB_DEVICE_SCART:
-		case DVB_DEVICE_DVBTEST:
-		case DVB_DEVICE_OPM:
-		case DVB_DEVICE_SC:
-		case DVB_DEVICE_VIDEO:
-		case DVB_DEVICE_AUDIO:
-		case DVB_DEVICE_DSCR:
-		case DVB_DEVICE_FPRTC:
-		case DVB_DEVICE_DVBFLASH:
-		case DVB_DEVICE_TTXT:
-		case DVB_DEVICE_IRRC:
-		case DVB_DEVICE_CI:
-		case DVB_DEVICE_FPD:
-		case DVB_DEVICE_OSTKBD:
-		case DVB_DEVICE_DVBIO:
-		case DVB_DEVICE_FRONTEND:
-		case DVB_DEVICE_DVR:
-		case DVB_DEVICE_CA:
-*/
+
 int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct file *file)
 {
 	struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
@@ -424,6 +402,14 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 			return DmxDevDVROpen(&dvb->dmxdev, file);
 		}
 		case DVB_DEVICE_CA:
+		{
+			break;
+		}
+		case DVB_DEVICE_OSD:
+		{
+			break;
+		}
+		case DVB_DEVICE_NET:
 		{
 			break;
 		}
@@ -534,6 +520,14 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
 		{
 			break;
 		}
+		case DVB_DEVICE_OSD:
+		{
+			break;
+		}
+		case DVB_DEVICE_NET:
+		{
+			break;
+		}
 		default:
 		{
 			return -EOPNOTSUPP;
@@ -641,6 +635,14 @@ ssize_t dvb_read(struct dvb_device *dvbdev, int type, struct file *file, char *b
 		{
 			break;
 		}
+		case DVB_DEVICE_OSD:
+		{
+			break;
+		}
+		case DVB_DEVICE_NET:
+		{
+			break;
+		}
 		default:
 		{
 			return -EOPNOTSUPP;
@@ -745,6 +747,14 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
 			break;
 		}
 		case DVB_DEVICE_CA:
+		{
+			break;
+		}
+		case DVB_DEVICE_OSD:
+		{
+			break;
+		}
+		case DVB_DEVICE_NET:
 		{
 			break;
 		}
@@ -1367,6 +1377,29 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_OSTKBD:
 		{
+		}
+		case DVB_DEVICE_OSD:
+		{
+			switch (cmd)
+			{
+				case OSD_SEND_CMD:
+				default:
+					return -EOPNOTSUPP;
+			}
+
+			return 0;
+		}
+		case DVB_DEVICE_NET:
+		{
+			switch (cmd)
+			{
+				case NET_ADD_IF:
+				case NET_REMOVE_IF:
+				default:
+					return -EOPNOTSUPP;
+			}
+
+			return 0;
 		}
 		default:
 			return -EOPNOTSUPP;
