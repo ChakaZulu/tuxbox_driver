@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.19  2002/05/28 23:44:11  derget
+ *   gtx pic offset fixxt
+ *   hm kann das mal wer testen ? :)
+ *
  *   Revision 1.18  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -56,7 +60,7 @@
  *
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 	
@@ -191,7 +195,7 @@ int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y
 	
     } else if (avia_gt_chip(GTX)) {
     
-        gtx_reg_s(VPP)->HPOS = 63 + (x / 2) - (gtx_reg_s(VPS)->S ? 3 : 0);
+        gtx_reg_s(VPP)->HPOS = 8 + (x / 2) - (gtx_reg_s(VPS)->S ? 3 : 0);
 		gtx_reg_s(VPP)->VPOS = 21 + (y / 2);
 	
     }
@@ -318,7 +322,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.18 2002/05/07 16:59:19 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.19 2002/05/28 23:44:11 derget Exp $\n");
 
     gt_info = avia_gt_get_info();
     
