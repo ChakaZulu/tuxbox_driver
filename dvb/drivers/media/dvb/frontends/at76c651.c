@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.38 2002/11/03 13:45:46 Jolt Exp $
+ * $Id: at76c651.c,v 1.39 2002/11/10 21:06:15 Jolt Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -36,6 +36,7 @@
 #include "dvb_i2c.h"
 
 static int debug = 0;
+static struct dvb_frontend_parameters fe_param;
 
 #define dprintk	if (debug) printk
 
@@ -66,9 +67,8 @@ static struct dvb_frontend_info at76c651_info = {
 		FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
 		FE_CAN_FEC_7_8 | FE_CAN_FEC_8_9 | FE_CAN_FEC_AUTO |
-		FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256 |
+		FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256,
 		/* FE_CAN_QAM_512 | FE_CAN_QAM_1024 |  */
-		FE_CAN_MUTE_TS,
 
 };
 
@@ -303,6 +303,8 @@ static int at76c651_set_parameters(struct dvb_i2c_bus *i2c, struct dvb_frontend_
 	at76c651_set_symbolrate(i2c, p->u.qam.symbol_rate);
 	at76c651_set_inversion(i2c, p->inversion);
 	at76c651_set_auto_config(i2c);
+	
+	memcpy(&fe_param, p, sizeof(fe_param));
 
 	return 0;
 
@@ -379,6 +381,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 				u8 gain = ~at76c651_readreg(fe->i2c, 0x91);
 
 				*(s32 *) arg = (gain << 8) | gain;
+				*(s32 *) arg = 0x0FFF;
 				break;
 			}
 
@@ -394,6 +397,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			return at76c651_set_parameters(fe->i2c, arg);
 
 		case FE_GET_FRONTEND:
+			memcpy(arg, &fe_param, sizeof(fe_param));
 			break;
 #if 0
 		case FE_SLEEP:
@@ -406,7 +410,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			return at76c651_reset(fe->i2c);
 
 		default:
-			return -EINVAL;
+			return -ENOSYS;
 	}
 
 	return 0;
@@ -466,7 +470,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.38 2002/11/03 13:45:46 Jolt Exp $\n");
+	printk("$Id: at76c651.c,v 1.39 2002/11/10 21:06:15 Jolt Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
