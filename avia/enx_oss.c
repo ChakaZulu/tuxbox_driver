@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx_oss.c,v $
+ *   Revision 1.3  2002/04/02 18:14:10  Jolt
+ *   Further features/bugfixes. MP3 works very well now 8-)
+ *
  *   Revision 1.2  2002/04/02 13:57:09  Jolt
  *   Dependency fixes
  *
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -51,9 +54,150 @@
 
 #include <dbox/avia_pcm.h>
 
+#define dprintk(...)
+
 int dsp_dev;
 int mixer_dev;
 sAviaPcmOps *pcm_ops;
+
+static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+
+    int val, retval;
+
+    switch(cmd) {
+    
+	case OSS_GETVERSION:
+
+	    dprintk("avia_oss: IOCTL: OSS_GETVERSION\n");
+	
+    	    return put_user(SOUND_VERSION, (int *)arg);                                                   
+	    
+	break;
+	
+	
+	case SNDCTL_DSP_CHANNELS:
+	
+    	    if (get_user(val, (int *)arg))
+		return -EFAULT;
+		
+	    return pcm_ops->set_channels(val);
+		
+	break;
+						  	
+	case SNDCTL_DSP_SETFMT:
+	
+	    if (get_user(val, (int *)arg))
+		return -EFAULT;
+		
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SETFMT (arg=%d)\n", val);
+	    
+	    switch(val) {
+
+		case AFMT_U8:
+
+		    if ((retval = pcm_ops->set_width(8)) < 0)
+			return retval;
+			
+		    return pcm_ops->set_signed(0);
+		    
+		break;
+
+		case AFMT_S8:
+
+		    if ((retval = pcm_ops->set_width(8)) < 0)
+			return retval;
+			
+		    return pcm_ops->set_signed(1);
+		
+		    return 0;
+		    
+		break;
+
+		case AFMT_S16_BE:
+
+		    pcm_ops->set_width(16);
+		    pcm_ops->set_signed(1);
+		    pcm_ops->set_endian(1);
+		
+		    return 0;
+		    
+		break;
+		
+		case AFMT_S16_LE:
+
+		    pcm_ops->set_width(16);
+		    pcm_ops->set_signed(1);
+		    pcm_ops->set_endian(0);
+		
+		    return 0;
+		    
+		break;
+		
+		case AFMT_U16_BE:
+
+		    pcm_ops->set_width(16);
+		    pcm_ops->set_signed(0);
+		    pcm_ops->set_endian(1);
+
+		    return 0;
+		
+		break;
+		
+		case AFMT_U16_LE:
+
+		    pcm_ops->set_width(16);
+		    pcm_ops->set_signed(0);
+		    pcm_ops->set_endian(0);
+		
+		    return 0;
+		    
+		break;
+		
+		default:
+		
+		    printk("avia_oss: IOCTL: SNDCTL_DSP_SETFMT unkown fmt (arg=%d)\n", val);
+		    
+		    return -EINVAL;
+		
+		break;
+	    
+	    }
+	    
+	break;
+
+	case SNDCTL_DSP_SPEED:
+	
+	    if (get_user(val, (int *)arg))
+		return -EFAULT;
+		
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SPEED (arg=%d)\n", val);
+	    
+	    return pcm_ops->set_rate(val);
+	    
+	break;
+	    
+	case SNDCTL_DSP_SYNC:
+	
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SYNC\n");
+	    
+	    return 0;
+	    
+	break;						
+	
+	default:
+	    
+	    printk("avia_oss: IOCTL: unknown (cmd=%d)\n", cmd);
+	    
+	    return -EINVAL;
+	    
+	break;
+	
+    }
+		 
+    return 0;
+
+}
 
 static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
@@ -66,6 +210,7 @@ static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t cou
 
 static struct file_operations dsp_fops = {
 
+    ioctl: avia_oss_dsp_ioctl,
     owner: THIS_MODULE,
     write: avia_oss_dsp_write,
     
@@ -81,7 +226,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: enx_oss.c,v 1.2 2002/04/02 13:57:09 Jolt Exp $\n");
+    printk("avia_oss: $Id: enx_oss.c,v 1.3 2002/04/02 18:14:10 Jolt Exp $\n");
     
     if ((pcm_ops = (sAviaPcmOps *)inter_module_get(IM_AVIA_PCM_OPS)) == NULL) {
 
@@ -93,7 +238,12 @@ static int __init avia_oss_init(void)
     printk("avia_oss: found %s\n", pcm_ops->name);
     
     pcm_ops->set_pcm_attenuation(0x80, 0x80);
-    pcm_ops->set_mode(44100, 16, 2, 1);
+
+    pcm_ops->set_rate(44100);
+    pcm_ops->set_width(16);
+    pcm_ops->set_channels(2);
+    pcm_ops->set_signed(1);
+    pcm_ops->set_endian(1);
     
     dsp_dev = register_sound_dsp(&dsp_fops, -1);
     mixer_dev = register_sound_mixer(&mixer_fops, -1);
