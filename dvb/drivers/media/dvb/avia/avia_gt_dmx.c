@@ -20,10 +20,15 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.67 $
+ *   $Revision: 1.68 $
  *   $Log: avia_gt_dmx.c,v $
- *   Revision 1.67  2002/02/07 15:26:38  fx2
- *   flicker of colours on sagem -> reduce dac-speed
+ *   Revision 1.68  2002/02/24 15:29:23  woglinde
+ *   test new tuner-api
+ *
+ *   Revision 1.66.2.1  2002/02/09 20:44:01  TripleDES
+ *   fixes
+ *
+ *   CV: ----------------------------------------------------------------------
  *
  *   Revision 1.66  2002/01/18 14:48:52  tmbinc
  *   small fix for multiple pid streaming
@@ -900,12 +905,14 @@ static void gtx_pcr_interrupt(int b, int r)
 
 	rw(DPCR)=((-deltaClk)<<16)|0x0009; */
 
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);	// *16 - sagem tilt
-
 #ifdef enx_dmx
+	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
+
 	enx_reg_h(DAC_PC)=deltaClk;
 	enx_reg_h(DAC_CP)=9;
 #else
+	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
+
 	rw(DPCR)=(deltaClk<<16)|9;
 #endif	
 
@@ -2092,7 +2099,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.67 2002/02/07 15:26:38 fx2 Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.68 2002/02/24 15:29:23 woglinde Exp $\n");
 
 	return gtx_dmx_init();
 }
