@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.5 2003/04/17 07:29:48 obi Exp $
+ * $Id: avia_av_proc.c,v 1.6 2003/05/26 03:11:28 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -72,8 +72,13 @@ int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *
 	if (off == 0) {
 		if (!dram_copy)
 			dram_copy = kmalloc(0x200000, GFP_KERNEL);
+		if (!dram_copy)
+			return -ENOMEM;
 		for (n = 0; n < 512 * 1024; n++)
 			dram_copy[n] = avia_av_dram_read(n << 2);
+	}
+	else if (!dram_copy) {
+		return -EINVAL;
 	}
 
 	n = 0x200000;
@@ -106,7 +111,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.5 2003/04/17 07:29:48 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.6 2003/05/26 03:11:28 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");
