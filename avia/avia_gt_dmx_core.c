@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.43 $
+ *   $Revision: 1.44 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.44  2001/06/15 00:17:26  TripleDES
+ *   fixed queue-reset problem - solves zap problem with enx
+ *
  *   Revision 1.43  2001/04/28 22:43:13  fnbrd
  *   Added fix from tmbinc. ;)
  *
@@ -1285,6 +1288,8 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 #endif  
   }
   printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
+  gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
+  gtx_reset_queue(gtxfeed);
   gtxfeed->state=DMX_STATE_ALLOCATED;
   return 0;  
 }
@@ -1704,7 +1709,7 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
-  dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.43 2001/04/28 22:43:13 fnbrd Exp $\n");
+  dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.44 2001/06/15 00:17:26 TripleDES Exp $\n");
   return gtx_dmx_init();
 }
 
