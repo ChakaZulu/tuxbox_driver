@@ -21,13 +21,16 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.4  2001/02/08 18:53:53  gillem
+ *   *** empty log message ***
+ *
  *   Revision 1.3  2001/02/01 19:56:38  gillem
  *   - 2.4.1 support
  *
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -961,14 +964,14 @@ EXPORT_NO_SYMBOLS;
 #ifdef MODULE
 int init_module(void)
 #else
-int i2c_scartswitch_init(void)
+int saa7126_init(void)
 #endif
 {
 	i2c_add_driver(&driver);
 
 	if (register_chrdev(SAA7126_MAJOR,"saa7126",&saa7126_fops))
 	{
-		printk("XXX.o: unable to get major %d\n", SAA7126_MAJOR);
+		printk("saa7126.o: unable to get major %d\n", SAA7126_MAJOR);
 		return -EIO;
 	}
 
@@ -990,17 +993,3 @@ void cleanup_module(void)
 	saa7126_proc_cleanup();
 }
 #endif
-
-/*
- * Local variables:
- * c-indent-level: 8
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -8
- * c-argdecl-indent: 8
- * c-label-offset: -8
- * c-continued-statement-offset: 8
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */
