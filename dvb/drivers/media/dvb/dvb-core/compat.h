@@ -16,13 +16,11 @@
 #define MODULE_LICENSE(x)
 #endif
 
-
 #ifndef list_for_each_safe
 #define list_for_each_safe(pos, n, head) \
         for (pos = (head)->next, n = pos->next; pos != (head); \
                 pos = n, n = pos->next)
 #endif
-
 
 #ifndef __devexit_p
 #if defined(MODULE)
@@ -32,21 +30,9 @@
 #endif
 #endif
 
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)) || !CONFIG_VIDEO_DEV
-#define video_usercopy generic_usercopy
-
-extern int generic_usercopy(struct inode *inode, struct file *file,
-	                    unsigned int cmd, unsigned long arg,
-			    int (*func)(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg));
-#endif
-
-
 #ifndef minor
 #define minor(dev) MINOR(dev)
 #endif
-
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20))
 static inline
@@ -55,24 +41,6 @@ void cond_resched (void)
 	if (current->need_resched)
 		schedule();
 }
-#endif
-
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-#define video_devdata(dev) (dev->priv)
-
-extern struct page * vmalloc_to_page(void *addr);
-
-#if defined(MODVERSIONS)
-#include <linux/modversions.h>
-#undef remap_page_range
-#define remap_page_range(vma,from,to,size,prot) \
-	_set_ver(remap_page_range)(from,to,size,prot)
-#else
-#define remap_page_range(vma,from,to,size,prot) \
-	remap_page_range(from,to,size,prot)
-#endif
 #endif
 
 

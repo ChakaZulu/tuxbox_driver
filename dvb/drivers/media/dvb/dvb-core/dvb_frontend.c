@@ -418,7 +418,7 @@ int dvb_frontend_is_exiting (struct dvb_frontend_data *fe)
 	if (fe->exit)
 		return 1;
 
-	if (fe->dvbdev->users == 1 && dvb_shutdown_timeout)
+	if (fe->dvbdev->users == 1)
 		if (jiffies - fe->release_jiffies > dvb_shutdown_timeout * HZ)
 			return 1;
 
@@ -437,13 +437,19 @@ int dvb_frontend_thread (void *data)
 
 	lock_kernel ();
 	daemonize ();
+/*	not needed anymore in 2.5.x, done in daemonize()
+	reparent_to_init ();
+*/
 	sigfillset (&current->blocked);
-	strncpy (current->comm, "kdvb-fe", sizeof (current->comm));
 	fe->thread = current;
+	snprintf (current->comm, sizeof (current->comm), "kdvb-fe-%i:%i",
+		  fe->frontend.i2c->adapter->num, fe->frontend.i2c->id);
 	unlock_kernel ();
 
 	dvb_call_frontend_notifiers (fe, 0);
 	dvb_frontend_init (fe);
+
+	fe->lost_sync_count = -1;
 
 	while (!dvb_frontend_is_exiting (fe)) {
 		up (&fe->sem);      /* is locked when we enter the thread... */
@@ -454,6 +460,9 @@ int dvb_frontend_thread (void *data)
 			fe->thread = NULL;
 			return -ERESTARTSYS;
 		}
+
+		if (fe->lost_sync_count == -1)
+			continue;
 
 		if (dvb_frontend_is_exiting (fe))
 			break;
@@ -485,7 +494,9 @@ int dvb_frontend_thread (void *data)
 			dvb_frontend_add_event (fe, s);
 	};
 
-	dvb_frontend_internal_ioctl (&fe->frontend, FE_SLEEP, NULL); 
+	if (dvb_shutdown_timeout)
+		dvb_frontend_internal_ioctl (&fe->frontend, FE_SLEEP, NULL); 
+
 	up (&fe->sem);
 	fe->thread = NULL;
 	return 0;
@@ -518,6 +529,7 @@ void dvb_frontend_start (struct dvb_frontend_data *fe)
 		return;
 
 	fe->exit = 0;
+	fe->thread = (void*) ~0;
 
 	kernel_thread (dvb_frontend_thread, fe, 0);
 }

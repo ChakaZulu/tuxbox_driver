@@ -164,7 +164,7 @@ typedef enum {
 #define DMX_SET_PES_FILTER       _IOW('o',44,struct dmx_pes_filter_params)
 #define DMX_SET_BUFFER_SIZE      _IO('o',45)
 #define DMX_GET_EVENT            _IOR('o',46,struct dmx_event)
-#define DMX_GET_PES_PIDS         _IOR('o',47,uint16_t)
+#define DMX_GET_PES_PIDS         _IOR('o',47,uint16_t[5])
 #define DMX_GET_CAPS             _IOR('o',48,dmx_caps_t)
 #define DMX_SET_SOURCE           _IOW('o',49,dmx_source_t)
 

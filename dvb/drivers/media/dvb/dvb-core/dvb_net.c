@@ -73,7 +73,7 @@ unsigned short my_eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 }
 
 static void 
-dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
+dvb_net_sec(struct net_device *dev, const u8 *pkt, int pkt_len)
 {
         u8 *eth;
         struct sk_buff *skb;
@@ -111,8 +111,8 @@ dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 }
  
 static int 
-dvb_net_callback(u8 *buffer1, size_t buffer1_len,
-		 u8 *buffer2, size_t buffer2_len,
+dvb_net_callback(const u8 *buffer1, size_t buffer1_len,
+		 const u8 *buffer2, size_t buffer2_len,
 		 dmx_section_filter_t *filter,
 		 dmx_success_t success)
 {
@@ -185,8 +185,8 @@ dvb_net_feed_start(struct net_device *dev)
 	priv->secfeed=0;
 	priv->secfilter=0;
 
-	ret=demux->allocate_section_feed(demux, &priv->secfeed, 
-					 dvb_net_callback);
+	ret = demux->allocate_section_feed (demux, &priv->secfeed, 
+					    dvb_net_callback);
 	if (ret<0) {
 		printk("%s: could not get section feed\n", dev->name);
 		return ret;

@@ -170,16 +170,16 @@ typedef struct dmx_section_feed_s dmx_section_feed_t;
 /* Callback functions */ 
 /*--------------------------------------------------------------------------*/ 
 
-typedef int (*dmx_ts_cb) ( __u8 * buffer1, 
+typedef int (*dmx_ts_cb) ( const u8 * buffer1, 
 			   size_t buffer1_length,
-			   __u8 * buffer2, 
+			   const u8 * buffer2, 
 			   size_t buffer2_length,
 			   dmx_ts_feed_t* source, 
 			   dmx_success_t success); 
 
-typedef int (*dmx_section_cb) (	__u8 * buffer1,
+typedef int (*dmx_section_cb) (	const u8 * buffer1,
 				size_t buffer1_len,
-				__u8 * buffer2, 
+				const u8 * buffer2, 
 				size_t buffer2_len,
 			       	dmx_section_filter_t * source,
 			       	dmx_success_t success);

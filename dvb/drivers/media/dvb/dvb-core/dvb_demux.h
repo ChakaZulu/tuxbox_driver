@@ -96,12 +96,13 @@ struct dvb_demux {
         void *priv;
         int filternum;
         int feednum;
-        int (*start_feed) (struct dvb_demux_feed *);
-        int (*stop_feed) (struct dvb_demux_feed *);
-        int (*write_to_decoder) (struct dvb_demux_feed *, u8 *buf, size_t len);
-	u32 (*check_crc32) (struct dvb_demux_feed *,
+        int (*start_feed) (struct dvb_demux_feed *feed);
+        int (*stop_feed) (struct dvb_demux_feed *feed);
+        int (*write_to_decoder) (struct dvb_demux_feed *feed,
+				 const u8 *buf, size_t len);
+	u32 (*check_crc32) (struct dvb_demux_feed *feed,
 			    const u8 *buf, size_t len);
-	void (*memcopy) (struct dvb_demux_feed *, u8 *dst,
+	void (*memcopy) (struct dvb_demux_feed *feed, u8 *dst,
 			 const u8 *src, size_t len);
   
         int users;
