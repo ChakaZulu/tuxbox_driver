@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.78 2003/10/08 18:59:32 obi Exp $
+ * $Id: avia_av_core.c,v 1.79 2003/10/16 08:42:20 alexw Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -876,10 +876,9 @@ static int avia_av_init(void)
 
 	/* read firmware */
 	if (avia_av_firmware_read(firmware, (char**) &microcode) == 0) {
+		printk("avia_av: microcode not found, setting up dummy\n");
 		set_fs(fs);
-		iounmap((void*)aviamem);
-		aviamem = NULL;
-		return -EIO;
+		return 0;
 	}
 
 	set_fs(fs);
@@ -1376,7 +1375,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.78 2003/10/08 18:59:32 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.79 2003/10/16 08:42:20 alexw Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
