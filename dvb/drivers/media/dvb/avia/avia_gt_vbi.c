@@ -40,13 +40,16 @@
 #include "avia_gt.h"
 #include "avia_gt_vbi.h"
 
-static u8 ttx_flag = 0;
+//static u8 ttx_flag = 0;
 static sAviaGtInfo *gt_info = NULL;
+
 
 //#define VBI_IRQ
 
 static void avia_gt_vbi_reset(u8 reenable)
 {
+
+	dprintk("avia_gt_vbi_reset(%d)\n",reenable);
 
 	if (avia_gt_chip(ENX))
 		enx_reg_set(RSTR0, TTX, 1);
@@ -55,7 +58,7 @@ static void avia_gt_vbi_reset(u8 reenable)
 
 	if (reenable) {
 
-		ttx_flag = 1;
+//		ttx_flag = 1;
 
 		if (avia_gt_chip(ENX))
 			enx_reg_set(RSTR0, TTX, 0);
@@ -69,11 +72,11 @@ static void avia_gt_vbi_reset(u8 reenable)
 void avia_gt_vbi_start(void)
 {
 
-	avia_gt_vbi_stop();
+//	avia_gt_vbi_stop();
 
 	dprintk("avia_gt_vbi: starting vbi reinsertion\n");
 
-	if (!ttx_flag)
+//	if (!ttx_flag)
 		avia_gt_vbi_reset(1);
 
 	if (avia_gt_chip(ENX))
@@ -143,7 +146,7 @@ int __init avia_gt_vbi_init(void)
 	u16 irq_nr = 0;
 #endif
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.18 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.19 2002/12/29 16:22:33 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -174,6 +177,8 @@ int __init avia_gt_vbi_init(void)
 		enx_reg_set(CFGR0, TCP, 0);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_set(CR1, TCP, 0);
+
+	avia_gt_vbi_reset(0);
 
 	return 0;
 

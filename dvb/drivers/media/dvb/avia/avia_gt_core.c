@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.27  2002/12/29 16:22:33  wjoost
+ *   Videotext reinsertion.
+ *
  *   Revision 1.26  2002/12/23 11:25:33  Jolt
  *   Follow v4l2 api changes
  *
@@ -105,7 +108,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 
@@ -298,7 +301,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.26 2002/12/23 11:25:33 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.27 2002/12/29 16:22:33 wjoost Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -487,7 +490,7 @@ int __init avia_gt_init(void)
 
 	}
 	
-	avia_gt_vbi_start();
+//	avia_gt_vbi_start();
 
 	init_state = 13;
 
