@@ -783,17 +783,18 @@ ssize_t
 DmxDevRead(dmxdev_t *dmxdev, struct file *file, 
 	   char *buf, size_t count, loff_t *ppos)
 {
+	down_interruptible(&dmxdev->mutex);
+
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 	int ret=0;
 
-//	down_interruptible(&dmxdev->mutex);
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 		ret=DmxDevReadSec(dmxdevfilter, file, buf, count, ppos);
 	else
 		ret=DmxDevBufferRead(&dmxdevfilter->buffer, 
 				     file->f_flags&O_NONBLOCK, 
 				     buf, count, ppos);
-//	up(&dmxdev->mutex);
+	up(&dmxdev->mutex);
 	return ret;
 }
 
@@ -801,15 +802,19 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file, 
 		unsigned int cmd, unsigned long arg)
 {
+	down_interruptible(&dmxdev->mutex);
+
 	void *parg=(void *)arg;
 	int ret=0;
 
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
   
 	if (!dmxdevfilter)
+	{
+		up(&dmxdev->mutex);
 		return -EINVAL;
+	}
 
-	down_interruptible(&dmxdev->mutex);
 	switch (cmd) {
 	case DMX_START: 
 		if (dmxdevfilter->state<2)
@@ -872,50 +877,65 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 unsigned int 
 DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
+	down_interruptible(&dmxdev->mutex);
+
+	unsigned int ret = 0;
+
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 
 	if (!dmxdevfilter)
-		return -EINVAL;
+		ret = -EINVAL;
+	else if (dmxdevfilter->state==DMXDEV_STATE_TIMEDOUT)
+		ret = (POLLHUP);
+	else if (dmxdevfilter->state==DMXDEV_STATE_FREE)
+		ret = 0;
+	else if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
+		ret = (POLLIN | POLLRDNORM | POLLPRI);
+	else if (dmxdevfilter->state!=DMXDEV_STATE_GO)
+		ret = 0;
+        else
+	{
+		poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
-	if (dmxdevfilter->state==DMXDEV_STATE_TIMEDOUT)
-		return (POLLHUP);
+		if (dmxdevfilter->state==DMXDEV_STATE_FREE)
+			ret = 0;
+		else if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
+			ret = (POLLIN | POLLRDNORM | POLLPRI);
+	}
 
-	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
-		return 0;
+	up(&dmxdev->mutex);
 
-	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-		return (POLLIN | POLLRDNORM | POLLPRI);
-
-	if (dmxdevfilter->state!=DMXDEV_STATE_GO)
-		return 0;
-
-	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
-
-	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
-		return 0;
-		
-	if (dmxdevfilter->buffer.pread!=dmxdevfilter->buffer.pwrite)
-		return (POLLIN | POLLRDNORM | POLLPRI);
-
-
-	return 0;
+	return ret;
 }
 
 unsigned int 
 DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
-	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
+	down_interruptible(&dmxdev->mutex);
+
+	unsigned int ret = 0;
+
+	if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	{
 		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-			return (POLLIN | POLLRDNORM | POLLPRI);
+		{
+			ret = (POLLIN | POLLRDNORM | POLLPRI);
+		}
+		else
+		{
+			poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 		
-		poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
-		
-		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
-			return (POLLIN | POLLRDNORM | POLLPRI);
-		
-		return 0;
+			if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
+				ret = (POLLIN | POLLRDNORM | POLLPRI);
+			else
+				ret = 0;
+		}
 	} else 
-		return (POLLOUT | POLLWRNORM | POLLPRI);
+		ret = (POLLOUT | POLLWRNORM | POLLPRI);
+
+	up(&dmxdev->mutex);
+
+	return ret;
 }
 
 
