@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.52  2003/01/09 07:23:43  obi
+ *   time_before(a,b) wants longs
+ *
  *   Revision 1.51  2002/12/27 21:03:52  wjoost
  *   Abort tuts auch (und passt auch besser).
  *
@@ -209,7 +212,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.51 $
+ *   $Revision: 1.52 $
  *
  */
 
@@ -633,7 +636,7 @@ u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 static u32 avia_cmd_status_get_addr(void)
 {
 
-	u64 timeout = jiffies + HZ * 2;
+	long timeout = jiffies + HZ * 2;
 
 	while ((!rDR(0x5C)) && (time_before(jiffies, timeout)))
 		schedule();
@@ -1099,7 +1102,7 @@ static int init_avia(void)
 	switch (aviarev)
 	{
 		case 0:
-			dprintk(KERN_INFO "AVIA: AVIA 600 found. (no support yet)\n");
+			dprintk(KERN_INFO "AVIA: AVIA 600L found.\n");
 			break;
 		case 1:
 			dprintk(KERN_INFO "AVIA: AVIA 500 LB3 found. (no microcode)\n");
@@ -1113,8 +1116,6 @@ static int init_avia(void)
 			dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
 			break;
 	}
-
-	/* TODO: AVIA 600 INIT !!! */
 
 	/* D.4.3 - Initialize the SDRAM DMA Controller */
 	switch (aviarev)
@@ -1357,15 +1358,14 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			if ((play_state_video == AVIA_AV_PLAY_STATE_PLAYING) && bypass_mode_changed && aviarev)
 			{
 //				avia_command(Reset);
-				avia_command(Abort,0);
-				avia_command(SelectStream,3 - bypass_mode,pid_audio);
-				avia_command(SelectStream,0,pid_video);
-				avia_command(Play,0,pid_video,pid_audio);
+				avia_command(Abort, 0);
+				avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+				avia_command(SelectStream, 0x00, pid_video);
+				avia_command(Play, 0, pid_video, pid_audio);
 				bypass_mode_changed = 0;
 			}
 			else
 			{
-
 				if (bypass_mode)
 					avia_command(SelectStream, 0x02, pid_audio);
 				else
@@ -1662,7 +1662,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.51 2002/12/27 21:03:52 wjoost Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.52 2003/01/09 07:23:43 obi Exp $\n");
 
 	aviamem = 0;
 
