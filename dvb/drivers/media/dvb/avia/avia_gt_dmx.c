@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.156 2003/01/10 20:26:51 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.157 2003/01/10 21:47:03 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1557,7 +1557,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 	u8 anz_normal;
 	u8 compare_len;
 	s8 different_bit_index;
-	u8 xor;
+	u8 xor = 0;
 	u8 not_the_first = 0;
 	u8 not_the_second = 0;
 	struct dvb_demux_filter *filter = (struct dvb_demux_filter *) f;
@@ -2053,7 +2053,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.156 2003/01/10 20:26:51 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.157 2003/01/10 21:47:03 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
