@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.13  2001/06/24 07:50:18  gillem
+ *   - more functions in nokia ostnet scart api
+ *
  *   Revision 1.12  2001/05/26 09:20:09  gillem
  *   - add stv6412
  *
@@ -58,7 +61,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -405,35 +408,236 @@ static int avs_detach(struct i2c_client *client)
 static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	dprintk("[AVS]: command\n");
+
+	switch (type)
+	{
+		case CXA2092:
+			return cxa2092_command(client, cmd, arg );
+			break;
+		case CXA2126:
+			return cxa2126_command(client, cmd, arg );
+			break;
+		default:
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
+/* nokia-ostnet scart api -> driver api wrapper */
 
 int scart_command( unsigned int cmd, void *arg )
 {
-	dprintk("[SCART]: nokia command\n");
+	dprintk("[SCART]: nokia-ostnet scart api\n");
 
 	switch (cmd)
 	{
 		case SCART_VOLUME_SET:
+		{
+			scartVolume sVolume;
+
+			if ( copy_from_user( &sVolume, arg, sizeof(scartVolume) ) )
+			{
+				return -EFAULT;
+			}
+
+			// ??? curVol ??? i'm not sure
+			return avs_command( &client_template, AVSIOSVOL, &sVolume.curVol );
+		}
 		case SCART_VOLUME_GET:
+		{
+			int32_t value;			
+			scartVolume sVolume;
+
+			sVolume.minVol = 0;
+			sVolume.maxVol = 63;
+			sVolume.incVol = 1;
+
+			if ( avs_command( &client_template, AVSIOGVOL, &value ) )
+			{
+				return -EINVAL;
+			}
+
+			sVolume.curVol = value;
+
+			return copy_to_user( arg, &sVolume, sizeof(scartVolume) );
+		}
 		case SCART_MUTE_SET:
+		{
+			return avs_command( &client_template, AVSIOSMUTE, arg );
+		}
 		case SCART_MUTE_GET:
+		{
+			return avs_command( &client_template, AVSIOGMUTE, arg );
+		}
 		case SCART_AUD_FORMAT_SET:
+		{
+			int32_t value;
+
+			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			// TODO: set
+
+			return 0;
+		}
 		case SCART_AUD_FORMAT_GET:
+		{
+			int32_t value;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &value, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_VID_FORMAT_SET:
+		{
+			int32_t value;
+
+			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			// TODO: set
+
+			return 0;
+		}
 		case SCART_VID_FORMAT_GET:
+		{
+			int32_t value;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &value, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_VID_FORMAT_INPUT_GET:
+		{
+			int32_t value;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &value, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_SLOW_SWITCH_SET:
+		{
+			int32_t value;
+
+			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			// TODO: set
+
+			return 0;
+		}
 		case SCART_SLOW_SWITCH_GET:
+		{
+			int32_t value;
+
+			// TODO: get
+
+			if ( copy_from_user( arg, &value, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_RGB_LEVEL_SET:
+		{
+			scartRGBLevel sRGBLevel;
+
+			if ( copy_from_user( &sRGBLevel, arg, sizeof(scartRGBLevel) ) )
+			{
+				return -EFAULT;
+			}
+
+			// TODO: set
+
+			return 0;
+		}
 		case SCART_RGB_LEVEL_GET:
+		{
+			scartRGBLevel sRGBLevel;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &sRGBLevel, sizeof(scartRGBLevel) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_RGB_SWITCH_SET:
+		{
+			int32_t value;
+
+			if ( copy_from_user( &value, arg, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_RGB_SWITCH_GET:
+		{
+			int32_t value;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &value, sizeof(int32_t) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 		case SCART_BYPASS_SET:
+		{
+			scartBypass sBypass;
+
+			if ( copy_from_user( &sBypass, arg, sizeof(scartBypass) ) )
+			{
+				return -EFAULT;
+			}
+
+			// TODO: set
+
+			return 0;
+		}
 		case SCART_BYPASS_GET:
-			return -EOPNOTSUPP;
+		{
+			scartBypass sBypass;
+
+			// TODO: get
+
+			if ( copy_to_user( arg, &sBypass, sizeof(scartBypass) ) )
+			{
+				return -EFAULT;
+			}
+
+			return 0;
+		}
 
 		default:
 			return -EOPNOTSUPP;
@@ -455,17 +659,7 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	}
 	else
 	{
-		switch (type)
-		{
-			case CXA2092:
-				return cxa2092_command(&client_template, cmd, (void*)arg );
-				break;
-			case CXA2126:
-				return cxa2126_command(&client_template, cmd, (void*)arg );
-				break;
-			default:
-				return -EINVAL;
-		}
+		return avs_command( &client_template, cmd, (void*)arg );
 	}
 
 	return 0;
