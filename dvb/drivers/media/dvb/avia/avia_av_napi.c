@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.28 2003/12/19 20:25:04 derget Exp $
+ * $Id: avia_av_napi.c,v 1.29 2003/12/22 05:31:39 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -35,6 +35,7 @@
 #include "avia_napi.h"
 #include "avia_av.h"
 #include "avia_av_napi.h"
+#include "avia_gt_config.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_napi.h"
 #include "avia_gt_pcm.h"
@@ -556,7 +557,9 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			audiostate.mixer_state.volume_right = 255;
 
 		avia_av_set_audio_attenuation(((255 - max(audiostate.mixer_state.volume_left, audiostate.mixer_state.volume_right)) * 96) / 255);
+#if defined(CONFIG_AVIA_GT_PCM)
 		avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1, (audiostate.mixer_state.volume_right + 1) >> 1);
+#endif
 		break;
 
 	case AUDIO_SET_STREAMTYPE:
@@ -741,7 +744,7 @@ static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.28 2003/12/19 20:25:04 derget Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.29 2003/12/22 05:31:39 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

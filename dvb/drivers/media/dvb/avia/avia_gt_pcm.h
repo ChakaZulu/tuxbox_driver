@@ -26,6 +26,8 @@
 #ifndef AVIA_GT_PCM_H
 #define AVIA_GT_PCM_H
 
+#ifdef CONFIG_AVIA_GT_PCM
+
 #define AVIA_GT_PCM_BUFFER_COUNT	25
 #define AVIA_GT_PCM_MAX_SAMPLES		1023
 #define AVIA_GT_PCM_MAX_BPS		4
@@ -33,6 +35,8 @@
 
 #if (AVIA_GT_PCM_BUFFER_SIZE * AVIA_GT_PCM_BUFFER_COUNT) > AVIA_GT_MEM_PCM_SIZE
 #error AViA pcm buffer exceeds AViA pcm memory pool!
+#endif
+
 #endif
 
 unsigned int avia_gt_pcm_get_block_size(void);

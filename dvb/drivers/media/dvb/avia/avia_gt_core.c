@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.43 2003/10/08 19:54:24 obi Exp $
+ * $Id: avia_gt_core.c,v 1.44 2003/12/22 05:31:39 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -120,7 +120,7 @@ int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.43 2003/10/08 19:54:24 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.44 2003/12/22 05:31:39 obi Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
@@ -273,6 +273,7 @@ int __init avia_gt_init(void)
 
 	init_state = 8;
 
+#if defined(CONFIG_AVIA_GT_DMX)
 	if (avia_gt_dmx_init()) {
 		printk(KERN_ERR "avia_gt_core: avia_gt_dmx_init failed\n");
 		avia_gt_exit();
@@ -280,7 +281,9 @@ int __init avia_gt_init(void)
 	}
 
 	init_state = 9;
+#endif
 
+#if defined(CONFIG_AVIA_GT_GV)
 	if (avia_gt_gv_init()) {
 		printk(KERN_ERR "avia_gt_core: avia_gt_gv_init failed\n");
 		avia_gt_exit();
@@ -288,7 +291,9 @@ int __init avia_gt_init(void)
 	}
 
 	init_state = 10;
+#endif
 
+#if defined(CONFIG_AVIA_GT_PCM)
 	if (avia_gt_pcm_init()) {
 		printk(KERN_ERR "avia_gt_core: avia_gt_pcm_init failed\n");
 		avia_gt_exit();
@@ -296,7 +301,9 @@ int __init avia_gt_init(void)
 	}
 
 	init_state = 11;
+#endif
 
+#if defined(CONFIG_AVIA_GT_CAPTURE)
 	if (avia_gt_capture_init()) {
 		printk(KERN_ERR "avia_gt_core: avia_gt_capture_init failed\n");
 		avia_gt_exit();
@@ -312,7 +319,9 @@ int __init avia_gt_init(void)
 	}
 
 	init_state = 13;
+#endif
 
+#if defined(CONFIG_AVIA_GT_DMX)
 	if (avia_gt_vbi_init()) {
 		printk(KERN_ERR "avia_gt_core: avia_gt_vbi_init failed\n");
 		avia_gt_exit();
@@ -322,6 +331,8 @@ int __init avia_gt_init(void)
 	init_state = 14;
 #endif
 
+#endif /* !STANDALONE */
+
 	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
 
 	return 0;
@@ -330,27 +341,39 @@ int __init avia_gt_init(void)
 void avia_gt_exit(void)
 {
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
+
+#if defined(CONFIG_AVIA_GT_DMX)
 	if (init_state >= 14)
 		avia_gt_vbi_exit();
+#endif
 
+#if defined(CONFIG_AVIA_GT_CAPTURE)
 	if (init_state >= 13)
 		avia_gt_pig_exit();
 
 	if (init_state >= 12)
 		avia_gt_capture_exit();
+#endif
 
+#if defined(CONFIG_AVIA_GT_PCM)
 	if (init_state >= 11)
 		avia_gt_pcm_exit();
+#endif
 
+#if defined(CONFIG_AVIA_GT_GV)
 	if (init_state >= 10)
 		avia_gt_gv_exit();
+#endif
 
+#if defined(CONFIG_AVIA_GT_DMX)
 	if (init_state >= 9)
 		avia_gt_dmx_exit();
+#endif
 
 	if (init_state >= 8)
 		avia_gt_accel_exit();
-#endif
+
+#endif /* !STANDALONE */
 
 	if (init_state >= 7) {
 		if (avia_gt_chip(ENX))
