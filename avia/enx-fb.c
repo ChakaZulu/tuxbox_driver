@@ -21,16 +21,13 @@
  *
  *
  *   $Log: enx-fb.c,v $
+ *   Revision 1.2  2001/03/03 00:26:15  Jolt
+ *   Version cleanup
+ *
  *   Revision 1.1  2001/03/03 00:25:23  Jolt
  *   initial version
  *
- *   Revision 1.8  2001/02/04 20:46:14  tmbinc
- *   improved framebuffer.
- *
- *   Revision 1.7  2001/01/31 17:17:46  tmbinc
- *   Cleaned up avia drivers. - tmb
- *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
