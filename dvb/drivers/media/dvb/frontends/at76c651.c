@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.7 2001/03/20 21:45:07 fnbrd Exp $
+    $Id: at76c651.c,v 1.8 2001/03/22 11:27:18 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,8 +33,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
-    Revision 1.7  2001/03/20 21:45:07  fnbrd
-    Symbolrate sollte jetzt richtig sein, irq geht, tuner wird eingeblendet.
+    Revision 1.8  2001/03/22 11:27:18  fnbrd
+    IRQ aktiviert, Tuner fest eingeblendet (zum testen).
 
     Revision 1.5  2001/03/16 13:04:16  fnbrd
     Alle Interrupt-Routinen auskommentiert (task), da sie auch beim alten Treiber
@@ -58,20 +58,24 @@
 #include <asm/8xx_immap.h>
 
 #include <dbox/ves.h>
+
+void ves_tuner_i2c(int an); // Sollte evtl. noch ins ves.h
+
 /*
   exported functions:
     void ves_write_reg(int reg, int val);
     void ves_init(void);
     void ves_set_frontend(struct frontend *front);
     void ves_get_frontend(struct frontend *front);
+    void ves_tuner_i2c(int an)
 */
 //EXPORT_SYMBOL(ves_write_reg); // Zur Sicherheit auskommentiert.
 EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
+EXPORT_SYMBOL(ves_get_unc_packet);
+EXPORT_SYMBOL(ves_tuner_i2c);
 
-// Da im irq (task) beim ves1820 anscheinend nichts gemacht
-// irqs komplett auskommentiert
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
 
@@ -84,7 +88,8 @@ static int debug = 9;
 
 static struct i2c_driver dvbt_driver;
 static struct i2c_client client_template, *dclient;
-/*
+
+/* VES1820:
 u8 Init1820PTab[] =
 {
   0x49, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,               // changed by tmbinc, according to sniffed i2c-stuff. not validated at all.
@@ -110,7 +115,7 @@ u8 Init1820PTab[] =
 };
 */
 
-int ves_task(void*);
+void ves_task(void*);
 
 struct tq_struct ves_tasklet=
 {
@@ -118,12 +123,14 @@ struct tq_struct ves_tasklet=
 	data: 0
 };
 
-struct ves1820 {
+typedef struct ves1820 {
 //        int inversion;
         u32 srate;
+	u32 ber;
         u8 pwm;
+	u32 uncp; /* uncorrectable packet */
 //        u8 reg0;
-};
+} ves1820_t;
 
 
 int writereg(struct i2c_client *client, u8 reg, u8 data)
@@ -158,9 +165,25 @@ u8 readreg(struct i2c_client *client, u8 reg)
         return mm2[0];
 }
 
+// Tuner an i2c an/abhaengen
+void ves_tuner_i2c(int an)
+{
+  if(an) {
+    writereg(dclient, 0x0c, 0xc2|1);
+    dprintk("AT76C651: tuner now attached to i2c at 0xc2\n");
+  }
+  else {
+    writereg(dclient, 0x0c, 0xc2);
+    dprintk("AT76C651: tuner now detached from i2c\n");
+  }
+}
+
 int init(struct i2c_client *client)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
+
+	ves->uncp = 0;
+	ves->ber=0;
 
         dprintk("AT76C651: init chip\n");
 	ves->pwm=readreg(client, 0x17);
@@ -190,9 +213,11 @@ int init(struct i2c_client *client)
 	writereg(client, 0x07, 0x01);
 
         // Wir enablen mal den Tuner (staendig, zum testen) (addr c2)
-        writereg(client, 0x0c, 0xc2|1);
-	dprintk("AT76C651: tuner now connected to i2c at 0xc2\n");
+        ves_tuner_i2c(1);
+
         // Noch mehr noetig?
+        // BBFREQ (0x04, 0x05) ?
+        // OUTPUTCFG (0x08) ? z.B. Pin TUNCLK
 
 	return 0;
 
@@ -234,7 +259,7 @@ int init(struct i2c_client *client)
 */
 }
 
-/*
+/* VES1820: Was macht das?
 void ClrBit1820(struct i2c_client *client)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
@@ -279,7 +304,7 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 //#define FREF 69600000UL
         u32 mantisse;
         u8 exp;
-	int i;
+//	int i;
         u32 tmp;
 	u32 fref;
         if (Symbolrate > FREF/2)
@@ -484,6 +509,7 @@ int attach_adapter(struct i2c_adapter *adap)
         dclient=client;
 
         client->data=ves=kmalloc(sizeof(struct ves1820),GFP_KERNEL);
+
         if (ves==NULL) {
                 kfree(client);
                 return -ENOMEM;
@@ -495,6 +521,8 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("AT76C651: attached to adapter %s\n", adap->name);
+
+	ves_tasklet.data = (void*)client->data;
 
         /* mask interrupt */
 	// Moegliche Trigger: Pins LOCK1/LOCK2, singal loss, frame rate lost und per frame-timer
@@ -517,8 +545,7 @@ int detach_client(struct i2c_client *client)
         // IRQs abschalten
 	writereg(client, 0x0b, 0x00);
         // Tuner abhaengen
-        writereg(client, 0x0c, 0xc2);
-	dprintk("AT76C651: tuner now disconnected from i2c\n");
+        ves_tuner_i2c(0);
 
         i2c_detach_client(client);
         kfree(client->data);
@@ -549,10 +576,17 @@ void ves_set_frontend(struct frontend *front)
 
 void ves_get_frontend(struct frontend *front)
 {
+  ves1820_t *ves = (ves1820_t*)dclient->data;
+//  if(!ves)
+//    return; // Kann eigentlich nicht vorkommen
   front->type=FRONT_DVBC;
+  front->vber=ves->ber;
+  front->nest=0;
+/*
   front->vber=readreg(dclient, 0x83);
   front->vber|=(readreg(dclient, 0x82)<<8);
   front->vber|=((readreg(dclient, 0x81)&0x0f)<<16);
+*/
 
 /* VES1820:
   front->type=FRONT_DVBC;
@@ -566,6 +600,15 @@ void ves_get_frontend(struct frontend *front)
   front->vber|=(readreg(dclient,0x15)<<8);
   front->vber|=(readreg(dclient,0x16)<<16);
 */
+}
+
+int ves_get_unc_packet(u32 *uncp)
+{
+  ves1820_t *ves = (ves1820_t*)dclient->data;
+  *uncp=ves->uncp;
+  return 0;
+//  *uncp=0;
+//  return -1;
 }
 
 void inc_use (struct i2c_client *client)
@@ -584,6 +627,7 @@ void dec_use (struct i2c_client *client)
 
 static struct i2c_driver dvbt_driver = {
         "AT76C651 DVB DECODER",
+//        33,
         I2C_DRIVERID_EXP2, // experimental use id
 //        I2C_DRIVERID_VES1820,
         I2C_DF_NOTIFY,
@@ -596,6 +640,7 @@ static struct i2c_driver dvbt_driver = {
 
 static struct i2c_client client_template = {
         "AT76C651",
+//        33,
         I2C_DRIVERID_EXP2, // experimental use id
 //        I2C_DRIVERID_VES1820,
         0,
@@ -609,14 +654,31 @@ static struct i2c_client client_template = {
 /* ---------------------------------------------------------------------- */
 
 
-int ves_task(void*dummy)
+void ves_task(void *data)
 {
-	u8 status;
-	u32 ber1;
         u8 ber2;
-        u8 nperr;
+	ves1820_t *ves = (ves1820_t*)data;
+
         dprintk("AT76C651: ves_task\n");
+
+        // Kein Register zur Unterscheidung der IRQ-Quelle gefunden
+        // Evtl. LOCK (0x80) benutzen
+	ves->ber=readreg(dclient, 0x83);
+        ves->ber|=(readreg(dclient, 0x82)<<8);
+        ves->ber|=((readreg(dclient, 0x81)&0x0f)<<16);
+        dprintk("AT76C651: ber1: 0x%x\n", ves->ber);
+	ber2=readreg(dclient, 0x84);
+        dprintk("AT76C651: ber2: 0x%02x\n", ber2);
+	ves->uncp=readreg(dclient, 0x85);
+        dprintk("AT76C651: nperr: 0x%02x\n", ves->uncp);
+        // IRQ Pin ruecksetzen durch schreiben in ein Register
+	writereg(dclient, 0x0b, 0x0c); // signal input loss und frame lost
+	enable_irq(VES_INTERRUPT);
+
+	return;
+
 /* VES1820:
+//	u8 status;
 	status = readreg(dclient, 0x33);
 
 	// read ber
@@ -628,20 +690,6 @@ int ves_task(void*dummy)
 		vber|=(readreg(dclient,0x16)<<16);
 	}
 */
-	ber1=readreg(dclient, 0x83);
-        ber1|=(readreg(dclient, 0x82)<<8);
-        ber1|=((readreg(dclient, 0x81)&0x0f)<<16);
-        dprintk("AT76C651: ber1: 0x%x\n", ber1);
-	ber2=readreg(dclient, 0x84);
-        dprintk("AT76C651: ber2: 0x%02x\n", ber2);
-	nperr=readreg(dclient, 0x85);
-        dprintk("AT76C651: nperr: 0x%02x\n", nperr);
-        // IRQ Pin ruecksetzen durch schreiben in ein Register
-	writereg(dclient, 0x0b, 0x0c); // signal input loss und frame lost
-//	writereg(&client_template, 0x0b, 0x0c); // signal input loss und frame lost
-	enable_irq(VES_INTERRUPT);
-
-	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
