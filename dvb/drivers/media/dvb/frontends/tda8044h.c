@@ -1,5 +1,5 @@
 /* 
- *   $Id: tda8044h.c,v 1.8 2002/04/20 18:23:16 obi Exp $
+ *   $Id: tda8044h.c,v 1.9 2002/04/24 12:08:38 obi Exp $
  *   
  *   tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -23,6 +23,9 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.9  2002/04/24 12:08:38  obi
+ *   made framing byte hack nicer
+ *
  *   Revision 1.8  2002/04/20 18:23:16  obi
  *   added raw diseqc command
  *
@@ -54,7 +57,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -557,11 +560,11 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
                 case SEC_CMDTYPE_DISEQC_RAW:
 		{
 			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
-			msg[0]=command->u.diseqc_raw.cmdtype;
-			msg[1]=command->u.diseqc_raw.addr;
-			msg[2]=command->u.diseqc_raw.cmd;
-			memcpy(msg+3, command->u.diseqc_raw.params, command->u.diseqc_raw.numParams);
-			tda_send_diseqc(client, msg, command->u.diseqc_raw.numParams+3);
+			msg[0]=command->u.diseqc.cmdtype;
+			msg[1]=command->u.diseqc.addr;
+			msg[2]=command->u.diseqc.cmd;
+			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
+			tda_send_diseqc(client, msg, command->u.diseqc.numParams+3);
 			break;
 		}
 		default:

@@ -30,16 +30,13 @@
 
 #define SEC_MAX_DISEQC_PARAMS 3
 
+/*
+ * cmdtype is not part of the official api.
+ * it is ignored if SEC_CMDTYPE_DISEQC_RAW
+ * is not set.
+ */
 struct secDiseqcCmd {
-	uint8_t addr;
-	uint8_t cmd;
-	uint8_t numParams;
-	uint8_t params[SEC_MAX_DISEQC_PARAMS];
-};
-
-/* api breaker */
-struct secDiseqcRawCmd {
-	uint8_t cmdtype;
+	uint8_t cmdtype; 
 	uint8_t addr;
 	uint8_t cmd;
 	uint8_t numParams;
@@ -93,7 +90,6 @@ struct secCommand {
 	int32_t type;
 	union {
 	        struct secDiseqcCmd diseqc;
-		struct secDiseqcRawCmd diseqc_raw;
 		uint8_t vsec;
 		uint32_t pause;
 	} u;
