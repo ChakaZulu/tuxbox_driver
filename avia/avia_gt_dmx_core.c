@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.54 $
+ *   $Revision: 1.55 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.55  2001/09/02 01:28:34  TripleDES
+ *   -small fix (dac)
+ *
  *   Revision 1.54  2001/09/02 01:16:42  TripleDES
  *   -more fixes (corrects my wrong commit)
  *
@@ -814,7 +817,7 @@ static void gtx_pcr_interrupt(int b, int r)
 
   rw(DPCR)=((-deltaClk)<<16)|0x0009; */
 
-  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*32);
+  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
 
 #ifdef enx_dmx
   enx_reg_h(DAC_PC)=deltaClk;
@@ -1936,7 +1939,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.54 2001/09/02 01:16:42 TripleDES Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.55 2001/09/02 01:28:34 TripleDES Exp $\n");
 
 	return gtx_dmx_init();
 }
