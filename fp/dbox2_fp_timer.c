@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.8 2002/12/03 23:28:17 obi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.9 2002/12/18 19:07:03 Zwen Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -35,7 +35,16 @@ dbox2_fp_timer_init (void)
 	boot_trigger = BOOT_TRIGGER_USER;
 	manufacturer_id = fp_get_info()->mID;
 	fp_i2c_client = fp_get_i2c();
-	dbox2_fp_timer_clear();
+	/*
+	 * FIXME FIXME FIXME FIXME FIXME:
+	 * 
+	 *     dbox2_fp_timer_clear often kills the i2c bus!
+	 *     though this function is IMHO not the reason why the i2c bus dies
+	 *     it triggers the bug
+	 *     
+	 * FIXME FIXME FIXME FIXME FIXME:
+	 */
+	/* dbox2_fp_timer_clear(); */
 }
 
 
@@ -98,38 +107,33 @@ dbox2_fp_timer_get (void)
 int
 dbox2_fp_timer_clear (void)
 {
-	u8 id [] = { 0x00, 0x00 };
+	u8 id [] = { 0x00,0x00 };
 	u8 cmd;
-
-	/*
-	 * FIXME FIXME FIXME FIXME FIXME:
-	 * 
-	 *     do *NOT* kill the i2c
-	 *      bus on nokia boxes!
-	 *
-	 * FIXME FIXME FIXME FIXME FIXME:
-	 */
-	if (manufacturer_id == DBOX_MID_NOKIA)
-		return 0;
 
 	/* clear wakeup timer (neccesary to clear any timer when booted manually) */
 	dbox2_fp_timer_set(0);
 
-	/* this cmd reads the boot trigger & restores the normal shutdown behaviour for sagem/phillips */
-	cmd = FP_CLEAR_WAKEUP;
+	/* this cmd reads the boot trigger : its the 0x80 bit in the interrupt status reg -> 0x20 */
+	cmd = FP_STATUS;
 	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 		return -1;
 
 	boot_trigger = (id[0] & 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
 
-	/* nokia needs an additional read to restore normal shutdown behavior */
-	if (manufacturer_id==DBOX_MID_NOKIA)
+	/* this commands clears the hw reboot flag and also clears the status reg 0x20 */
+	if(boot_trigger == BOOT_TRIGGER_TIMER || 1)
 	{
-		cmd = FP_CLEAR_WAKEUP_NOKIA;
+		if (manufacturer_id==DBOX_MID_NOKIA)
+		{
+			cmd = FP_CLEAR_WAKEUP_NOKIA;
+		}
+		else
+		{
+			cmd = FP_CLEAR_WAKEUP_SAGEM;
+		}
 		if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 			return -1;
 	}
-
 	return 0;
 }
 

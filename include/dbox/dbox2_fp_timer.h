@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.h,v 1.2 2002/10/22 19:28:06 Zwen Exp $
+ * $Id: dbox2_fp_timer.h,v 1.3 2002/12/18 19:07:03 Zwen Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -28,8 +28,9 @@
 #define FP_WAKEUP_NOKIA		0x11
 #define FP_WAKEUP_PHILIPS	0x01
 #define FP_WAKEUP_SAGEM		0x01
-#define FP_CLEAR_WAKEUP		0x20
-#define FP_CLEAR_WAKEUP_NOKIA		0x2A
+#define FP_STATUS		0x20
+#define FP_CLEAR_WAKEUP_NOKIA		0x2B
+#define FP_CLEAR_WAKEUP_SAGEM		0x21
 
 #define BOOT_TRIGGER_USER	0x00
 #define BOOT_TRIGGER_TIMER	0x01

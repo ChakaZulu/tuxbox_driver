@@ -275,6 +275,9 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		return 0;
 	}
 
+	case FP_IOCTL_CLEAR_WAKEUP_TIMER:
+		return dbox2_fp_timer_clear();
+	
 	case FP_IOCTL_GET_VCR:
 		if (copy_to_user((void *) arg, &defdata->fpVCR, sizeof(defdata->fpVCR)))
 			return -EFAULT;
@@ -592,9 +595,6 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 	if (request_8xxirq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
 		panic("Could not allocate FP IRQ!");
 
-	// dbox2_fp_timer_init causes trouble when called from dbox2_fp_init, but works here
-	dbox2_fp_timer_init();
-
 	up(&rc_opened);  
 	return 0;
 }
@@ -838,6 +838,7 @@ __init fp_init (void)
 	dbox2_fp_irkbd_init();
 	dbox2_fp_reset_init();
 	dbox2_fp_sec_init();
+	dbox2_fp_timer_init();
 	dbox2_fp_tuner_init();
 
 	return 0;
