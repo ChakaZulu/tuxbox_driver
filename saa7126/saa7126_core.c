@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.30 2003/03/05 09:52:17 waldi Exp $
+ * $Id: saa7126_core.c,v 1.31 2003/03/09 19:42:51 waldi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -93,7 +93,7 @@ static struct saa7126_initdata saa7126_inittab_pal [] =
 			    0xbf, 0x60, 0x42, 0x07, 0x00, 0x05, 0x16, 0x04,
 			    0x16, 0x16, 0x36, 0x60 } },				/* sagem */
 
-	{ 0x07, 0x7e,  2, { 0x00, 0x00 } },					/* common */
+	{ 0x07, 0x7d,  3, { 0x00, 0x00, 0x00 } },				/* common */
 
 	{ 0xff },								/* end */
 };
