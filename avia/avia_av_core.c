@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.15  2001/04/27 20:02:37  fnbrd
+ *   Debugausgabe der Modulversion.
+ *
  *   Revision 1.14  2001/04/27 19:46:59  fnbrd
  *   Unterscheidung von enx/gtx.
  *
@@ -89,7 +92,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -1218,6 +1221,7 @@ MODULE_PARM(firmware,"s");
 
 int init_module(void)
 {
+	dprintk("AVIA: $Id: avia_av_core.c,v 1.15 2001/04/27 20:02:37 fnbrd Exp $\n");
 	return init_avia();
 }
 
