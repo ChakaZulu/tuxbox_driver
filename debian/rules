@@ -44,6 +44,7 @@ install: build
 	dh_installdirs
 
 	cp -a include/dbox/ $(CURDIR)/debian/tuxbox-driver-dev/usr/include/
+	cp -a include/tuxbox/ $(CURDIR)/debian/tuxbox-driver-dev/usr/include/tuxbox/
 	cp -a dvb/include/linux $(CURDIR)/debian/tuxbox-driver-dev/usr/include/
 	find $(CURDIR)/debian/tuxbox-driver-dev/usr/include/ -name CVS | xargs rm -r
 
