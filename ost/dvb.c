@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.6 2001/03/06 19:56:51 Hunz Exp $
+ * $Id: dvb.c,v 1.7 2001/03/06 22:08:45 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -502,7 +502,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     break;
   }
   case DVB_DEVICE_SEC:
-        switch(type) {
+        switch(cmd) {
     case SEC_GET_STATUS:
       {
 	struct secStatus status;
