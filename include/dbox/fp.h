@@ -20,10 +20,10 @@
 #define FP_MINOR        0
 #define RC_MINOR        1
 
-static int fp_set_tuner_dword(int type, u32 tw);
-static int fp_set_polarisation(int pol);
-static int fp_do_reset(int type);
-static int fp_send_diseqc(u32 dw);
+int fp_set_tuner_dword(int type, u32 tw);
+int fp_set_polarisation(int pol);
+int fp_do_reset(int type);
+int fp_send_diseqc(u32 dw);
 
 #endif
 #endif

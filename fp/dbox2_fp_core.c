@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.10  2001/03/03 13:03:20  gillem
+ *   - fix code
+ *
  *   Revision 1.9  2001/02/25 21:11:36  gillem
  *   - fix fpid
  *
@@ -30,7 +33,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -733,7 +736,7 @@ static void fp_task(void *arg)
 
 /* ------------------------------------------------------------------------- */
 
-static int fp_set_tuner_dword(int type, u32 tw)
+int fp_set_tuner_dword(int type, u32 tw)
 {
 	char msg[7]={0, 7, 0xC0};	/* default qam */
     int len=0;
@@ -779,7 +782,7 @@ static int fp_set_tuner_dword(int type, u32 tw)
 
 /* ------------------------------------------------------------------------- */
 
-static int fp_send_diseqc(u32 dw)
+int fp_send_diseqc(u32 dw)
 {
 	char msg[]={0, 0x1B};
 	int c;
@@ -810,7 +813,7 @@ static int fp_send_diseqc(u32 dw)
 
 /* ------------------------------------------------------------------------- */
 
-static int fp_set_polarisation(int pol)
+int fp_set_polarisation(int pol)
 {
 	char msg[2]={0x21, 0};
 
