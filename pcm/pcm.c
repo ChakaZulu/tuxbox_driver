@@ -19,7 +19,14 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
+ *  Supported devices:
+ *  /dev/dsp    standard /dev/dsp device, (mostly) OSS compatible
+ *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
+ *
  *   $Log: pcm.c,v $
+ *   Revision 1.6  2001/01/06 10:24:06  gillem
+ *   add some mixer stuff (not work now)
+ *
  *   Revision 1.5  2001/01/06 10:07:10  gillem
  *   cvs check
  *
@@ -27,7 +34,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -76,6 +83,7 @@ MODULE_DESCRIPTION("GTX-PCM Driver");
 struct pcm_state {
 	/* soundcore stuff */
 	int dev_audio;
+	int dev_mixer;
 };
 
 struct pcm_state s;
@@ -370,6 +378,63 @@ static void pcm_interrupt( int reg, int bit )
   wake_up_interruptible( &pcm_wait );
 }
 
+/* --------------------------------------------------------------------- */
+
+static const struct {
+	unsigned volidx:4;
+	unsigned left:4;
+	unsigned right:4;
+	unsigned stereo:1;
+	unsigned recmask:13;
+	unsigned avail:1;
+} mixtable[SOUND_MIXER_NRDEVICES] = {
+	[SOUND_MIXER_VOLUME] = { 0, 0x0, 0x1, 1, 0x0000, 1 },   /* master */
+	[SOUND_MIXER_PCM]    = { 1, 0x2, 0x3, 1, 0x0400, 1 },   /* voice */
+	[SOUND_MIXER_SYNTH]  = { 2, 0x4, 0x5, 1, 0x0060, 1 },   /* FM */
+	[SOUND_MIXER_CD]     = { 3, 0x6, 0x7, 1, 0x0006, 1 },   /* CD */
+	[SOUND_MIXER_LINE]   = { 4, 0x8, 0x9, 1, 0x0018, 1 },   /* Line */
+	[SOUND_MIXER_LINE1]  = { 5, 0xa, 0xb, 1, 0x1800, 1 },   /* AUX */
+	[SOUND_MIXER_LINE2]  = { 6, 0xc, 0x0, 0, 0x0100, 1 },   /* Mono1 */
+	[SOUND_MIXER_LINE3]  = { 7, 0xd, 0x0, 0, 0x0200, 1 },   /* Mono2 */
+	[SOUND_MIXER_MIC]    = { 8, 0xe, 0x0, 0, 0x0001, 1 },   /* Mic */
+	[SOUND_MIXER_OGAIN]  = { 9, 0xf, 0x0, 0, 0x0000, 1 }    /* mono out */
+};
+
+static int mixer_ioctl(struct pcm_state *s, unsigned int cmd, unsigned long arg)
+{
+	return 0;
+}
+
+static loff_t pcm_llseek(struct file *file, loff_t offset, int origin)
+{
+	return -ESPIPE;
+}
+
+static int pcm_open_mixdev(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int pcm_release_mixdev(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int pcm_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return mixer_ioctl((struct pcm_state *)file->private_data, cmd, arg);
+}
+
+static /*const*/ struct file_operations pcm_mixer_fops = {
+	owner:		THIS_MODULE,
+	llseek:		pcm_llseek,
+	ioctl:		pcm_ioctl_mixdev,
+	open:		pcm_open_mixdev,
+	release:	pcm_release_mixdev,
+};
+
+/* --------------------------------------------------------------------- */
+
 static int init_audio(void)
 {
   printk("DBox-II PCM driver v0.1\n");
@@ -408,7 +473,10 @@ static int __init init_pcm(void)
 {
 	printk(KERN_INFO "pcm: version v0.1 time " __TIME__ " " __DATE__ "\n");
 
+	// Todo: error handling ...
 	s.dev_audio = register_sound_dsp(&pcm_fops, -1); //) < 0)
+
+	s.dev_mixer = register_sound_mixer(&pcm_mixer_fops, -1); //) < 0)
 
   return init_audio();
 }
@@ -417,11 +485,40 @@ static void __exit cleanup_pcm(void)
 {
 	printk(KERN_INFO "pcm: unloading\n");
 
-  unregister_sound_dsp(s.dev_audio);
-
 	gtx_free_irq( PCM_INTR_REG, PCM1_INTR_BIT );
 	gtx_free_irq( PCM_INTR_REG, PCM2_INTR_BIT );
+
+  unregister_sound_dsp(s.dev_audio);
+  unregister_sound_mixer(s.dev_mixer);
 }
 
 module_init(init_pcm);
 module_exit(cleanup_pcm);
+
+/* --------------------------------------------------------------------- */
+
+// Todo: add kernel support
+#ifndef MODULE
+
+static int __init pcm_setup(char *str)
+{
+/*
+	static unsigned __initdata nr_dev = 0;
+
+	if (nr_dev >= NR_DEVICE)
+		return 0;
+
+	(void)
+	(   (get_option(&str,&joystick[nr_dev]) == 2)
+	 && (get_option(&str,&lineout [nr_dev]) == 2)
+	 &&  get_option(&str,&micbias [nr_dev])
+	);
+
+	nr_dev++;
+	return 1;
+*/
+}
+
+__setup("pcm=", pcm_setup);
+
+#endif /* MODULE */
