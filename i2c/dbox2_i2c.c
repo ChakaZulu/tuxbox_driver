@@ -25,8 +25,18 @@
 #define TXBD_L 0x0800  /* Last, this buffer is the last in this frame */
                        /* This bit causes the STOP condition to be sent */
 #define TXBD_S 0x0400  /* Start condition.  Causes this BD to transmit a start */
+
+#define TXBD_NAK 0x0004	 /* indicates nak */
+#define TXBD_UN  0x0002  /* indicates underrun */
+#define TXBD_CO  0x0001  /* indicates collision */
+
 #define RXBD_E 0x8000  /* Receive buffer is empty and can be used by CPM */
 #define RXBD_W 0x2000  /* Wrap, last receive buffer in buffer circle */
+#define RXBD_I 0x1000  /* Int. */
+#define RXBD_L 0x0800  /* Last */
+
+#define RXBD_OV 0x0002		/* indicates overrun */
+
 
 #define I2C_TX_LEN      128
 #define I2C_RX_LEN      128
@@ -105,7 +115,7 @@ static int i2c_setrate (int hz, int speed)
 
 #ifdef DEBUG_I2C_RATE
 	printk("Best is:\n");
-	printk("\nCPU=%dhz RATE=%d F=%d I2MOD=%08x I2BRG=%08x DIFF=%dhz",
+	printk("CPU=%dhz RATE=%d F=%d I2MOD=%08x I2BRG=%08x DIFF=%dhz\n",
 	    hz, speed,
 	    bestspeed_filter, bestspeed_modval, bestspeed_brgval,
 	    bestspeed_diff);
@@ -145,7 +155,6 @@ void i2c_init(int speed)
   // Set the I2C BRG Clock division factor from desired i2c rate
   // and current CPU rate (we assume sccr dfbgr field is 0;
   // divide BRGCLK by 1)
-
   i2c_setrate (66*1024*1024, speed) ;
   
   /* Set I2C controller in master mode
@@ -161,10 +170,10 @@ void i2c_init(int speed)
   rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
   txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
 
-  printk("rbase = %04x\n", iip->iic_rbase);
-  printk("tbase = %04x\n", iip->iic_tbase);
-  printk("Rxbd1=%08x\n", (int)rxbd);
-  printk("Txbd1=%08x\n", (int)txbd);
+  printk("RBASE = %04x\n", iip->iic_rbase);
+  printk("TBASE = %04x\n", iip->iic_tbase);
+  printk("RXBD1 = %08x\n", (int)rxbd);
+  printk("TXBD1 = %08x\n", (int)txbd);
 
   /* Set big endian byte order
    */
@@ -176,19 +185,32 @@ void i2c_init(int speed)
   iip->iic_mrblr = 128;
 
 // i2c->i2c_i2mod |= ((bestspeed_modval & 3) << 1) | (bestspeed_filter << 3);
-  i2c->i2c_i2brg = 7;
+//  i2c->i2c_i2brg = 7;
 
     // Rx: Wrap, no interrupt, empty
   rxbuf      = (unsigned char*)m8xx_cpm_hostalloc(128);
+
+	if (rxbuf==0)
+	{
+		printk("INIT ERROR: no RXBUF mem available\n");
+	}
+
   rxbd->addr = (unsigned char*)__pa(rxbuf);
-  printk("%08X\n",(uint)rxbd->addr);
+  printk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
   rxbd->status = 0xa800;
   rxbd->length = 0;
 
   // Tx: Wrap, no interrupt, not ready to send, last
   txbuf      = (unsigned char*)m8xx_cpm_hostalloc(128);
-  txbd->addr = (unsigned char*)__pa(txbuf); //((unsigned char *)&cp->cp_dpmem[m8xx_cpm_hostalloc(128)]);
-  printk("%08X\n",(uint)txbd->addr);
+
+	if (txbuf==0)
+	{
+		printk("INIT ERROR: no TXBUF mem available\n");
+	}
+
+  txbd->addr = (unsigned char*)__pa(txbuf);
+  printk("TXBD1->ADDR = %08X\n",(uint)txbd->addr);
+
   txbd->status = 0x2800;
   txbd->length = 0;
 
@@ -200,23 +222,27 @@ void i2c_init(int speed)
 	// Clear events and interrupts
   i2c->i2c_i2cer = 0xff ;
   i2c->i2c_i2cmr = 0 ;
+
+  /* Turn off I2C */
+  i2c->i2c_i2mod&=(~1);
 }
 
-///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
 int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataout )
 {
-  int i,j;
+  int i,j,ret;
 
   if( size > I2C_TX_LEN )  /* Trying to send message larger than BD */
-    return 0;
+    return -1;
 
   while( txbd->status & TXBD_R ) ; // Loop until previous data sent
 
   if(size==0)
    size++;
    
+	ret = size;
+
   txbd->length = size + 1;  /* Length of message plus dest address */
   txbuf[0] = address;  /* Write destination address to BD */
   txbuf[0] &= ~(0x01);  /* Set address to write */
@@ -226,7 +252,8 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
     txbuf[i]=dataout[j];
 
   /* Ready to Transmit, wrap, last */
-  txbd->status |= TXBD_R | TXBD_W;
+  txbd->status |= TXBD_R | TXBD_W | TXBD_S;
+	txbd->status &= (~TXBD_L);
 
   /* Enable I2C */
   i2c->i2c_i2mod |= 1;
@@ -236,91 +263,143 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 
   while( txbd->status & TXBD_R );               // todo: sleep with irq
 
+	/* some error msg */
+	if ( txbd->status & TXBD_NAK )
+	{
+		printk("TXBD: NAK\n");
+		ret = -1;
+	}
+	if ( txbd->status & TXBD_UN )
+	{
+		printk("TXBD: UNDERRUN\n");
+		ret = -1;
+	}
+	if ( txbd->status & TXBD_CO )
+	{
+		printk("TXBD: COLLISION\n");
+		ret = -1;
+	}
+  if ( i==1000 )
+	{
+    printk("TXBD: TIMEOUT\n");
+		ret = -1;
+	}
+
   i2c->i2c_i2mod &= (~1);
 
-  if (txbd->status & 4)
-  {
-//    printk("(~%02X)",address);
-    return -1;
-  }
-  txbd->status &= (~4);
+	/* clear flags */
+  txbd->status &= (~(TXBD_NAK|TXBD_UN|TXBD_CO));
+
   iip->iic_rstate = 0;
   iip->iic_tstate = 0;
-  return size;
+
+  return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 int i2c_receive(unsigned char address,
                 unsigned short size_to_expect, unsigned char *datain )
 {
-  int i;
+  int i,j,ret;
 
   if( size_to_expect > I2C_RX_LEN )
-		return 0;  /* Expected to receive too much */
+		return -1;  /* Expected to receive too much */
 
   /* Turn on I2C */
   i2c->i2c_i2mod |= 0x01;
 
-  memset(rxbuf,0,128);
-  memset(txbuf,0,128);
+	ret = size_to_expect;
 
   /* Setup TXBD for destination address */
+  txbuf[0] = address | 0x01;
+
   txbd->length = 1 + size_to_expect;
+
   if (!size_to_expect)
     txbd->length++;
-  txbuf[0] = address | 0x01;
-  txbuf[1] = 0;
 
-  /* Buffer ready to transmit, wrap, loop */
-  txbd->status |= TXBD_R | TXBD_W | TXBD_L | TXBD_S;
+  txbd->status |= TXBD_W | TXBD_S | TXBD_L;
 
   /* Reset the rxbd */
   rxbd->status |= RXBD_E | RXBD_W;
+
+  /* Buffer ready to transmit, wrap, start */
+  txbd->status |= TXBD_R;
 
   /* Begin transmission */
   i2c->i2c_i2com |= 0x80;
 
   i=0;
-  while( (txbd->status & TXBD_R) && (i<1000))  /* Loop until transmit completed */
+
+  while( (txbd->status & TXBD_R) && (i<1000))
   {
     i++;
     udelay(1000);
   }
-	
-  if ( i==1000)
-  {
-    printk("TX-TIMEOUT\n");
-    return -1;
-  } else if ( (txbd->status & 4) )
-  {
-    txbd->status &= (~4);
-    return -1;
-  } else 
-  {
-    udelay(250);
-    i=0;
-    while( (rxbd->status & RXBD_E) && (i<1000) )  /* Wait until receive is finished */
-    {
-      i++;
-      udelay(1000);
-    }
-    if (i<1000)
-    {
-      for(i=0; i<size_to_expect; i++)
+
+	/* some error msg */
+	if ( txbd->status & TXBD_NAK )
+	{
+		printk("TXBD: NAK\n");
+		ret = -1;
+	}
+	if ( txbd->status & TXBD_UN )
+	{
+		printk("TXBD: UNDERRUN\n");
+		ret = -1;
+	}
+	if ( txbd->status & TXBD_CO )
+	{
+		printk("TXBD: COLLISION\n");
+		ret = -1;
+	}
+  if ( i==1000 )
+	{
+    printk("TXBD: TIMEOUT\n");
+		ret = -1;
+	}
+
+	/* clear flags */
+  txbd->status &= (~(TXBD_NAK|TXBD_UN|TXBD_CO));
+
+	i=0;
+	while( (rxbd->status & RXBD_E) && (i<1000) )  /* Wait until receive is finished */
+	{
+		i++;
+		udelay(1000);
+	}
+
+	/* some error msg */
+  if ( i==1000 )
+	{
+    printk("RXBD: TIMEOUT\n");
+		ret = -1;
+	}
+	if ( rxbd->length == 0  )
+	{
+		printk("RXBD: NO DATA\n");
+		ret = -1;
+	}
+	if ( rxbd->status & RXBD_OV )
+	{
+		printk("RXBD: OVERRUN\n");
+	 	rxbd->status &= (~RXBD_OV);
+		ret = -1;
+	}
+
+  if (ret != -1)
+	{
+      for(i=0;i<rxbd->length;i++)
         datain[i]=rxbuf[i];
-    } else
-    {
-      printk("RX-TIMEOUT\n");
-    }
-    rxbd->length=0;
-  }
+	}
 
   /* Turn off I2C */
   i2c->i2c_i2mod&=(~1);
 
   iip->iic_rstate=0;
   iip->iic_tstate=0;
-  return size_to_expect;
+
+  return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -392,9 +471,11 @@ static int __init i2c_algo_8xx_init (void)
   adap.algo=&i2c_8xx_algo;
   adap.timeout=100;
   adap.retries=3;
+
 #ifdef MODULE
 //  MOD_INC_USE_COUNT;
 #endif
+
   printk("adapter: %x\n", i2c_add_adapter(&adap));
   return 0;
 }
@@ -413,6 +494,7 @@ int i2c_8xx_del_bus(struct i2c_adapter *adap)
 #ifdef MODULE
 //  MOD_DEC_USE_COUNT;
 #endif
+
   return 0;
 }
 
