@@ -116,7 +116,7 @@
 #define GTX_REG_DPCR	0x110
 
 /* Framer */
-#define GTX_REG_PRCPID	0x120
+#define GTX_REG_PCRPID	0x120
 #define GTX_REG_PCR2	0x122
 #define GTX_REG_PCR1	0x124
 #define GTX_REG_PCR0	0x126
@@ -130,7 +130,7 @@
 #define GTX_REG_SYNCH	0x136
 #define GTX_REG_PFIFO	0x138
 
-/* IDC */
+/* IDC Interface */
 #define GTX_REG_IDCCR	0x140
 #define GTX_REG_IDCSR	0x142
 #define GTX_REG_IDCSA	0x144
@@ -221,6 +221,7 @@
 #define GTX_REG_VQWPH	0x1F6
 
 /* Copy Engine */
+#define GTX_REG_CBWn	0x200
 #define GTX_REG_CBW0	0x200
 #define GTX_REG_CBW1	0x202
 #define GTX_REG_CBW2	0x204
@@ -374,6 +375,15 @@ typedef struct {
 
 typedef struct {
 
+	unsigned char Reserved1: 6;
+	unsigned short XPOS: 10;
+	unsigned char Reserved2: 6;
+	unsigned short YPOS: 10;
+
+} sGTX_REG_CPOS;
+
+typedef struct {
+
 	unsigned short Reserved1: 11;
 	unsigned char D: 1;
 	unsigned char Bank: 4;
@@ -382,7 +392,530 @@ typedef struct {
 
 
 
+/* SAR */
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned short Base: 12;
+	unsigned char Index: 8;
+	unsigned char Reserved2: 2;
+
+} sGTX_REG_TRP;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char Limit: 8;
+	unsigned char Reserved2: 1;
+	unsigned char D: 1;
+
+} sGTX_REG_TRW;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char Limit: 8;
+	unsigned char Reserved2: 1;
+	unsigned char D: 1;
+
+} sGTX_REG_TRL;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned short Base: 10;
+	unsigned short Index: 10;
+	unsigned char Reserved2: 2;
+
+} sGTX_REG_RRP;
+
+typedef struct {
+
+	unsigned char Reserved1: 4;
+	unsigned short Limit: 10;
+	unsigned char Reserved2: 1;
+	unsigned char D: 1;
+
+} sGTX_REG_RRW;
+
+typedef struct {
+
+	unsigned char Reserved1: 4;
+	unsigned short Limit: 10;
+	unsigned char Reserved2: 1;
+	unsigned char D: 1;
+
+} sGTX_REG_RRL;
+
+typedef struct {
+
+	unsigned short Reserved1: 12;
+	unsigned char Addr: 4;
+
+} sGTX_REG_RVCA;
+
+typedef struct {
+
+	unsigned short Entry: 16;
+
+} sGTX_REG_RVCD;
+
+typedef struct {
+
+	unsigned short Reserved1: 14;
+	unsigned char TXC: 2;
+
+} sGTX_REG_STXC;
+
+typedef struct {
+
+	unsigned short Reserved1: 14;
+	unsigned char RXC: 2;
+
+} sGTX_REG_SRXC;
+
+
+
+/* Smart Card */
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Transmit_Data_DRAM_Address: 21;
+	unsigned char Reserved2: 1;
+
+} sGTX_REG_TMA;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Receive_Data_DRAM_Address: 21;
+	unsigned char Reserved2: 1;
+
+} sGTX_REG_RMA;
+
+typedef struct {
+
+	unsigned short SmartCardStatus: 16;
+
+} sGTX_REG_SCS;
+
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned short MessageSize: 9;
+
+} sGTX_REG_TMS;
+
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned short MessageSize: 9;
+
+} sGTX_REG_RMS;
+
+typedef struct {
+
+	unsigned char SMR: 1;
+	unsigned char RD: 1;
+	unsigned char RL: 1;
+	unsigned char RST: 1;
+	unsigned char COE: 1;
+	unsigned char CD: 1;
+	unsigned char VCC: 1;
+	unsigned char VPL: 1;
+	unsigned char VPE: 1;
+	unsigned char CRC: 1;
+	unsigned char IE: 1;
+	unsigned char PT: 1;
+	unsigned char TE: 1;
+	unsigned char RE: 1;
+	unsigned char PTS: 1;
+	unsigned char SAR: 1;
+
+} sGTX_REG_SCC;
+
+typedef struct {
+
+	unsigned short Reserved1: 12;
+	unsigned char CWI: 4;
+
+} sGTX_REG_CWI;
+
+typedef struct {
+
+	unsigned char Reserved1: 1;
+	unsigned char CP: 1;
+	unsigned char C: 1;
+	unsigned char EP: 1;
+	unsigned short ETU: 12;
+
+} sGTX_REG_ETU;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char GuardTime: 8;
+
+} sGTX_REG_GDT;
+
+typedef struct {
+
+	unsigned short Reserved1: 14;
+	unsigned char COD: 1;
+	unsigned char SCD: 1;
+
+} sGTX_REG_SCON;
+
+
+
+/* Interrupt */
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char IDC: 1;
+	unsigned char PCR: 1;
+	unsigned char DROP: 1;
+	unsigned char LOCK: 1;
+	unsigned char WT: 1;
+	unsigned char NR: 1;
+	unsigned char PO: 1;
+	unsigned char MC: 1;
+	unsigned char CD: 1;
+	unsigned char PE: 1;
+
+} sGTX_REG_ISR0;
+
+typedef struct {
+
+	unsigned char TT: 1;
+	unsigned char CD: 1;
+	unsigned char VL1: 1;
+	unsigned char AD: 1;
+	unsigned char VL0: 1;
+	unsigned char PF: 1;
+	unsigned char IR: 1;
+	unsigned char IT: 1;
+	unsigned char RL: 1;
+	unsigned char RW: 1;
+	unsigned char RE: 1;
+	unsigned char RC: 1;
+	unsigned char TL: 1;
+	unsigned char TW: 1;
+	unsigned char TE: 1;
+	unsigned char TC: 1;
+
+} sGTX_REG_ISR1;
+
+typedef struct {
+
+	unsigned char Q0: 1;
+	unsigned char Q1: 1;
+	unsigned char Q2: 1;
+	unsigned char Q3: 1;
+	unsigned char Q4: 1;
+	unsigned char Q5: 1;
+	unsigned char Q6: 1;
+	unsigned char Q7: 1;
+	unsigned char Q8: 1;
+	unsigned char Q9: 1;
+	unsigned char Q10: 1;
+	unsigned char Q11: 1;
+	unsigned char Q12: 1;
+	unsigned char Q13: 1;
+	unsigned char Q14: 1;
+	unsigned char Q15: 1;
+
+} sGTX_REG_ISR2;
+
+typedef struct {
+
+	unsigned char Q16: 1;
+	unsigned char Q17: 1;
+	unsigned char Q18: 1;
+	unsigned char Q19: 1;
+	unsigned char Q20: 1;
+	unsigned char Q21: 1;
+	unsigned char Q22: 1;
+	unsigned char Q23: 1;
+	unsigned char Q24: 1;
+	unsigned char Q25: 1;
+	unsigned char Q26: 1;
+	unsigned char Q27: 1;
+	unsigned char Q28: 1;
+	unsigned char Q29: 1;
+	unsigned char Q30: 1;
+	unsigned char Q31: 1;
+
+} sGTX_REG_ISR3;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char IDC: 1;
+	unsigned char PCR: 1;
+	unsigned char DROP: 1;
+	unsigned char LOCK: 1;
+	unsigned char WT: 1;
+	unsigned char NR: 1;
+	unsigned char PO: 1;
+	unsigned char MC: 1;
+	unsigned char CD: 1;
+	unsigned char PE: 1;
+
+} sGTX_REG_IMR0;
+
+typedef struct {
+
+	unsigned char TT: 1;
+	unsigned char CD: 1;
+	unsigned char VL1: 1;
+	unsigned char AD: 1;
+	unsigned char VL0: 1;
+	unsigned char PF: 1;
+	unsigned char IR: 1;
+	unsigned char IT: 1;
+	unsigned char RL: 1;
+	unsigned char RW: 1;
+	unsigned char RE: 1;
+	unsigned char RC: 1;
+	unsigned char TL: 1;
+	unsigned char TW: 1;
+	unsigned char TE: 1;
+	unsigned char TC: 1;
+
+} sGTX_REG_IMR1;
+
+typedef struct {
+
+	unsigned char Q0: 1;
+	unsigned char Q1: 1;
+	unsigned char Q2: 1;
+	unsigned char Q3: 1;
+	unsigned char Q4: 1;
+	unsigned char Q5: 1;
+	unsigned char Q6: 1;
+	unsigned char Q7: 1;
+	unsigned char Q8: 1;
+	unsigned char Q9: 1;
+	unsigned char Q10: 1;
+	unsigned char Q11: 1;
+	unsigned char Q12: 1;
+	unsigned char Q13: 1;
+	unsigned char Q14: 1;
+	unsigned char Q15: 1;
+
+} sGTX_REG_IMR2;
+
+typedef struct {
+
+	unsigned char Q16: 1;
+	unsigned char Q17: 1;
+	unsigned char Q18: 1;
+	unsigned char Q19: 1;
+	unsigned char Q20: 1;
+	unsigned char Q21: 1;
+	unsigned char Q22: 1;
+	unsigned char Q23: 1;
+	unsigned char Q24: 1;
+	unsigned char Q25: 1;
+	unsigned char Q26: 1;
+	unsigned char Q27: 1;
+	unsigned char Q28: 1;
+	unsigned char Q29: 1;
+	unsigned char Q30: 1;
+	unsigned char Q31: 1;
+
+} sGTX_REG_IMR3;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char IDC: 1;
+	unsigned char PCR: 1;
+	unsigned char DROP: 1;
+	unsigned char LOCK: 1;
+	unsigned char WT: 1;
+	unsigned char NR: 1;
+	unsigned char PO: 1;
+	unsigned char MC: 1;
+	unsigned char CD: 1;
+	unsigned char PE: 1;
+
+} sGTX_REG_IPR0;
+
+typedef struct {
+
+	unsigned char TT: 1;
+	unsigned char CD: 1;
+	unsigned char VL1: 1;
+	unsigned char AD: 1;
+	unsigned char VL0: 1;
+	unsigned char PF: 1;
+	unsigned char IR: 1;
+	unsigned char IT: 1;
+	unsigned char RL: 1;
+	unsigned char RW: 1;
+	unsigned char RE: 1;
+	unsigned char RC: 1;
+	unsigned char TL: 1;
+	unsigned char TW: 1;
+	unsigned char TE: 1;
+	unsigned char TC: 1;
+
+} sGTX_REG_IPR1;
+
+typedef struct {
+
+	unsigned char Q0: 1;
+	unsigned char Q1: 1;
+	unsigned char Q2: 1;
+	unsigned char Q3: 1;
+	unsigned char Q4: 1;
+	unsigned char Q5: 1;
+	unsigned char Q6: 1;
+	unsigned char Q7: 1;
+	unsigned char Q8: 1;
+	unsigned char Q9: 1;
+	unsigned char Q10: 1;
+	unsigned char Q11: 1;
+	unsigned char Q12: 1;
+	unsigned char Q13: 1;
+	unsigned char Q14: 1;
+	unsigned char Q15: 1;
+
+} sGTX_REG_IPR2;
+
+typedef struct {
+
+	unsigned char Q16: 1;
+	unsigned char Q17: 1;
+	unsigned char Q18: 1;
+	unsigned char Q19: 1;
+	unsigned char Q20: 1;
+	unsigned char Q21: 1;
+	unsigned char Q22: 1;
+	unsigned char Q23: 1;
+	unsigned char Q24: 1;
+	unsigned char Q25: 1;
+	unsigned char Q26: 1;
+	unsigned char Q27: 1;
+	unsigned char Q28: 1;
+	unsigned char Q29: 1;
+	unsigned char Q30: 1;
+	unsigned char Q31: 1;
+
+} sGTX_REG_IPR3;
+
+
+
+/* CRC */
+typedef struct {
+
+	unsigned char CMD: 2;
+	unsigned char Reserved1: 2;
+	unsigned char LEN: 3;
+	unsigned char L: 1;
+	unsigned char Reserved2: 2;
+	unsigned int Addr: 21;
+	unsigned char F: 1;
+
+} sGTX_REG_CRCC;
+
+typedef struct {
+
+	unsigned int CRC: 32;
+
+} sGTX_REG_TCRC;
+
+typedef struct {
+
+	unsigned int CRC: 32;
+
+} sGTX_REG_RCRC;
+
+
+
+/* Blitter */
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 18;
+	unsigned char Count: 4;
+
+} sGTX_REG_BDST;
+
+typedef struct {
+
+	unsigned short M: 16;
+
+} sGTX_REG_BMR;
+
+typedef struct {
+
+	unsigned short D: 16;
+
+} sGTX_REG_BDR;
+
+typedef struct {
+
+	unsigned char COLOR0: 8;
+	unsigned char COLOR1: 8;
+	unsigned char COLOR2: 8;
+	unsigned char COLOR3: 8;
+
+} sGTX_REG_BCLR;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char Width: 8;
+
+} sGTX_REG_BPW;
+
+typedef struct {
+
+	unsigned char M: 1;
+	unsigned char F: 1;
+	unsigned char T: 1;
+	unsigned char K: 1;
+	unsigned char Reserved1: 8;
+	unsigned char Offs: 4;
+
+} sGTX_REG_BPO;
+
+
+
 /* Infrared */
+typedef struct {
+
+	unsigned char Reserved1: 5;
+	unsigned short CarrierWavePeriod: 11;
+
+} sGTX_REG_CWP;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned short WavePulseHigh: 10;
+
+} sGTX_REG_CWPH;
+
+typedef struct {
+
+	unsigned char Reserved1: 4;
+	unsigned char P: 1;
+	unsigned char E: 1;
+	unsigned short MSP: 10;
+
+} sGTX_REG_MSP;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char PulseLowLen: 8;
+
+} sGTX_REG_MSPL;
+
 typedef struct {
 
 	unsigned char Reserved1: 7;
@@ -397,6 +930,29 @@ typedef struct {
 	unsigned short TickPeriod: 13;
 
 } sGTX_REG_RTP;
+
+
+
+/* SPI */
+typedef struct {
+
+	unsigned char DataMSB: 8;
+	unsigned char DataLSB: 8;
+
+} sGTX_REG_SPID;
+
+typedef struct {
+
+	unsigned char Reserved1: 2;
+	unsigned char M: 1;
+	unsigned char Speed: 5;
+	unsigned char D: 1;
+	unsigned char Reserved2: 4;
+	unsigned char L: 1;
+	unsigned char R: 1;
+	unsigned char C: 1;
+
+} sGTX_REG_SPIC;
 
 
 
@@ -438,6 +994,14 @@ typedef struct {
 	unsigned char BCD: 2;
 
 } sGTX_REG_PCMC;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int B: 21;
+	unsigned char Reserved2: 1;
+
+} sGTX_REG_PCMD;
 
 
 
@@ -577,6 +1141,257 @@ typedef struct {
 
 } sGTX_REG_CR1;
 
+typedef struct {
+
+	unsigned short Address: 12;
+	unsigned char Size: 4;
+
+} sGTX_REG_C0CR;
+
+typedef struct {
+
+	unsigned short Address: 12;
+	unsigned char Size: 4;
+
+} sGTX_REG_C1CR;
+
+
+
+/* DAC */
+typedef struct {
+
+	unsigned short DAC_Pulse_Count: 16;
+	unsigned short Reserved1: 11;
+	unsigned char Prescale: 5;
+
+} sGTX_REG_DPCR;
+
+
+
+/* Framer */
+typedef struct {
+
+	unsigned char Reserved1: 2;
+	unsigned char E: 1;
+	unsigned short PID: 13;
+
+} sGTX_REG_PCRPID;
+
+typedef struct {
+
+	unsigned short PCR_Base: 16;
+
+} sGTX_REG_PCR2;
+
+typedef struct {
+
+	unsigned short PCR_Base: 16;
+
+} sGTX_REG_PCR1;
+
+typedef struct {
+
+	unsigned char PCR_Base: 1;
+	unsigned char Reserved1: 6;
+	unsigned short PCR_Extension: 9;
+
+} sGTX_REG_PCR0;
+
+typedef struct {
+
+	unsigned short Latched_STC_Base: 16;
+
+} sGTX_REG_LSTC2;
+
+typedef struct {
+
+	unsigned short Latched_STC_Base: 16;
+
+} sGTX_REG_LSTC1;
+
+typedef struct {
+
+	unsigned char Latched_STC_Base: 1;
+	unsigned char Reserved1: 6;
+	unsigned short Latched_STC_Extension: 9;
+
+} sGTX_REG_LSTC0;
+
+typedef struct {
+
+	unsigned short STC_Count: 16;
+
+} sGTX_REG_STCC2;
+
+typedef struct {
+
+	unsigned short STC_Count: 16;
+
+} sGTX_REG_STCC1;
+
+typedef struct {
+
+	unsigned char STC_Count: 1;
+	unsigned char Reserved1: 6;
+	unsigned short STC_Extension: 9;
+
+} sGTX_REG_STCC0;
+
+typedef struct {
+
+	unsigned char FE: 1;
+	unsigned char FH: 1;
+	unsigned char TEI: 1;
+	unsigned char DM: 1;
+	unsigned char CDP: 1;
+	unsigned char CCP: 1;
+	unsigned char DO: 1;
+	unsigned char FD: 1;
+	unsigned char SyncByte: 8;
+
+} sGTX_REG_FCR;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char SyncDrop: 3;
+	unsigned char SyncLock: 5;
+
+} sGTX_REG_SYNCH;
+
+typedef struct {
+
+	unsigned short Reserved1: 9;
+	unsigned char FIFO_Depth: 7;
+
+} sGTX_REG_PFIFO;
+
+
+
+/* IDC Interface */
+typedef struct {
+
+	unsigned char Reserved1: 2;
+	unsigned char SN: 1;
+	unsigned char VD: 1;
+	unsigned char Byte2Rd: 4;
+	unsigned char MM: 1;
+	unsigned char LB: 1;
+	unsigned char FR: 1;
+	unsigned char FT: 1;
+	unsigned char IE: 1;
+	unsigned char RS: 1;
+	unsigned char ME: 1;
+	unsigned char SE: 1;
+
+} sGTX_REG_IDCCR;
+
+typedef struct {
+
+	unsigned char LA: 4;
+	unsigned char SN: 1;
+	unsigned char TxE: 1;
+	unsigned char SD: 1;
+	unsigned char RS: 1;
+	unsigned char SAd: 1;
+	unsigned char MI: 1;
+	unsigned char SI: 1;
+	unsigned char NAK: 1;
+	unsigned char AK: 1;
+	unsigned char RxR: 1;
+	unsigned char Gen: 1;
+	unsigned char CSD: 1;
+
+} sGTX_REG_IDCSR;
+
+typedef struct {
+
+	unsigned short Reserved1: 9;
+	unsigned char SAddr: 7;
+
+} sGTX_REG_IDCSA;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char RxData: 8;
+
+} sGTX_REG_IDCRD;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char MAddr: 7;
+	unsigned char RW: 1;
+
+} sGTX_REG_IDCMA;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char TxData: 8;
+
+} sGTX_REG_IDCTD;
+
+typedef struct {
+
+	unsigned short Reserved1: 9;
+	unsigned char SCL: 7;
+
+} sGTX_REG_IDCC;
+
+typedef struct {
+
+	unsigned char Reserved1: 4;
+	unsigned char Byte2Rd: 4;
+	unsigned char RxCNT: 4;
+	unsigned char TxCNT: 4;
+
+} sGTX_REG_IDCFF;
+
+
+
+/* Audio/Video Decoder Interface */
+typedef struct {
+
+	unsigned char HEN: 1;
+	unsigned char HAA: 1;
+	unsigned char HWT: 1;
+	unsigned char VRQ: 1;
+	unsigned char ARQ: 1;
+	unsigned char VEN: 1;
+	unsigned char AEN: 1;
+	unsigned char INV: 1;
+	unsigned char SerRT_Max: 2;
+	unsigned char ParRT_Max: 2;
+	unsigned char Audio_Xfer_Rate: 4;
+	unsigned short Reserved1: 11;
+	unsigned char H: 1;
+	unsigned char AS: 1;
+	unsigned char AP: 1;
+	unsigned char VS: 1;
+	unsigned char VP: 1;
+
+} sGTX_REG_AVI;
+
+
+
+/* RISC Engine */
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned short PC: 9;
+
+} sGTX_REG_RISCPC;
+
+typedef struct {
+
+	unsigned short Reserved1: 14;
+	unsigned char SP: 1;
+	unsigned char SS: 1;
+
+} sGTX_REG_RISCCON;
+
 
 
 /* Queue Write Pointer */
@@ -594,12 +1409,82 @@ typedef struct {
 
 } sGTX_REG_QWPnL;
 
+typedef struct {
+
+	unsigned char QIM: 1;
+	unsigned char InterruptMatchingAddress: 5;
+	unsigned short Reserved1: 10;
+
+} sGTX_REG_QIR;
+
+
+
+/* Audio Queue Manager */
+typedef struct {
+
+	unsigned short AudioQueueReadPointer: 16;
+
+} sGTX_REG_AQRPL;
+
+typedef struct {
+
+	unsigned char H: 1;
+	unsigned short Reserved1: 9;
+	unsigned char AudioQueueReadPointer: 6;
+
+} sGTX_REG_AQRPH;
+
+typedef struct {
+
+	unsigned short AudioQueueWritePointer: 16;
+
+} sGTX_REG_AQWPL;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char Q_Size: 4;
+	unsigned char AudioQueueWritePointer: 6;
+
+} sGTX_REG_AQWPH;
+
+
+
+/* Teletext Queue Manager */
+typedef struct {
+
+	unsigned short TeletextQueueReadPointer: 16;
+
+} sGTX_REG_TQRPL;
+
+typedef struct {
+
+	unsigned char H: 1;
+	unsigned short Reserved1: 9;
+	unsigned char TeletextQueueReadPointer: 6;
+
+} sGTX_REG_TQRPH;
+
+typedef struct {
+
+	unsigned short TeletextQueueWritePointer: 16;
+
+} sGTX_REG_TQWPL;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char Q_Size: 4;
+	unsigned char TeletextQueueWritePointer: 6;
+
+} sGTX_REG_TQWPH;
+
 
 
 /* Video Queue Manager */
 typedef struct {
 
-	unsigned short Video_Read: 16;
+	unsigned short VideoQueueReadPointer: 16;
 
 } sGTX_REG_VQRPL;
 
@@ -607,23 +1492,105 @@ typedef struct {
 
 	unsigned char H: 1;
 	unsigned short Reserved1: 9;
-	unsigned char Video_Read: 6;
+	unsigned char VideoQueueReadPointer: 6;
 
 } sGTX_REG_VQRPH;
 
 typedef struct {
 
-	unsigned short Video_Write: 16;
+	unsigned short VideoOueueWritePointer: 16;
 
 } sGTX_REG_VQWPL;
 
 typedef struct {
 
 	unsigned char Reserved1: 6;
-	unsigned char Q_SIZE: 4;
-	unsigned char Video_Write: 6;
+	unsigned char Q_Size: 4;
+	unsigned char VideoQueueWritePointer: 6;
 
 } sGTX_REG_VQWPH;
+
+
+
+/* Queue Interrupt */
+typedef struct {
+
+	unsigned char M: 1;
+	unsigned char BLOCK: 5;
+	unsigned short Reserved1: 10;
+
+} sGTX_REG_QIn;
+
+
+
+/* Copy Engine */
+typedef struct {
+
+	unsigned short Word_n: 16;
+
+} sGTX_REG_CBWn;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 22;
+
+} sGTX_REG_CCSA;
+
+typedef struct {
+
+	 unsigned short Reserved1: 10;
+	 unsigned int Addr: 22;
+
+} sGTX_REG_CDA;
+
+typedef struct {
+
+	unsigned char Reserved1: 3;
+	unsigned char NS: 1;
+	unsigned char RWT: 1;
+	unsigned char DADD: 1;
+	unsigned char WE: 1;
+	unsigned char RE: 1;
+	unsigned char Reserved2: 4;
+	unsigned char LEN: 4;
+
+} sGTX_REG_CCOM;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char T_Color: 8;
+
+} sGTX_REG_RWTC;
+
+typedef struct {
+
+	unsigned char Reserved1: 2;
+	unsigned char R: 1;
+	unsigned char NS: 1;
+	unsigned char RWT: 1;
+	unsigned char DADD: 1;
+	unsigned char WE: 1;
+	unsigned char RE: 1;
+	unsigned char Reserved2: 4;
+	unsigned char LEN: 4;
+
+} sGTX_REG_CCOM2;
+
+typedef struct {
+
+	unsigned char Reserved1: 2;
+	unsigned char R: 1;
+	unsigned char NS: 1;
+	unsigned char RWT: 1;
+	unsigned char DADD: 1;
+	unsigned char WE: 1;
+	unsigned char RE: 1;
+	unsigned char Reserved2: 4;
+	unsigned char LEN: 4;
+
+} sGTX_REG_CCOM3;
 
 
 
@@ -666,6 +1633,13 @@ typedef struct {
 
 } sGTX_REG_VPS;
 
+typedef struct {
+
+	unsigned short Reserved1: 14;
+	unsigned char EXT: 2;
+
+} sGTX_REG_VPOE;
+
 
 
 /* Video Capture */
@@ -704,7 +1678,44 @@ typedef struct {
 
 
 
+/* Semaphore */
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char PID: 7;
+	unsigned char A: 1;
+
+} sGTX_REG_SEM1;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char PID: 7;
+	unsigned char A: 1;
+
+} sGTX_REG_SEM2;
+
+
+
 /* Teletext */
+typedef struct {
+
+	unsigned short PTS0: 16;
+
+} sGTX_REG_PTS0;
+
+typedef struct {
+
+	unsigned short PTS1: 16;
+
+} sGTX_REG_PTS1;
+
+typedef struct {
+
+	unsigned short PTS_OFFSET: 16;
+
+} sGTX_REG_PTSO;
+
 typedef struct {
 
 	unsigned char Reserved1: 1;
@@ -719,6 +1730,16 @@ typedef struct {
 
 } sGTX_REG_TTCR;
 
+typedef struct {
+
+	unsigned char P: 1;
+	unsigned char R: 1;
+	unsigned char E: 1;
+	unsigned char Reserved1: 8;
+	unsigned char State: 5;
+
+} sGTX_REG_TSR;
+
 
 
 /* Infrared */
@@ -730,6 +1751,13 @@ typedef struct {
 	unsigned char Filt_L: 4;
 
 } sGTX_REG_RFR;
+
+typedef struct {
+
+	unsigned char Reserved1: 8;
+	unsigned char RTCH: 8;
+
+} sGTX_REG_RPH;
 
 typedef struct {
 
@@ -750,10 +1778,28 @@ typedef struct {
 
 typedef struct {
 
+	unsigned char E: 1;
+	unsigned char C: 1;
+	unsigned char Reserved1: 7;
+	unsigned char Offset: 7;
+
+} sGTX_REG_IRTE;
+
+typedef struct {
+
 	unsigned short Reserved1: 9;
 	unsigned char Offset: 7;
 
 } sGTX_REG_IRRO;
+
+typedef struct {
+
+	unsigned short Reserved1: 9;
+	unsigned char Offst: 7;
+
+} sGTX_REG_IRTO;
+
+
 
 #pragma pack()
 
