@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.14  2001/09/29 23:24:48  tmbinc
+ *   removed debug output
+ *
  *   Revision 1.13  2001/08/16 16:30:38  tmbinc
  *   readded /dev/cam
  *
@@ -56,7 +59,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -666,7 +669,6 @@ ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
 			{
 				if (cam_queuerptr==cam_queuewptr)		// queue empty?
 				{
-					printk("queue is empty, waiting...\n");
 					if (file->f_flags & O_NONBLOCK)
 					{
 						printk("bzw. nonblock\n");
@@ -681,12 +683,10 @@ ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
 
 					if (signal_pending(current))
 						return -ERESTARTSYS;
-						printk("uuund nochmal\n");
 				} else
 					break;
 			}
 
-			printk("ok (%d)\n", count);
 			for (i=0; i<count; i++)
 			{
 				if (cam_queuerptr==cam_queuewptr)
@@ -699,7 +699,6 @@ ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
 					cam_queuerptr=0;
 			}
 
-			printk("macht %d bytes\n", read);
 			return read;
 		}
 
