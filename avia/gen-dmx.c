@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.63 $
+ *   $Revision: 1.64 $
  *   $Log: gen-dmx.c,v $
+ *   Revision 1.64  2002/01/02 04:40:08  McClean
+ *   make OUT OF SYNC dprintf
+ *
  *   Revision 1.63  2001/12/19 13:19:17  derget
  *   debugoutput entfernt
  *   CHCH [DEMUX] START
@@ -1103,14 +1106,14 @@ static void gtx_task(void *data)
 						int rlen=b1l+b2l;
 						if (*b1 != 0x47)
 						{
-							printk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
+							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
 							gtx->feed[queue].readptr=wptr;
 							continue;
 						}
 						rlen-=rlen%188;
 						if (!rlen)
 						{
-							printk("this SHOULDN'T happen (tm) (incomplete packet)\n");
+							dprintk("this SHOULDN'T happen (tm) (incomplete packet)\n");
 							continue;
 						}
 						if (rlen<=b1l)
@@ -1999,7 +2002,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.63 2001/12/19 13:19:17 derget Exp $\n");
+	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.64 2002/01/02 04:40:08 McClean Exp $\n");
 
 	return gtx_dmx_init();
 }
