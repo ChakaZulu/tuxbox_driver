@@ -56,6 +56,7 @@ typedef struct {
 	u32 mem_addr;
 	u32 read_pos;
 	u32 size;
+	u32 write_pos;
 
 } sAviaGtDmxQueue;
 
@@ -197,7 +198,6 @@ void avia_gt_dmx_set_pcr_pid(u16 pid);
 int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh);
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
-unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer);

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.105 $
+ *   $Revision: 1.106 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.106  2002/09/04 22:40:47  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.105  2002/09/04 22:07:40  Jolt
  *   DMX/NAPI cleanup
  *
@@ -437,7 +440,7 @@ void enx_tdp_trace(void)
 void gtx_reset_queue(u8 queue_nr)
 {
 
-	get_queue(queue_nr)->read_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+	get_queue(queue_nr)->read_pos = get_queue(queue_nr)->write_pos;
 
 }
 
@@ -587,7 +590,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
 					size_t b1l = (size_t)0, b2l = (size_t)0;
 
-					wptr = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+					wptr = queue->write_pos;
 					rptr = queue->read_pos;
 
 					// can happen if a queue has been reset but an interrupt is pending
@@ -1843,7 +1846,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.105 2002/09/04 22:07:40 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.106 2002/09/04 22:40:47 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

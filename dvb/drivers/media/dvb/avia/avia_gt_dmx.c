@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.109  2002/09/04 22:40:46  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.108  2002/09/04 22:07:40  Jolt
  *   DMX/NAPI cleanup
  *
@@ -130,7 +133,7 @@
  *
  *
  *
- *   $Revision: 1.108 $
+ *   $Revision: 1.109 $
  *
  */
 
@@ -265,6 +268,7 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *cb_proc, void *cb_d
 	queue_list[queue_nr].cb_proc = cb_proc;
 	queue_list[queue_nr].cb_data = cb_data;
 	queue_list[queue_nr].read_pos = queue_list[queue_nr].mem_addr;
+	queue_list[queue_nr].write_pos = queue_list[queue_nr].mem_addr;
 
 	return queue_nr;
 
@@ -427,8 +431,8 @@ int avia_gt_dmx_compress_filter_parameter_table(gtx_demux_t *gtx)
 		if ( (e.type == 4) && (f.VALID == 0) ) {
 			valid[i] = 0;
 			avia_gt_dmx_start_stop_feed(i,1);
-			queue_list[i].read_pos = avia_gt_dmx_get_queue_write_pointer(i);
-			avia_gt_dmx_set_queue_write_pointer(i, queue_list[i].read_pos);
+			queue_list[i].read_pos = queue_list[i].write_pos;
+			avia_gt_dmx_set_queue_write_pointer(i, queue_list[i].read_pos);	// Mhhhhpppfff????
 			gtx->feed[i].sec_len = 0;
 			gtx->feed[i].sec_recv = 0;
 		}
@@ -876,12 +880,10 @@ void avia_gt_dmx_force_discontinuity(void)
 u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
 {
 
-	u32 write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
-
-	if (queue_list[queue_nr].read_pos > write_pos)
-		return (write_pos - queue_list[queue_nr].read_pos);
+	if (queue_list[queue_nr].read_pos > queue_list[queue_nr].write_pos)
+		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
 	else
-		return ((queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos) + (write_pos - queue_list[queue_nr].mem_addr));
+		return ((queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos) + (queue_list[queue_nr].write_pos - queue_list[queue_nr].mem_addr));
 
 }
 
@@ -1041,6 +1043,7 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 	}
 
 	queue_list[queue_nr].info.irq_count++;
+	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 	
 }
 
@@ -1048,7 +1051,6 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
 {
 
 	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
-	u32 write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 	u32 done = 0;
 	
 	if (count > bytes_avail)
@@ -1057,7 +1059,7 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
 	if (!dest)
 		return count;
 
-	if ((queue_list[queue_nr].read_pos > write_pos) &&
+	if ((queue_list[queue_nr].read_pos > queue_list[queue_nr].write_pos) &&
 	   (count >= (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos))) {
 
 		done = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
@@ -1146,6 +1148,7 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	}
 
 	queue_list[queue_nr].info.irq_count++;
+	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 	
 	schedule_task(&avia_gt_dmx_queue_tasklet);
 
@@ -1565,7 +1568,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.108 2002/09/04 22:07:40 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.109 2002/09/04 22:40:46 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1702,7 +1705,6 @@ EXPORT_SYMBOL(avia_gt_dmx_fake_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_free_queue);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
-EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
