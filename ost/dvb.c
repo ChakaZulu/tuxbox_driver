@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.84 2002/10/05 19:34:31 obi Exp $
+ * $Id: dvb.c,v 1.85 2002/10/06 18:06:11 obi Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -130,7 +130,6 @@ void tuning_start_cb (void *priv)
 static int
 InitFront(struct dvb_struct *dvb)
 {
-	FrontendParameters para;
 	dvb_front_t *fe;
 
 	fe=dvb->frontend;
@@ -145,25 +144,6 @@ InitFront(struct dvb_struct *dvb)
 
 	if (!fe->demod)
 		return -1;
-
-	switch (fe->type) {
-	case DVB_S:
-		secSetTone(dvb, SEC_TONE_ON);
-		secSetVoltage(dvb, SEC_VOLTAGE_13);
-		para.Frequency = 12480000 - 10600000;
-		para.Inversion = INVERSION_OFF;
-		para.u.qpsk.SymbolRate = 27500000;
-		para.u.qpsk.FEC_inner = 0;
-		break;
-
-	case DVB_C:
-		para.Frequency = 394000000;
-		para.Inversion = INVERSION_OFF;
-		para.u.qam.SymbolRate = 6900000;
-		para.u.qam.FEC_inner = 0;
-		para.u.qam.QAM = QAM_64;
-		break;
-	}
 
 	return 0;
 }
@@ -491,8 +471,8 @@ ca_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 		if (copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
 			return -EFAULT;
-		else
-			((ca_msg_t*)parg)->length = cam_read_message(((ca_msg_t*)parg)->msg, ca_msg.length);
+
+		((ca_msg_t*)parg)->length = cam_read_message(((ca_msg_t*)parg)->msg, ca_msg.length);
 		break;
 	}
 
@@ -502,8 +482,8 @@ ca_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 		if (copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
 			return -EFAULT;
-		else
-			cam_write_message(ca_msg.msg, ca_msg.length);
+
+		cam_write_message(ca_msg.msg, ca_msg.length);
 		break;
 	}
 
@@ -544,6 +524,12 @@ demux_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 			case DMX_PES_VIDEO:
 				dvb->video_pid = p->pid;
+				break;
+
+			case DMX_PES_PCR:
+				avia_flush_pcr();
+				if (dvb->dmxdev.demux)
+					dvb->dmxdev.demux->flush_pcr();
 				break;
 
 			default:
@@ -651,9 +637,6 @@ video_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 	case VIDEO_SELECT_SOURCE:
 		if ((dvb->audiostate.playState == AUDIO_STOPPED) && (dvb->videostate.playState == VIDEO_STOPPED)) {
-			avia_flush_pcr();
-			if (dvb->dmxdev.demux)
-				dvb->dmxdev.demux->flush_pcr();
 
 			switch ((videoStreamSource_t) arg) {
 			case VIDEO_SOURCE_DEMUX:
@@ -681,8 +664,7 @@ video_ioctl(struct dvb_device *dvbdev, struct file *file,
 		break;
 
 	case VIDEO_GET_STATUS:
-		if (copy_to_user(parg, &dvb->videostate,
-				 sizeof(struct videoStatus)))
+		if (copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
 			ret=-EFAULT;
 		break;
 
@@ -864,6 +846,7 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 #else
 				avia_command(SetStreamType, 0x0B, dvb->audio_pid);
 #endif
+				avia_command(SelectStream, 0x00, 0xFFFF);
 				avia_command(SelectStream, 0x03, dvb->audio_pid);
 				avia_command(Play, 0x00, 0xFFFF, dvb->audio_pid);
 				break;
@@ -976,12 +959,12 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 		default:
 			ret=-EINVAL;
+			break;
 		}
 		break;
 
 	case AUDIO_GET_STATUS:
-		if(copy_to_user(parg, &dvb->audiostate,
-				sizeof(struct audioStatus)))
+		if (copy_to_user(parg, &dvb->audiostate, sizeof(struct audioStatus)))
 			ret=-EFAULT;
 		break;
 
@@ -992,8 +975,7 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 			AUDIO_CAP_MP2|
 			AUDIO_CAP_AC3;
 
-		if (copy_to_user(parg, &cap,
-				 sizeof(cap)))
+		if (copy_to_user(parg, &cap, sizeof(cap)))
 			ret=-EFAULT;
 		break;
 	}
@@ -1068,6 +1050,7 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 
 		default:
 			ret=-EINVAL;
+			break;
 		}
 		break;
 
