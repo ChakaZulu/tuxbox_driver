@@ -1,21 +1,6 @@
 #ifndef AVIA_GT_NAPI_H
 #define AVIA_GT_NAPI_H
 
-typedef struct gtx_demux_filter_s
-{
-  int index;
-  int state;
-
-  int output;
-  int wait_pusi, invalid, pid;
-  int queue, fork, cw_offset, cc, start_up, pec;
-  // type section
-  int no_of_filters;
-
-  struct gtx_demux_feed_s *feed;
-} gtx_demux_filter_t;
-
-
 #pragma pack(1)
 
 typedef struct {
