@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.32 2002/08/19 22:53:13 Homar Exp $
+   $Id: ves1820.c,v 1.33 2002/09/08 00:05:26 obi Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -19,49 +19,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-
-    $Log: ves1820.c,v $
-    Revision 1.32  2002/08/19 22:53:13  Homar
-    special enigma und satfind support
-
-    Revision 1.31  2002/08/17 02:03:18  Homar
-    Tuner sei stil...
-
-    Revision 1.30  2002/08/14 05:05:57  obi
-    disabled unused FE_GET_FRONTEND command which uses obolete struct from
-    <dbox/dvb.h>
-
-    Revision 1.29  2002/08/12 16:56:42  obi
-    removed compiler warnings
-
-    Revision 1.28  2002/07/05 12:39:30  Homar
-    Bugfix: INV/nonINV mixed im Kabel
-
-    Revision 1.27  2002/06/29 21:47:17  Homar
-    VHF-L-Scan gefixt
-
-    Revision 1.26  2002/06/28 01:07:56  Homar
-    UHF-Scan gefixt
-
-    Revision 1.25  2002/06/27 19:55:08  Homar
-    Scan Mix-mode eingebaut
-
-    Revision 1.24  2002/06/16 19:49:35  Homar
-    AutoInversion eingefügt
-
-    Revision 1.23  2002/03/06 09:33:12  gillem
-    - remove dec/inc use count
-    - clean module unload (set into standby)
-
-    Revision 1.22  2002/02/24 15:32:06  woglinde
-    new tuner-api now in HEAD, not only in branch,
-    to check out the old tuner-api should be easy using
-    -r and date
-
-    Revision 1.19.2.3  2002/01/22 23:44:56  fnbrd
-    Id und Log reingemacht.
-
 */
 
 
@@ -69,31 +26,39 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/poll.h>
 #include <linux/i2c.h>
+
 #include <dbox/dvb_frontend.h>
 #include <dbox/fp.h>
 
+
 static int debug = 0;
-
-
-#ifdef MODULE
-MODULE_DESCRIPTION("");
-MODULE_AUTHOR("Ralph Metzler");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-MODULE_PARM(debug,"i");
-#endif
-
 #define dprintk	if (debug) printk
 
-static struct i2c_driver dvbt_driver;
-static struct i2c_client client_template;
+
+#define SET_PWM(i2c,x) do { ((struct ves1820 *)i2c->data)->pwm = x; } while (0)
+#define GET_PWM(i2c) (((struct ves1820 *)i2c->data)->pwm)
+
+#define SET_REG0(i2c,x) do { ((struct ves1820 *)i2c->data)->reg0 = x; } while (0)
+#define GET_REG0(i2c) (((struct ves1820 *)i2c->data)->reg0)
 
 
 
-u8 Init1820PTab[] =
+
+static
+FrontendInfo ves1820_info = {
+        type: FE_QAM,
+        minFrequency: 49000000,
+        maxFrequency: 890000000,
+        minSymbolRate: 543750,
+        maxSymbolRate: 8700000,
+        hwType: 0,
+        hwVersion: 0
+};
+
+
+
+u8 ves1820_inittab [] =
 {
   0x49, //0  noStdBy / internADC / noInversion / 64-QAM / outputs active / CLB-Softreset default
   0x6A, //1  AGC-Reference set to 64-QAM
@@ -156,667 +121,512 @@ u8 Init1820PTab[] =
   0x00  //34 PWM off
 };
 
+
 struct ves1820 {
-        int inversion;
-        u32 srate;
         u8 pwm;
         u8 reg0;
-
 	dvb_front_t frontend;
 };
 
 
-int writereg(struct i2c_client *client, u8 reg, u8 data)
+
+static
+int ves1820_writereg (struct i2c_client *i2c, u8 reg, u8 data)
 {
         int ret;
-        u8 msg[] = {0x00, 0x1f, 0x00};
+        u8 buf[] = { 0x00, reg, data };
+        struct i2c_msg msg = { addr: i2c->addr, flags: 0, buf: buf, len: 3};
 
-        msg[1]=reg; msg[2]=data;
-        while((ret=i2c_master_send(client, msg, 3))!=3);
-        return ret;
+        ret = i2c_transfer(i2c->adapter, &msg, 1);
+
+        if (ret != 1)
+                dprintk("%s: writereg error "
+                        "(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+                        __FUNCTION__, reg, data, ret);
+
+        mdelay(10);
+        return (ret != 1) ? -EREMOTEIO : 0;
 }
 
-u8 readreg(struct i2c_client *client, u8 reg)
-{
-        struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[] = {0x00, 0x1e};
-        unsigned char mm2[] = {0x00};
-        struct i2c_msg msgs[2];
 
-        msgs[0].flags=0;
-        msgs[1].flags=I2C_M_RD;
-        msgs[0].addr=msgs[1].addr=client->addr;
-        mm1[1]=reg;
-        msgs[0].len=2; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
-        while (i2c_transfer(adap, msgs, 2)!=2);
-        return mm2[0];
+static
+u8 ves1820_readreg (struct i2c_client *i2c, u8 reg)
+{
+        int ret;
+        u8 b0 [] = { 0x00, reg };
+        u8 b1 [] = { 0 };
+        struct i2c_msg msg [] = { { addr: i2c->addr, flags: 0, buf: b0, len: 2 },
+                           { addr: i2c->addr, flags: I2C_M_RD, buf: b1, len: 1 } };
+
+        ret = i2c_transfer(i2c->adapter, msg, 2);
+
+        if (ret != 2)
+                dprintk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
+
+        return b1[0];
 }
 
-void ClrBit1820(struct i2c_client *client)
+
+static
+int tuner_set_tv_freq (u32 freq)
 {
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        writereg(client, 0, ves->reg0 & 0xfe);
-        writereg(client, 0, ves->reg0);
+        u32 div = (freq + 36125) / 125;
+
+        u8 buf [4] = { (div >> 8) & 0x7f, div & 0xff,
+                        0x80 | (((div >> 15) & 0x03) << 6) | 0x04,
+                        div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01 };
+
+        return fp_set_tuner_dword(T_QAM, *((u32*)buf));
 }
 
-int init(struct i2c_client *client)
+
+static
+int ves1820_init (struct i2c_client *i2c)
 {
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        struct i2c_adapter *adap=client->adapter;
-        struct i2c_msg msgs[2];
-        unsigned char mm1[] = {0xff};
-        unsigned char mm2[] = {0x00};
+        u8 b0 [] = { 0xff };
+        u8 pwm;
         int i;
+        struct i2c_msg msg [] = { { addr: (0x28 << 1), flags: 0, buf: b0, len: 1 },
+                           { addr: (0x28 << 1), flags: I2C_M_RD, buf: &pwm, len: 1 } };
 
         dprintk("VES1820: init chip\n");
 
-        msgs[0].flags=0;
-        msgs[1].flags=1;
-        msgs[0].addr=msgs[1].addr=(0x28<<1);
-        mm1[0]=0xff;
-        msgs[0].len=1; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
-        i2c_transfer(adap, msgs, 2);
-        ves->pwm=*mm2;
-//        if (ves->pwm == 0xff)
-//                ves->pwm=0x48;
-        if (writereg(client, 0, 0)<0)
-                printk("VES1820: send error\n");
+        i2c_transfer(i2c->adapter, msg, 2);
+
+        dprintk("VES1820: pwm=%02x\n", pwm);
+
+        if (pwm == 0xff)
+                pwm=0x48;
+
+        ves1820_writereg (i2c, 0, 0);
+
         for (i=0; i<53; i++)
-                writereg(client, i, Init1820PTab[i]);
+                ves1820_writereg (i2c, i, ves1820_inittab[i]);
 
-        ves->inversion=0;
-        ves->srate=0;
-        ves->reg0=Init1820PTab[0];
-//        writereg(client, 0x34, ves->pwm);
-		ClrBit1820(client);
-        return 0;
-}
+        ves1820_writereg (i2c, 0x34, pwm);
 
-
-static int SetInversion(struct i2c_client *client, int inversion)
-{
-	struct ves1820 *ves=(struct ves1820 *) client->data;
-	u8 val;
-	dprintk("SetInversion: Einsprung \n");
-	if (inversion == ves->inversion)
-		return 0;
-	val=ves->reg0;
-	dprintk("STATUS ves->reg0 = 0x%x\n",val);
-	ves->inversion=inversion;
-	switch (inversion)
-	{
-	case INVERSION_OFF:
-		val&=0xdf;
-		dprintk("NEUER STATUS: INVERSION = OFF    ves->reg0 = 0x%x\n",val);
-		break;
-	case INVERSION_ON:
-		val|=0x20;
-		dprintk("NEUER STATUS: INVERSION = ON    ves->reg0 = 0x%x\n",val);
-		break;
-	default:
-	case INVERSION_AUTO:
-		val&=0xdf;
-		dprintk("NEUER STATUS: INVERSION = AUTO    ves->reg0 = 0x%x\n",val);
-		break;
-	}
-	ves->reg0=val;
-	writereg(client, 0, val);
-	return -1;
-}
-
-void SetPWM(struct i2c_client* client)
-{
-/*        struct ves1820 *ves=(struct ves1820 *) client->data;
-		printk("SetPWM: Einsprung \n");
-
-//        writereg(client, 0x34, ves->pwm);
-		printk("SetPWM: %u \n",ves->pwm);
-*/
-}
-
-int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
-{
-
-#define XIN 69600000UL
-#define SYSCLK 69600000UL
-#define SACLK (SYSCLK>>1)
-#define FIN (XIN>>4)
-
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        u32 BDR;
-        u16 BDRI;
-        u8 SFIL = 0;
-        u8 NDEC = 0;
-        u32 tmp, ratio;
-
-		dprintk("SetSymbolrate: Einsprung \n");
-
-        if (Symbolrate >= (SACLK >> 2))
-			Symbolrate = (SACLK >> 2);
-        if (Symbolrate < (SACLK >> 6))
-			Symbolrate = (SACLK >> 6);
-
-        ves->srate=Symbolrate;
-
-        if (Symbolrate <= (SACLK >> 2)) NDEC = 0;
-        if (Symbolrate < (SACLK>>3)) NDEC = 1;
-        if (Symbolrate < (SACLK>>4)) NDEC = 2;
-        if (Symbolrate < (SACLK>>5)) NDEC = 3;
-
-        if (Symbolrate < (u32)(SYSCLK>>3)) SFIL = 0;
-        if (Symbolrate < (u32)(SYSCLK/12.3)) SFIL = 1;
-        if (Symbolrate < (u32)(SYSCLK>>4))	 SFIL = 0;
-        if (Symbolrate < (u32)(SYSCLK/24.6)) SFIL = 1;
-        if (Symbolrate < (u32)(SYSCLK>>5))	 SFIL = 0;
-        if (Symbolrate < (u32)(SYSCLK/49.2)) SFIL = 1;
-        if (Symbolrate < (u32)(SYSCLK>>6))	 SFIL = 0;
-        if (Symbolrate < (u32)(SYSCLK/98.4)) SFIL = 1;
-
-//		BDR=int((2^24*SymbolRate*2^NDEC)/SYSCLK)
-//		BDR = (BDR<<(16+NDEC))/(SYSCLK>>8);
-
-        Symbolrate<<=NDEC;
-        ratio=(Symbolrate<<4)/FIN;
-        tmp=((Symbolrate<<4)%FIN)<<8;
-        ratio=(ratio<<8)+tmp/FIN;
-        tmp=(tmp%FIN)<<8;
-        ratio=(ratio<<8)+(tmp+FIN/2)/FIN;
-
-        BDR= ratio;
-
-//		BDRI=int(16*SYSCLK /(SymbolRate*2^NDEC))
-		BDRI  = (SYSCLK << 4) / (Symbolrate << NDEC);
-
-        if (BDRI > 0xFF)
-			BDRI = 0xFF;
-
-        SFIL = (SFIL << 4) | Init1820PTab[0x0E];
-
-        NDEC = (NDEC << 6) | Init1820PTab[0x03];
-
-        writereg(client, 0x03, NDEC);
-        writereg(client, 0x0a, BDR&0xff);
-        writereg(client, 0x0b, (BDR>> 8)&0xff);
-        writereg(client, 0x0c, (BDR>>16)&0x3f);
-
-        writereg(client, 0x0d, BDRI);
-        writereg(client, 0x0e, SFIL);
-
-        if (DoCLB) ClrBit1820(client);
-
-        return 0;
-}
-
-typedef struct {
-        Modulation      QAM_Mode;
-        int             NoOfSym;
-        unsigned char   Reg1;
-        unsigned char   Reg5;
-        unsigned char   Reg8;
-        unsigned char   Reg9;
-} QAM_SETTING;
-
-
-QAM_SETTING QAM_Values[] = {
-        {QAM_16 ,  16, 145, 164, 162, 145},
-        {QAM_32 ,  32, 150, 120, 116, 150},
-        {QAM_64 ,  64, 106,  70,  67, 106},
-        {QAM_128, 128, 126,  54,  52, 126},
-        {QAM_256, 256, 107,  38,  35, 107}
-};
-
-int SetQAM(struct i2c_client* client, Modulation QAM_Mode, int DoCLB)
-{
-        struct ves1820 *ves=(struct ves1820 *) client->data;
-        int real_qam = 0;
-		dprintk("SetQAM: Einsprung \n");
-
-        switch (QAM_Mode) {
-        	case QAM_16 :
-        		real_qam = 0;
-				dprintk("QAM MODE: 16\n");
-        		break;
-        	case QAM_32 :
-        		real_qam = 1;
-				dprintk("QAM MODE: 32\n");
-        		break;
-        	case QAM_64 :
-        		real_qam = 2;
-				dprintk("QAM MODE: 64\n");
-        		break;
-        	case QAM_128:
-        		real_qam = 3;
-				dprintk("QAM MODE: 128\n");
-        		break;
-        	case QAM_256:
-        		real_qam = 4;
-				dprintk("QAM MODE: 256\n");
-        		break;
-        	default:
-				dprintk("QAM MODE: !!!ERROR!!!\n");
-                return -1;
-        }
-        ves->reg0=(ves->reg0 & 0xe3) | (real_qam << 2);
-
-        writereg(client, 0x01, QAM_Values[real_qam].Reg1);
-        writereg(client, 0x05, QAM_Values[real_qam].Reg5);
-        writereg(client, 0x08, QAM_Values[real_qam].Reg8);
-        writereg(client, 0x09, QAM_Values[real_qam].Reg9);
-		writereg(client, 0x00, ves->reg0);
-
-        if (DoCLB)
-                ClrBit1820(client);
-        return 0;
-}
-
-/* read and write STDBY bit */
-int SetStdby(struct i2c_client* client, int DoStdby)
-{
-	u8 status;
-	struct ves1820 *ves=(struct ves1820 *) client->data;
-	dprintk("SetStdby: Einsprung \n");
-
-	if(ves)
-		status = ves->reg0;
-	else
-		status = readreg(client,0);
-
-	if(DoStdby)
-		status |= 0x80;
-	else
-		status &= ~0x80;
-
-        writereg(client, 0x00, status );
-
-	if(ves)
-		ves->reg0 = status;
+        SET_PWM(i2c,pwm);
+        SET_REG0(i2c,ves1820_inittab[0]);
 
 	return 0;
 }
 
-int GetStdby(struct i2c_client* client)
+
+static
+int ves1820_setup_reg0 (struct i2c_client *i2c,
+                        u8 real_qam, SpectralInversion inversion)
 {
-	u8 status;
+        u8 reg0 = (ves1820_inittab[0] & 0xe3) | (real_qam << 2);
 
-	dprintk("GetStdby: Einsprung \n");
-	status = readreg(client,0);
-
-	return ((status>>7)&1);
-}
-
-
-int attach_adapter(struct i2c_adapter *adap)
-{
-	struct ves1820 *ves;
-	struct i2c_client *client;
-
-	client_template.adapter=adap;
-	dprintk("attach_adapter\n");
-
-	i2c_master_send(&client_template,NULL,0);
-
-	client_template.adapter=adap;
-
-	if ((readreg(&client_template, 0x1a)&0xf0)!=0x70)
-		return -1;
-
-	if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
-		return -ENOMEM;
-	memcpy(client, &client_template, sizeof(struct i2c_client));
-
-	client->data=ves=kmalloc(sizeof(struct ves1820),GFP_KERNEL);
-
-	if (ves==NULL)
-	{
-		kfree(client);
-		return -ENOMEM;
-	}
-
-        printk("VES1820: attaching VES1820 at 0x%02x\n", (client->addr)<<1);
-        i2c_attach_client(client);
-
-        init(client);
-
-        printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.32 2002/08/19 22:53:13 Homar Exp $\n");
-//	MOD_INC_USE_COUNT;
-		ves->frontend.type=DVB_C;
-		ves->frontend.capabilities=0; // kann auch nix
-		ves->frontend.i2cbus=adap;
-
-		ves->frontend.demod=client;
-		ves->frontend.demod_type=DVB_DEMOD_VES1820;
-
-		register_frontend(&ves->frontend);
-
-
-        return 0;
-}
-
-int detach_client(struct i2c_client *client)
-{
-        printk("VES1820: detach_client\n");
-		unregister_frontend(&((struct ves1820*)client->data)->frontend);
-        i2c_detach_client(client);
-        kfree(client->data);
-        kfree(client);
-//	MOD_DEC_USE_COUNT;
-        return 0;
-}
-
-static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
-{
-	int temp;
-	switch (cmd)
-	{
-#if 0
-#define DVB_SYNC_SIGNAL        1
-#define DVB_SYNC_CARRIER       2
-#define DVB_SYNC_VITERBI       4
-#define DVB_SYNC_FSYNC         8
-#define DVB_SYNC_FRONT        16
-
-        case FE_GET_FRONTEND:
-        {
-                struct frontend *front = (struct frontend *)arg;
-                int sync;
-				dprintk ("FE_GET_FRONTEND: Einsprung \n");
-
-                front->afc=(int)((char)(readreg(client,0x19)));
-					dprintk ("AFC: %16u\n",front->afc);
-                front->afc=(front->afc*(int)(front->srate/8))/128;
-					dprintk ("AFC / SRATE: %u / %lu %u\n",front->afc, (long)front->srate, (uint)front->srate);
-                front->agc=readreg(client,0x17);
-					dprintk ("AGC: %16u\n",front->agc);
-                sync=front->sync=readreg(client,0x11);
-				if (sync & DVB_SYNC_SIGNAL)
-		        {
-					dprintk ("FE_SYNC_SIGNAL\n");
-				}
-				if (sync & DVB_SYNC_CARRIER)
-		        {
-					dprintk ("FE_SYNC_CARRIER\n");
-				}
-				if (sync & DVB_SYNC_VITERBI)
-		        {
-					dprintk ("FE_SYNC_VITERBI\n");
-				}
-				if (sync & DVB_SYNC_FSYNC)
-		        {
-					dprintk ("FE_SYNC_FSYNC\n");
-				}
-				if (sync & DVB_SYNC_FRONT)
-		        {
-					dprintk ("FE_SYNC_FRONT\n");
-				}
-				dprintk ("FRONTEND STATUS: %u\n",sync);
-                front->nest=0;
-				front->vber = readreg(client,0x14);
-                front->vber|=(readreg(client,0x15)<<8);
-                front->vber|=(readreg(client,0x16)<<16);
+        switch (inversion) {
+        case INVERSION_ON:      /* XXX FIXME: reversed?? p. 25  */
+                reg0 |= 0x20;
                 break;
+
+        case INVERSION_OFF:
+                reg0 &= 0xdf;
+                break;
+
+        default:
+                return -EINVAL;
         }
-#endif
+
+        SET_REG0(i2c, reg0);
+
+        ves1820_writereg (i2c, 0x00, reg0 & 0xfe);
+        ves1820_writereg (i2c, 0x00, reg0);
+
+        return 0;
+}
+
+
+static
+int ves1820_reset (struct i2c_client *i2c)
+{
+        u8 reg0 = GET_REG0(i2c);
+
+        ves1820_writereg(i2c, 0x00, reg0 & 0xfe);
+        ves1820_writereg(i2c, 0x00, reg0);
+
+        return 0;
+}
+
+
+static
+void ves1820_reset_uncorrected_block_counter (struct i2c_client *i2c)
+{
+        ves1820_writereg (i2c, 0x10, ves1820_inittab[0x10] & 0xdf);
+        ves1820_writereg (i2c, 0x10, ves1820_inittab[0x10]);
+}
+
+
+static
+int ves1820_set_symbolrate (struct i2c_client *i2c, u32 symbolrate)
+{
+        s32 BDR;
+        s32 BDRI;
+        s16 SFIL=0;
+        u16 NDEC = 0;
+        u32 tmp, ratio;
+
+#define XIN 69600000UL
+#define FIN (69600000UL>>4)
+
+        if (symbolrate > XIN/2)
+                symbolrate = XIN/2;
+
+        if (symbolrate < 500000)
+                symbolrate = 500000;
+
+        if (symbolrate < XIN/16) NDEC = 1;
+        if (symbolrate < XIN/32) NDEC = 2;
+        if (symbolrate < XIN/64) NDEC = 3;
+
+        if (symbolrate < (u32)(XIN/12.3)) SFIL = 1;
+        if (symbolrate < (u32)(XIN/16))  SFIL = 0;
+        if (symbolrate < (u32)(XIN/24.6)) SFIL = 1;
+        if (symbolrate < (u32)(XIN/32))  SFIL = 0;
+        if (symbolrate < (u32)(XIN/49.2)) SFIL = 1;
+        if (symbolrate < (u32)(XIN/64))  SFIL = 0;
+        if (symbolrate < (u32)(XIN/98.4)) SFIL = 1;
+
+        symbolrate <<= NDEC;
+        ratio = (symbolrate << 4) / FIN;
+        tmp =  ((symbolrate << 4) % FIN) << 8;
+        ratio = (ratio << 8) + tmp / FIN;
+        tmp = (tmp % FIN) << 8;
+        ratio = (ratio << 8) + (tmp + FIN/2) / FIN;
+
+        BDR = ratio;
+        BDRI = (((XIN << 5) / symbolrate) + 1) / 2;
+
+        if (BDRI > 0xFF)
+                BDRI = 0xFF;
+
+        SFIL = (SFIL << 4) | ves1820_inittab[0x0E];
+        NDEC = (NDEC << 6) | ves1820_inittab[0x03];
+
+        ves1820_writereg (i2c, 0x03, NDEC);
+        ves1820_writereg (i2c, 0x0a, BDR&0xff);
+        ves1820_writereg (i2c, 0x0b, (BDR>> 8)&0xff);
+        ves1820_writereg (i2c, 0x0c, (BDR>>16)&0x3f);
+
+        ves1820_writereg (i2c, 0x0d, BDRI);
+        ves1820_writereg (i2c, 0x0e, SFIL);
+
+	return 0;
+}
+
+
+static
+void ves1820_reset_pwm (struct i2c_client *i2c)
+{
+        u8 pwm = GET_PWM(i2c);
+
+        ves1820_writereg (i2c, 0x34, pwm);
+}
+
+
+typedef struct {
+        Modulation      QAM_Mode;
+        int             NoOfSym;
+        u8              Reg1;
+        u8              Reg5;
+        u8              Reg8;
+        u8              Reg9;
+} QAM_SETTING;
+
+
+QAM_SETTING QAM_Values[] = {
+        {  QAM_16,  16, 145, 164, 162, 145 },
+        {  QAM_32,  32, 150, 120, 116, 150 },
+        {  QAM_64,  64, 106,  70,  67, 106 },
+        { QAM_128, 128, 126,  54,  52, 126 },
+        { QAM_256, 256, 107,  38,  35, 107 }
+};
+
+
+static
+int ves1820_set_parameters (struct i2c_client *i2c, FrontendParameters *p)
+{
+        int real_qam;
+
+        switch (p->u.qam.QAM) {
+        case QAM_16 : real_qam = 0; break;
+        case QAM_32 : real_qam = 1; break;
+        case QAM_64 : real_qam = 2; break;
+        case QAM_128: real_qam = 3; break;
+        case QAM_256: real_qam = 4; break;
+        default:
+                return -EINVAL;
+        }
+
+        ves1820_set_symbolrate (i2c, p->u.qam.SymbolRate);
+        ves1820_reset_pwm (i2c);
+
+        ves1820_writereg (i2c, 0x01, QAM_Values[real_qam].Reg1);
+        ves1820_writereg (i2c, 0x05, QAM_Values[real_qam].Reg5);
+        ves1820_writereg (i2c, 0x08, QAM_Values[real_qam].Reg8);
+        ves1820_writereg (i2c, 0x09, QAM_Values[real_qam].Reg9);
+
+        ves1820_setup_reg0 (i2c, real_qam, p->Inversion);
+
+        return 0;
+}
+
+
+static
+void ves1820_sleep (struct i2c_client *i2c)
+{
+        ves1820_writereg (i2c, 0x1b, 0x02);  /* pdown ADC */
+        ves1820_writereg (i2c, 0x00, 0x80);  /* standby */
+}
+
+
+static int ves1820_ioctl (struct i2c_client *i2c, unsigned int cmd, void *arg)
+{
+        switch (cmd) {
+        case FE_GET_INFO:
+                memcpy (arg, &ves1820_info, sizeof(FrontendInfo));
+                break;
 
         case FE_READ_STATUS:
-		{
-			FrontendStatus *status=(FrontendStatus *) arg;
-			struct ves1820 *ves=(struct ves1820 *) client->data;
-			int sync;
-			int ber;
-			dprintk ("FE_READ_STATUS: Einsprung \n");
-
-			*status=0;
-
-			sync=readreg(client,0x11);
-
-			if (!sync)
-	        {
-				dprintk ("Searching Transponder...\n");
-				ClrBit1820(client);
-			}
-			if (sync & 1)
-	        {
-				*status|=FE_HAS_POWER;
-				dprintk ("Tracking...\n");
-			}
-			if (sync & 2)
-	        {
-				*status|=FE_HAS_LOCK;
-				dprintk ("Demodulator has locked...\n");
-			}
-			if (sync & 4)
-	        {
-				*status|=FE_HAS_SYNC;
-				dprintk ("MPEG2 sync pattern have been detected...\n");
-			}
-			if (sync & 8)
-	        {
-				*status|=FE_TUNER_HAS_LOCK;//austesten
-				dprintk ("Front End Locked 8-)\n");
-			}
-			if (sync & 64)
-	        {
-				*status|=FE_SPECTRUM_INV;
-				dprintk ("framing is not DVB compliant 8-(\n");
-			}
-
-			ber = (sync >> 4);
-			dprintk ("bit error rate arround: ");
-			dprintk (!ber?">10E-2\n":ber==1?"10E-3\n":ber==2?"10E-4\n":"<10E-4\n");
-			dprintk ("Status of sync: %d\n",sync);
-			dprintk ("Status of status: %d\n",*status);
-/*
-#define FE_HAS_POWER         1
-#define FE_HAS_SIGNAL        2
-#define FE_SPECTRUM_INV      4
-#define FE_HAS_LOCK          8
-#define FE_HAS_CARRIER      16
-#define FE_HAS_VITERBI      32
-#define FE_HAS_SYNC         64
-#define FE_TUNER_HAS_LOCK  128
-*/
-			if ((sync & 15) == 3)
-			{
-				dprintk("inv autom.\n");
-				SetInversion	(client,ves->inversion==INVERSION_ON?INVERSION_AUTO:INVERSION_ON);
-			}
-		break;
-		}
-
-        case FE_WRITEREG:
         {
-                u8 *msg = (u8 *) arg;
-				dprintk ("WRITEREG: %16u / %16u\n",msg[0], msg[1]);
-                writereg(client, msg[0], msg[1]);
-                break;
-        }
-		case FE_READREG:
-		{
-				u8 *msg = (u8 *) arg;
-				msg[1]=readreg(client, msg[0]);
-				dprintk ("READREG: %16u / %16u\n",msg[0], msg[1]);
-				break;
-		}
-        case FE_INIT:
-        {
-				dprintk ("INIT: Einsprung \n");
-                init(client);
+                FrontendStatus *status=(FrontendStatus *) arg;
+                int sync;
+
+                *status = 0;
+
+                sync = ves1820_readreg (i2c, 0x11);
+
+                if (sync & 0x01)
+                        *status |= FE_HAS_POWER;
+
+                if (sync & 0x02)
+                        *status |= FE_HAS_SIGNAL;
+
+                if (sync & 0x02)
+                        *status |= FE_HAS_CARRIER;
+
+                if (sync & 0x02)        /* XXX FIXME! */
+                        *status |= FE_HAS_VITERBI;
+
+                if (sync & 0x04)
+                        *status |= FE_HAS_SYNC;
+
+                if (sync & 0x08)
+                        *status|=FE_HAS_LOCK;
+
+                if (sync & 0x40)
+                        *status|=FE_SPECTRUM_INV;
+
+                dprintk ("ber: approx. 10E-%d, sync: %d, status; %d\n", (sync >> 4) + 2, sync, *status);
                 break;
         }
 
-        case FE_RESET:
+        case FE_READ_BER:
         {
-				dprintk ("RESET: Einsprung \n");
-				ClrBit1820(client);
-				break;
-        }
-        case FE_SET_INVERSION:
-        {
-				struct ves1820 *ves=(struct ves1820 *) client->data;
-				dprintk ("STATUS INVERSION: %s     ves->reg0 = 0x%x\n",ves->inversion==INVERSION_ON?"Inversion = ON":ves->inversion==INVERSION_OFF?"Inversion = OFF":"Inversion = AUTO", ves->reg0);
-                SetInversion(client, (int) arg);
+                u32 *ber = (u32 *) arg;
+
+                *ber = ves1820_readreg (i2c, 0x14);
+                *ber |= (ves1820_readreg (i2c, 0x15) << 8);
+                *ber |= ((ves1820_readreg (i2c, 0x16) & 0x0F ) << 16);
+                *ber *= 10;
                 break;
         }
 
+        case FE_READ_SIGNAL_STRENGTH:
+        {
+                u8 gain = ves1820_readreg (i2c, 0x17);
+                *(s32*)arg = (gain << 8) | gain;
+                break;
+        }
+
+        case FE_READ_SNR:
+        {
+                u8 quality = ~ves1820_readreg (i2c, 0x18);
+                *(s32*)arg = (quality << 8) | quality;
+                break;
+        }
+
+        case FE_READ_UNCORRECTED_BLOCKS:
+                *(u32*)arg = ves1820_readreg(i2c, 0x13) & 0x7f;
+                ves1820_reset_uncorrected_block_counter (i2c);
+                break;
 
         case FE_SET_FRONTEND:
-        {
-				FrontendParameters *param = (FrontendParameters *) arg;
+                return ves1820_set_parameters (i2c, arg);
 
-				dprintk ("SET_FRONTEND: Einsprung \n");
-				SetInversion(client, param->Inversion);
-				SetQAM(client, param->u.qam.QAM, 1);
-				SetSymbolrate(client, param->u.qam.SymbolRate, 1);
-				break;
-        }
-		case FE_SETFREQ:
-		{
-				u32 freq=*(u32*)arg;
-				u8 buffer[4];
-				freq+=36125;
-				freq/=125;
+        case FE_GET_FRONTEND:
+                break;
+#if 0
+        case FE_SLEEP:
+                ves1820_sleep (i2c);
+                break;
+#endif
+        case FE_INIT:
+                return ves1820_init (i2c);
 
-				buffer[0]=(freq>>8) & 0x7F;
-				buffer[1]=freq & 0xFF;
-				buffer[2]=0x80 | (((freq>>15)&3)<<6) | 4;
-				buffer[3]=(uint)freq>4017?4:(uint)freq<2737?2:1;
-				dprintk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
+        case FE_RESET:
+                return ves1820_reset (i2c);
 
-				fp_set_tuner_dword(T_QAM, *((u32*)buffer));
-				break;
-		}
-		case FE_READ_BER:
-		{
-				u32 *ber=(u32 *) arg;
+        case FE_SETFREQ:
+                return tuner_set_tv_freq (*(u32*)arg);
 
-				*ber = readreg(client,0x14);
-				*ber|=(readreg(client,0x15)<<8);
-				*ber|=((readreg(client,0x16)&0xF)<<16);
-				*ber*=10;
-				dprintk ("READ_BER: %u\n",*ber);
-				break;
-		}
-		case FE_READ_SIGNAL_STRENGTH:
-		{
-				u8 *vagc=(u8 *) arg;
-				*vagc=0xff-readreg(client,0x17);
-				dprintk ("READ_SIGNAL_STRENGTH (AGC): %d\n",*vagc);
-				break;
-		}
-		case FE_READ_SNR:
-		{
-				u8 *snr=(u8 *) arg;
-				*snr=readreg(client,0x18);
-				dprintk ("READ_SNR (MeanSquareError): %d\n",*snr);
-				break;
-		}
-		case FE_READ_UNCORRECTED_BLOCKS:
-		{
-				u8 *ublocks=(u8 *) arg;
-				*ublocks = readreg(client,0x13) & 0x7f;
-				ClrBit1820(client);
-				dprintk ("READ_UNCORRECTED_BLOCKS: %d\n",*ublocks);
-				break;
-		}
-		case FE_READ_AFC:
-		{
-				struct ves1820 *ves=(struct ves1820 *) client->data;
-				s32 *afc=(s32 *) arg;
-				*afc=(s32)((int)(readreg(client,0x19)>>2));
-				*afc=(s32)((*afc*((ves->srate)>>1))>>7);
-				dprintk ("READ_AFC: %d\n",*afc);
-				break;
-		}
-		case FE_GET_INFO:
-		{
-				FrontendInfo *feinfo=(FrontendInfo *) arg;
-				feinfo->type=FE_QAM;
-				feinfo->minFrequency=49000000;
-				feinfo->maxFrequency=890000000;
-				feinfo->minSymbolRate=543750;
-				feinfo->maxSymbolRate=8700000;
-				feinfo->hwType=0;
-				feinfo->hwVersion=0;
-				dprintk ("GET_INFO: Einsprung \n");
-				break;
-		}
         default:
-		{
- 				printk ("dvb_command: !!!ERROR!!!\n");
- 				return -1;
-		}
-	}
+                return -EINVAL;
+        }
 
-		for ( temp=0;temp==2000;temp++); //2500
         return 0;
 }
 
-void inc_use (struct i2c_client *client)
+static struct i2c_client ves1820_i2c_client;
+
+static
+int ves1820_attach (struct i2c_adapter *adap)
+{
+        struct ves1820 *ves;
+        struct i2c_client *i2c;
+
+        ves1820_i2c_client.adapter = adap;
+
+        i2c_master_send(&ves1820_i2c_client, NULL, 0);
+
+        ves1820_i2c_client.adapter = adap;
+
+        if ((ves1820_readreg(&ves1820_i2c_client, 0x1a) & 0xf0) != 0x70)
+                return -1;
+
+        i2c = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+
+        if (!i2c)
+                return -ENOMEM;
+
+        memcpy(i2c, &ves1820_i2c_client, sizeof(struct i2c_client));
+        i2c->data = ves = kmalloc(sizeof(struct ves1820),GFP_KERNEL);
+
+        if (!ves)
+        {
+                kfree(i2c);
+                return -ENOMEM;
+        }
+
+        printk("VES1820: attaching VES1820 at 0x%02x\n", (i2c->addr)<<1);
+        i2c_attach_client(i2c);
+        printk("VES1820: attached to adapter %s\n\n", adap->name);
+
+        ves->frontend.type = DVB_C;
+        ves->frontend.capabilities = 0;
+        ves->frontend.i2cbus = adap;
+        ves->frontend.demod = i2c;
+        ves->frontend.demod_type = DVB_DEMOD_VES1820;
+
+        register_frontend(&ves->frontend);
+
+        return 0;
+}
+
+
+static
+int ves1820_detach (struct i2c_client *i2c)
+{
+        printk("VES1820: detach_client\n");
+        unregister_frontend(&((struct ves1820*)i2c->data)->frontend);
+        i2c_detach_client(i2c);
+        kfree(i2c->data);
+        kfree(i2c);
+        return 0;
+}
+
+
+static
+void ves1820_inc_use (struct i2c_client *client)
 {
 #ifdef MODULE
         MOD_INC_USE_COUNT;
 #endif
 }
 
-void dec_use (struct i2c_client *client)
+
+static
+void ves1820_dec_use (struct i2c_client *client)
 {
 #ifdef MODULE
         MOD_DEC_USE_COUNT;
 #endif
 }
 
-static struct i2c_driver dvbt_driver = {
-        "VES1820 DVB demodulator",
-        I2C_DRIVERID_VES1820,
-        I2C_DF_NOTIFY,
-        attach_adapter,
-        detach_client,
-        dvb_command,
-        inc_use,
-        dec_use,
-};
 
-static struct i2c_client client_template = {
-        name:    "VES1820",
-        id:      I2C_DRIVERID_VES1820,
-        flags:   0,
-        addr:    (0x10 >> 1),
-        adapter: NULL,
-        driver:  &dvbt_driver,
+static
+struct i2c_driver ves1820_i2c_driver =
+{
+        name:		"VES1820 DVB-C Demodulator",
+        id:		I2C_DRIVERID_VES1820,
+        flags:		I2C_DF_NOTIFY,
+        attach_adapter:	ves1820_attach,
+        detach_client:	ves1820_detach,
+        command:	ves1820_ioctl,
+        inc_use:	ves1820_inc_use,
+        dec_use:	ves1820_dec_use
 };
 
 
-static __init int
-init_ves1820(void) {
-        int res;
+static
+struct i2c_client ves1820_i2c_client =
+{
+        name:		"VES1820",
+        id:		I2C_DRIVERID_VES1820,
+        flags:		0,
+        addr:		0x10 >> 1,
+        adapter:	NULL,
+        driver:		&ves1820_i2c_driver,
+	usage_count:	0
+};
 
-        if ((res = i2c_add_driver(&dvbt_driver)))
-        {
-                printk("VES1820: i2c driver registration failed\n");
-                return res;
-        }
 
-        dprintk("VES1820: init done\n");
-        return 0;
-}
-
-static __exit void
-exit_ves1820(void)
+static
+int __init init_ves1820(void)
 {
         int res;
 
-	SetStdby(&client_template,1);
+	printk("$Id: ves1820.c,v 1.33 2002/09/08 00:05:26 obi Exp $\n");
 
-        if ((res = i2c_del_driver(&dvbt_driver)))
+        if ((res = i2c_add_driver(&ves1820_i2c_driver)))
         {
-                printk("dvb-tuner: Driver deregistration failed, "
-                       "module not removed.\n");
+		printk("%s: i2c driver registration failed\n", __FUNCTION__);
+                return res;
         }
-        dprintk("VES1820: cleanup\n");
+
+	dprintk("%s: done\n", __FUNCTION__);
+        return 0;
 }
 
+
+static
+void __exit exit_ves1820(void)
+{
+        int res;
+
+	ves1820_sleep (&ves1820_i2c_client);
+
+        if ((res = i2c_del_driver(&ves1820_i2c_driver)))
+        {
+		printk("%s: Driver deregistration failed, module not removed.\n", __FUNCTION__);
+        }
+
+	dprintk("%s: done\n", __FUNCTION__);
+}
+
+
+#ifdef MODULE
 module_init(init_ves1820);
 module_exit(exit_ves1820);
+
+MODULE_DESCRIPTION("");
+MODULE_AUTHOR("Ralph Metzler");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+MODULE_PARM(debug,"i");
+#endif
+
