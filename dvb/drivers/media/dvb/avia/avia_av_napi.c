@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.31 2004/03/02 22:38:31 alexw Exp $
+ * $Id: avia_av_napi.c,v 1.32 2004/03/02 23:50:36 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -489,11 +489,11 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 	case AUDIO_SET_MUTE:
 		if (arg) {
-			/* mute av spdif (2) and analog audio (4) */
-			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) & ~6);
+			/* mute av spdif (2) and analog audio (4), disable DA-IEC */
+			avia_av_dram_write(AUDIO_CONFIG, (avia_av_dram_read(AUDIO_CONFIG) & ~0x0006) | 0x0100);
 		} else {
-			/* unmute av spdif (2) and analog audio (4) */
-			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 6);
+			/* unmute av spdif (2) and analog audio (4), enable DA-IEC */
+			avia_av_dram_write(AUDIO_CONFIG, (avia_av_dram_read(AUDIO_CONFIG) & ~0x0100) | 0x0006);
 		}
 		avia_av_new_audio_config();
 		audiostate.mute_state = !!arg;
@@ -505,19 +505,6 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 		else
 			avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_NONE);
 		audiostate.AV_sync_state = arg;
-		break;
-
-	case AUDIO_SET_DA_IEC_DISABLE:
-		/* Avia 600 only */
-		if (arg) {
-			/* disable DA-IEC */
-			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 256);
-		}
-		else {
-			/* enable DA-IEC */
-			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) & ~256);
-		}
-		avia_av_new_audio_config();
 		break;
 
 	case AUDIO_SET_BYPASS_MODE:
@@ -760,7 +747,7 @@ static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.31 2004/03/02 22:38:31 alexw Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.32 2004/03/02 23:50:36 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
