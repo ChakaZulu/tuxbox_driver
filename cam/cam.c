@@ -1,23 +1,72 @@
-#include <linux/module.h>
+/*
+ *   cam.c - CAM driver (dbox-II-project)
+ *
+ *   Homepage: http://dbox2.elxsi.de
+ *
+ *   Copyright (C) 2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: cam.c,v $
+ *   Revision 1.3  2001/03/03 13:03:04  gillem
+ *   - add option firmware,debug
+ *
+ *
+ *   $Revision: 1.3 $
+ *
+ */
+
+/* ---------------------------------------------------------------------- */
+
+#define __KERNEL_SYSCALLS__
+
+#include <linux/string.h>
+#include <linux/fs.h>
+#include <linux/unistd.h>
+#include <linux/fcntl.h>
+#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/malloc.h>
 #include <linux/version.h>
-#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#include <asm/semaphore.h>
+#include <linux/interrupt.h>
+#include <linux/i2c.h>
 #include <asm/irq.h>
-#include <asm/mpc8xx.h>
-#include <asm/8xx_immap.h>
 #include <asm/io.h>
+#include <asm/8xx_immap.h>
+#include <asm/pgtable.h>
+#include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-#include <linux/i2c.h>
+#include <asm/semaphore.h>
 
 #include <dbox/fp.h>
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef MODULE
+static int debug=0;
+static char *firmware=0;
+#endif
+
+#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
 #define CAM_MAJOR            61
 #define CAM_CODE_MINOR       0
@@ -33,6 +82,8 @@
 #define CAM_DATA_SIZE        0x10000
 
 #define CAM_QUEUE_SIZE       0x1000
+
+/* ---------------------------------------------------------------------- */
 
 static DECLARE_MUTEX_LOCKED(cam_busy);
 
@@ -82,7 +133,6 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
             6f xx 23  is sync 
         */
         
-unsigned char cam_code_buffer[CAM_CODE_SIZE];     // sorry
 unsigned char cam_queue[CAM_QUEUE_SIZE];
 
 static int cam_queuewptr=0, cam_queuerptr=0;
@@ -97,6 +147,8 @@ static struct file_operations cam_fops = {
         release:        cam_release
 };
 
+/* ---------------------------------------------------------------------- */
+
 static int cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                       unsigned long arg)
 {
@@ -107,17 +159,17 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
 {
   unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
   
-  if ((minor == CAM_CODE_MINOR) || (minor == CAM_DATA_MINOR))
+  if (/*(minor == CAM_CODE_MINOR) || */(minor == CAM_DATA_MINOR))
   {
     int numb, size;
     void *base;
   
     switch (minor)
     {
-    case CAM_CODE_MINOR:
-      base=cam_code_buffer;               // cam_code_base
-      size=CAM_CODE_SIZE;
-      break;
+//    case CAM_CODE_MINOR:
+//      base=cam_code_buffer;               // cam_code_base
+//      size=CAM_CODE_SIZE;
+//      break;
     case CAM_DATA_MINOR:
       base=data_base;
       size=CAM_DATA_SIZE;
@@ -137,7 +189,7 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
     
     *offset+=numb;
   
-    if ((*offset==size) && (minor==CAM_CODE_MINOR))
+/*    if ((*offset==size) && (minor==CAM_CODE_MINOR))
     {
       immap_t *immap=(immap_t *)IMAP_ADDR ;
       volatile cpm8xx_t *cp=&immap->im_cpm;
@@ -160,16 +212,17 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
 
       fp_do_reset(0xAF);
       cp->cp_pbdat&=~1;
-      memcpy(code_base, cam_code_buffer, CAM_CODE_SIZE);
+//      memcpy(code_base, cam_code_buffer, CAM_CODE_SIZE);
       memset(data_base, 'Z', CAM_DATA_SIZE);
       cp->cp_pbdat|=1;
       cp->cp_pbdat&=~2;
       cp->cp_pbdat|=2;
       udelay(100);
       fp_do_reset(0xAF);
-    }
+    } */
     return numb;
-  } else if (minor==CAM_MINOR)
+  } else
+  if (minor==CAM_MINOR)
   {
     int res;
     if ((res=down_interruptible(&cam_busy)))
@@ -273,62 +326,6 @@ static int cam_release(struct inode *inode, struct file *file)
 {
   printk("cam.o: release\n");
   return 0; 
-}
-
-int cam_init(void)
-{
-  int res;
-  init_waitqueue_head(&queuewait);
-
-  code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
-  data_base=ioremap(CAM_DATA_BASE, CAM_DATA_BASE);
-  if (!code_base || !data_base)
-    panic("couldn't map CAM-io.\n");
-  if (register_chrdev(CAM_MAJOR, "cam", &cam_fops))
-  {
-    printk("cam.o: unable to get major %d\n", CAM_MAJOR);
-    return -EIO;
-  }
-
-  if ((res = i2c_add_driver(&cam_driver)))
-  {
-    printk("CAM: Driver registration failed, module not inserted.\n");
-    return res;
-  }
-
-  if (!dclient)
-  {
-    i2c_del_driver(&cam_driver);
-    printk("CAM: cam not found.\n");
-    return -EBUSY;
-  }
-  
-  up(&cam_busy);
-
-  if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
-    panic("Could not allocate CAM IRQ!");
-
-  return 0;
-}
-
-void cam_fini(void)
-{
-  int res;
-  if ((res=unregister_chrdev(CAM_MAJOR, "cam")))
-    printk("cam.o: unable to release major %d\n", CAM_MAJOR);
-  free_irq(CAM_INTERRUPT, THIS_MODULE);
-  schedule(); // HACK: let all task queues run.
-  
-  if ((res=down_interruptible(&cam_busy)))
-    return;
-
-  iounmap(code_base);
-  iounmap(data_base);
-  if ((res = i2c_del_driver(&cam_driver)))
-  {
-    printk("cam: Driver deregistration failed, module not removed.\n");
-    return;
-  }
 }
 
 
@@ -448,19 +445,220 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
   schedule_task(&cam_tasklet);
 }
 
+/* ---------------------------------------------------------------------- */
+
+static void do_firmwrite( u32 *buffer )
+{
+    int size,i;
+    void *base;
+    immap_t *immap=(immap_t *)IMAP_ADDR ;
+    volatile cpm8xx_t *cp=&immap->im_cpm;
+
+	base = (void*)buffer;
+    size=CAM_CODE_SIZE;
+
+	printk("der moment ist gekommen...\n");
+
+	cp->cp_pbpar&=~15;  // GPIO (not cpm-io)
+	cp->cp_pbodr&=~15;  // driven output (not tristate)
+	cp->cp_pbdir|=15;   // output (not input)
+
+	cp->cp_pbdat|=0xF;
+	cp->cp_pbdat&=~2;
+	cp->cp_pbdat|=2;
+
+	for (i=0; i<8; i++)
+	{
+		cp->cp_pbdat&=~8;
+		udelay(100);
+		cp->cp_pbdat|=8;
+		udelay(100);
+	}
+
+	fp_do_reset(0xAF);
+	cp->cp_pbdat&=~1;
+
+	memcpy(code_base, base, size);
+	memset(data_base, 'Z', CAM_DATA_SIZE);
+
+	cp->cp_pbdat|=1;
+	cp->cp_pbdat&=~2;
+	cp->cp_pbdat|=2;
+	udelay(100);
+
+	fp_do_reset(0xAF);
+}
+
+/* ---------------------------------------------------------------------- */
+
+static int errno;
+
+static int do_firmread(const char *fn, char **fp)
+{
+	/* shameless stolen from sound_firmware.c */
+
+	int fd;
+    long l;
+    char *dp;
+
+	fd = open(fn,0,0);
+
+	if (fd == -1)
+	{
+		dprintk(KERN_ERR "cam.o: Unable to load '%s'.\n", firmware);
+		return 0;
+	}
+
+	l = lseek(fd, 0L, 2);
+
+	if (l<=0)
+	{
+		dprintk(KERN_ERR "cam.o: Firmware wrong size '%s'.\n", firmware);
+		sys_close(fd);
+		return 0;
+	}
+
+	lseek(fd, 0L, 0);
+
+	dp = vmalloc(l);
+
+	if (dp == NULL)
+	{
+		dprintk(KERN_ERR "cam.o: Out of memory loading '%s'.\n", firmware);
+		sys_close(fd);
+		return 0;
+	}
+
+	if (read(fd, dp, l) != l)
+	{
+		dprintk(KERN_ERR "cam.o: Failed to read '%s'.%d\n", firmware,errno);
+		vfree(dp);
+		sys_close(fd);
+		return 0;
+	}
+
+	close(fd);
+
+	*fp = dp;
+
+	return (int) l;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int cam_init(void)
+{
+	int res;
+   	mm_segment_t fs;
+	u32 *microcode;
+
+	init_waitqueue_head(&queuewait);
+
+	code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
+	data_base=ioremap(CAM_DATA_BASE, CAM_DATA_BASE);
+
+	if (!code_base || !data_base)
+	{
+		panic("couldn't map CAM-io.\n");
+	}
+
+	/* load microcode */
+	fs = get_fs();
+
+	set_fs(get_ds());
+
+	/* read firmware */
+	if (do_firmread(firmware, (char**)&microcode) == 0)
+	{
+		set_fs(fs);
+		return -EIO;
+	}
+
+	set_fs(fs);
+
+	do_firmwrite(microcode);
+
+	vfree(microcode);
+
+	if (register_chrdev(CAM_MAJOR, "cam", &cam_fops))
+	{
+		printk("cam.o: unable to get major %d\n", CAM_MAJOR);
+		return -EIO;
+	}
+
+	if ((res = i2c_add_driver(&cam_driver)))
+	{
+		unregister_chrdev(CAM_MAJOR, "cam");
+		printk("CAM: Driver registration failed, module not inserted.\n");
+		return res;
+	}
+
+	if (!dclient)
+	{
+		unregister_chrdev(CAM_MAJOR, "cam");
+		i2c_del_driver(&cam_driver);
+		printk("CAM: cam not found.\n");
+		return -EBUSY;
+	}
+
+	up(&cam_busy);
+
+	if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
+	{
+		panic("Could not allocate CAM IRQ!");
+	}
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void cam_fini(void)
+{
+	int res;
+
+	if ((res=unregister_chrdev(CAM_MAJOR, "cam")))
+	{
+		printk("cam.o: unable to release major %d\n", CAM_MAJOR);
+	}
+
+	free_irq(CAM_INTERRUPT, THIS_MODULE);
+	schedule(); // HACK: let all task queues run.
+
+	if ((res=down_interruptible(&cam_busy)))
+	{
+		return;
+	}
+
+	iounmap(code_base);
+	iounmap(data_base);
+
+	if ((res = i2c_del_driver(&cam_driver)))
+	{
+		printk("cam: Driver deregistration failed, module not removed.\n");
+		return;
+	}
+}
+
+/* ---------------------------------------------------------------------- */
+
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 CAM Driver");
+MODULE_PARM(debug,"i");
+MODULE_PARM(firmware,"s");
 
 int init_module(void)
 {
-  return cam_init();
+	return cam_init();
 }
 
-///////////////////////////////////////////////////////////////////////////////
+/* ---------------------------------------------------------------------- */
 
 void cleanup_module(void)
 {
-  cam_fini();
+	cam_fini();
 }
 #endif
+
+/* ---------------------------------------------------------------------- */
