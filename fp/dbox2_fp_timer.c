@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.11 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.12 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -24,11 +24,8 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_timer.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
-
 static u8 boot_trigger;
 static struct i2c_client *fp_i2c_client;
-
 
 void
 dbox2_fp_timer_init (void)
@@ -60,7 +57,7 @@ dbox2_fp_timer_set (u16 minutes)
 {
 	u8 cmd [] = { 0x00, minutes & 0xFF, minutes >> 8 };
 
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 		cmd[0] = FP_WAKEUP_NOKIA;
 		break;
@@ -85,7 +82,7 @@ dbox2_fp_timer_get (void)
 	u8 id [] ={ 0x00, 0x00 };
 	u8 cmd = 0;
 
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 		cmd = FP_WAKEUP_NOKIA;
 		break;
@@ -123,7 +120,7 @@ dbox2_fp_timer_clear (void)
 	/* this commands clears the hw reboot flag and also clears the status reg 0x20 */
 	if(boot_trigger == BOOT_TRIGGER_TIMER || 1)
 	{
-		if (tuxbox_dbox2_mid == TUXBOX_DBOX2_MID_NOKIA)
+		if (mid == TUXBOX_DBOX2_MID_NOKIA)
 		{
 			cmd = FP_CLEAR_WAKEUP_NOKIA;
 		}

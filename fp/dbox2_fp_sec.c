@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_sec.c,v 1.5 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_sec.c,v 1.6 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -28,15 +28,12 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_sec.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
-
 static u8 sec_power;
 static u8 sec_voltage;
 static u8 sec_high_voltage;
 static u8 sec_tone;
 static int sec_bus_status;
 struct i2c_client * fp_i2c_client;
-
 
 int
 dbox2_fp_sec_get_status (void)
@@ -65,7 +62,7 @@ dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len)
 	sleeptime = 2300;
 	sleep_perbyte = 300;
 
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 		msg[0] = 0x00;
 		msg[1] = 0x1B;
@@ -87,7 +84,7 @@ dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len)
 
 	memcpy(msg + 2, cmd, len);
 
-	if (tuxbox_dbox2_mid == TUXBOX_DBOX2_MID_SAGEM) {
+	if (mid == TUXBOX_DBOX2_MID_SAGEM) {
 
 		if (len > 1) {
 			i2c_master_send(fp_i2c_client, msg, len + 2);
@@ -155,7 +152,7 @@ dbox2_fp_sec_set (u8 power, u8 voltage, u8 high_voltage, u8 tone)
 	if (sec_bus_status < 0)
 		return -1;
 
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 
 		/* power   pol   +1V

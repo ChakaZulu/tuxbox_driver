@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.57 2003/03/04 21:18:08 waldi Exp $
+ * $Id: avia_av_core.c,v 1.58 2003/03/05 09:52:17 waldi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -52,9 +52,11 @@
 #include "avia_av_event.h"
 #include "avia_av_proc.h"
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+#include <tuxbox/info_dbox2.h>
 
 /* ---------------------------------------------------------------------- */
+
+TUXBOX_INFO(dbox2_av);
 
 static int   pal = 1;
 static char *firmware = NULL;
@@ -1314,7 +1316,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.57 2003/03/04 21:18:08 waldi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.58 2003/03/05 09:52:17 waldi Exp $\n");
 
 	aviamem = 0;
 

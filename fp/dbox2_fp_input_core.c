@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_input_core.c,v 1.2 2002/12/28 10:44:49 Jolt Exp $
+ * $Id: dbox2_fp_input_core.c,v 1.3 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -22,6 +22,11 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
+
+#include <dbox/dbox2_fp_core.h>
+
+TUXBOX_INFO(dbox2_mid);
+tuxbox_dbox2_mid_t mid;
 
 static struct input_dev input_dev;
 

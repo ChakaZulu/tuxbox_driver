@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.29 2003/03/04 21:18:10 waldi Exp $
+ * $Id: saa7126_core.c,v 1.30 2003/03/05 09:52:17 waldi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -35,7 +35,9 @@
 
 #include <dbox/saa7126_core.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+#include <tuxbox/info_dbox2.h>
+
+TUXBOX_INFO(dbox2_mid);
 
 #ifndef CONFIG_DEVFS_FS
 #error device filesystem required

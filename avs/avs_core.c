@@ -1,5 +1,5 @@
 /*
- * $Id: avs_core.c,v 1.23 2003/03/04 21:17:58 waldi Exp $
+ * $Id: avs_core.c,v 1.24 2003/03/05 09:52:17 waldi Exp $
  * 
  * audio/video switch core driver (dbox-II-project)
  *
@@ -42,7 +42,7 @@
 #include <dbox/avs_core.h>
 #include <dbox/event.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+#include <tuxbox/info_dbox2.h>
 
 #include "cxa2092.h"
 #include "cxa2126.h"
@@ -53,6 +53,8 @@
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
 #endif
+
+TUXBOX_INFO(dbox2_mid);
 
 #define dprintk if (debug) printk
 static int debug = 0;
@@ -694,4 +696,3 @@ MODULE_LICENSE("GPL");
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
 MODULE_PARM(type,"i");
-

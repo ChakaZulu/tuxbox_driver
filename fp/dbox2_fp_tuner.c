@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_tuner.c,v 1.3 2003/03/04 23:05:30 waldi Exp $
+ * $Id: dbox2_fp_tuner.c,v 1.4 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -25,10 +25,7 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_tuner.h>
 
-#include <tuxbox/tuxbox_hardware.h>
-
 static struct i2c_client * fp_i2c_client;
-
 
 void
 dbox2_fp_tuner_init (void)

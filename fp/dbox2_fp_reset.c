@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_reset.c,v 1.3 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_reset.c,v 1.4 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -26,10 +26,7 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_reset.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
-
 static struct i2c_client * fp_i2c_client;
-
 
 void
 dbox2_fp_reset_init (void)
@@ -41,7 +38,7 @@ dbox2_fp_reset_init (void)
 void
 dbox2_fp_restart (char * cmd)
 {
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x14);
 		break;
@@ -58,7 +55,7 @@ dbox2_fp_restart (char * cmd)
 void
 dbox2_fp_power_off (void)
 {
-	switch (tuxbox_dbox2_mid) {
+	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x03);
 		break;
@@ -77,7 +74,7 @@ dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
 {
 	u8 msg [] = { 0x05, 0xef };
 
-	if (tuxbox_dbox2_mid == TUXBOX_DBOX2_MID_NOKIA) {
+	if (mid == TUXBOX_DBOX2_MID_NOKIA) {
 	
 		return dbox2_fp_reset(0xAF);
 		

@@ -56,7 +56,9 @@
 #include <dbox/dbox2_fp_timer.h>
 #include <dbox/dbox2_fp_tuner.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+TUXBOX_INFO(dbox2_mid);
+tuxbox_dbox2_mid_t mid;
+static u8 fp_revision;
 
 static devfs_handle_t devfs_handle;
 
@@ -180,7 +182,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		return fp_getid(defdata->client);
 
 	case FP_IOCTL_POWEROFF:
-		if (tuxbox_dbox2_fp_revision >= 0x80)
+		if (fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x00, 0x03);
 		else
 			return fp_sendcmd(defdata->client, 0x00, 0x00);
@@ -193,7 +195,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 			return -EFAULT;
 
-		if (tuxbox_dbox2_fp_revision >= 0x80)
+		if (fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x18, val & 0xff);
 		else
 			return fp_sendcmd(defdata->client, 0x06, val & 0xff);
@@ -202,7 +204,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 			return -EFAULT;
 
-		if (tuxbox_dbox2_fp_revision >= 0x80)
+		if (fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x00, 0x10 | ((~val) & 1));
 		else
 			return fp_sendcmd(defdata->client, 0x10 | (val & 1), 0x00);
@@ -590,6 +592,22 @@ __init fp_init (void)
 	int res;
 	/*int i;*/
 
+	mid = tuxbox_dbox2_mid;
+
+	switch (mid) {
+		case TUXBOX_DBOX2_MID_NOKIA:
+			fp_revision = 0x81;
+			break;
+
+		case TUXBOX_DBOX2_MID_PHILIPS:
+			fp_revision = 0x30;
+			break;
+
+		case TUXBOX_DBOX2_MID_SAGEM:
+			fp_revision = 0x23;
+			break;
+	}
+
 	if ((res = i2c_add_driver(&fp_driver))) {
 		dprintk("fp.o: Driver registration failed, module not inserted.\n");
 		return res;
@@ -603,8 +621,8 @@ __init fp_init (void)
 
 	devfs_handle =
 		devfs_register(NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
-			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-			&fp_fops, NULL);
+				S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+				&fp_fops, NULL);
 
 	if (!devfs_handle) {
 		i2c_del_driver(&fp_driver);
@@ -624,7 +642,7 @@ __init fp_init (void)
 }
 
 
-static void
+	static void
 __exit fp_exit (void)
 {
 	if (i2c_del_driver(&fp_driver)) {
@@ -644,9 +662,9 @@ __exit fp_exit (void)
 		ppc_md.halt = NULL;
 
 	/*
-	dbox2_fp_reset_exit();
-	dbox2_fp_sec_exit();
-	*/
+	   dbox2_fp_reset_exit();
+	   dbox2_fp_sec_exit();
+	   */
 }
 
 EXPORT_SYMBOL(dbox2_fp_queue_alloc);

@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_core.h,v 1.3 2003/03/04 21:18:09 waldi Exp $
+ * $Id: dbox2_fp_core.h,v 1.4 2003/03/05 09:52:17 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -25,6 +25,10 @@
 
 #include <linux/i2c.h>
 #include <linux/types.h>
+
+#include <tuxbox/info_dbox2.h>
+
+extern tuxbox_dbox2_mid_t mid;
 
 typedef void (*queue_proc_t)(u8 queue_nr);
 

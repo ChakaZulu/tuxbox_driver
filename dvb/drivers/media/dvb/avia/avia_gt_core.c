@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.32 2003/03/04 21:18:08 waldi Exp $
+ * $Id: avia_gt_core.c,v 1.33 2003/03/05 09:52:17 waldi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -47,7 +47,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+#include <tuxbox/info_dbox2.h>
 
 #include "avia_gt.h"
 #include "avia_gt_accel.h"
@@ -58,6 +58,8 @@
 #include "avia_gt_pig.h"
 #include "avia_gt_ir.h"
 #include "avia_gt_vbi.h"
+
+TUXBOX_INFO(dbox2_av);
 
 #ifdef MODULE
 MODULE_PARM(chip_type, "i");
@@ -213,7 +215,7 @@ int __init avia_gt_init(void)
 
 	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.32 2003/03/04 21:18:08 waldi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.33 2003/03/05 09:52:17 waldi Exp $\n");
 
 	if (chip_type == -1) {
 
