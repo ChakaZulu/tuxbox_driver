@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.19 2003/12/02 01:08:22 obi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.20 2003/12/07 16:21:34 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -35,11 +35,8 @@ enum {
 #define UP_TIMEOUT (HZ / 4)
 
 static struct input_dev *rc_input_dev;
-static int old_rc = 1;
-static int new_rc = 1;
-
-//#define dprintk printk
-#define dprintk if (0) printk
+static int disable_old_rc;
+static int disable_new_rc;
 
 static struct rc_key {
 	unsigned long code;
@@ -87,7 +84,8 @@ static void dbox2_fp_rc_keyup(unsigned long data)
 	if ((!data) || (!test_bit(data, rc_input_dev->key)))
 		return;
 
-	input_event(rc_input_dev, EV_KEY, data, KEY_RELEASED);	// "key released" event after timeout
+	/* "key released" event after timeout */
+	input_event(rc_input_dev, EV_KEY, data, KEY_RELEASED);
 }
 
 static struct timer_list keyup_timer = { 
@@ -102,7 +100,7 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 
 	fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
 
-	if (!old_rc)
+	if (disable_old_rc)
 		return;
 
 	if (rc_code == 0x5cfe) {
@@ -147,7 +145,7 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 
 	fp_cmd(fp_get_i2c(), cmd, (u8*)&rc_code, sizeof(rc_code));
 
-	if (!new_rc)
+	if (disable_new_rc)
 		return;
 
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++) {
@@ -203,6 +201,6 @@ void __exit dbox2_fp_rc_exit(void)
 }
 
 #ifdef MODULE
-MODULE_PARM(old_rc, "i");
-MODULE_PARM(new_rc, "i");
+MODULE_PARM(disable_old_rc, "i");
+MODULE_PARM(disable_new_rc, "i");
 #endif
