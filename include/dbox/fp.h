@@ -28,6 +28,7 @@ int fp_do_reset(int type);
 int fp_cam_reset(void);
 int fp_send_diseqc(u8 *cmd,unsigned int len);
 int fp_sec_status(void);
+int fp_sagem_set_SECpower(int power);
 
 #endif
 #endif
