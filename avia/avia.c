@@ -21,13 +21,16 @@
  *
  *
  *   $Log: avia.c,v $
+ *   Revision 1.10  2001/02/03 11:29:54  gillem
+ *   - fix audio
+ *
  *   Revision 1.9  2001/02/02 18:17:18  gillem
  *   - add exports (avia_wait,avia_command)
  *
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -383,7 +386,7 @@ int init_module(void)
   wDR(0x1D8, 0);                // INTERPRET_USER_DATA (br) disable
   FinalGBus();
 
-                // mpg_enAViAIntr aus der BN:
+  // mpg_enAViAIntr aus der BN:
   wDR(0x2AC, 0);
   wGB(0, rGB(0)|0x80);  // enable interrupts
   wGB(0, (rGB(0)&~1)|2);  // enable interrupts
@@ -455,19 +458,21 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
 
   val = 0;
 
-                        // AUDIO_CONFIG 12,11,7,6,5,4 reserved or must be set to 0
+  // AUDIO_CONFIG 12,11,7,6,5,4 reserved or must be set to 0
   val |= (0<<10);       // 64 DAI BCKs per DAI LRCK
   val |= (0<<9);        // input is I2S
   val |= (0<<8);        // output constan low (no clock)
+  // ??? change tv-audio !
   val |= (0<<3);        // 0: normal 1:I2S output
-  val |= (0<<2);        // 0:off 1:on channels
+  // on/off
+  val |= (1<<2);        // 0:off 1:on channels
   val |= (0<<1);        // 0:off 1:on IEC-958
   val |= (0);           // 0:encoded 1:decoded output
   wDR(0xE0, val);
 
   val = 0;
 
-                        // AUDIO_DAC_MODE 0 reserved
+  // AUDIO_DAC_MODE 0 reserved
   val |= (0<<8);
   val |= (0<<6);
   val |= (0<<4);
@@ -477,17 +482,25 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
   wDR(0xE8, val);
 
   val = 0;
-                        // AUDIO_CLOCK_SELECTION
+
+  // AUDIO_CLOCK_SELECTION
   val |= (0<<2);
-  val |= (0<<1);        // 1:256 0:384 x sampling frequ.
+  // ;-)
+  val |= (1<<1);        // 1:256 0:384 x sampling frequ.
   val |= (1);           // master,slave mode
 
   wDR(0xEC, val);
 
-  val = 0;
+  val = 20;
 
-                        // AUDIO_ATTENUATION
-  wDR(0xF4, 0);
+  // AUDIO_ATTENUATION
+  wDR(0xF4, val);
+
+  // wait for avia to ready
+  val = 0x1;
+  wDR(0x468,val);
+  while(rDR(0x468));
+  printk("audio set ok\n");
 }
 
 EXPORT_SYMBOL(avia_set_pcr);
