@@ -2,8 +2,8 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS       = decode test_dmx test_tbl test_sec test_ram
-#scan_cable test_front
+M_OBJS       = decode test_dmx test_front test_tbl test_sec test_ram
+#scan_cable
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)

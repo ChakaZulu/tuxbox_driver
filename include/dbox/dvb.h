@@ -87,6 +87,15 @@ struct frontend {
 #define FRONT_RATE_CHANGED 4
 };
 
+typedef struct qpsk_s {
+        struct qpskEvent        events[8];
+        int                     eventw;
+        int                     eventr;
+        int                     overflow;
+        wait_queue_head_t       eventq;
+        spinlock_t              eventlock;
+} qpsk_t;
+
 struct dmx_demux_s;
 
 int register_demux(struct dmx_demux_s *demux);

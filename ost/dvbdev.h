@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.h,v 1.10 2002/01/22 22:36:09 tmbinc Exp $
+ * $Id: dvbdev.h,v 1.11 2002/01/22 23:38:28 fnbrd Exp $
  */
 
 #ifndef _DVBDEV_H_
@@ -71,7 +71,7 @@
 #define DVB_DEVFSDIR_DVB        0
 #define DVB_DEVFSDIR_OST        1
 
-#define QPSKFE_DEVICE_NAME		"frontend"
+#define QPSKFE_DEVICE_NAME		"qpskfe"
 #define DVR_DEVICE_NAME			"dvr"
 #define CA_DEVICE_NAME			"ca"
 #define OSD_DEVICE_NAME			"osd"
