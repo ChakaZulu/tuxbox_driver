@@ -21,13 +21,16 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.9  2001/02/25 21:11:36  gillem
+ *   - fix fpid
+ *
  *   Revision 1.8  2001/02/23 18:44:43  gillem
  *   - add ioctl
  *   - add debug option
  *   - some changes ...
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -381,7 +384,15 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 		u8 buf[2];
 		immap_t *immap=(immap_t*)IMAP_ADDR;
 
-		if ((fpid=fp_getid(new_client))!=0x5A)
+		/* FP ID
+		 * NOKIA: 0x5A
+		 * SAGEM: 0x52 ???
+		 *
+		 */
+
+		fpid=fp_getid(new_client);
+
+		if ( (fpid!=0x52) && (fpid!=0x5a) )
 		{
 			dprintk("fp.o: bogus fpID %d\n", fpid);
 			kfree(new_client);
