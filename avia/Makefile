@@ -9,9 +9,7 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.0/misc/
-
-BUILD_DATE=$(shell date)
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 
 #################################################
 # some magic for using linux kernel settings
@@ -24,7 +22,6 @@ GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o
 GTX_CORE  = gtx-core.o ucode.o
 
-#EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 EXTRA_CFLAGS=-I../../include
 
 #remove __ASSEMBLY__ option from kernel makefile

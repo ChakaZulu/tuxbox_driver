@@ -9,9 +9,7 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.0/misc/
-
-BUILD_DATE=$(shell date)
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 
 #################################################
 # some magic for using linux kernel settings
@@ -22,7 +20,7 @@ M_OBJS       = pcm.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
+EXTRA_CFLAGS=-I../nokia/include/dbox
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

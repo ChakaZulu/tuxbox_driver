@@ -1,22 +1,34 @@
-CFLAGS= -I/LinuxPPC/usr/src/linux/include -Wall -Wstrict-prototypes        \
-        -O2 -fomit-frame-pointer -fno-strict-aliasing -D__powerpc__ -fsigned-char      \
-        -msoft-float -pipe -ffixed-r2 -Wno-uninitialized -mmultiple -mstring -mcpu=860 \
-        -I../8xx_io -I/LinuxPPC/home/tmbinc/nokia/include -Wall
+# currently running kernel
+CURRENT=$(shell uname -r)
 
-MFLAGS=-D__KERNEL__ -DMODULE
+# where the kernel sources are located
+#KERNEL_LOCATION=/usr/src/kernel/2.0.35
+#KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
+#KERNEL_LOCATION=/usr/src/kernel/vger
+KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
-MODPATH=/LinuxPPC/lib/modules/2.4.0/misc
-CROSS_COMPILE = ppc_8xx-
-CC = $(CROSS_COMPILE)gcc
-KD = $(CROSS_COMPILE)ld
+#GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
+#LD =  $(CROSS_COMPILE)ld
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 
-MODULES = ves1820.o ves1893.o
+#################################################
+# some magic for using linux kernel settings
+# when compiling module(s)
 
+M_OBJS   = ves1820.o ves1893.o
+obj-m  = $(M_OBJS)
 
-all: $(MODULES) $(TEST)
+#remove __ASSEMBLY__ option from kernel makefile
+AFLAGS=
 
-.c.o: 
-	$(CC) $(CFLAGS) $(MFLAGS) -c $*.c -o $@
+here:
+	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
+	cp $(M_OBJS) $(MODULE_DEST)
 
-copy: $(MODULES)
-	cp $(MODULES) $(MODPATH)
+install:
+	cp $(M_OBJS) $(MODULE_DEST)
+
+clean:
+	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(GTX_FB) $(GTX_DMX) $(GTX_CORE) .*.o.flags *~
+
+include $(KERNEL_LOCATION)/Rules.make

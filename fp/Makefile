@@ -1,21 +1,36 @@
-CFLAGS= -I/LinuxPPC/usr/src/linux/include -Wall -Wstrict-prototypes        \
-        -O2 -fomit-frame-pointer -fno-strict-aliasing -D__powerpc__ -fsigned-char      \
-        -msoft-float -pipe -ffixed-r2 -Wno-uninitialized -mmultiple -mstring -mcpu=860 \
-        -I/LinuxPPC/home/tmbinc/nokia/include -Wall -I../../include
+# currently running kernel
+CURRENT=$(shell uname -r)
 
-MFLAGS=-D__KERNEL__ -DMODULE
+# where the kernel sources are located
+#KERNEL_LOCATION=/usr/src/kernel/2.0.35
+#KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
+#KERNEL_LOCATION=/usr/src/kernel/vger
+KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
-MODPATH=/LinuxPPC/lib/modules/2.4.0/misc
-CROSS_COMPILE = ppc_8xx-
-CC = $(CROSS_COMPILE)gcc
-LD = $(CROSS_COMPILE)ld
+#GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
+#LD =  $(CROSS_COMPILE)ld
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 
-MODULES = fp.o
+#################################################
+# some magic for using linux kernel settings
+# when compiling module(s)
 
-all: $(MODULES) $(TEST)
+M_OBJS       = fp.o
 
-.c.o: 
-	$(CC) $(CFLAGS) $(MFLAGS) -c $*.c -o $@
+# 2.4.0 Kernel Option
+obj-m = $(M_OBJS)
 
-copy: $(MODULES)
-	cp $(MODULES) $(MODPATH)
+EXTRA_CFLAGS=-I../../include
+
+here:
+	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
+	cp $(M_OBJS) $(MODULE_DEST)
+
+install:
+	cp $(M_OBJS) $(MODULE_DEST)
+
+clean:
+	-rm -f $(M_OBJS) $(O_TARGET) $(APPZ) .*.o.flags *~
+
+include $(KERNEL_LOCATION)/Rules.make
+
