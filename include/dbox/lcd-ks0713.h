@@ -21,17 +21,20 @@
  *
  *
  *   $Log: lcd-ks0713.h,v $
+ *   Revision 1.6  2001/01/20 19:01:21  gillem
+ *   - add pixel function
+ *
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
 #define LCD_STAT_BUSY			0x80
 #define LCD_STAT_ADC			0x40
 #define LCD_STAT_ON				0x20
-#define LCD_STAT_RESETB		0x10
+#define LCD_STAT_RESETB		    0x10
 
 #define LCD_POWERC_VC			0x04
 #define LCD_POWERC_VR			0x02
@@ -40,35 +43,49 @@
 #define	LCD_MODE_ASC			0
 #define	LCD_MODE_BIN			1
 
-#define LCD_IOCTL_STATUS			1
-#define LCD_IOCTL_ON					2
-#define	LCD_IOCTL_EON					3
-#define LCD_IOCTL_REVERSE			4
-#define	LCD_IOCTL_BIAS				5
-#define	LCD_IOCTL_ADC					6
-#define	LCD_IOCTL_SHL					7
-#define	LCD_IOCTL_RESET				8
-#define	LCD_IOCTL_IDL					9
-#define	LCD_IOCTL_SRV					10
-#define	LCD_IOCTL_SMR					11
-#define	LCD_IOCTL_RMR					12
-#define	LCD_IOCTL_POWERC			13
-#define LCD_IOCTL_SEL_RES			14
-#define LCD_IOCTL_SIR					15
+#define LCDSET                  0x1000
+#define LCDGET                  0x2000
 
-#define LCD_IOCTL_SPAGE				17
-#define LCD_IOCTL_SCOLUMN			18
-#define LCD_IOCTL_SET_ADDR		19
-#define LCD_IOCTL_READ_BYTE		20
-#define LCD_IOCTL_WRITE_BYTE	21
+#define LCD_IOCTL_STATUS		(1 |LCDGET)
+#define LCD_IOCTL_ON			(2 |LCDSET)
+#define	LCD_IOCTL_EON			(3 |LCDSET)
+#define LCD_IOCTL_REVERSE		(4 |LCDSET)
+#define	LCD_IOCTL_BIAS			(5 |LCDSET)
+#define	LCD_IOCTL_ADC			(6 |LCDSET)
+#define	LCD_IOCTL_SHL			(7 |LCDSET)
+#define	LCD_IOCTL_RESET			(8)
+#define	LCD_IOCTL_IDL			(9 |LCDSET)
+#define	LCD_IOCTL_SRV			(10|LCDSET)
+#define	LCD_IOCTL_SMR			(11)
+#define	LCD_IOCTL_RMR			(12)
+#define	LCD_IOCTL_POWERC		(13|LCDSET)
+#define LCD_IOCTL_SEL_RES		(14|LCDSET)
+#define LCD_IOCTL_SIR			(15|LCDSET)
+#define LCD_IOCTL_SPAGE			(16|LCDSET)
+#define LCD_IOCTL_SCOLUMN		(17|LCDSET)
+#define LCD_IOCTL_SET_ADDR		(18)
+#define LCD_IOCTL_READ_BYTE		(19|LCDGET)
+#define LCD_IOCTL_WRITE_BYTE	(20|LCDSET)
+#define LCD_IOCTL_ASC_MODE		(21|LCDSET)
+#define LCD_IOCTL_SET_PIXEL     (22)
 
-#define LCD_IOCTL_ASC_MODE		22
+#define LCD_ROWS				8
+#define LCD_COLS				120
+#define LCD_BUFFER_SIZE			( LCD_ROWS * LCD_COLS )
 
-#define LCD_ROWS							8
-#define LCD_COLS							120
-#define LCD_BUFFER_SIZE				( LCD_ROWS * LCD_COLS )
+#define LCD_PIXEL_OFF           0
+#define LCD_PIXEL_ON            1
+#define LCD_PIXEL_INV           2
 
-static void lcd_set_pos( int row, int col );
+typedef struct lcd_pixel {
+ unsigned char x;
+ unsigned char y;
+ unsigned char v;   // 0 = off 1 = on 2 = inv
+} lcd_pixel;
+
+#ifdef __KERNEL__
+void lcd_set_pos( int row, int col );
 static void lcd_write_byte( int data );
-static void lcd_read_dram( unsigned char * dest );
-static void lcd_write_dram( unsigned char * dest );
+void lcd_read_dram( unsigned char * dest );
+void lcd_write_dram( unsigned char * dest );
+#endif

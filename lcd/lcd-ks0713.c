@@ -21,10 +21,13 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.6  2001/01/20 19:01:21  gillem
+ *   - add pixel function
+ *
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -312,6 +315,47 @@ static void lcd_write_byte( int data )
 	udelay(LCD_DELAY);
 	iop->iop_pddat = LCD_WRITE_DATA | (data&0xFF) | LCD_CLK_HI;
 	udelay(LCD_DELAY);
+	iop->iop_pddat = LCD_WRITE_DATA | (data&0xFF) | LCD_CLK_LO;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+int lcd_set_pixel( struct lcd_pixel * pix )
+{
+    int y=0,val,bit=0,v;
+
+    if ( pix->y >= (LCD_ROWS*8) )
+        return -EINVAL;
+
+    if ( pix->x >= LCD_COLS )
+        return -EINVAL;
+
+    if (pix->y)
+        y = (pix->y/8);
+
+    bit = pix->y - (y*8);
+
+	// set dram pointer
+	lcd_set_pos( y, pix->x );
+	lcd_read_dummy();
+    val = lcd_read_byte();
+
+    v = pix->v;
+
+    // invertieren
+    if ( v == 2 )
+        v = (((~val)>>bit)&1);
+
+    if ( v == 1 )
+        val |= (1<<bit);
+    else
+        val &= ~(1<<bit);
+
+	// set dram pointer
+	lcd_set_pos( y, pix->x );
+    lcd_write_byte(val);
+
+    return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -340,12 +384,12 @@ void lcd_write_dram( unsigned char * source )
 {
 	int pa,col;
 	
-	for(pa=0;pa<LCD_ROWS;pa++)
-	{
+	for(pa=0;pa<LCD_ROWS;pa++) {
+
 		lcd_set_pos( pa, 0 );
 
-		for(col=0;col<LCD_COLS;col++)
-		{
+		for(col=0;col<LCD_COLS;col++) {
+
 			lcd_write_byte( source[(pa*LCD_COLS)+col] );
 		}
 	}
@@ -358,7 +402,7 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 {
 	char *obp, *bp;
 	int pa,col,i;
-  int ret;
+    int ret;
 
 	printk("COUNT: %d\n",count);
 
@@ -376,26 +420,23 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 	i = count;
 
 	/* calculate row,col */
-	if (f_vars.pos>LCD_COLS)
-	{
+	if (f_vars.pos>LCD_COLS) {
 		pa =f_vars.pos/LCD_COLS;
 		col=f_vars.pos-(f_vars.pos*LCD_COLS);
-	}
-	else
-	{
+	} else {
 		pa  = 0;
 		col = f_vars.pos;
 	}
 
-	for(/*pa=0*/;(pa<LCD_ROWS) && i;pa++)
-	{
+	for(/*pa=0*/;(pa<LCD_ROWS) && i;pa++) {
+
 		// set dram pointer
 		lcd_set_pos( pa, col );
 
 		lcd_read_dummy();
 
-		for(/*col=0*/;(col<LCD_COLS) && i;col++,bp++,i--)
-		{
+		for(/*col=0*/;(col<LCD_COLS) && i;col++,bp++,i--) {
+
 			*bp = lcd_read_byte();
 		}
 
@@ -426,39 +467,31 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 	if ( (obp = kmalloc( count, GFP_KERNEL)) == NULL )
 		return -ENOMEM;
 
-	if ( copy_from_user( obp, buf, count ) )
-	{
+	if ( copy_from_user( obp, buf, count ) ) {
 		kfree(obp);
 		return -EFAULT;
 	}
 
 	bp = obp;
 
-	if ( LCD_MODE == LCD_MODE_BIN )
-	{
-		if ( (count!=LCD_BUFFER_SIZE) )
-		{
+	if ( LCD_MODE == LCD_MODE_BIN ) {
+		if ( (count!=LCD_BUFFER_SIZE) ) {
 			kfree(obp);
 			return -EFAULT;
 		}
 
-		for(pa=0;pa<LCD_ROWS;pa++)
-		{
+		for(pa=0;pa<LCD_ROWS;pa++) {
 			// set dram pointer
 			lcd_set_pos( pa, 0 );
 
-			for(col=0;col<LCD_COLS;col++,bp++)
-			{
+			for(col=0;col<LCD_COLS;col++,bp++) {
 				lcd_write_byte( *bp );
 			}
 		}
 	}
-	else if ( LCD_MODE == LCD_MODE_ASC )
-	{
+	else if ( LCD_MODE == LCD_MODE_ASC ) {
 		lcd_console_put_data( bp, count );
-	}
-  else
-	{
+	} else {
 		kfree(obp);
 		return -EFAULT;
 	}
@@ -476,6 +509,7 @@ static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 	printk("[LCD]: OFFSET = %d\n",offset);
 
 	switch ( origin ) {
+
 		case 0:
 					/* nothing to do */
 					printk("[LCD]: ORIGIN = 0\n");
@@ -517,169 +551,175 @@ void lcd_set_pos( int row, int col )
 int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
-	int i;
+	int val;
+    struct lcd_pixel pix;
 
-	switch (cmd)
-	{
-		case LCD_IOCTL_STATUS:
-											i = lcd_read_status();
-											if ( copy_to_user((int*)arg,&i,sizeof(int)) )
-												return -EFAULT;
-											return 0;
+	switch (cmd) {
+
+    	case LCD_IOCTL_STATUS:
+
+				val = lcd_read_status();
+
+       			if ( copy_to_user((int*)arg,&val,sizeof(int)) )
+	    			return -EFAULT;
+
+				return 0;
 
 		case LCD_IOCTL_RESET:
-											lcd_send_cmd( LCD_CMD_RESET, 0 );
-											return 0;
+
+    			lcd_send_cmd( LCD_CMD_RESET, 0 );
+				return 0;
 	}
 
 	if ( lcd_read_status() & LCD_STAT_BUSY )
 		return -EBUSY;
 
-	switch (cmd)
-	{
-		case LCD_IOCTL_ON:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
- 											lcd_send_cmd( LCD_CMD_ON, i&0x01 );
-											break;
+    if ( cmd & LCDSET ) {
 
-		case LCD_IOCTL_EON:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
-											lcd_send_cmd( LCD_CMD_EON, i&0x01 );
-											break;
+    	if ( copy_from_user( &val, (int*)arg, sizeof(int) ) )
+	    	return -EFAULT;
 
-		case LCD_IOCTL_REVERSE:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
-											lcd_send_cmd( LCD_CMD_REVERSE, i&0x01 );
-											break;
+	    switch (cmd) {
 
-		case LCD_IOCTL_BIAS:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
-											lcd_send_cmd( LCD_CMD_BIAS, i&0x01 );
-											break;
+    		case LCD_IOCTL_ON:
 
-		case LCD_IOCTL_ADC:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
-											lcd_send_cmd( LCD_CMD_ADC, i&0x01 );
-											break;
+				lcd_send_cmd( LCD_CMD_ON, val&0x01 );
+				break;
 
-		case LCD_IOCTL_SHL:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
-											lcd_send_cmd( LCD_CMD_SHL, (i&0x01)<<3 );
-											break;
+    		case LCD_IOCTL_EON:
+    			lcd_send_cmd( LCD_CMD_EON, val&0x01 );
+					break;
 
-		case LCD_IOCTL_IDL:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+       		case LCD_IOCTL_REVERSE:
 
-											if ( (i > 0x1F) || (i < 0) )
-												return -EINVAL;
+				lcd_send_cmd( LCD_CMD_REVERSE, val&0x01 );
+				break;
 
-											lcd_send_cmd( LCD_CMD_IDL, i&0x1F );
-											break;
+    		case LCD_IOCTL_BIAS:
 
-		case LCD_IOCTL_SRV:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+				lcd_send_cmd( LCD_CMD_BIAS, val&0x01 );
+				break;
 
-											if ( (i > 0x3F) || (i < 0) )
-												return -EINVAL;
+    		case LCD_IOCTL_ADC:
 
-											lcd_send_cmd( LCD_CMD_SRV, 0 );
-											lcd_send_cmd( 0x00, i&0x3F );
-											break;
+				lcd_send_cmd( LCD_CMD_ADC, val&0x01 );
+				break;
 
-		case LCD_IOCTL_SMR:
-											lcd_send_cmd( LCD_CMD_SMR, 0 );
-											break;
+    		case LCD_IOCTL_SHL:
 
-		case LCD_IOCTL_RMR:
-											lcd_send_cmd( LCD_CMD_RMR, 0 );
-											break;
+				lcd_send_cmd( LCD_CMD_SHL, (val&0x01)<<3 );
+				break;
 
-		case LCD_IOCTL_POWERC:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+    		case LCD_IOCTL_IDL:
+	
+				if ( (val > 0x1F) || (val < 0) )
+    				return -EINVAL;
 
-											if ( (i > 0x07) || (i < 0) )
-												return -EINVAL;
+				lcd_send_cmd( LCD_CMD_IDL, val&0x1F );
+				break;
 
-											lcd_send_cmd( LCD_CMD_POWERC, i&0x07 );
-											break;
+    		case LCD_IOCTL_SRV:
 
-		case LCD_IOCTL_SEL_RES:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+				if ( (val > 0x3F) || (val < 0) )
+					return -EINVAL;
 
-											if ( (i > 0x07) || (i < 0) )
-												return -EINVAL;
+    			lcd_send_cmd( LCD_CMD_SRV, 0 );
+				lcd_send_cmd( 0x00, val&0x3F );
+				break;
 
-											lcd_send_cmd( LCD_CMD_RES, i&0x07 );
-											break;
+    		case LCD_IOCTL_POWERC:
 
-		case LCD_IOCTL_SIR:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+				if ( (val > 0x07) || (val < 0) )
+					return -EINVAL;
 
-											if ( (i > 0x03) || (i < 0) )
-												return -EINVAL;
+    			lcd_send_cmd( LCD_CMD_POWERC, val&0x07 );
+				break;
 
-											lcd_send_cmd( LCD_CMD_SIR, 0x01 );
-											lcd_send_cmd( 0x00, i&0x03 );
-											break;
+    		case LCD_IOCTL_SEL_RES:
 
-		case LCD_IOCTL_SPAGE:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+    			if ( (val > 0x07) || (val < 0) )
+					return -EINVAL;
 
-											if ( (i > 0x08) || (i < 0) )
-												return -EINVAL;
+    			lcd_send_cmd( LCD_CMD_RES, val&0x07 );
+				break;
 
-											lcd_send_cmd( LCD_CMD_SPAGE, i&0x0F );
-											break;
+    		case LCD_IOCTL_SIR:
 
-		case LCD_IOCTL_SCOLUMN:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
+				if ( (val > 0x03) || (val < 0) )
+					return -EINVAL;
 
-											if ( (i > 131) || (i < 0) )
-												return -EINVAL;
+				lcd_send_cmd( LCD_CMD_SIR, 0x01 );
+				lcd_send_cmd( 0x00, val&0x03 );
+				break;
 
-											lcd_send_cmd( LCD_CMD_COL, (i>>4)&0x0F );
-											lcd_send_cmd( 0x00, i&0x0F );
-											break;
+    		case LCD_IOCTL_SPAGE:
 
-		case LCD_IOCTL_SET_ADDR:
-											lcd_read_dummy();
-											break;
+				if ( (val > 0x08) || (val < 0) )
+					return -EINVAL;
 
-		case LCD_IOCTL_READ_BYTE:
-											i = lcd_read_byte();
+    			lcd_send_cmd( LCD_CMD_SPAGE, val&0x0F );
+				break;
 
-											if ( copy_to_user((int*)arg,&i,sizeof(int)) )
-												return -EFAULT;
-											break;
+    		case LCD_IOCTL_SCOLUMN:
+
+				if ( (val > LCD_COLS) || (val < 0) )
+					return -EINVAL;
+
+				lcd_send_cmd( LCD_CMD_COL, (val>>4)&0x0F );
+				lcd_send_cmd( 0x00, val&0x0F );
+				break;
 
 		case LCD_IOCTL_WRITE_BYTE:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
 
-											lcd_write_byte( i&0xFF );
-											break;
+				lcd_write_byte( val&0xFF );
+				break;
 
 		// set ASC (0)(default) or BIN (1) mode for read/write
 		case LCD_IOCTL_ASC_MODE:
-											if ( copy_from_user( &i, (int*)arg, sizeof(int) ) )
-												return -EFAULT;
 
-											LCD_MODE = i&0x01;
-											break;
-	}
+				LCD_MODE = val&0x01;
+				break;
+	    }
+    } else if (cmd & LCDGET ) {
+
+        switch (cmd) {
+
+    		case LCD_IOCTL_READ_BYTE:
+
+	    		val = lcd_read_byte();
+
+            	if ( copy_to_user( &val, (int*)arg, sizeof(int) ) )
+            		return -EFAULT;
+
+    			break;
+        }
+    } else {
+
+        switch (cmd) {
+
+    		case LCD_IOCTL_SMR:
+
+				lcd_send_cmd( LCD_CMD_SMR, 0 );
+				break;
+
+    		case LCD_IOCTL_RMR:
+
+				lcd_send_cmd( LCD_CMD_RMR, 0 );
+				break;
+
+    		case LCD_IOCTL_SET_ADDR:
+
+    			lcd_read_dummy();
+				break;
+
+    		case LCD_IOCTL_SET_PIXEL:
+
+    			if ( copy_from_user(&pix,(struct lcd_pixel*)arg,sizeof(struct lcd_pixel)) )
+    	        	return -EFAULT;
+
+                return lcd_set_pixel(&pix);
+        }
+    }
 
 	return 0;
 }
@@ -698,11 +738,31 @@ int lcd_open (struct inode *inode, struct file *file)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+void lcd_reset(void)
+{
+    int i;
+
+    lcd_send_cmd( LCD_CMD_RESET, 0 );
+    udelay(1000*100);
+	lcd_send_cmd( LCD_CMD_ON, 1 );
+	lcd_send_cmd( LCD_CMD_EON, 0 );
+	lcd_send_cmd( LCD_CMD_REVERSE, 0 );
+	lcd_send_cmd( LCD_CMD_BIAS, 1 );
+	lcd_send_cmd( LCD_CMD_ADC, 0 );
+	lcd_send_cmd( LCD_CMD_SHL, 0 );
+	lcd_send_cmd( LCD_CMD_POWERC, 7 );
+	lcd_send_cmd( LCD_CMD_RES, 7 );
+	lcd_send_cmd( LCD_CMD_SIR, 3 );
+	lcd_send_cmd( LCD_CMD_SRV, 50 );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 int __init lcd_init(void)
 {
-  immap_t	*immap;
+    immap_t	*immap;
 
-	printk("lcd.o: LCD driver (KS0713) module [%s]\n",BUILD_DATE);
+	printk("lcd.o: LCD driver (KS0713) module\n");
 
 	lcd_initialized = 0;
 	if (register_chrdev(LCD_MAJOR,"lcd",&lcd_fops)) {
@@ -711,13 +771,18 @@ int __init lcd_init(void)
 	}
 	lcd_initialized ++;
 
-  immap 	= (immap_t *)CFG_IMMR ;
+    if ( (immap = (immap_t *)CFG_IMMR) == NULL )
+        return -EIO;
+
 	iop = (iop8xx_t *)&immap->im_ioport;
 
 	/* init lcd vars */
 	f_vars.pos = 0;
 	f_vars.row = 0;
 	f_vars.col = 0;
+
+    /* reset lcd */
+//    lcd_reset();
 
 	// set defaults
 	LCD_MODE = LCD_MODE_ASC;
