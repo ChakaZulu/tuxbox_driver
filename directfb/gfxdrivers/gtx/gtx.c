@@ -108,14 +108,14 @@ gtx_validate_color (GTXDriverData *gdrv,
           break;
         case DSPF_RGB332:
           gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_RGB332 (state->color.r,
-                                                              state->color.g,
-                                                              state->color.b));
+                                                                state->color.g,
+                                                                state->color.b));
           break;
         case DSPF_ARGB1555:
-          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_ARGB1555(state->color.a,
-								state->color.r,
-								state->color.g,
-								state->color.b));
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_ARGB1555 (state->color.a,
+                                                                  state->color.r,
+                                                                  state->color.g,
+                                                                  state->color.b));
           break;
         case DSPF_RGB16:
           gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_RGB16 (state->color.r,
@@ -123,10 +123,15 @@ gtx_validate_color (GTXDriverData *gdrv,
                                                                state->color.b));
           break;
 	case DSPF_RGB32:
-	  BUG("DSPF_RGB32 not implemented");
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_RGB32 (state->color.r,
+                                                               state->color.g,
+                                                               state->color.b));
 	  break;
 	case DSPF_ARGB:
-	  BUG("DSPF_ARGB not implemented");
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_ARGB (state->color.a,
+                                                              state->color.r,
+                                                              state->color.g,
+                                                              state->color.b));
 	  break;
         default:
           BUG ("unexpected pixelformat");
@@ -512,11 +517,11 @@ driver_init_device( GraphicsDevice     *device,
   /* set color key of graphics layer to DirectFB's standard bg color */
   if (gtx) {
     gdev->orig_tcr = gtx_in16 (gdrv->mmio_base, GTX_TCR);
-    gtx_out16 (gdrv->mmio_base, GTX_TCR, 0x9153);
+    gtx_out16 (gdrv->mmio_base, GTX_TCR, PIXEL_ARGB1555(0xff, 0x24, 0x50, 0x9f));
   }
   else if (enx) {
     gdev->orig_tcr = gtx_in32 (gdrv->mmio_base, ENX_TCR1);
-    gtx_out32 (gdrv->mmio_base, ENX_TCR1, 0x00010101); //FIXME
+    gtx_out32 (gdrv->mmio_base, ENX_TCR1, PIXEL_ARGB(0xff, 0x24, 0x50, 0x9f) & 0x1ffffff);
   }
 
   return DFB_OK;
