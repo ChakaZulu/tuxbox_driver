@@ -46,16 +46,17 @@ struct avia_gt_dmx_queue {
 
 	u32	(*bytes_avail)(struct avia_gt_dmx_queue *queue);
 	u32	(*bytes_free)(struct avia_gt_dmx_queue *queue);
-	u32 (*crc32)(struct avia_gt_dmx_queue *queue, u32 count, u32 seed);
+	u32	(*size)(struct avia_gt_dmx_queue *queue);
+	u32	(*crc32)(struct avia_gt_dmx_queue *queue, u32 count, u32 seed);
 	u32	(*get_buf1_ptr)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_buf2_ptr)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_buf1_size)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_buf2_size)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_data)(struct avia_gt_dmx_queue *queue, void *dest, u32 count, u8 peek);
-	u8 (*get_data8)(struct avia_gt_dmx_queue *queue, u8 peek);
-	u16 (*get_data16)(struct avia_gt_dmx_queue *queue, u8 peek);
-	u32 (*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
-	void (*flush)(struct avia_gt_dmx_queue *queue);
+	u8	(*get_data8)(struct avia_gt_dmx_queue *queue, u8 peek);
+	u16	(*get_data16)(struct avia_gt_dmx_queue *queue, u8 peek);
+	u32	(*get_data32)(struct avia_gt_dmx_queue *queue, u8 peek);
+	void	(*flush)(struct avia_gt_dmx_queue *queue);
 	u32	(*put_data)(struct avia_gt_dmx_queue *queue, void *src, u32 count, u8 src_is_user_space);
 
 };

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.164 2003/03/09 17:47:34 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.165 2003/04/12 06:03:32 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -712,6 +712,11 @@ u32 avia_gt_dmx_queue_get_bytes_free(struct avia_gt_dmx_queue *queue)
 		/* queue [ BBBBBBBBBBB (WPOS) FFFFFFFFFFF (RPOS) BBBBBBBBBBB ] */
 		return (queue_list[queue->index].hw_read_pos - queue_list[queue->index].write_pos) - 1;
 
+}
+
+u32 avia_gt_dmx_queue_get_size(struct avia_gt_dmx_queue *queue)
+{
+	return queue_list[queue->index].size;
 }
 
 u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
@@ -2217,7 +2222,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.164 2003/03/09 17:47:34 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.165 2003/04/12 06:03:32 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2314,6 +2319,7 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].info.index = queue_nr;
 		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_queue_get_bytes_avail;
 		queue_list[queue_nr].info.bytes_free = avia_gt_dmx_queue_get_bytes_free;
+		queue_list[queue_nr].info.size = avia_gt_dmx_queue_get_size;
 		queue_list[queue_nr].info.crc32 = avia_gt_dmx_queue_crc32;
 		queue_list[queue_nr].info.get_buf1_ptr = avia_gt_dmx_queue_get_buf1_ptr;
 		queue_list[queue_nr].info.get_buf2_ptr = avia_gt_dmx_queue_get_buf2_ptr;

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.175 2003/03/03 17:56:06 wjoost Exp $
+ * $Id: avia_gt_napi.c,v 1.176 2003/04/12 06:03:32 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -55,6 +55,7 @@
 #include "avia_napi.h"
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
+#include "avia_gt_dvr.h"
 #include "avia_gt_napi.h"
 #include "avia_gt_accel.h"
 #include "avia_av_napi.h"
@@ -98,11 +99,14 @@ static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, cons
 
 }
 
-static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
+static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(
+		struct dvb_demux_feed *dvbdmxfeed,
+		void (*irq_proc)(struct avia_gt_dmx_queue *, void *),
+		void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
 {
 
 	if (dvbdmxfeed->type == DMX_TYPE_SEC)
-		return avia_gt_dmx_alloc_queue_user(NULL, cb_proc, dvbdmxfeed);
+		return avia_gt_dmx_alloc_queue_user(irq_proc, cb_proc, dvbdmxfeed);
 
 	if (dvbdmxfeed->type != DMX_TYPE_TS) {
 
@@ -116,21 +120,21 @@ static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed 
 
 		case DMX_TS_PES_VIDEO:
 
-			return avia_gt_dmx_alloc_queue_video(NULL, cb_proc, dvbdmxfeed);
+			return avia_gt_dmx_alloc_queue_video(irq_proc, cb_proc, dvbdmxfeed);
 
 		case DMX_TS_PES_AUDIO:
 
-			return avia_gt_dmx_alloc_queue_audio(NULL, cb_proc, dvbdmxfeed);
+			return avia_gt_dmx_alloc_queue_audio(irq_proc, cb_proc, dvbdmxfeed);
 
 		case DMX_TS_PES_TELETEXT:
 
-			return avia_gt_dmx_alloc_queue_teletext(NULL, cb_proc, dvbdmxfeed);
+			return avia_gt_dmx_alloc_queue_teletext(irq_proc, cb_proc, dvbdmxfeed);
 
 		case DMX_TS_PES_PCR:
 		case DMX_TS_PES_SUBTITLE:
 		case DMX_TS_PES_OTHER:
 
-			return avia_gt_dmx_alloc_queue_user(NULL, cb_proc, dvbdmxfeed);
+			return avia_gt_dmx_alloc_queue_user(irq_proc, cb_proc, dvbdmxfeed);
 
 		default:
 
@@ -379,7 +383,7 @@ static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, 
 static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_generic);
+	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL, avia_gt_napi_queue_callback_generic);
 
 	if (!queue)
 		return -EBUSY;
@@ -399,12 +403,18 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 {
 
+	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct avia_gt_dmx_queue *queue;
 
 	if (!hw_dmx_ts)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
+	if (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE)
+		queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_dvr_queue_irq, NULL);
+	else
+		queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL, avia_gt_napi_queue_callback_ts_pes);
+
+	if (!queue)
 		return -EBUSY;
 
 	dvbdmxfeed->priv = queue;
@@ -414,7 +424,8 @@ static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 		avia_av_napi_decoder_start(dvbdmxfeed);
 
 	avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
-	if ( (dvbdmxfeed->pes_type == DMX_TS_PES_TELETEXT) && (dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) )
+
+	if ((dvbdmxfeed->pes_type == DMX_TS_PES_TELETEXT) && (dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER))
 		avia_gt_vbi_start();
 
 	return 0;
@@ -429,7 +440,7 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 	if (!hw_dmx_pes)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_ts_pes)))
+	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL, avia_gt_napi_queue_callback_ts_pes)))
 		return -EBUSY;
 
 	dvbdmxfeed->priv = queue;
@@ -467,7 +478,7 @@ static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 	 * Get a queue.
 	 */
 
-	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_section)))
+	if (!(queue = avia_gt_napi_queue_alloc(dvbdmxfeed, NULL, avia_gt_napi_queue_callback_section)))
 	{
 		avia_gt_dmx_free_section_filter(filter_index & 255);
 		return -EBUSY;
@@ -493,57 +504,42 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 
 static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	int result;
 
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR)) {
-
+	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (dvbdmxfeed->ts_type & TS_DECODER)) {
 		avia_gt_dmx_set_pcr_pid(1, dvbdmxfeed->pid);
-
 		if (!(dvbdmxfeed->ts_type & TS_PACKET))
 			return 0;
-
 	}
 
-	switch(dvbdmxfeed->type) {
+	switch (dvbdmxfeed->type) {
+	case DMX_TYPE_TS:
+	case DMX_TYPE_PES:
+		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
+			result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
+		else
+			result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
+		break;
 
-		case DMX_TYPE_TS:
-		case DMX_TYPE_PES:
+	case DMX_TYPE_SEC:
+		result = avia_gt_napi_start_feed_section(dvbdmxfeed);
+		break;
 
-			if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
-				result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
-			else
-				result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
-
-			break;
-
-		case DMX_TYPE_SEC:
-
-			result = avia_gt_napi_start_feed_section(dvbdmxfeed);
-
-			break;
-
-		default:
-
-			printk("avia_gt_napi: unknown feed type %d found\n", dvbdmxfeed->type);
-
-			return -EINVAL;
-
+	default:
+		printk("avia_gt_napi: unknown feed type %d found\n", dvbdmxfeed->type);
+		return -EINVAL;
 	}
 
 	if (!result) {
-
-		if ((dvbdmxfeed->type == DMX_TYPE_SEC) || (dvbdmxfeed->ts_type & TS_PACKET))
+		if ((dvbdmxfeed->type == DMX_TYPE_SEC) || (dvbdmxfeed->ts_type & TS_PACKET) || (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE))
 			avia_gt_dmx_queue_irq_enable(((struct avia_gt_dmx_queue *)(dvbdmxfeed->priv))->index);
-
 	}
 
 	return result;
-
 }
 
 static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
@@ -616,12 +612,38 @@ static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 
 }
 
+static int avia_gt_napi_demux_write(dmx_demux_t *demux, const char *buf, size_t count)
+{
+	return avia_gt_dvr_write(buf, count);
+}
+
+static int avia_gt_napi_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend)
+{
+	int ret;
+
+	if ((ret = dvbdmx_connect_frontend(demux, frontend)) < 0)
+		return ret;
+
+	if (demux->frontend->source == DMX_MEMORY_FE)
+		avia_gt_dvr_enable();
+
+	return 0;
+}
+
+static int avia_gt_napi_disconnect_frontend(dmx_demux_t *demux)
+{
+	if (demux->frontend->source == DMX_MEMORY_FE)
+		avia_gt_dvr_disable();
+
+	return dvbdmx_disconnect_frontend(demux);
+}
+
 int __init avia_gt_napi_init(void)
 {
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.175 2003/03/03 17:56:06 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.176 2003/04/12 06:03:32 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -669,6 +691,10 @@ int __init avia_gt_napi_init(void)
 		return -EFAULT;
 
 	}
+
+	demux.dmx.connect_frontend = avia_gt_napi_connect_frontend;
+	demux.dmx.disconnect_frontend = avia_gt_napi_disconnect_frontend;
+	demux.dmx.write = avia_gt_napi_demux_write;
 
 	dmxdev.filternum = 31;
 	dmxdev.demux = &demux.dmx;
