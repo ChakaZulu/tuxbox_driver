@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.30  2002/05/03 16:47:35  obi
+ *   changed fb_ioctl
+ *
  *   Revision 1.29  2002/04/25 22:10:38  Jolt
  *   FB cleanup
  *
@@ -132,23 +135,21 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.29 $
+ *   $Revision: 1.30 $
  *
  */
 
  /*
     This is the improved FB.
     Report bugs as usual.
-    
+
     CLUTs completely untested. (just saw: they work.)
 
     There were other attempts to rewrite this driver, but i don't
     know the state of this work.
-    
+
     roh suxx.
  */
-
-#define TCR_COLOR 0xFC0F
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -170,24 +171,24 @@
 #include "dbox/avia_gt.h"
 #include "dbox/avia_gt_gv.h"
 
-#define RES_X           720
-#define RES_Y           576
+#define RES_X	   720
+#define RES_Y	   576
 
 static sAviaGtInfo *gt_info;
 
 static struct fb_var_screeninfo default_var = {
-    /* 720x576, 16 bpp */               // TODO: NTSC
-    RES_X, RES_Y, RES_X, RES_Y,         /* W,H, W, H (virtual) load xres,xres_virtual*/
-    0, 0,                               /* virtual -> visible no offset */
-    16, 0,                              /* depth -> load bits_per_pixel */
-    {10, 5, 0},                         /* ARGB 1555 */
+    /* 720x576, 16 bpp */	       // TODO: NTSC
+    RES_X, RES_Y, RES_X, RES_Y,	 /* W,H, W, H (virtual) load xres,xres_virtual*/
+    0, 0,			       /* virtual -> visible no offset */
+    16, 0,			      /* depth -> load bits_per_pixel */
+    {10, 5, 0},			 /* ARGB 1555 */
     {5, 5, 0},
     {0, 5, 0},
-    {15, 1, 0},                         /* transparency */
-    0,                                  /* standard pixel format */
+    {15, 1, 0},			 /* transparency */
+    0,				  /* standard pixel format */
     FB_ACTIVATE_NOW,
-    -1, -1, 
-    0,                                  /* accel flags */
+    -1, -1,
+    0,				  /* accel flags */
     20000, 64, 64, 32, 32, 64, 2, 0,    /* sync stuff */
     FB_VMODE_INTERLACED
 };
@@ -202,18 +203,18 @@ struct gtxfb_info
   int offset;
   unsigned int videosize;
   unsigned char *pvideobase;
-  
+
 };
 
 struct gtxfb_par
 {
 
-  int bpp;              // 4, 8, 16
-  int lowres;           // 0: 720 or 640 pixels per line 1: 360 or 320 pixels per line
+  int bpp;	      // 4, 8, 16
+  int lowres;	   // 0: 720 or 640 pixels per line 1: 360 or 320 pixels per line
   int interlaced;       // 0: 480 or 576 lines interlaced 1: 240 or 288 lines non-interlaced
   int xres, yres;       // calculated of the above stuff
   int stride;
-  
+
 };
 
 static struct gtxfb_info fb_info;
@@ -234,37 +235,37 @@ static u16 fbcon_cfb16_cmap[16];
 #endif
 
 static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
-                        struct fb_info_gen *info);
+			struct fb_info_gen *info);
 static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
-                        struct fb_info_gen *info);
+			struct fb_info_gen *info);
 static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
-                        struct fb_info_gen *info);
+			struct fb_info_gen *info);
 static void gtx_get_par(void *fb_par, struct fb_info_gen *info);
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info);
 static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
-                u_int *transp, struct fb_info *info);
+		u_int *transp, struct fb_info *info);
 static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
-                u_int transp, struct fb_info *info);
+		u_int transp, struct fb_info *info);
 static int gtx_blank(int blank, struct fb_info_gen *info);
 static void gtx_set_disp(const void *fb_par, struct display *disp,
-                struct fb_info_gen *info);
+		struct fb_info_gen *info);
 
 static void gtx_detect(void)
 {
 
   return;
-  
+
 }
 
 static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, struct fb_info_gen *info)
 {
 
   struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
-  
+
   strcpy(fix->id, "AViA eNX/GTX Framebuffer improved version");
   fix->type=FB_TYPE_PACKED_PIXELS;
   fix->type_aux=0;
-  
+
   if (par->bpp!=16)
     fix->visual=FB_VISUAL_PSEUDOCOLOR;
   else
@@ -272,18 +273,18 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, str
 
   fix->line_length=par->stride;
   fix->smem_start=(unsigned long)fb_info.pvideobase;
-  fix->smem_len=1024*1024;                            // fix->line_length*par->yres;
+  fix->smem_len=1024*1024;			    // fix->line_length*par->yres;
   fix->mmio_start=(unsigned long)fb_info.pvideobase;  // gtxmem;
   fix->mmio_len=0x410000;
-  
+
   fix->xpanstep=0;
   fix->ypanstep=0;
   fix->ywrapstep=0;
-  
+
   fix->accel=0;
 
   return 0;
-  
+
 }
 
 static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, struct fb_info_gen *info)
@@ -291,12 +292,12 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
 
   struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
   int yres;
-  
+
   if ((var->bits_per_pixel != 4) && (var->bits_per_pixel != 8) && (var->bits_per_pixel != 16))
     return -EINVAL;
-    
+
   par->bpp=var->bits_per_pixel;
- /*			//bla schmutzt wer brauch sowas schon virtual res gibt es nicht !! 
+ /*			//bla schmutzt wer brauch sowas schon virtual res gibt es nicht !!
    if (var->xres_virtual != var->xres ||
       var->yres_virtual != var->yres ||
       var->nonstd)
@@ -304,23 +305,23 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
     printk("unmatched vres. %d x %d vs %d x %d  -> %d\n", var->xres_virtual, var->yres_virtual, var->xres, var->yres, var->nonstd);
     return -EINVAL;
   }
-   
-  */      
+
+  */
 
   yres=var->yres;
-  
+
   if (var->xres < 640)
     par->lowres=1;
   else
     par->lowres=0;
-    
+
   if (var->yres >= 480)
   {
     par->interlaced=1;
     yres>>=1;
   } else
     par->interlaced=0;
-  
+
   par->xres=var->xres;
   par->yres=var->yres;
 
@@ -330,9 +331,9 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
     par->stride=var->xres;
   else if (par->bpp==16)
     par->stride=var->xres*2;
-              
+
   return 0;
-  
+
 }
 
 static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, struct fb_info_gen *info)
@@ -348,7 +349,7 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, str
     var->upper_margin = 21;
     var->lower_margin = 5;
     var->hsync_len = 0;
-    var->vsync_len = 0;              // TODO
+    var->vsync_len = 0;	      // TODO
     var->sync = 0;
 
     var->xres_virtual = var->xres;
@@ -376,189 +377,138 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, str
     var->activate = 0;
     var->height = var->width - 1;
     var->accel_flags = 0;
-  
+
     return 0;
-    
+
 }
 
 static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 {
 
     struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
-    
+
     if (current_par_valid)
 	*par = current_par;
     else
 	gtx_decode_var(&default_var, par, info);
-	
+
 }
 
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
 
-    struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
-    int val;
+	struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
 
-    if (avia_gt_chip(GTX)) {
-    
-  rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
-  rh(VHT)=858;
-  rh(VLT)=(623|(21<<11));
+	switch (par->bpp) {
 
-  val=0;
-  val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
+		case 4:
+			avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB4);
+			break;
 
-  rw(GMR)=val;
-  
-  rh(CCR)=0x7FFF;                  // white cursor
-  rw(GVSA)=fb_info.offset;                      // dram start address
-  rh(GVP)=0;
+		case 8:
+			avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB8);
+			break;
 
-  VCR_SET_HP(2);
-  VCR_SET_FP(0);
+		case 16:
+			avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB16);
+			break;
 
-  rh(GFUNC)=0x10;			// enable dynamic clut
-  rh(TCR)=TCR_COLOR;                       // ekelhaftes rosa als transparent
+		case 32:
+			avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB32);
+			break;
 
-  rw(VBR)=0;                       // disable background..
+	}
 
-    } else if (avia_gt_chip(ENX)) {
+	avia_gt_gv_set_blevel(0x5D, 0);
+	avia_gt_gv_set_pos(0, 0);
+	avia_gt_gv_set_input_size(720, 576);
 
-  enx_reg_32(VBR)=0;
+	avia_gt_gv_set_size(par->xres, par->yres);
+	avia_gt_gv_show();
 
-  enx_reg_16(VCR)=0x040|(1<<13);
-  enx_reg_16(BALP)=0;
+	current_par = *par;
+	current_par_valid = 1;
 
-    enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
-  //enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
-  enx_reg_32(TCR2)=0x0FF007F;	 // disabled - we don't need since we have 7bit true alpha
-
-	enx_reg_16(VMCR)=0;
-	enx_reg_16(G1CFR)=1;
-	enx_reg_16(G2CFR)=1;
-
-        //enx_reg_16(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
-	enx_reg_32(GVSA1)=fb_info.offset; 	// dram start address
-	enx_reg_16(GVP1)=0;
-
-    }
-
-    switch (par->bpp) {
-    
-	case 4:
-	
-	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB4);
-	    
-	break;
-	
-	case 8:
-	
-	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB8);
-	    
-	break;
-	case 16:
-	
-	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB16);
-	    
-	break;
-	case 32:
-	
-	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB32);
-	    
-	break;
-	
-    }
-
-    avia_gt_gv_set_blevel(0x5D, 0);
-    avia_gt_gv_set_pos(0, 0);
-    avia_gt_gv_set_input_size(720, 576);
-    
-    avia_gt_gv_set_size(par->xres, par->yres);
-    avia_gt_gv_show();
-
-    current_par = *par;
-    current_par_valid = 1;
-    
 }
 
 static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue, u_int *transp, struct fb_info *info)
 {
 
-    if (regno > 255)
-	return 1;
+	if (regno > 255)
+		return 1;
 
-    avia_gt_gv_get_clut(regno, transp, red, green, blue);
-  
-    return 0;
-    
+	avia_gt_gv_get_clut(regno, transp, red, green, blue);
+
+	return 0;
+
 }
 
 static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int transp, struct fb_info *info)
 {
 
-    if (regno > 255)
-	return 0;
+	if (regno > 255)
+		return 0;
 
-    avia_gt_gv_set_clut(regno, transp, red, green, blue);  
+	avia_gt_gv_set_clut(regno, transp, red, green, blue);
 
-    red >>= 11;
-    green >>= 11;
-    blue >>= 11;
-    transp >>= 8;
-  
+	red >>= 11;
+	green >>= 11;
+	blue >>= 11;
+	transp >>= 8;
+
 #ifdef FBCON_HAS_CFB16
-    if (regno < 16)
-	fbcon_cfb16_cmap[regno] = ((!!transp) << 15) | (red << 10) | (green << 5) | (blue);
+	if (regno < 16)
+		fbcon_cfb16_cmap[regno] = ((!!transp) << 15) | (red << 10) | (green << 5) | (blue);
 #endif
 
-    return 0;
-  
+	return 0;
+
 }
 
 static int gtx_blank(int blank, struct fb_info_gen *info)
 {
-                // TODO: blank evtl. mit dem scartswitch (KILLRGB)
-  return 0;
+	// TODO: blank evtl. mit dem scartswitch (KILLRGB)
+	return 0;
 }
 
-static void gtx_set_disp(const void *fb_par, struct display *disp,
-                         struct fb_info_gen *info)
+static void gtx_set_disp(const void *fb_par, struct display *disp, struct fb_info_gen *info)
 {
 
-    struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-   
-  disp->screen_base=(char*)fb_info.videobase;
-  switch (par->bpp)
-  {
-#if 1
+	struct gtxfb_par *par = (struct gtxfb_par *) fb_par;
+
+	disp->screen_base = (char *) fb_info.videobase;
+
+	switch (par->bpp) {
+
 #ifdef FBCON_HAS_CFB4
-  case 4:
-    disp->dispsw=&fbcon_cfb4;
-    disp->dispsw_data=&fbcon_cfb4_cmap;
-    break;
+		case 4:
+			disp->dispsw = &fbcon_cfb4;
+			disp->dispsw_data = &fbcon_cfb4_cmap;
+			break;
 #endif
 #ifdef FBCON_HAS_CFB8
-  case 8:
-    disp->dispsw=&fbcon_cfb8;
-    disp->dispsw_data=&fbcon_cfb8_cmap;
-    break;
+		case 8:
+			disp->dispsw = &fbcon_cfb8;
+			disp->dispsw_data = &fbcon_cfb8_cmap;
+			break;
 #endif
 #ifdef FBCON_HAS_CFB16
-  case 16:
-    disp->dispsw=&fbcon_cfb16;
-    disp->dispsw_data=&fbcon_cfb16_cmap;
-    break;
+		case 16:
+			disp->dispsw = &fbcon_cfb16;
+			disp->dispsw_data = &fbcon_cfb16_cmap;
+			break;
 #endif
-#endif
-  default:
-    disp->dispsw=&fbcon_dummy;
-  }
-  disp->scrollmode=SCROLL_YREDRAW;
+		default:
+			disp->dispsw = &fbcon_dummy;
+			break;
+	}
+
+	disp->scrollmode = SCROLL_YREDRAW;
 }
 
 struct fbgen_hwswitch gtx_switch = {
 
-    gtx_detect, 
+    gtx_detect,
     gtx_encode_fix,
     gtx_decode_var,
     gtx_encode_var,
@@ -569,158 +519,72 @@ struct fbgen_hwswitch gtx_switch = {
     0,
     gtx_blank,
     gtx_set_disp,
-    
+
 };
 
 static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
 {
 
-    if (avia_gt_chip(GTX)) {
-    
-	switch (cmd)
-	{
-	case GTXFB_BLEV0:
-		 rw(GMR) = (rw(GMR) &~ (15 << 20)) | (arg << 20);
-		 break;
-	case GTXFB_BLEV1:
-		rw(GMR) = (rw(GMR) &~ (15 << 16)) | (arg << 16);
-		break;
-	case CCUBEFB_XPOS:
-		GVP_SET_X(arg);
-		break;
-	case CCUBEFB_YPOS:
-		GVP_SET_Y(arg);
-		break;	
-	case CCBUBEFB_FBCON_BLACK:
-		if(!arg)
-			rh(TCR) = TCR_COLOR;   //  schwarzer consolen hintergrund nicht transpartent
-		else
-			rh(TCR) = 0x8000;   //  schwarzer consolen hintergrund transparent
-		break;
-	default:
-		return -EINVAL;
+	switch (cmd) {
+
+		case AVIA_GT_GV_SET_BLEV:
+
+			avia_gt_gv_set_blevel((arg >> 8) & 0xFF, arg & 0xFF);
+			break;
+
+		case AVIA_GT_GV_SET_POS:
+
+			avia_gt_gv_set_pos((arg >> 16) & 0xFFFF, arg & 0xFFFF);
+			break;
+
+		case AVIA_GT_GV_HIDE:
+
+			avia_gt_gv_hide();
+			break;
+
+		case AVIA_GT_GV_SHOW:
+
+			avia_gt_gv_show();
+			break;
+
+		default:
+
+			return -EINVAL;
 	}
 
+	return 0;
 
-    } else if (avia_gt_chip(ENX)) {
-
-	switch (cmd)
-	{
-	case ENXFB_BLEV10:
-		switch (arg)
-		{
-		case 0:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0));
-			break;
-		case 1:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<4);
-			break;
-		case 2:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<5);
-			break;
-		case 3:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(3<<4);
-			break;
-		case 4:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<6);
-			break;
-		case 5:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(5<<4);
-			break;
-		case 6:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(3<<5);
-			break;
-		case 7:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(7<<4);
-			break;
-		case 8:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<7);
-			break;
-		}
-		break;
-	case ENXFB_BLEV11:
-		switch (arg)
-		{
-		case 0:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8));
-			break;
-		case 1:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<12);
-			break;
-		case 2:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<13);
-			break;
-		case 3:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(3<<12);
-			break;
-		case 4:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<14);
-			break;
-		case 5:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(5<<12);
-			break;
-		case 6:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(3<<13);
-			break;
-		case 7:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(7<<12);
-			break;
-		case 8:
-			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<15);
-			break;
-                }
-		break;
-	case CCUBEFB_XPOS:
-		//ENX_GVP_SET_X(arg);
-		break;
-	case CCUBEFB_YPOS:
-		//ENX_GVP_SET_Y(arg);
-		break;
-	case CCBUBEFB_FBCON_BLACK:
-		if(!arg)
-			enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
-		else
-			enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
-		break;
-	default:
-		return -EINVAL;
-	}
-
-    }
-
-    return 0;
-	
 }
 
 static struct fb_ops avia_gt_fb_ops = {
 
-        owner:          THIS_MODULE,
-        fb_get_fix:     fbgen_get_fix,
-        fb_get_var:     fbgen_get_var,
-        fb_set_var:     fbgen_set_var,
-        fb_get_cmap:    fbgen_get_cmap,
-        fb_set_cmap:    fbgen_set_cmap,
-	fb_ioctl:	fb_ioctl,
-	
+	owner:		THIS_MODULE,
+	fb_get_fix:	fbgen_get_fix,
+	fb_get_var:	fbgen_get_var,
+	fb_set_var:	fbgen_set_var,
+	fb_get_cmap:	fbgen_get_cmap,
+	fb_set_cmap:	fbgen_set_cmap,
+	fb_ioctl:	fb_ioctl
+
 };
 
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.29 2002/04/25 22:10:38 Jolt Exp $\n");
-    
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.30 2002/05/03 16:47:35 obi Exp $\n");
+
     gt_info = avia_gt_get_info();
-	
+
     if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
-	    
+
 	printk("avia_gt_fb: Unsupported chip type\n");
-		    
+
 	return -EIO;
-			    
+
     }
-					    
+
     avia_gt_gv_get_info(&fb_info.pvideobase, &fb_info.videobase, &fb_info.videosize);
-		
+
     fb_info.offset = AVIA_GT_MEM_GV_OFFS;
 
     fb_info.gen.info.node = -1;
