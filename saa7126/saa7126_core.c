@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.11  2001/06/11 15:58:45  gillem
+ *   - some change in svideo stuff
+ *
  *   Revision 1.10  2001/05/16 22:12:48  gillem
  *   - add encoder setting
  *
@@ -45,7 +48,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -325,11 +328,20 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 	i2c_attach_client(client);
 
 	if (config) {
-		if (svideo) {
-			config[0x2d]= ( config[0x2d] & 0x0f ) | 0x50;
-		} else {
-			config[0x2d]= ( config[0x2d] & 0x0f );
+
+		/* svideo stuff */
+		i  = 0x07; // RGB normal mode (0=b/w)
+		i |= 0x08; // CVBS normal mode
+
+		if (svideo)
+		{
+			i |= 0x10; // croma -> R
+			//i |= 0x20; // CVBS -> B
+			i |= 0x40; // lumi -> CVBS
+			//i |= 0x80; // lumi -> G
 		}
+
+		config[0x2d] = i;
 
 		/* upload data */
 		for(i=0;i<0x80;i+=SAA_I2C_BLOCK_SIZE) {
@@ -692,23 +704,21 @@ int saa7126_init(void)
 		dbox_get_info(&dbox);
 		board=dbox.mID;
 	} 
-	if ( (board<1) || (board>3) ) {
+
+	if ( (board<1) || (board>3) )
+	{
 		printk("saa7126.o: wrong board %d\n", board);
 		return -EIO;
 	}
 
-//	if ( register_chrdev(SAA7126_MAJOR,"pal",&saa7126_fops) ) {
-//		printk("saa7126.o: unable to get major %d\n", SAA7126_MAJOR);
-//		return -EIO;
-//	}
-
-  devfs_handle =
-    devfs_register ( NULL, "dbox/saa0", DEVFS_FL_DEFAULT, 0, 0,
+	devfs_handle = devfs_register ( NULL, "dbox/saa0", DEVFS_FL_DEFAULT, 0, 0,
                      S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                      &saa7126_fops, NULL );
 
-  if ( ! devfs_handle )
-    return -EIO;
+	if ( ! devfs_handle )
+	{
+		return -EIO;
+	}
 
 	i2c_add_driver(&driver);
 
@@ -720,11 +730,7 @@ void cleanup_module(void)
 {
 	i2c_del_driver(&driver);
 
-  devfs_unregister ( devfs_handle );
-
-//	if ( unregister_chrdev(SAA7126_MAJOR,"pal") ) {
-//		printk("saa7126.o: unable to release major %d\n", SAA7126_MAJOR);
-//	}
+	devfs_unregister ( devfs_handle );
 
 	return;
 }
