@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.12  2002/04/15 21:58:57  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.11  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -35,7 +38,7 @@
  *
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 	
@@ -377,7 +380,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("$Id: avia_gt_pig.c,v 1.11 2002/04/14 18:06:19 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.12 2002/04/15 21:58:57 Jolt Exp $\n");
 
     pig_chip_type = avia_gt_get_chip_type();
     

@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.8  2002/04/15 21:58:57  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.7  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -102,7 +105,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -201,46 +204,47 @@ void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 
 static void gtx_intialize_interrupts(void)
 {
-        rh (IPR0) = -1;
-        rh (IPR1) = -1;
-        rh (IPR2) = -1;
-        rh (IPR3) = -1;
 
-        rh (IMR0) = 0;
-        rh (IMR1) = 0;
-        rh (IMR2) = 0;
-        rh (IMR3) = 0;
+    gtx_reg_16(IPR0) = -1;
+    gtx_reg_16(IPR1) = -1;
+    gtx_reg_16(IPR2) = -1;
+    gtx_reg_16(IPR3) = -1;
 
-        rh (ISR0) = 0;
-        rh (ISR1) = 0;
-        rh (ISR2) = 0;
-        rh (ISR3) = 0;
-        rh (RR0) &= ~(1 << 4);
+    gtx_reg_16(IMR0) = 0;
+    gtx_reg_16(IMR1) = 0;
+    gtx_reg_16(IMR2) = 0;
+    gtx_reg_16(IMR3) = 0;
 
-        rh (IMR0) = 0xFFFF;
-        rh (IMR1) = 0xFFFF;
+    gtx_reg_16(ISR0) = 0;
+    gtx_reg_16(ISR1) = 0;
+    gtx_reg_16(ISR2) = 0;
+    gtx_reg_16(ISR3) = 0;
+    gtx_reg_16(RR0) &= ~(1 << 4);
+
+    gtx_reg_16(IMR0) = 0xFFFF;
+    gtx_reg_16(IMR1) = 0xFFFF;
 
 }
 
 static void gtx_close_interrupts(void)
 {
 
-	rh (RR0) |= (1 << 4);
+    gtx_reg_16(RR0) |= (1 << 4);
 
-        rh (IMR0) = 0;
-        rh (IMR1) = 0;
-        rh (IMR2) = 0;
-        rh (IMR3) = 0;
+    gtx_reg_16(IMR0) = 0;
+    gtx_reg_16(IMR1) = 0;
+    gtx_reg_16(IMR2) = 0;
+    gtx_reg_16(IMR3) = 0;
 
-        rh (IPR0) = -1;
-        rh (IPR1) = -1;
-        rh (IPR2) = -1;
-        rh (IPR3) = -1;
+    gtx_reg_16(IPR0) = -1;
+    gtx_reg_16(IPR1) = -1;
+    gtx_reg_16(IPR2) = -1;
+    gtx_reg_16(IPR3) = -1;
 
-        rh (ISR0) = 0;
-        rh (ISR1) = 0;
-        rh (ISR2) = 0;
-        rh (ISR3) = 0;
+    gtx_reg_16(ISR0) = 0;
+    gtx_reg_16(ISR1) = 0;
+    gtx_reg_16(ISR2) = 0;
+    gtx_reg_16(ISR3) = 0;
 
 }
 
@@ -254,147 +258,127 @@ void avia_gt_gtx_reset(void)
 
 void avia_gt_gtx_init(void)
 {
-        int cr;
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
+    int cr;
+
+    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.8 2002/04/15 21:58:57 Jolt Exp $\n");
 	
-	avia_gt_gtx_reset();
+    avia_gt_gtx_reset();
 
-        udelay (500);
-        rh(RR0) &= ~( (1 << 13) | (1 << 12) | (1 << 10)
+    udelay (500);
+    gtx_reg_16(RR0) &= ~( (1 << 13) | (1 << 12) | (1 << 10)
                       | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
 
-        udelay (500);
+    udelay (500);
 
-        memset (avia_gt_get_mem_addr(), 0xFF, 2 * 1024 * 1024);          // clear ram
+    memset (avia_gt_get_mem_addr(), 0xFF, 2 * 1024 * 1024);          // clear ram
 	
-        gtx_proc_init ();
+    gtx_proc_init ();
 
-        cr = rh (CR0);
-        printk (KERN_INFO "%s: %s: gtxID %.2x\n", __FILE__, __FUNCTION__,
-                (cr & 0xF000) >> 12);
+    cr = gtx_reg_16(CR0);
+    
+    cr |= 1 << 11;           // enable graphics
+    cr &= ~(1 << 10);        // enable sar
+    cr |= 1 << 9;            // disable pcm
+    cr &= ~(1 << 5);         // enable dac output
+    cr |= 1 << 3;
 
-        cr |= 1 << 11;           // enable graphics
-        cr &= ~(1 << 10);        // enable sar
-        cr |= 1 << 9;            // disable pcm
-        cr &= ~(1 << 5);         // enable dac output
-        cr |= 1 << 3;
+    cr &= ~(3 << 6);
+    cr |= 1 << 6;
+    cr &= ~(1 << 2);
 
-        cr &= ~(3 << 6);
-        cr |= 1 << 6;
-        cr &= ~(1 << 2);
+    gtx_reg_16(CR0) = cr;
 
-        rh (CR0) = cr;
+    gtx_intialize_interrupts ();
 
-        gtx_intialize_interrupts ();
+    // workaround for framebuffer?
+    atomic_set (&THIS_MODULE->uc.usecount, 1);
 
-        // workaround for framebuffer?
-        atomic_set (&THIS_MODULE->uc.usecount, 1);
-        printk (KERN_NOTICE "%s: %s: loaded AViA GTX core driver\n",
-                __FILE__, __FUNCTION__);
-
-        /* buffer disable */
-        rw (PCMA) = 1;
-        /* set volume for pcm and mpeg */
-        rw (PCMN) = 0x80808080;
-        rh (PCMC) = 0;
-        /* enable PCM frequ. same MPEG */
-        rh (PCMC) |= (3 << 14);
-        /* 16 bit mode */
-        rh (PCMC) |= (1 << 13);
-        /* stereo */
-        rh (PCMC) |= (1 << 12);
-        /* signed samples */
-        rh (PCMC) |= (1 << 11);
-        /* clock from aclk */
-        rh (PCMC) &= ~(0 << 6);   // 0: use external (avia) clock
-        /* set adv */
-        rh (PCMC) |= 0;
-        /* set acd */
-        rh (PCMC) |= 2 << 2;
-        /* set bcd */
-        rh (PCMC) |= 2;
-
-	// enable teletext
-	rh(TTCR) |= (1 << 9);
-	
 }
 
 void avia_gt_gtx_exit(void)
 {
-	gtx_proc_cleanup ();
 
-        gtx_close_interrupts ();
+    gtx_proc_cleanup ();
 
-	rh (CR0) = 0x0030;
-	rh (CR1) = 0x0000;
+    gtx_close_interrupts ();
 
-	// take modules in reset state
-        rh(RR0) = 0xFBFF;
-        rh(RR1) = 0x00FF;
+    gtx_reg_16(CR0) = 0x0030;
+    gtx_reg_16(CR1) = 0x0000;
 
-	// disable dram module, don't work :-/ why ????
-//	rh(RR0) |= (1<<10);
+    // take modules in reset state
+    gtx_reg_16(RR0) = 0xFBFF;
+    gtx_reg_16(RR1) = 0x00FF;
+
+    // disable dram module, don't work :-/ why ????
+    //gtx_reg_16(RR0) |= (1<<10);
 
 }
 
 #ifdef CONFIG_PROC_FS
-int
-gtx_proc_init (void)
+int gtx_proc_init(void)
 {
-        struct proc_dir_entry *proc_bus_gtx;
-        struct proc_dir_entry *proc_bus_gtx_reg;
 
-        gtx_proc_initialized = 0;
+    struct proc_dir_entry *proc_bus_gtx;
+    struct proc_dir_entry *proc_bus_gtx_reg;
 
-        if (!proc_bus) {
-                printk("%s: %s: /proc/bus/ does not exist", __FILE__,
-                       __FUNCTION__);
-                gtx_proc_cleanup ();
-                return -ENOENT;
-        }
+    gtx_proc_initialized = 0;
 
-        /* read and write allowed for anybody */
-        proc_bus_gtx = create_proc_entry("gtx", S_IRUGO | S_IWUGO |
-                                                S_IFREG, proc_bus);
+    if (!proc_bus) {
+    
+        printk("%s: %s: /proc/bus/ does not exist", __FILE__, __FUNCTION__);
+	
+        gtx_proc_cleanup ();
+	
+        return -ENOENT;
+		
+    }
 
-        if (!proc_bus_gtx) {
-                printk("%s: %s: Could not create /proc/bus/gtx", __FILE__,
-                       __FUNCTION__);
-                gtx_proc_cleanup ();
-                return -ENOENT;
-        }
+    /* read and write allowed for anybody */
+    proc_bus_gtx = create_proc_entry("gtx", S_IRUGO | S_IWUGO | S_IFREG, proc_bus);
 
-        proc_bus_gtx->read_proc   = &read_bus_gtx;
-        proc_bus_gtx->write_proc  = &write_bus_gtx;
-        proc_bus_gtx->owner       = THIS_MODULE;
-        gtx_proc_initialized     += 2;
+    if (!proc_bus_gtx) {
+    
+        printk("%s: %s: Could not create /proc/bus/gtx", __FILE__, __FUNCTION__);
+	
+        gtx_proc_cleanup ();
+	
+        return -ENOENT;
+	
+    }
 
-        /* read allowed for anybody */
-        proc_bus_gtx_reg = create_proc_entry("gtx-reg", S_IRUGO |
-                                                S_IFREG, proc_bus);
+    proc_bus_gtx->read_proc = &read_bus_gtx;
+    proc_bus_gtx->write_proc = &write_bus_gtx;
+    proc_bus_gtx->owner = THIS_MODULE;
+    gtx_proc_initialized += 2;
 
-        if (!proc_bus_gtx_reg) {
-                printk("%s: %s: Could not create /proc/bus/gtx-reg", __FILE__,
-                       __FUNCTION__);
-                gtx_proc_cleanup ();
-                return -ENOENT;
-        }
+    /* read allowed for anybody */
+    proc_bus_gtx_reg = create_proc_entry("gtx-reg", S_IRUGO | S_IFREG, proc_bus);
 
-        proc_bus_gtx_reg->read_proc   = &read_bus_gtx_reg;
-        proc_bus_gtx_reg->owner       = THIS_MODULE;
-        gtx_proc_initialized     += 2;
+    if (!proc_bus_gtx_reg) {
+    
+        printk("%s: %s: Could not create /proc/bus/gtx-reg", __FILE__, __FUNCTION__);
+	
+        gtx_proc_cleanup ();
+		
+        return -ENOENT;
+	
+    }
 
-        return 0;
+    proc_bus_gtx_reg->read_proc = &read_bus_gtx_reg;
+    proc_bus_gtx_reg->owner = THIS_MODULE;
+    gtx_proc_initialized += 2;
+
+    return 0;
+    
 }
 
 /****************************************************************************
  * The /proc functions
  ****************************************************************************/
-int
-read_bus_gtx (char *buf, char **start, off_t offset, int len, int *eof,
-              void *private)
+int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
+
         if (offset < 0)
                 return -EINVAL;
         if (len < 0)
@@ -406,21 +390,21 @@ read_bus_gtx (char *buf, char **start, off_t offset, int len, int *eof,
         memcpy (buf, avia_gt_get_reg_addr() + 0x1000 + offset, len);
 
         return len;
+	
 }
 
-int
-write_bus_gtx (struct file *file, const char *buffer, unsigned long count,
-               void *data)
+int write_bus_gtx(struct file *file, const char *buffer, unsigned long count, void *data)
 {
-	return -EPERM;
+
+    return -EPERM;
+    
 }
 
-int
-read_bus_gtx_reg (char *buf, char **start, off_t offset, int len, int *eof,
-              void *private)
+int read_bus_gtx_reg(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
-		s32 hi,lo;
-        int nr = 0;
+
+    s32 hi,lo;
+    int nr = 0;
 
         nr += sprintf(buf+nr,"GTX-Control-Register:\n");
         nr += sprintf(buf+nr,"RR0:  %04X\n",rh(RR0)&0xFFFF);
@@ -467,23 +451,24 @@ read_bus_gtx_reg (char *buf, char **start, off_t offset, int len, int *eof,
         nr += sprintf(buf+nr,"TQP(R/W): %04X:%04X %04X:%04X\n",rh(TQRPH)&0xFFFF,rh(TQRPL)&0xFFFF,rh(TQWPH)&0xFFFF,rh(TQWPL)&0xFFFF);
         nr += sprintf(buf+nr,"AQP(R/W): %04X:%04X %04X:%04X\n",rh(AQRPH)&0xFFFF,rh(AQRPL)&0xFFFF,rh(AQWPH)&0xFFFF,rh(AQWPL)&0xFFFF);
         nr += sprintf(buf+nr,"VQP(R/W): %04X:%04X %04X:%04X\n",rh(VQRPH)&0xFFFF,rh(VQRPL)&0xFFFF,rh(VQWPH)&0xFFFF,rh(VQWPL)&0xFFFF);
-        return nr;
+	
+    return nr;
+	
 }
 
-int
-gtx_proc_cleanup (void)
+int gtx_proc_cleanup(void)
 {
-        if (gtx_proc_initialized >= 1) {
-                remove_proc_entry ("gtx", proc_bus);
-                gtx_proc_initialized -= 2;
-                remove_proc_entry ("gtx-reg", proc_bus);
-                gtx_proc_initialized -= 2;
-        }
 
-        return 0;
+    if (gtx_proc_initialized >= 1) {
+    
+        remove_proc_entry ("gtx", proc_bus);
+        gtx_proc_initialized -= 2;
+        remove_proc_entry ("gtx-reg", proc_bus);
+        gtx_proc_initialized -= 2;
+	
+    }
+
+    return 0;
+    
 }
 #endif /* CONFIG_PROC_FS */
-
-
-
-

@@ -124,6 +124,18 @@
 #define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
 
 
+#define GTX_REG_ISR0	0x080
+#define GTX_REG_ISR1	0x082
+#define GTX_REG_ISR2	0x084
+#define GTX_REG_ISR3	0x092            // ?!
+#define GTX_REG_IMR0	0x086
+#define GTX_REG_IMR1	0x088
+#define GTX_REG_IMR2	0x08A
+#define GTX_REG_IMR3	0x094            // ?!
+#define GTX_REG_IPR0	0x08C
+#define GTX_REG_IPR1	0x08E
+#define GTX_REG_IPR2	0x090
+#define GTX_REG_IPR3	0x094            // ?!
 #define GTX_REG_PCMA	0x0E0
 #define GTX_REG_PCMN	0x0E4
 #define GTX_REG_PCMC	0x0E8
@@ -131,6 +143,8 @@
 #define GTX_REG_VLI1	0x0F8
 #define GTX_REG_RR0	0x100
 #define GTX_REG_RR1	0x102
+#define GTX_REG_CR0	0x104
+#define GTX_REG_CR1	0x106
 #define GTX_REG_VPSA	0x240
 #define GTX_REG_VPO	0x244
 #define GTX_REG_VPP	0x248
@@ -138,6 +152,8 @@
 #define GTX_REG_VCSA	0x260
 #define GTX_REG_VCSP	0x264
 #define GTX_REG_VCS	0x268
+
+
 
 
 #define GTX_IRQ_REG_ISR0	0
