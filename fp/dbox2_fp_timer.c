@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.3 2002/11/27 20:07:26 Zwen Exp $
+ * $Id: dbox2_fp_timer.c,v 1.4 2002/12/02 14:18:36 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -100,17 +100,24 @@ int
 dbox2_fp_timer_clear (void)
 {
 	u8 id [] = { 0x00, 0x00 };
+	u8 cmd;
 
 	dbox2_fp_timer_set(0);
-	
-	if (fp_cmd(fp_i2c_client, FP_CLEAR_WAKEUP, id, sizeof(id)))
-		return -1;
+
+	switch (manufacturer_id) {
+	case DBOX_MID_NOKIA:
+		cmd = FP_CLEAR_WAKEUP_NOKIA;
+		break;
+	case DBOX_MID_PHILIPS:
+	case DBOX_MID_SAGEM:
+		cmd = FP_CLEAR_WAKEUP;
+		break;
+	}
 
 	boot_trigger = (id[0] == 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
 
-	if (manufacturer_id==DBOX_MID_NOKIA)
-		if (fp_cmd(fp_i2c_client, FP_CLEAR_WAKEUP_NOKIA, id, sizeof(id)))
-			return -1;
+	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
+		return -1;
 
 	return 0;
 }
