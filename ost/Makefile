@@ -9,7 +9,7 @@ TEST_APPZ = test_audio test_av test_dmx test_front test_video
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB -D__DVB_PACK__
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
