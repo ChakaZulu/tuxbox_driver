@@ -21,16 +21,13 @@
  *
  *
  *   $Log: pcm.h,v $
+ *   Revision 1.4  2001/02/03 14:13:40  tmbinc
+ *   Moved PCMx- and DPCR-stuff into gtx.h. Was in pcm.h.
+ *
  *   Revision 1.3  2001/01/06 10:07:10  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
-#define gPCMA 0xe0
-#define gPCMN 0xe4
-#define gPCMC 0xe8
-#define gPCMD 0xec
-
-#define gDPCR 0x110

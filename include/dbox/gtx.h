@@ -69,6 +69,12 @@
 #define gPFIFO          0x138
 #define gDPCR           0x110
 
+#define gPCMA           0xe0
+#define gPCMN           0xe4
+#define gPCMC           0xe8
+#define gPCMD           0xec
+
+
 #define gQI0            0x1C0
 
 #define rw(a) (*((volatile unsigned long*)(gtxreg+g ## a)))
