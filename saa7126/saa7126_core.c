@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.44 2004/09/15 00:53:54 carjay Exp $
+ * $Id: saa7126_core.c,v 1.45 2004/12/01 02:51:42 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -345,6 +345,8 @@ static int saa7126_set_mode(struct i2c_client *client, int inp)
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
 	encoder->reg_3a = 0x03;		/* by default switch YUV to RGB-matrix on */
 
+	// reg_2D: VBS-EN1 VBS-EN0 CVBS-EN C-EN		CVBS-TRI R-TRI G-TRI B-TRI
+	
 	switch (inp) {
 	case SAA_MODE_RGB:
 		encoder->reg_2d = 0x0f; /* RGB + CVBS (for sync) */
@@ -372,6 +374,29 @@ static int saa7126_set_mode(struct i2c_client *client, int inp)
 	return 0;
 }
 
+static int saa7126_get_mode(struct i2c_client *client)
+{
+	struct saa7126 *encoder = (struct saa7126 *) client->data;
+
+	switch (encoder->reg_2d) {
+	case 0x0f:
+		return SAA_MODE_RGB;
+		break;
+	case 0x08:
+		return SAA_MODE_FBAS;
+		break;
+	case 0xff:
+		return SAA_MODE_SVIDEO;
+	case 0xcf:
+		return SAA_MODE_YUV_V;
+		break;
+	case 0x8f:
+		return SAA_MODE_YUV_C;
+		break;
+	default:
+		return -EINVAL;
+	}
+}
 
 static int saa7126_set_norm(struct i2c_client *client, u8 pal)
 {
@@ -713,14 +738,31 @@ static int saa7126_csync_get(struct i2c_client *client)
 	u8 reg;
 	reg = saa7126_readreg(client, 0x3A);
 	reg &= 0x04; /* GET CSYNC Bit */
-	if(reg) {
+	if (reg){
 		reg = (saa7126_readreg(client, 0x75) | ~0x07) >> 3;
 		return reg;
-	}
-	else
+	} else
 		return 0;
 }
 
+static int saa7126_ttx_set(struct i2c_client *client, u8 enable)
+{
+	u8 reg;
+	reg = saa7126_readreg(client, 0x6f);
+
+	if (enable)
+		reg |= 0x20;
+	else
+		reg &= ~0x20;
+
+	saa7126_writereg(client, 0x6f, reg);
+	return 0;		
+}
+
+static int saa7126_ttx_get(struct i2c_client *client)
+{
+	return !!(saa7126_readreg(client, 0x6f)&0x20);
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -762,6 +804,10 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 
 		return saa7126_set_mode(client, val);
 
+	case SAAIOGMODE:
+		val = saa7126_get_mode(client);
+		return (copy_to_user(parg, &val, sizeof(val)));
+		
 	case SAAIOSENC:
 		if (copy_from_user(&val, parg, sizeof(val)))
 			return -EFAULT;
@@ -807,12 +853,11 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 
 		val = saa7126_readreg(client, val);
 
-		return (copy_to_user(&val, parg, sizeof(val)));
+		return (copy_to_user(parg, &val, sizeof(val)));
 
 	case SAA_WRITEREG:
 		if (copy_from_user(&val, parg, sizeof(val)))
 			return -EFAULT;
-
 		return saa7126_writereg(client, (val >> 8) & 0xff, val & 0xff);
 
 	case SAAIOSCSYNC:
@@ -821,10 +866,18 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 		return saa7126_csync_set(client, val);
 
 	case SAAIOGCSYNC:
-			val = saa7126_csync_get(client);
-
-			return (copy_to_user(&val, parg, sizeof(val)));
+		val = saa7126_csync_get(client);
+		return (copy_to_user(parg, &val, sizeof(val)));
 	
+	case SAAIOSTTX:
+		if (copy_from_user(&val, parg, sizeof(val)))
+			return -EFAULT;
+		return saa7126_ttx_set(client,val);
+
+	case SAAIOGTTX:
+		val = saa7126_ttx_get(client);
+		return (copy_to_user(parg, &val, sizeof(val)));
+		
 	 default:
 		return -EINVAL;
 	}
