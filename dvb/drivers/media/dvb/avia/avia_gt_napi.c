@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.68 $
+ *   $Revision: 1.69 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.69  2002/03/19 18:32:25  happydude
+ *   allow seperate setting of pcr pid
+ *
  *   Revision 1.68  2002/02/24 15:29:23  woglinde
  *   test new tuner-api
  *
@@ -1500,11 +1503,6 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->pid=pid;
 	filter->wait_pusi=0;	// right?
 
-	if (gtxfeed->output&TS_PCR)
-	{
-		dprintk(KERN_DEBUG "gtx_dmx: setting PCR-pid to %x\n", pid);
-		gtx_dmx_set_pcr_source(pid);
-	}
 	if (gtxfeed->pes_type==DMX_TS_PES_VIDEO)
 	{
 		dprintk(KERN_DEBUG "gtx_dmx: assuming PCR_PID == VPID == %04x\n", pid);
@@ -2048,6 +2046,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->connect_frontend=dmx_connect_frontend;
 	dmx->disconnect_frontend=dmx_disconnect_frontend;
 	dmx->flush_pcr=gtx_flush_pcr;
+	dmx->set_pcr_pid=gtx_dmx_set_pcr_source;
 	
 	gtx_tasklet.data=gtxdemux;
 
@@ -2099,7 +2098,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.68 2002/02/24 15:29:23 woglinde Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.69 2002/03/19 18:32:25 happydude Exp $\n");
 
 	return gtx_dmx_init();
 }

@@ -688,7 +688,7 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 	int ts_type;
 	dmx_ts_pes_t ts_pes;
 	dmx_ts_feed_t **tsfeed=&dmxdevfilter->feed.ts;
-	
+
 	if (dmxdevfilter->state>=DMXDEV_STATE_SET)
 		DmxDevFilterReset(dmxdevfilter);
 
@@ -699,7 +699,24 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 	otype=para->output;
 
 	if (para->pesType>DMX_PES_OTHER || para->pesType<0)
+	{
 		return -EINVAL;
+	}
+
+	else if (para->pesType == DMX_PES_PCR && para->input == DMX_IN_FRONTEND && para->output == DMX_OUT_DECODER)
+	{
+		dmxdevfilter->pid = para->pid;
+		if (para->flags & DMX_IMMEDIATE_START)
+		{
+			dmxdev->demux->set_pcr_pid(para->pid);
+			DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_GO);
+		}
+		else
+		{
+			DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_SET);
+		}
+		return 0;
+	}
 
 	ts_pes=(dmx_ts_pes_t) para->pesType;
 	
@@ -813,13 +830,35 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 	switch (cmd) {
 	case DMX_START: 
 		if (dmxdevfilter->state<2)
+		{
 			ret=-EINVAL;
+		}
 		else
-			ret=DmxDevFilterStart(dmxdevfilter);
+		{
+			if (dmxdevfilter->type == DMXDEV_TYPE_PES && dmxdevfilter->params.pes.pesType == DMX_PES_PCR)
+			{
+				dmxdev->demux->set_pcr_pid(dmxdevfilter->pid);
+				DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_GO);
+				ret = 0;
+			}
+			else
+			{
+				ret=DmxDevFilterStart(dmxdevfilter);
+			}
+		}
 		break;
 
 	case DMX_STOP: 
-		ret=DmxDevFilterStop(dmxdevfilter);
+		if (dmxdevfilter->type == DMXDEV_TYPE_PES && dmxdevfilter->params.pes.pesType == DMX_PES_PCR)
+		{
+			DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_SET);
+			dmxdev->demux->set_pcr_pid(0x1fff);
+			ret = 0;
+		}
+		else
+		{
+			ret=DmxDevFilterStop(dmxdevfilter);
+		}
 		break;
 
 	case DMX_SET_FILTER: 

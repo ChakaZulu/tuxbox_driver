@@ -53,7 +53,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-/* $Id: demux.h,v 1.3 2001/12/17 18:38:07 gillem Exp $ */ 
+/* $Id: demux.h,v 1.4 2002/03/19 18:32:25 happydude Exp $ */ 
 
 #ifndef __DEMUX_H 
 #define __DEMUX_H 
@@ -102,7 +102,6 @@ typedef enum {
 #define	TS_PAYLOAD_ONLY 2   /* in case TS_PACKET is set, only send the TS
 			       payload (<=184 bytes per packet) to callback */
 #define TS_DECODER      4   /* send stream to built-in decoder (if present) */
-#define TS_PCR          8
 
 /* PES type for filters which write to built-in decoder */
 /* these should be kept identical to the types in dmx.h */
@@ -324,6 +323,7 @@ struct dmx_demux_s {
 				 dmx_frontend_t* frontend); 
         int (*disconnect_frontend) (struct dmx_demux_s* demux); 
 	void (*flush_pcr)(void);
+	void (*set_pcr_pid) (int pid);
 }; 
 typedef struct dmx_demux_s dmx_demux_t; 
 
