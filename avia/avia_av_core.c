@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.38  2002/10/28 14:34:25  wjoost
+ *   SPTS und AC3 / cleanup
+ *
  *   Revision 1.37  2002/10/21 11:38:58  obi
  *   fp driver cleanup
  *
@@ -167,7 +170,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.37 $
+ *   $Revision: 1.38 $
  *
  */
 
@@ -231,10 +234,12 @@ static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
 static u16 sample_rate = 44100;
 
+#if 0
 static u16 pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
 static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
+#endif
 
 /* finally i got them */
 #define UX_MAGIC			0x00
@@ -1269,6 +1274,8 @@ u16 avia_get_sample_rate(void)
 
 }
 
+#if 0
+
 int avia_av_pid_set_audio(u16 pid)
 {
 
@@ -1460,8 +1467,11 @@ int avia_av_stream_type_set_video(u8 stream_type)
 
 }
 
+#endif
+
 /* ---------------------------------------------------------------------- */
 
+EXPORT_SYMBOL(aviarev);
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
 EXPORT_SYMBOL(avia_command);
@@ -1487,7 +1497,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.37 2002/10/21 11:38:58 obi Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.38 2002/10/28 14:34:25 wjoost Exp $\n");
 
 	aviamem = 0;
 

@@ -21,13 +21,16 @@
  *
  *
  *   $Log: avia_av.h,v $
+ *   Revision 1.10  2002/10/28 14:34:25  wjoost
+ *   SPTS und AC3 / cleanup
+ *
  *   Revision 1.9  2002/10/03 12:47:58  Jolt
  *   AViA AV cleanups
  *
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -42,6 +45,8 @@
 #define TM_DRAM  0x00
 #define TM_GBUS  0x80
 #define TM_SRAM  0xC0
+
+extern int aviarev;
 
 extern u32 avia_rd(int mode, int address);
 extern void avia_wr(int mode, u32 address, u32 data);
