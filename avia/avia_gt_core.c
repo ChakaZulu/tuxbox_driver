@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.14  2002/05/02 18:13:52  Jolt
+ *   Autodetect
+ *
  *   Revision 1.13  2002/05/01 21:51:35  Jolt
  *   Merge
  *
@@ -61,7 +64,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -88,6 +91,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
+#include "dbox/info.h"
 #include "dbox/avia_gt.h"
 #include "dbox/avia_gt_gv.h"
 #include "dbox/avia_gt_pcm.h"
@@ -246,10 +250,37 @@ static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 int __init avia_gt_init(void)
 {
 
+	struct dbox_info_struct *dbox_info;
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.13 2002/05/01 21:51:35 Jolt Exp $\n");
-    
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.14 2002/05/02 18:13:52 Jolt Exp $\n");
+	
+	if (chip_type == -1) {
+	
+		printk("avia_gt_core: autodetecting chip type... ");
+	
+		dbox_get_info_ptr(&dbox_info);
+		
+		if (dbox_info->enxID != -1) {
+		
+			chip_type = AVIA_GT_CHIP_TYPE_ENX;
+			
+			printk("AViA eNX found\n");
+			
+		} else if (dbox_info->gtxID != -1) {
+		
+			chip_type = AVIA_GT_CHIP_TYPE_GTX;
+
+			printk("AViA GTX found\n");
+			
+		} else {
+
+			printk("no supported chip type found\n");
+		
+		}
+
+	}
+
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
         printk("avia_gt_core: Unsupported chip type (gt_info->chip_type = %d)\n", gt_info->chip_type);
