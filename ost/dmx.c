@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
-                      for convergence integrated media GmbH
+ *                    for convergence integrated media GmbH
+ *               2001 Bastian Blank <bastianb@gmx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -19,6 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
+ * $Id: dmx.c,v 1.3 2001/03/03 08:24:01 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -42,120 +44,69 @@
 #include <ost/dvbdev.h>
 #include <ost/dmx.h>
 
-#define OST_DEMUX_MAJOR 254
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
 
-static int ost_demux_open(struct inode *inode, struct file *file)
+static devfs_handle_t devfs_handle;
+
+static int ost_demux_open ( struct inode *inode, struct file *file )
 {
-        int minor=MINOR(inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-  
-        return dvb_device_open(minor&0x3f, device, inode, file);
+  return dvb_device_open ( DVB_DEVICE_DEMUX, inode, file );
 }
 
-static int ost_demux_release(struct inode *inode, struct file *file)
+static int ost_demux_release ( struct inode *inode, struct file *file )
 {
-        int minor=MINOR(inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-  
-        return dvb_device_close(minor&0x3f, device, inode, file);
+  return dvb_device_close ( DVB_DEVICE_DEMUX, inode, file );
 }
 
-static ssize_t ost_demux_read(struct file *file,
-				 char *buf, size_t count, loff_t *ppos)
+static ssize_t ost_demux_read ( struct file *file, char *buf,
+                                size_t count, loff_t *ppos )
 {
-        int minor=MINOR(file->f_dentry->d_inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-  
-        return dvb_device_read(minor&0x3f, device, file, buf, count, ppos);
+  return dvb_device_read ( DVB_DEVICE_DEMUX, file, buf, count, ppos );
 }
 
-static ssize_t ost_demux_write(struct file *file, const char *buf, 
-			      size_t count, loff_t *ppos)
+static ssize_t ost_demux_write ( struct file *file, const char *buf,
+                                 size_t count, loff_t *ppos )
 {
-        int minor=MINOR(file->f_dentry->d_inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-  
-        return dvb_device_write(minor&0x3f, device, file, buf, count, ppos);
+  return dvb_device_write ( DVB_DEVICE_DEMUX, file, buf, count, ppos );
 }
 
-static int ost_demux_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int ost_demux_ioctl ( struct inode *inode, struct file *file,
+                             unsigned int cmd, unsigned long arg )
 {
-        int minor=MINOR(inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-	
-	return dvb_device_ioctl(minor&0x3f, device, file, cmd, arg);
+  return dvb_device_ioctl ( DVB_DEVICE_DEMUX, file, cmd, arg );
 }	
 
-static unsigned int ost_demux_poll(struct file *file, poll_table *wait)
+static unsigned int ost_demux_poll ( struct file *file, poll_table *wait )
 {
-        int minor=MINOR(file->f_dentry->d_inode->i_rdev);
-	int device=(minor&0x40) ? DVB_DEVICE_DVR : DVB_DEVICE_DEMUX;
-
-	return dvb_device_poll(minor&0x3f, device, file, wait);
+  return dvb_device_poll ( DVB_DEVICE_DEMUX, file, wait );
 }
 
 static struct file_operations ost_demux_fops =
 {
-        read:		ost_demux_read,
-	write:		ost_demux_write,
-	ioctl:		ost_demux_ioctl,
-	open:		ost_demux_open,
-	release:	ost_demux_release,
-	poll:		ost_demux_poll,
+  open:		ost_demux_open,
+  release:	ost_demux_release,
+  read:		ost_demux_read,
+  write:	ost_demux_write,
+  ioctl:	ost_demux_ioctl,
+  poll:		ost_demux_poll,
 };
 
-#ifdef CONFIG_DEVFS_FS
-static devfs_handle_t devfs_handle;
-#endif
-
-#if LINUX_VERSION_CODE >= 0x020300
-int __init dmx_init_module(void)
-#else
-int init_module(void)
-#endif
+int __init dmx_init_module ()
 {
-#if LINUX_VERSION_CODE < 0x020300
-	if(register_chrdev(OST_DEMUX_MAJOR, "ost/demux", &ost_demux_fops))
-#else
+  devfs_handle = devfs_register ( NULL, "ost/demux0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  &ost_demux_fops, NULL );
 
-	if(devfs_register_chrdev(OST_DEMUX_MAJOR, "ost/demux", &ost_demux_fops))
-#endif
-	{
-		printk("DEMUX: unable to get major %d\n", OST_DEMUX_MAJOR);
-		return -EIO;
-	}
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_handle = devfs_register (NULL, "ost/demux0", DEVFS_FL_DEFAULT,
-                                       OST_DEMUX_MAJOR, 0,
-                                       S_IFCHR | S_IRUSR | S_IWUSR,
-                                       &ost_demux_fops, NULL);
-#endif
-
-	return 0;
+  return 0;
 }
 
-#if LINUX_VERSION_CODE >= 0x020300
-void __exit dmx_cleanup_module(void)
-#else
-void cleanup_module(void)
-#endif
+void __exit dmx_cleanup_module ()
 {
- 
-#if LINUX_VERSION_CODE < 0x020300
-	unregister_chrdev(OST_DEMUX_MAJOR, "ost/demux");
-#else
-	devfs_unregister_chrdev(OST_DEMUX_MAJOR, "ost/demux");
-#endif
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_unregister (devfs_handle);
-#endif
+  devfs_unregister ( devfs_handle );
 }
 
-#if LINUX_VERSION_CODE >= 0x020300
-module_init(dmx_init_module);
-module_exit(dmx_cleanup_module);
-#endif
-
+module_init ( dmx_init_module );
+module_exit ( dmx_cleanup_module );

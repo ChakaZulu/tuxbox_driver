@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
  *                  & Ralph  Metzler <ralph@convergence.de>
-                      for convergence integrated media GmbH
+ *                    for convergence integrated media GmbH
+ *               2001 Bastian Blank <bastianb@gmx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -19,6 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
+ * $Id: sec.c,v 1.3 2001/03/03 08:24:01 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -42,103 +44,55 @@
 #include <ost/dvbdev.h>
 #include <ost/sec.h> 
 
-#define OST_SEC_MAJOR 251
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
 
-static int ost_sec_open(struct inode *inode, struct file *file)
+static devfs_handle_t devfs_handle;
+
+static int ost_sec_open ( struct inode *inode, struct file *file )
 {
-        return dvb_device_open(MINOR(inode->i_rdev), DVB_DEVICE_SEC,
-			       inode, file);
+  return dvb_device_open ( DVB_DEVICE_SEC, inode, file );
 }
 
-static int ost_sec_release(struct inode *inode, struct file *file)
+static int ost_sec_release ( struct inode *inode, struct file *file )
 {
-        return dvb_device_close(MINOR(inode->i_rdev), DVB_DEVICE_SEC,
-				inode, file);
+  return dvb_device_close ( DVB_DEVICE_SEC, inode, file );
 }
 
-static int ost_sec_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static int ost_sec_ioctl ( struct inode *inode, struct file *file,
+			   unsigned int cmd, unsigned long arg )
 {
-	unsigned int minor = MINOR(inode->i_rdev);
-	
-	return dvb_device_ioctl(minor, DVB_DEVICE_SEC, file, cmd, arg);
+  return dvb_device_ioctl ( DVB_DEVICE_SEC, file, cmd, arg );
 }
 
-static unsigned int ost_sec_poll(struct file *file, poll_table *wait)
+static unsigned int ost_sec_poll ( struct file *file, poll_table *wait )
 {
-        return 0;
+  return 0;
 }
 
 static struct file_operations ost_sec_fops =
 {
-        //llseek:		ost_sec_lseek,
-        //read:		ost_sec_read,
-        //write:		ost_sec_write,
-	ioctl:		ost_sec_ioctl,
-	//	mmap:		ost_sec_mmap,
-	open:		ost_sec_open,
-	release:	ost_sec_release,
-	poll:		ost_sec_poll,
+  open:		ost_sec_open,
+  release:	ost_sec_release,
+  ioctl:	ost_sec_ioctl,
+  poll:		ost_sec_poll,
 };
 
-#ifdef CONFIG_DEVFS_FS
-static devfs_handle_t devfs_handle;
-#endif
-
-int __init dvbdev_sec_init(void)
+int __init sec_init_module ()
 {
-#if LINUX_VERSION_CODE < 0x020300
-	if(register_chrdev(OST_SEC_MAJOR, "ost/sec", &ost_sec_fops))
-#else
+  devfs_handle = devfs_register ( NULL, "ost/sec0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  &ost_sec_fops, NULL );
 
-	if(devfs_register_chrdev(OST_SEC_MAJOR, "ost/sec", &ost_sec_fops))
-#endif
-	{
-		printk("sec: unable to get major %d\n", OST_SEC_MAJOR);
-		return -EIO;
-	}
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_handle = devfs_register (NULL, "ost/sec0", DEVFS_FL_DEFAULT,
-                                       OST_SEC_MAJOR, 0,
-                                       S_IFCHR | S_IRUSR | S_IWUSR,
-                                       &ost_sec_fops, NULL);
-#endif
-
-	return 0;
+  return 0;
 }
 
-int
-#if LINUX_VERSION_CODE >= 0x020300
-__init sec_init_module(void)
-#else
-init_module(void)
-#endif
+void __exit sec_cleanup_module ()
 {
-        return dvbdev_sec_init();
+  devfs_unregister ( devfs_handle );
 }
 
-void
-#if LINUX_VERSION_CODE >= 0x020300
-__exit sec_cleanup_module(void)
-#else
-cleanup_module(void)
-#endif
-{
- 
-#if LINUX_VERSION_CODE < 0x020300
-	unregister_chrdev(OST_SEC_MAJOR, "ost/sec");
-#else
-	devfs_unregister_chrdev(OST_SEC_MAJOR, "ost/sec");
-#endif
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_unregister (devfs_handle);
-#endif
-}
-
-#if LINUX_VERSION_CODE >= 0x020300
-module_init(sec_init_module);
-module_exit(sec_cleanup_module);
-#endif
-
+module_init ( sec_init_module );
+module_exit ( sec_cleanup_module );

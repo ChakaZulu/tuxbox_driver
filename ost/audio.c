@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
  *                  & Ralph  Metzler <ralph@convergence.de>
-                      for convergence integrated media GmbH
+ *                    for convergence integrated media GmbH
+ *               2001 Bastian Blank <bastianb@gmx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -19,6 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
+ * $Id: audio.c,v 1.3 2001/03/03 08:24:01 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -41,106 +43,69 @@
 #include <ost/dvbdev.h>
 #include <ost/audio.h>
 
-#define OST_AUDIO_MAJOR 252
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
 
-static int ost_audio_open(struct inode *inode, struct file *file)
+static devfs_handle_t devfs_handle;
+
+static int ost_audio_open ( struct inode *inode, struct file *file )
 {
-        return dvb_device_open(MINOR(inode->i_rdev), DVB_DEVICE_AUDIO,
-			       inode, file);
+  return dvb_device_open ( DVB_DEVICE_AUDIO, inode, file );
 }
 
-static int ost_audio_release(struct inode *inode, struct file *file)
+static int ost_audio_release ( struct inode *inode, struct file *file )
 {
-        return dvb_device_close(MINOR(inode->i_rdev), DVB_DEVICE_AUDIO,
-				inode, file);
+  return dvb_device_close ( DVB_DEVICE_AUDIO, inode, file );
 }
 
-static ssize_t ost_audio_write(struct file *file, const char *buf, 
-			       size_t count, loff_t *ppos)
+static ssize_t ost_audio_read ( struct file *file, char *buf,
+                                size_t count, loff_t *ppos )
 {
-        return dvb_device_write(MINOR(file->f_dentry->d_inode->i_rdev), 
-				DVB_DEVICE_AUDIO, file, buf, count, ppos);
+  return dvb_device_read ( DVB_DEVICE_AUDIO, file, buf, count, ppos );
 }
 
-static ssize_t ost_audio_read(struct file *file,
-			      char *buf, size_t count, loff_t *ppos)
+static ssize_t ost_audio_write ( struct file *file, const char *buf, 
+			         size_t count, loff_t *ppos )
 {
-        return dvb_device_read(MINOR(file->f_dentry->d_inode->i_rdev), 
-				DVB_DEVICE_AUDIO, file, buf, count, ppos);
+  return dvb_device_write ( DVB_DEVICE_AUDIO, file, buf, count, ppos );
 }
 
-static int ost_audio_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static int ost_audio_ioctl ( struct inode *inode, struct file *file,
+			     unsigned int cmd, unsigned long arg )
 {
-	return dvb_device_ioctl(MINOR(inode->i_rdev),
-				DVB_DEVICE_AUDIO, file, cmd, arg);
+  return dvb_device_ioctl ( DVB_DEVICE_AUDIO, file, cmd, arg );
 }
 
-static unsigned int ost_audio_poll(struct file *file, poll_table *wait)
+static unsigned int ost_audio_poll ( struct file *file, poll_table *wait )
 {
-        return dvb_device_poll(MINOR(file->f_dentry->d_inode->i_rdev), 
-			       DVB_DEVICE_AUDIO, file, wait);
+  return dvb_device_poll ( DVB_DEVICE_AUDIO, file, wait );
 }
 
 static struct file_operations ost_audio_fops =
 {
-        read:		ost_audio_read,
-	write:		ost_audio_write,
-	ioctl:		ost_audio_ioctl,
-	open:		ost_audio_open,
-	release:	ost_audio_release,
-	poll:		ost_audio_poll,
+  open:		ost_audio_open,
+  release:	ost_audio_release,
+  read:		ost_audio_read,
+  write:	ost_audio_write,
+  ioctl:	ost_audio_ioctl,
+  poll:		ost_audio_poll,
 };
 
-#ifdef CONFIG_DEVFS_FS
-static devfs_handle_t devfs_handle;
-#endif
-
-#if LINUX_VERSION_CODE >= 0x020300
-int __init audio_init_module(void)
-#else
-int init_module(void)
-#endif
+int __init audio_init_module ()
 {
-#if LINUX_VERSION_CODE < 0x020300
-	if(register_chrdev(OST_AUDIO_MAJOR, "ost/audio", &ost_audio_fops))
-#else
-	if(devfs_register_chrdev(OST_AUDIO_MAJOR, "ost/audio", &ost_audio_fops))
-#endif
-	{
-		printk("audio_dev: unable to get major %d\n", OST_AUDIO_MAJOR);
-		return -EIO;
-	}
+  devfs_handle = devfs_register ( NULL, "ost/audio0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  &ost_audio_fops, NULL );
 
-#ifdef CONFIG_DEVFS_FS
-	devfs_handle = devfs_register (NULL, "ost/audio0", DEVFS_FL_DEFAULT,
-                                       OST_AUDIO_MAJOR, 0,
-                                       S_IFCHR | S_IRUSR | S_IWUSR,
-                                       &ost_audio_fops, NULL);
-#endif
-
-	return 0;
+  return 0;
 }
 
-#if LINUX_VERSION_CODE >= 0x020300
-void __exit audio_cleanup_module(void)
-#else
-void cleanup_module(void)
-#endif
+void __exit audio_cleanup_module ()
 {
- 
-#if LINUX_VERSION_CODE < 0x020300
-	unregister_chrdev(OST_AUDIO_MAJOR, "ost/audio");
-#else
-	devfs_unregister_chrdev(OST_AUDIO_MAJOR, "ost/audio");
-#endif
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_unregister (devfs_handle);
-#endif
+  devfs_unregister ( devfs_handle );
 }
 
-#if LINUX_VERSION_CODE >= 0x020300
-module_init(audio_init_module);
-module_exit(audio_cleanup_module);
-#endif
+module_init ( audio_init_module );
+module_exit ( audio_cleanup_module );

@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
  *                  & Ralph  Metzler <ralph@convergence.de>
-                      for convergence integrated media GmbH
+ *                    for convergence integrated media GmbH
+ *               2001 Bastian Blank <bastianb@gmx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -42,121 +43,69 @@
 #include <ost/dvbdev.h>
 #include <ost/frontend.h>
 
-#define OST_FRONTEND_MAJOR 253
-#if LINUX_VERSION_CODE < 0x020300
-#define ENOTSUPP   524
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
 #endif
 
+static devfs_handle_t devfs_handle;
 
-static int ost_frontend_open(struct inode *inode, struct file *file)
+static int ost_frontend_open ( struct inode *inode, struct file *file )
 {
-        return dvb_device_open(MINOR(inode->i_rdev), DVB_DEVICE_FRONTEND,
-			       inode, file);
+  return dvb_device_open ( DVB_DEVICE_FRONTEND, inode, file );
 }
 
-static int ost_frontend_release(struct inode *inode, struct file *file)
+static int ost_frontend_release ( struct inode *inode, struct file *file )
 {
-        return dvb_device_close(MINOR(inode->i_rdev), DVB_DEVICE_FRONTEND,
-				inode, file);
+  return dvb_device_close ( DVB_DEVICE_FRONTEND, inode, file );
 }
 
-static ssize_t ost_frontend_read(struct file *file,
-				 char *buf, size_t count, loff_t *ppos)
+static ssize_t ost_frontend_read ( struct file *file, char *buf,
+                                   size_t count, loff_t *ppos )
 {
-        return -ENOTSUPP;
+  return -ENOTSUPP;
 }
 
-static ssize_t ost_frontend_write(struct file *file, const char *buf, 
-			      size_t count, loff_t *ppos)
+static ssize_t ost_frontend_write ( struct file *file, const char *buf,
+                                    size_t count, loff_t *ppos )
 {
-        return -ENOTSUPP;
+  return -ENOTSUPP;
 }
 
-
-static int ost_frontend_ioctl(struct inode *inode, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int ost_frontend_ioctl ( struct inode *inode, struct file *file,
+                                unsigned int cmd, unsigned long arg )
 {
-	unsigned int minor = MINOR(inode->i_rdev);
-	
-	return dvb_device_ioctl(minor, DVB_DEVICE_FRONTEND, file, cmd, arg);
+  return dvb_device_ioctl ( DVB_DEVICE_FRONTEND, file, cmd, arg );
 }
 
-static unsigned int ost_frontend_poll(struct file *file, poll_table *wait)
+static unsigned int ost_frontend_poll ( struct file *file, poll_table *wait )
 {
-        return 0;
+  return 0;
 }
 
 static struct file_operations ost_frontend_fops =
 {
-        //llseek:		ost_frontend_lseek,
-        read:		ost_frontend_read,
-	write:		ost_frontend_write,
-	ioctl:		ost_frontend_ioctl,
-	//	mmap:		ost_frontend_mmap,
-	open:		ost_frontend_open,
-	release:	ost_frontend_release,
-	poll:		ost_frontend_poll,
+  open:		ost_frontend_open,
+  release:	ost_frontend_release,
+  read:		ost_frontend_read,
+  write:	ost_frontend_write,
+  ioctl:	ost_frontend_ioctl,
+  poll:		ost_frontend_poll,
 };
 
-#ifdef CONFIG_DEVFS_FS
-static devfs_handle_t devfs_handle;
-#endif
-
-int __init dvbdev_frontend_init(void)
+int __init frontend_init_module ()
 {
-#if LINUX_VERSION_CODE < 0x020300
-	if(register_chrdev(OST_FRONTEND_MAJOR, "ost/frontend", &ost_frontend_fops))
-#else
+  devfs_handle = devfs_register ( NULL, "ost/frontend0", DEVFS_FL_DEFAULT,
+                                  0, 0,
+                                  S_IFCHR | S_IRUSR | S_IWUSR,
+                                  &ost_frontend_fops, NULL );
 
-	if(devfs_register_chrdev(OST_FRONTEND_MAJOR, "ost/frontend", &ost_frontend_fops))
-#endif
-	{
-		printk("frontend: unable to get major %d\n", OST_FRONTEND_MAJOR);
-		return -EIO;
-	}
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_handle = devfs_register (NULL, "ost/frontend0", DEVFS_FL_DEFAULT,
-                                       OST_FRONTEND_MAJOR, 0,
-                                       S_IFCHR | S_IRUSR | S_IWUSR,
-                                       &ost_frontend_fops, NULL);
-#endif
-
-	return 0;
+  return 0;
 }
 
-int
-#if LINUX_VERSION_CODE >= 0x020300
-__init frontend_init_module(void)
-#else 
-init_module(void)
-#endif
-
+void __exit frontend_cleanup_module ()
 {
-        return dvbdev_frontend_init();
+  devfs_unregister ( devfs_handle );
 }
 
-void
-#if LINUX_VERSION_CODE >= 0x020300
-__exit frontend_cleanup_module(void)
-#else 
-cleanup_module(void)
-#endif
-
-{
- 
-#if LINUX_VERSION_CODE < 0x020300
-	unregister_chrdev(OST_FRONTEND_MAJOR, "ost/frontend");
-#else
-	devfs_unregister_chrdev(OST_FRONTEND_MAJOR, "ost/frontend");
-#endif
-
-#ifdef CONFIG_DEVFS_FS
-	devfs_unregister (devfs_handle);
-#endif
-}
-
-#if LINUX_VERSION_CODE >= 0x020300
-module_init(frontend_init_module);
-module_exit(frontend_cleanup_module);
-#endif
+module_init ( frontend_init_module );
+module_exit ( frontend_cleanup_module );

@@ -1,5 +1,5 @@
 /* 
- * video.c
+ * dvr.c
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: video.c,v 1.3 2001/03/03 08:24:01 waldi Exp $
+ * $Id: dvr.c,v 1.1 2001/03/03 08:24:01 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -42,6 +42,7 @@
 
 #include <ost/video.h>
 #include <ost/dvbdev.h>
+#include <ost/dmx.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -49,63 +50,63 @@
 
 static devfs_handle_t devfs_handle;
 
-static int ost_video_open ( struct inode *inode, struct file *file )
+static int ost_dvr_open ( struct inode *inode, struct file *file )
 {
-  return dvb_device_open ( DVB_DEVICE_VIDEO, inode, file );
+  return dvb_device_open ( DVB_DEVICE_DVR, inode, file );
 }
 
-static int ost_video_release ( struct inode *inode, struct file *file )
+static int ost_dvr_release ( struct inode *inode, struct file *file )
 {
-  return dvb_device_close ( DVB_DEVICE_VIDEO, inode, file );
+  return dvb_device_close ( DVB_DEVICE_DVR, inode, file );
 }
 
-static ssize_t ost_video_read ( struct file *file, char *buf,
-                                size_t count, loff_t *ppos )
+static ssize_t ost_dvr_read ( struct file *file, char *buf,
+                              size_t count, loff_t *ppos )
 {
-  return dvb_device_read ( DVB_DEVICE_VIDEO, file, buf, count, ppos );
+  return dvb_device_read ( DVB_DEVICE_DVR, file, buf, count, ppos );
 }
 
-static ssize_t ost_video_write ( struct file *file, const char *buf, 
-                                 size_t count, loff_t *ppos )
+static ssize_t ost_dvr_write ( struct file *file, const char *buf,
+                               size_t count, loff_t *ppos )
 {
-  return dvb_device_write ( DVB_DEVICE_VIDEO, file, buf, count, ppos );
+  return dvb_device_write ( DVB_DEVICE_DVR, file, buf, count, ppos );
 }
 
-static int ost_video_ioctl ( struct inode *inode, struct file *file,
-			     unsigned int cmd, unsigned long arg )
+static int ost_dvr_ioctl ( struct inode *inode, struct file *file,
+                           unsigned int cmd, unsigned long arg )
 {
-  return dvb_device_ioctl ( DVB_DEVICE_VIDEO, file, cmd, arg );
+  return dvb_device_ioctl ( DVB_DEVICE_DVR, file, cmd, arg );
+}	
+
+static unsigned int ost_dvr_poll ( struct file *file, poll_table *wait )
+{
+  return dvb_device_poll ( DVB_DEVICE_DVR, file, wait );
 }
 
-static unsigned int ost_video_poll ( struct file *file, poll_table *wait )
+static struct file_operations ost_dvr_fops =
 {
-  return dvb_device_poll ( DVB_DEVICE_VIDEO, file, wait );
-}
-
-static struct file_operations ost_video_fops =
-{
-  read:		ost_video_read,
-  write:	ost_video_write,
-  ioctl:	ost_video_ioctl,
-  open:		ost_video_open,
-  release:	ost_video_release,
-  poll:		ost_video_poll,
+  open:		ost_dvr_open,
+  release:	ost_dvr_release,
+  read:		ost_dvr_read,
+  write:	ost_dvr_write,
+  ioctl:	ost_dvr_ioctl,
+  poll:		ost_dvr_poll,
 };
 
-int __init video_init_module ()
+int __init dvr_init_module ()
 {
-  devfs_handle = devfs_register ( NULL, "ost/video0", DEVFS_FL_DEFAULT,
+  devfs_handle = devfs_register ( NULL, "ost/dvr0", DEVFS_FL_DEFAULT,
                                   0, 0,
                                   S_IFCHR | S_IRUSR | S_IWUSR,
-                                  &ost_video_fops, NULL );
+                                  &ost_dvr_fops, NULL );
 
   return 0;
 }
 
-void __exit video_cleanup_module ()
+void __exit dvr_cleanup_module ()
 {
   devfs_unregister ( devfs_handle );
 }
 
-module_init ( video_init_module );
-module_exit ( video_cleanup_module );
+module_init ( dvr_init_module );
+module_exit ( dvr_cleanup_module );
