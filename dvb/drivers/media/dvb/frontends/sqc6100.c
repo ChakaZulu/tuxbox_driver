@@ -1,5 +1,5 @@
 /*
- * $Id: sqc6100.c,v 1.2 2003/10/08 23:22:45 obi Exp $
+ * $Id: sqc6100.c,v 1.3 2003/12/06 17:32:04 wjoost Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
@@ -24,6 +24,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/delay.h>
+#include <dbox/dbox2_fp_tuner.h>
 
 #include "dvb_frontend.h"
 #include "sqc6100.h"
@@ -31,6 +33,12 @@
 #define I2C_ADDR_SQC6100	0x0d
 
 #define SQC6100_DEBUG		1
+#define SQC6100_PROC_INTERFACE
+
+#ifdef SQC6100_PROC_INTERFACE
+#include <linux/proc_fs.h>
+static unsigned char sqc6100_proc_registered = 0;
+#endif
 
 #define CLK_SYS			115000000UL	/* 115.0 MHz */
 #define XTAL_FRQ		 28900000UL	/*  28.9 MHz */
@@ -39,8 +47,8 @@
 static struct dvb_frontend_info sqc6100_info = {
 	.name = "Infineon SQC6100",
 	.type = FE_OFDM,
-	.frequency_min = 470000000,		/* FIXME */
-	.frequency_max = 860000000,		/* FIXME */
+	.frequency_min = 47000000,		/* FIXME */
+	.frequency_max = 862000000,		/* FIXME */
 	.frequency_stepsize = 166667,		/* FIXME */
 	.notifier_delay = 0,
 	.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
@@ -74,7 +82,8 @@ static int sqc6100_read(struct dvb_i2c_bus *i2c,
 		return -EREMOTEIO;
 	}
 
-#if SQC6100_DEBUG
+//#if SQC6100_DEBUG
+#if 0
 	{
 		int i;
 		printk(KERN_INFO "R(%d):", reg);
@@ -224,14 +233,106 @@ static int sqc6100_read_uncorrected_blocks(struct dvb_i2c_bus *i2c,
 	return 0;
 }
 
+static int sqc6100_set_frequency(u32 frequency)
+{
+	u32 tw;
+
+	/*
+	 * calculate Programmable divider ratio control bits
+	 */
+	tw = (frequency * 3) / 500000 + 216;
+
+	/*
+	 * Set other parameters of SP5668
+	 *  prescaler off
+	 *  charge pump 0,9 mA
+	 *  drive output disable switch 1
+	 *  no test mode
+	 *
+	 * I don't know wether the following  has something to do with
+	 * bandwidth switching or band selection
+	 */
+	if (frequency <  300000000)
+	{
+		tw |= 0x04340000;		// port2 = 1
+	}
+	else
+	{
+		tw |= 0x03340000;		// port0 = 1, port1 = 1
+	}
+#ifdef SQC6100_DEBUG
+	printk(KERN_INFO "sqc6100: tuner-word: 0x%08X\n",tw);
+#endif
+
+#ifdef __LITTLE_ENDIAN
+	tw = __cpu_to_be32(tw);
+#endif
+
+	return dbox2_fp_tuner_write_qpsk((u8 *) &tw,sizeof(tw));
+}
+
+static int sqc6100_init(struct dvb_i2c_bus *i2c)
+{
+	int ret;
+
+	/* fix default values */
+	if ((ret = sqc6100_writereg(i2c, FS_MODE1, 0x24)) < 0)
+		return ret;
+	if ((ret = sqc6100_writereg(i2c, FS_MODE2, 0x4f)) < 0)
+		return ret;
+
+	/* recommended but not in bn driver */
+	if ((ret = sqc6100_writereg(i2c, AFCACQ_MODE, 0x08)) < 0)
+		return ret;
+
+	/* enable continual pilot interference detection / cancellation */
+	if ((ret = sqc6100_writereg(i2c, AFCTRK_MODE, 0x10)) < 0)
+		return ret;
+
+	/* set threshold for interference detection */
+	if ((ret = sqc6100_writereg(i2c, AFCTRK_IDC_THR, 0x00)) < 0)
+		return ret;
+
+	/* set number of OFDM symbols used for interference detection */
+	if ((ret = sqc6100_writereg(i2c, AFCTRK_IDC_PER, 0x03)) < 0)
+		return ret;
+
+	/* set estimation period length of BER measurements */
+	if ((ret = sqc6100_writereg(i2c, VD_MODE, 0x07)) < 0)
+		return ret;
+
+	/* bypass internal anti aliasing filter */
+	if ((ret = sqc6100_writereg(i2c, AAF_MODE, 0x10)) < 0)
+		return ret;
+
+	/* choose upper sideband */
+	if ((ret = sqc6100_writereg(i2c, IQ_MODE, 0x01)) < 0)
+		return ret;
+
+	/* choose upper sideband */
+	if ((ret = sqc6100_writereg(i2c, IQ_MODE, 0x01)) < 0)
+		return ret;
+
+	/* set equalization/soft bit compression mode */
+	if ((ret = sqc6100_writereg(i2c, ESC_MODE, 0x00)) < 0)
+		return ret;
+
+	/* set reed solomon statistic period length */
+	if ((ret = sqc6100_writereg(i2c, RS_EST_PERIOD, 0xFF)) < 0)
+		return ret;
+
+	/* disable switching output pins to high impedance state via pin OEQ */
+	if ((ret = sqc6100_writereg(i2c, OUTINF_MODE, 0x20)) < 0)
+		return ret;
+
+	return 0;
+}
+
 static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 				struct dvb_frontend_parameters *p)
 {
 	int ret;
-	u8 frq_sub[2];
-	u8 gc_mode[4];
-	u8 rsu_smp[3];
-	u32 tmp;
+	u8 gc_mode[3];
 
 	const u8 ofdm_mode[] =
 		{ 0x00, 0x01, 0x00 };
@@ -245,10 +346,14 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 		{ 0x00, 0x10, 0x20, 0x30, 0x00 };
 	const u8 qam_constell[] =
 		{ 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00 };
-	const u32 bandwidth_khz[] =
-		{ 8000, 7000, 6000, 8000 };
-	const u32 frq_spacing_hz[] =
-		{ 4464, 3905, 3346, 4464 };
+	const u8 rsu_smp_8mhz[3] =
+		{ 0x66, 0x26, 0x65 };
+	const u8 rsu_smp_7mhz[3] =
+		{ 0x9A, 0x99, 0x73 };
+	const u8 frq_sub_8mhz[2] =
+		{ 0x1F, 0x0A };
+	const u8 frq_sub_7mhz[2] =
+		{ 0xDB, 0x08 };
 
 	if ((p->frequency < sqc6100_info.frequency_min) ||
 		(p->frequency > sqc6100_info.frequency_max))
@@ -264,7 +369,7 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 		return -EINVAL;
 
 	if ((p->u.ofdm.bandwidth < BANDWIDTH_8_MHZ) ||
-		(p->u.ofdm.bandwidth > BANDWIDTH_6_MHZ))
+		(p->u.ofdm.bandwidth > BANDWIDTH_7_MHZ))
 		return -EINVAL;
 
 	if ((p->u.ofdm.code_rate_HP < FEC_1_2) ||
@@ -296,11 +401,67 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 		(p->u.ofdm.hierarchy_information > HIERARCHY_4))
 		return -EINVAL;
 
-	/* (2 ^ 21) * (7 / 8) = 12845056 */
-	tmp = (12845056 * (XTAL_FRQ / 1000)) / bandwidth_khz[p->u.ofdm.bandwidth];
-	rsu_smp[0] = (tmp >>  0) & 0xff;
-	rsu_smp[1] = (tmp >>  8) & 0xff;
-	rsu_smp[2] = (tmp >> 16) & 0xff;
+	/*
+	 * Stop demodulator (reset)
+	 */
+
+	if ((ret = sqc6100_writereg(i2c, GC_RES_TSERR, 0x03)) < 0)
+		return ret;
+
+	/*
+	 * Program PLL of tuner
+	 */
+
+	if ((ret = sqc6100_set_frequency(p->frequency) < 0) )
+		return ret;
+
+	/*
+	 * Release reset
+	 */
+
+	if ((ret = sqc6100_writereg(i2c, GC_RES_TSERR, 0x02)) < 0)
+		return ret;
+
+	udelay(100);
+
+	/*
+	 * Generic init
+	 */
+
+	sqc6100_init(i2c);
+
+	/*
+	 * External bandwidth selection.
+	 */
+
+	if ((ret = sqc6100_writereg(i2c, GPIO_MODE1, 0x01)) < 0)
+		return ret;
+
+	if ((ret = sqc6100_writereg(i2c, GPIO_DATOUT, (p->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) ? 0x01 : 0x00)) < 0)
+		return ret;
+
+	/*
+	 * Programming resampling rate factor (bandwidth-switching)
+	 * rsu_smp = 2^21 * (7/8) * XTRAL_FRQ / bandwidth
+	 * Frontend can only do 8MHz and 7MHz
+	 *
+	 */
+
+	if ( (ret = sqc6100_write(i2c, RSU_SMP1, (p->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) ?
+		  rsu_smp_8mhz : rsu_smp_7mhz, 3)) < 0)
+		return ret;
+
+	/*
+	 * Programming subcarrier frequency spacing
+	 */
+
+	if ((ret = sqc6100_write(i2c, FRQ_SUB1, (p->u.ofdm.bandwidth == BANDWIDTH_8_MHZ) ?
+		 frq_sub_8mhz : frq_sub_7mhz, 2)) < 0)
+		return ret;
+
+	/*
+	 * Programming general mode registers
+	 */
 
 	gc_mode[0] = code_rate_hi[p->u.ofdm.code_rate_HP] |
 		     code_rate_lo[p->u.ofdm.code_rate_LP] |
@@ -309,34 +470,33 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 		     guard_interval[p->u.ofdm.guard_interval] |
 		     hierarc_mode[p->u.ofdm.hierarchy_information];
 	gc_mode[2] = 0x4b;
-	gc_mode[3] = 0x00;
 
-	if (p->u.ofdm.transmission_mode == TRANSMISSION_MODE_2K) {
-		tmp = (16777 * frq_spacing_hz[p->u.ofdm.bandwidth]) / (XTAL_FRQ / 1000);
-		frq_sub[0] = (tmp >> 0) & 0xff;
-		frq_sub[1] = (tmp >> 8) & 0xff;
-	}
-
-#if 0
-	if ((ret = sqc6100_set_frequency(i2c, frontend->frequency)) < 0)
+	if ((ret = sqc6100_write(i2c, GC_MODE1, gc_mode, 3)) < 0)
 		return ret;
 
-	if ((ret = sqc6100_set_inversion(i2c, frontend->inversion)) < 0)
-		return ret;
-#endif
+	/*
+	 * Set watchdog time windows
+	 */
 
-	if ((ret = sqc6100_write(i2c, RSU_SMP1, rsu_smp, 3)) < 0)
-		return ret;
-
-	if ((ret = sqc6100_write(i2c, GC_MODE1, gc_mode, 4)) < 0)
+	if ((ret = sqc6100_writereg(i2c, GC_WD1_SE2, 0x16)) < 0)
 		return ret;
 
-	if (p->u.ofdm.transmission_mode == TRANSMISSION_MODE_2K) {
-		if ((ret = sqc6100_write(i2c, FRQ_SUB1, frq_sub, 2)) < 0)
-			return ret;
-	}
+	if ((ret = sqc6100_writereg(i2c, GC_WD1_CH2, 0x1C)) < 0)
+		return ret;
+
+//	sqc6100_writereg(i2c, FFT_SCALE2, 0x00);
+
+	/*
+	 * Start demodulator operation
+	 */
+
+	if ((ret = sqc6100_writereg(i2c, GC_START, 0x00)) < 0)
+		return ret;
 
 	if ((ret = sqc6100_writereg(i2c, GC_START, 0x02)) < 0)
+		return ret;
+
+	if ((ret = sqc6100_writereg(i2c, GC_START, 0x00)) < 0)
 		return ret;
 
 	return 0;
@@ -353,19 +513,6 @@ static int sqc6100_sleep(struct dvb_i2c_bus *i2c)
 	return 0;
 }
 
-static int sqc6100_init(struct dvb_i2c_bus *i2c)
-{
-	int ret;
-
-	/* fix default values */
-	if ((ret = sqc6100_writereg(i2c, FS_MODE1, 0x24)) < 0)
-		return ret;
-	if ((ret = sqc6100_writereg(i2c, FS_MODE2, 0x4f)) < 0)
-		return ret;
-
-	return 0;
-}
-
 static int sqc6100_reset(struct dvb_i2c_bus *i2c)
 {
 	int ret;
@@ -376,7 +523,7 @@ static int sqc6100_reset(struct dvb_i2c_bus *i2c)
 	if ((ret = sqc6100_writereg(i2c, GC_RES_TSERR, 0x00)) < 0)
 		return ret;
 
-	return 0;
+	return sqc6100_init(i2c);
 }
 
 static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
@@ -437,6 +584,100 @@ static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	return 0;
 }
 
+#ifdef SQC6100_PROC_INTERFACE
+
+static int sqc6100_proc_read(char *buf, char **start, off_t offset, int len, int *eof, void *i2c)
+{
+	u8 val = 0;
+	int nr;
+
+	nr = sprintf(buf,"Status of SQC6100 ofdm demodulator:\n");
+	sqc6100_readreg(i2c, SD_STATUS, &val);
+	nr += sprintf(buf + nr,"SD_STATUS: 0x%02X\n",val);
+	sqc6100_readreg(i2c, SD_MEAN, &val);
+	nr += sprintf(buf + nr,"SD_MEAN: 0x%02X\n",val);
+	sqc6100_readreg(i2c, SD_MAGAV, &val);
+	nr += sprintf(buf + nr,"SD_MAGAV: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_SYNC1, &val);
+	nr += sprintf(buf + nr,"TPS_SYNC1: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_SYNC2, &val);
+	nr += sprintf(buf + nr,"TPS_SYNC2: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARAM1, &val);
+	nr += sprintf(buf + nr,"TPS_PARAM1: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARAM2, &val);
+	nr += sprintf(buf + nr,"TPS_PARAM2: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARAM3, &val);
+	nr += sprintf(buf + nr,"TPS_PARAM3: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARITY1, &val);
+	nr += sprintf(buf + nr,"TPS_PARITY1: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARITY2, &val);
+	nr += sprintf(buf + nr,"TPS_PARITY2: 0x%02X\n",val);
+	sqc6100_readreg(i2c, TPS_PARITY2, &val);
+	nr += sprintf(buf + nr,"TPS_PARITY2: 0x%02X\n",val);
+	sqc6100_readreg(i2c, AFCACQ_STATUS, &val);
+	nr += sprintf(buf + nr,"AFCACQ_STATUS: 0x%02X\n",val);
+	sqc6100_readreg(i2c, AFCACQ_RASTER, &val);
+	nr += sprintf(buf + nr,"AFCACQ_RASTER: 0x%02X\n",val);
+	sqc6100_readreg(i2c, AFCACQ_RASTER, &val);
+	nr += sprintf(buf + nr,"AFCACQ_RASTER: 0x%02X\n",val);
+	sqc6100_readreg(i2c, AFCTRK_STATUS, &val);
+	nr += sprintf(buf + nr,"AFCTRK_STATUS: 0x%02X\n",val);
+	sqc6100_readreg(i2c, VD_STATUS, &val);
+	nr += sprintf(buf + nr,"VD_STATUS: 0x%02X\n",val);
+	sqc6100_readreg(i2c, CT_STATUS, &val);
+	nr += sprintf(buf + nr,"CT_STATUS: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS1, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS1: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS2, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS2: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS3, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS3: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS4, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS4: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS5, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS5: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS6, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS6: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS7, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS7: 0x%02X\n",val);
+	sqc6100_readreg(i2c, INTR_STATUS8, &val);
+	nr += sprintf(buf + nr,"INTR_STATUS8: 0x%02X\n",val);
+
+	return nr;
+}
+
+static int sqc6100_register_proc(struct dvb_i2c_bus *i2c)
+{
+	struct proc_dir_entry *proc_bus_sqc6100;
+
+	if (!proc_bus)
+	{
+		return -ENOENT;
+	}
+
+	if ( (proc_bus_sqc6100 = create_proc_read_entry("sqc6100",0,proc_bus,&sqc6100_proc_read,i2c)) == NULL)
+	{
+		printk(KERN_ERR "Cannot create /proc/bus/sqc6100\n");
+		return -ENOENT;
+	}
+
+	sqc6100_proc_registered = 1;
+
+	proc_bus_sqc6100->owner = THIS_MODULE;
+
+	return 0;
+}
+
+static void sqc6100_deregister_proc(void)
+{
+	if (sqc6100_proc_registered)
+		remove_proc_entry("sqc6100",proc_bus);
+
+	sqc6100_proc_registered = 0;
+}
+
+#endif
+
 static int sqc6100_attach(struct dvb_i2c_bus *i2c, void **data)
 {
 	int ret;
@@ -448,11 +689,19 @@ static int sqc6100_attach(struct dvb_i2c_bus *i2c, void **data)
 	if ((gc_res_tserr & 0xe0) != 0)
 		return -ENODEV;
 
+#ifdef SQC6100_PROC_INTERFACE
+	sqc6100_register_proc(i2c);
+#endif
+
 	return dvb_register_frontend(sqc6100_ioctl, i2c, NULL, &sqc6100_info);
 }
 
 static void sqc6100_detach(struct dvb_i2c_bus *i2c, void *data)
 {
+#ifdef SQC6100_PROC_INTERFACE
+	sqc6100_deregister_proc();
+#endif
+
 	dvb_unregister_frontend(sqc6100_ioctl, i2c);
 }
 
@@ -469,6 +718,6 @@ static void __exit sqc6100_module_exit(void)
 module_init(sqc6100_module_init);
 module_exit(sqc6100_module_exit);
 
-MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>");
+MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>, Wolfram Joost <dbox2@frokaschwei.de>");
 MODULE_DESCRIPTION("Infineon SQC6100 DVB-T Frontend Driver");
 MODULE_LICENSE("GPL");
