@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb.c,v $
+ *   Revision 1.8  2001/07/13 17:08:23  McClean
+ *   fix framebuffer screenposition bug
+ *
  *   Revision 1.7  2001/06/09 18:49:55  tmbinc
  *   fixed gtx-setcolreg.
  *
@@ -60,7 +63,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -405,7 +408,8 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	val/=div;
 
 	// ???
-  val-=(3+20);
+  //val-=(3+20);						//PFUSCHING BY MCCLEAN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  val -= 55;
   GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
 
 	/* set SPP */
@@ -767,7 +771,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.7 2001/06/09 18:49:55 tmbinc Exp $\n");
+  dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.8 2001/07/13 17:08:23 McClean Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
