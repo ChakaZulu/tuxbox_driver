@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.7  2001/01/28 09:05:42  gillem
+ *   some fixes
+ *
  *   Revision 1.6  2001/01/20 19:18:11  gillem
  *   - add AVSIOGSTATUS
  *
@@ -37,71 +40,15 @@
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
-/* WRITE MODE */
-
-/* #### DATA 1 #### */
-
-/* Elektronik Volume Curse (8dB steps) */
-#define AVS_EVC (7<<5)
-/* Electronik Volume Fine (1dB steps) */
-#define AVS_EVF (7<<2)
-/* TV Audio mute (same Data1&5) */
-#define AVS_MUTE (1<<1)
-/* Zero Cross detector active */
-#define AVS_ZCD 1
-
-/* #### DATA 2 #### */
-
-/* Video Fast Blanking control */
-#define AVS_FBLK (3<<6)
-/* Select the input video sources for Vout1,Vout2,Vout3,Vout4 */
-#define AVS_VSW1 (7<<3)
-/* Select one of 5 stereo inputs for RTV,LTV */
-#define AVS_ASW1 (7)
-
-/* #### DATA 3 #### */
-
-/* Video function switch control */
-#define AVS_FNC (3<<6)
-/* Select the input video sources for Vout5,Vout6 */
-#define AVS_VSW2 (7<<3)
-/* Select one of 5 stereo inputs for Rout1,Lout1 */
-#define AVS_ASW2 (7)
-
-/* #### DATA 4 #### */
-
-/* When Y/C Mix=1 Converts Y/C input to CVBS for output through Vout8 */
-
-#define AVS_YCM (1<<7)
-/* Select the input video sources for Vout7 */
-#define AVS_VSW3 (7<<3)
-/* Select one of 5 stereo inputs for Rout2,Lout2 */
-#define AVS_ASW3 (7)
-
-/* #### DATA 5 #### */
-
-/* same as MUTE ! */
-#define AVS_MUTE2 (1<<7)
-/* Logic outputs (open collector) 1=himp. 0=current sink mode */
-#define AVS_LOG (0x0F)
-
-
-/* READ MODE */
-
-/* monitors voltage of pin 8 VCR */
+/* Status */
 #define AVS_FVCR (3)
-/* monitors voltage of pin 8 AUX */
 #define AVS_FAUX (3<<2)
-/* POR=1 when DIG_VCC volt. threshold higher than reset level (approx
-5V) */
-#define AVS_POR (1<<4)
-/* ZC Status=1 indicate that zero cross condition has been achieved
-after vol or mute */
-#define AVS_ZCS (1<<5)
+#define AVS_POR  (1<<4)
+#define AVS_ZCS  (1<<5)
 
 /* ### data defines ### */
 
@@ -183,43 +130,40 @@ after vol or mute */
 #define AVS_UNMUTE_IM	2
 #define AVS_UNMUTE_ZC	3
 
-#define SET_EVC(arr,val)	arr[0] = (arr[0]&(~AVS_EVC)) | (val<<5);
-#define SET_EVF(arr,val)	arr[0] = (arr[0]&(~AVS_EVF)) | (val<<2);
-
 /* IOCTL */
 #define AVSIOSET   0x1000
 #define AVSIOGET   0x2000
 
-#define AVSIOSVSW1 (1|AVSIOSET)
-#define AVSIOSVSW2 (2|AVSIOSET)
-#define AVSIOSVSW3 (3|AVSIOSET)
-#define AVSIOSASW1 (4|AVSIOSET)
-#define AVSIOSASW2 (5|AVSIOSET)
-#define AVSIOSASW3 (6|AVSIOSET)
-#define AVSIOSVOL  (7|AVSIOSET)
-#define AVSIOSMUTE (8|AVSIOSET)
-#define AVSIOSFBLK (9|AVSIOSET)
-#define AVSIOSFNC  (10|AVSIOSET)
-#define AVSIOSYCM  (11|AVSIOSET)
-#define AVSIOSZCD  (12|AVSIOSET)
-#define AVSIOSLOG1 (13|AVSIOSET)
-#define AVSIOSLOG2 (14|AVSIOSET)
-#define AVSIOSLOG3 (15|AVSIOSET)
-#define AVSIOSLOG4 (16|AVSIOSET)
-#define AVSIOGVSW1 (17|AVSIOGET)
-#define AVSIOGVSW2 (18|AVSIOGET)
-#define AVSIOGVSW3 (19|AVSIOGET)
-#define AVSIOGASW1 (20|AVSIOGET)
-#define AVSIOGASW2 (21|AVSIOGET)
-#define AVSIOGASW3 (22|AVSIOGET)
-#define AVSIOGVOL  (23|AVSIOGET)
-#define AVSIOGMUTE (24|AVSIOGET)
-#define AVSIOGFBLK (25|AVSIOGET)
-#define AVSIOGFNC  (26|AVSIOGET)
-#define AVSIOGYCM  (27|AVSIOGET)
-#define AVSIOGZCD  (28|AVSIOGET)
-#define AVSIOGLOG1 (29|AVSIOGET)
-#define AVSIOGLOG2 (30|AVSIOGET)
-#define AVSIOGLOG3 (31|AVSIOGET)
-#define AVSIOGLOG4 (32|AVSIOGET)
+#define AVSIOSVSW1   (1|AVSIOSET)
+#define AVSIOSVSW2   (2|AVSIOSET)
+#define AVSIOSVSW3   (3|AVSIOSET)
+#define AVSIOSASW1   (4|AVSIOSET)
+#define AVSIOSASW2   (5|AVSIOSET)
+#define AVSIOSASW3   (6|AVSIOSET)
+#define AVSIOSVOL    (7|AVSIOSET)
+#define AVSIOSMUTE   (8|AVSIOSET)
+#define AVSIOSFBLK   (9|AVSIOSET)
+#define AVSIOSFNC    (10|AVSIOSET)
+#define AVSIOSYCM    (11|AVSIOSET)
+#define AVSIOSZCD    (12|AVSIOSET)
+#define AVSIOSLOG1   (13|AVSIOSET)
+#define AVSIOSLOG2   (14|AVSIOSET)
+#define AVSIOSLOG3   (15|AVSIOSET)
+#define AVSIOSLOG4   (16|AVSIOSET)
+#define AVSIOGVSW1   (17|AVSIOGET)
+#define AVSIOGVSW2   (18|AVSIOGET)
+#define AVSIOGVSW3   (19|AVSIOGET)
+#define AVSIOGASW1   (20|AVSIOGET)
+#define AVSIOGASW2   (21|AVSIOGET)
+#define AVSIOGASW3   (22|AVSIOGET)
+#define AVSIOGVOL    (23|AVSIOGET)
+#define AVSIOGMUTE   (24|AVSIOGET)
+#define AVSIOGFBLK   (25|AVSIOGET)
+#define AVSIOGFNC    (26|AVSIOGET)
+#define AVSIOGYCM    (27|AVSIOGET)
+#define AVSIOGZCD    (28|AVSIOGET)
+#define AVSIOGLOG1   (29|AVSIOGET)
+#define AVSIOGLOG2   (30|AVSIOGET)
+#define AVSIOGLOG3   (31|AVSIOGET)
+#define AVSIOGLOG4   (32|AVSIOGET)
 #define AVSIOGSTATUS (33|AVSIOGET)

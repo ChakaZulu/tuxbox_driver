@@ -21,11 +21,14 @@
  *
  *
  *   $Log: cxa2126.c,v $
- *   Revision 1.1  2001/01/23 00:16:37  gillem
- *   Initial revision
+ *   Revision 1.2  2001/01/28 09:06:30  gillem
+ *   some fixes
+ *
+ *   Revision 1.1.1.1  2001/01/23 00:16:37  gillem
+ *   initial release
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -637,6 +640,13 @@ int i2c_avs_init(void)
 	}
 
 	memset((void*)&avs_data,0,AVS_DATA_SIZE);
+
+    avs_data.vo6on = 1;
+    avs_data.vo5on = 1;
+    avs_data.vo4on = 1;
+    avs_data.vo3on = 1;
+    avs_data.vo2on = 1;
+    avs_data.vo1on = 1;
 
 	if ( AVS_DATA_SIZE != i2c_master_send(&client_template, (char*)&avs_data, AVS_DATA_SIZE)) {
 		return -EFAULT;

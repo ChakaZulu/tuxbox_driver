@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.11  2001/01/28 09:05:42  gillem
+ *   some fixes
+ *
  *   Revision 1.10  2001/01/20 19:18:11  gillem
  *   - add AVSIOGSTATUS
  *
@@ -47,7 +50,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -65,6 +68,8 @@
 #include <linux/i2c.h>
 #include "cxa2092.h"
 
+/* ---------------------------------------------------------------------- */
+
 /* Addresses to scan */
 static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
 static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x90>>1,I2C_CLIENT_END};
@@ -81,7 +86,45 @@ static struct i2c_client_address_data addr_data = {
 	force
 };
 
-///////////////////////////////////////////////////////////////////////////////
+/* ---------------------------------------------------------------------- */
+
+/*
+ * cxa2092 data struct
+ * thanks to sony for great support
+ *
+ */
+
+typedef struct s_avs_data {
+ /* Data 1 */
+ unsigned char evc : 3;
+ unsigned char evf : 3;
+ unsigned char tvmute1 : 1;
+ unsigned char zcd : 1;
+ /* Data 2 */
+ unsigned char fblk : 2;
+ unsigned char vsw1 : 3;
+ unsigned char asw1 : 3;
+ /* Data 3 */
+ unsigned char fnc : 2;
+ unsigned char vsw2 : 3;
+ unsigned char asw2 : 3;
+ /* Data 4 */
+ unsigned char ycm : 1;
+ unsigned char res1 : 1;
+ unsigned char vsw3 : 3;
+ unsigned char asw3 : 3;
+ /* Data 5 */
+ unsigned char tvmute2 : 1;
+ unsigned char res2 : 3;
+ unsigned char log1 : 1;
+ unsigned char log2 : 1;
+ unsigned char log3 : 1;
+ unsigned char log4 : 1;
+} s_avs_data;
+
+#define AVS_DATA_SIZE 5
+
+/* ---------------------------------------------------------------------- */
 
 static int avs_ioctl (struct inode *inode, struct file *file,
                          unsigned int cmd, unsigned long arg);
@@ -89,7 +132,7 @@ static int avs_open (struct inode *inode, struct file *file);
 
 static int avs_set(void);
 
-///////////////////////////////////////////////////////////////////////////////
+/* ---------------------------------------------------------------------- */
 
 static struct file_operations avs_fops = {
 	owner:		THIS_MODULE,
@@ -97,11 +140,11 @@ static struct file_operations avs_fops = {
 	open:		avs_open,
 };
 
-///////////////////////////////////////////////////////////////////////////////
+/* ---------------------------------------------------------------------- */
 
-#define AVS_COUNT					1
+#define AVS_COUNT			1
 #define I2C_DRIVERID_AVS	1
-#define AVS_MAJOR 				40
+#define AVS_MAJOR 			40
 
 static int debug =  0; /* insmod parameter */
 static int type  =  -1;
@@ -134,8 +177,9 @@ struct avs
 static struct i2c_driver driver;
 static struct i2c_client client_template;
 
-static int avs_status;	/* current status */
-static unsigned char avs_data[5];	/* current settings */
+//static int avs_status;	/* current status */
+//static unsigned char avs_data[5];	/* current settings */
+static struct s_avs_data avs_data;
 
 /* ---------------------------------------------------------------------- */
 
@@ -154,8 +198,9 @@ static struct avs_type avs_types[] = {
 
 int avs_set()
 {
-	if ( 5 != i2c_master_send(&client_template, avs_data, 5))
+	if ( AVS_DATA_SIZE != i2c_master_send(&client_template, (char*)&avs_data, AVS_DATA_SIZE)) {
 		return -EFAULT;
+    }
 
 	return 0;
 }
@@ -169,8 +214,9 @@ int avs_set_volume( int vol )
     		c = vol/8;
 
             // check round :-/
-            if ( (c*8) > vol )
+            if ( (c*8) > vol ) {
                 c--;
+            }
 
     		f = vol-(c*8);
         }
@@ -178,141 +224,230 @@ int avs_set_volume( int vol )
 		return -EINVAL;
 	}
 
-	SET_EVC(avs_data,c);
-	SET_EVF(avs_data,f);
+    avs_data.evc = c;
+    avs_data.evf = f;
 
 	return avs_set();
 }
 
 int avs_set_mute( int type )
 {
-	if ((type<0) || (type>3))
+	if ((type<0) || (type>3)) {
 		return -EINVAL;
+    }
 
-	avs_data[0] = (avs_data[0]&(~3)) | type;
+    avs_data.tvmute1 = (type>>1)&1;
+    avs_data.zcd     = type&1;
 
 	return avs_set();
 }
 
 int avs_set_zcd( int type )
 {
-	if ((type<0) || (type>1))
+	if ((type<0) || (type>1)) {
 		return -EINVAL;
+    }
 
-	avs_data[0] = (avs_data[0]&(~1)) | type;
+    avs_data.zcd = type&1;
 
 	return avs_set();
 }
 
 int avs_set_fblk( int type )
 {
-	if (type<0 || type>3)
+	if (type<0 || type>3) {
 		return -EINVAL;
+    }
 
-	avs_data[1] = (avs_data[1]&(~AVS_FBLK)) | (type<<6);
+    avs_data.fblk = type;
 
 	return avs_set();
 }
 
 int avs_set_fnc( int type )
 {
-	if (type<0 || type>3)
+	if (type<0 || type>3) {
 		return -EINVAL;
+    }
 
-	avs_data[2] = (avs_data[2]&(~AVS_FNC)) | (type<<6);
-
-	return avs_set();
-}
-
-int avs_set_ycm( int type )
-{
-	if (type<0 || type>1)
-		return -EINVAL;
-
-	avs_data[3] = (avs_data[3]&(~AVS_YCM)) | (type<<7);
+    avs_data.fnc = type;
 
 	return avs_set();
 }
 
 int avs_set_vsw( int sw, int type )
 {
-	if(sw<0 || sw>2)
+	if (type<0 || type>7) {
 		return -EINVAL;
+    }
 
-	if (type<0 || type>7)
-		return -EINVAL;
-
-	avs_data[sw+1] = (avs_data[sw+1]&(~AVS_VSW1)) | (type<<3);
+    switch(sw) {
+        case 0:
+            avs_data.vsw1 = type;
+            break;
+        case 1:
+            avs_data.vsw2 = type;
+            break;
+        case 2:
+            avs_data.vsw3 = type;
+            break;
+        default:
+    		return -EINVAL;
+    }
 
 	return avs_set();
 }
 
 int avs_set_asw( int sw, int type )
 {
-	if(sw<0 || sw>2)
+	if (type<0 || type>7) {
 		return -EINVAL;
+    }
 
-	if (type<0 || type>7)
-		return -EINVAL;
-
-	avs_data[sw+1] = (avs_data[sw+1]&(~AVS_ASW1)) | type;
-
-	return avs_set();
-}
-
-int avs_set_logic( int sw, int type )
-{
-	if(type<0 || type>1)
-		return -EINVAL;
-
-	avs_data[4] = (avs_data[4]&(~(1<<(sw-1)))) | type<<(sw-1);
+    switch(sw) {
+        case 0:
+            avs_data.asw1 = type;
+            break;
+        case 1:
+            avs_data.asw2 = type;
+            break;
+        case 2:
+            avs_data.asw3 = type;
+            break;
+        default:
+    		return -EINVAL;
+    }
 
 	return avs_set();
 }
 
 int avs_get_volume(void)
 {
- return (((avs_data[0]&AVS_EVC)>>5)*8)+((avs_data[0]&AVS_EVF)>>2);
+    return ((avs_data.evc*8)+avs_data.evf);
 }
 
 int avs_get_mute(void)
 {
- return (avs_data[0]&3);
+    return avs_data.tvmute1;
 }
 
 int avs_get_zcd(void)
 {
- return (avs_data[0]&1);
+    return avs_data.zcd;
 }
 
 int avs_get_fblk(void)
 {
- return ((avs_data[1]&AVS_FBLK)>>6);
+    return avs_data.fblk;
 }
 
 int avs_get_fnc(void)
 {
- return ((avs_data[2]&AVS_FNC)>>6);
-}
-
-int avs_get_ycm(void)
-{
- return ((avs_data[3]&AVS_YCM)>>7);
+    return avs_data.fnc;
 }
 
 int avs_get_vsw( int sw )
 {
- return ((avs_data[sw+1]&AVS_VSW1)>>3);
+    switch(sw) {
+        case 0:
+            return avs_data.vsw1;
+            break;
+        case 1:
+            return avs_data.vsw2;
+            break;
+        case 2:
+            return avs_data.vsw3;
+            break;
+        default:
+            return -EINVAL;
+    }
+
+    return -EINVAL;
 }
 
 int avs_get_asw( int sw )
 {
- return (avs_data[sw+1]&AVS_ASW1);
+    switch(sw) {
+        case 0:
+            return avs_data.asw1;
+            break;
+        case 1:
+            return avs_data.asw2;
+            break;
+        case 2:
+            return avs_data.asw3;
+            break;
+        default:
+            return -EINVAL;
+    }
+
+    return -EINVAL;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int avs_set_ycm( int type )
+{
+	if (type<0 || type>1) {
+		return -EINVAL;
+    }
+
+    avs_data.ycm = type;
+
+	return avs_set();
+}
+
+int avs_set_logic( int sw, int type )
+{
+	if(type<0 || type>1) {
+		return -EINVAL;
+    }
+
+    switch(sw) {
+        case 0:
+            avs_data.log1 = type;
+            break;
+        case 1:
+            avs_data.log2 = type;
+            break;
+        case 2:
+            avs_data.log3 = type;
+            break;
+        case 3:
+            avs_data.log4 = type;
+            break;
+        default:
+            return -EINVAL;
+    }
+
+	return avs_set();
+}
+
+int avs_get_ycm(void)
+{
+    return avs_data.ycm;
 }
 
 int avs_get_logic( int sw )
 {
- return ((avs_data[4]>>(sw-1))&1);
+    switch(sw) {
+        case 0:
+            return avs_data.log1;
+            break;
+        case 1:
+            return avs_data.log2;
+            break;
+        case 2:
+            return avs_data.log3;
+            break;
+        case 3:
+            return avs_data.log4;
+            break;
+        default:
+            return -EINVAL;
+    }
+
+    return -EINVAL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -321,8 +456,9 @@ static int avs_getstatus(struct i2c_client *c)
 {
 	unsigned char byte;
 
-	if (1 != i2c_master_recv(c,&byte,1))
+	if (1 != i2c_master_recv(c,&byte,1)) {
 		return -1;
+    }
 
 	return byte;
 }
@@ -332,46 +468,48 @@ static int avs_getstatus(struct i2c_client *c)
 static int avs_attach(struct i2c_adapter *adap, int addr,
 			unsigned short flags, int kind)
 {
- struct avs *t;
- struct i2c_client *client;
+    struct avs *t;
+    struct i2c_client *client;
 
- dprintk("[AVS]: attach\n");
+    dprintk("[AVS]: attach\n");
 
- if (this_adap > 0)
+    if (this_adap > 0) {
         return -1;
+    }
 
- this_adap++;
+    this_adap++;
 	
- client_template.adapter = adap;
- client_template.addr = addr;
+    client_template.adapter = adap;
+    client_template.addr = addr;
 
- dprintk("[AVS]: chip found @ 0x%x\n",addr);
+    dprintk("[AVS]: chip found @ 0x%x\n",addr);
 
- if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+    if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
         return -ENOMEM;
+    }
 
- memcpy(client,&client_template,sizeof(struct i2c_client));
- client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
+    memcpy(client,&client_template,sizeof(struct i2c_client));
+    client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
 
- if (NULL == t) {
+    if (NULL == t) {
         kfree(client);
         return -ENOMEM;
- }
+    }
 
- memset(t,0,sizeof(struct avs));
+    memset(t,0,sizeof(struct avs));
 
- if (type >= 0 && type < AVS_COUNT) {
-	t->type = type;
-	strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
- } else {
-	t->type = -1;
- }
+    if (type >= 0 && type < AVS_COUNT) {
+	    t->type = type;
+	    strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
+    } else {
+	    t->type = -1;
+    }
 
- i2c_attach_client(client);
+    i2c_attach_client(client);
 
- //MOD_INC_USE_COUNT;
+    //MOD_INC_USE_COUNT;
 
- return 0;
+    return 0;
 }
 
 static int avs_probe(struct i2c_adapter *adap)
@@ -387,8 +525,9 @@ static int avs_probe(struct i2c_adapter *adap)
 
 	this_adap = 0;
 	
-	if (1)
+	if (1) {
 		ret = i2c_probe(adap, &addr_data, avs_attach );
+    }
 
 	dprintk("[AVS]: probe end %d\n",ret);
 
@@ -402,6 +541,7 @@ static int avs_detach(struct i2c_client *client)
 	dprintk("[AVS]: detach\n");
 
 	i2c_detach_client(client);
+
 	kfree(t);
 	kfree(client);
 	return 0;
@@ -420,13 +560,12 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	int val;
 	dprintk("[AVS]: IOCTL\n");
 	
-	if (cmd&AVSIOSET)
-	{
-		if ( get_user(val,(int*)arg) )
+	if (cmd&AVSIOSET) {
+		if ( get_user(val,(int*)arg) ) {
 			return -EFAULT;
+        }
 
-		switch (cmd)
-		{
+    	switch (cmd) {
 			/* set video */
 			case AVSIOSVSW1:	return avs_set_vsw(0,val);
 			case AVSIOSVSW2:	return avs_set_vsw(1,val);
@@ -452,12 +591,10 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 			case AVSIOSLOG3:	return avs_set_logic(3,val);
 			case AVSIOSLOG4:	return avs_set_logic(4,val);
 
-			default:                return -EINVAL;
+			default:            return -EINVAL;
 		}
-	} else
-	{
-		switch (cmd)
-		{
+	} else {
+		switch (cmd) {
 			/* get video */
 			case AVSIOGVSW1:
                                 val = avs_get_vsw(0);
@@ -524,7 +661,7 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                                 return -EINVAL;
 		}
 
-        	return put_user(val,(int*)arg);
+       	return put_user(val,(int*)arg);
 	}
 
 	return 0;
@@ -589,12 +726,11 @@ int i2c_avs_init(void)
 		return -EIO;
 	}
 
-	memset(avs_data,0,5);
+	memset((void*)&avs_data,0,AVS_DATA_SIZE);
 
-	if ( 5 != i2c_master_send(&client_template, avs_data, 5))
+	if ( AVS_DATA_SIZE != i2c_master_send(&client_template, (char*)&avs_data, AVS_DATA_SIZE)) {
 		return -EFAULT;
-
-        //avs_status = avs_getstatus(&client_template);
+    }
 
 	return 0;
 }
@@ -609,17 +745,3 @@ void cleanup_module(void)
 	}
 }
 #endif
-
-/*
- * Local variables:
- * c-indent-level: 8
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -8
- * c-argdecl-indent: 8
- * c-label-offset: -8
- * c-continued-statement-offset: 8
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */
