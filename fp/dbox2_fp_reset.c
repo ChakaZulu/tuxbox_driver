@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_reset.c,v 1.2 2003/01/14 08:43:18 jolt Exp $
+ * $Id: dbox2_fp_reset.c,v 1.3 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -26,15 +26,14 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_reset.h>
 
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
-static u8 manufacturer_id;
 static struct i2c_client * fp_i2c_client;
 
 
 void
 dbox2_fp_reset_init (void)
 {
-	manufacturer_id = fp_get_info()->mID;
 	fp_i2c_client = fp_get_i2c();
 }
 
@@ -42,12 +41,12 @@ dbox2_fp_reset_init (void)
 void
 dbox2_fp_restart (char * cmd)
 {
-	switch (manufacturer_id) {
-	case DBOX_MID_NOKIA:
+	switch (tuxbox_dbox2_mid) {
+	case TUXBOX_DBOX2_MID_NOKIA:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x14);
 		break;
-	case DBOX_MID_PHILIPS:
-	case DBOX_MID_SAGEM:
+	case TUXBOX_DBOX2_MID_PHILIPS:
+	case TUXBOX_DBOX2_MID_SAGEM:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x09);
 		break;
 	}
@@ -59,12 +58,12 @@ dbox2_fp_restart (char * cmd)
 void
 dbox2_fp_power_off (void)
 {
-	switch (manufacturer_id) {
-	case DBOX_MID_NOKIA:
+	switch (tuxbox_dbox2_mid) {
+	case TUXBOX_DBOX2_MID_NOKIA:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x03);
 		break;
-	case DBOX_MID_PHILIPS:
-	case DBOX_MID_SAGEM:
+	case TUXBOX_DBOX2_MID_PHILIPS:
+	case TUXBOX_DBOX2_MID_SAGEM:
 		fp_sendcmd(fp_i2c_client, 0x00, 0x00);
 		break;
 	}
@@ -78,7 +77,7 @@ dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
 {
 	u8 msg [] = { 0x05, 0xef };
 
-	if (manufacturer_id == DBOX_MID_NOKIA) {
+	if (tuxbox_dbox2_mid == TUXBOX_DBOX2_MID_NOKIA) {
 	
 		return dbox2_fp_reset(0xAF);
 		

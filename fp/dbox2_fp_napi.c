@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.5 2003/02/09 19:52:07 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.6 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -29,9 +29,7 @@
 #include <dbox/dbox2_fp_tuner.h>
 #include <dvb-core/dvb_frontend.h>
 
-
-static int demod;
-
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 static int
 dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
@@ -88,13 +86,13 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		break;
 
 	case FE_SET_FRONTEND:
-		if (demod != DBOX_DEMOD_VES1993) {
+		if (tuxbox_dbox2_demod != TUXBOX_DBOX2_DEMOD_VES1993) {
 
 			u32 div;
 			u8 buf[4];
 
-			switch (demod) {
-			case DBOX_DEMOD_VES1820:
+			switch (tuxbox_dbox2_demod) {
+			case TUXBOX_DBOX2_DEMOD_VES1820:
 			{
 				/*
 				 * mitel sp5659
@@ -109,7 +107,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				break;
 			}
 
-			case DBOX_DEMOD_VES1893:
+			case TUXBOX_DBOX2_DEMOD_VES1893:
 			{
 				/*
 				 * mitel sp5668
@@ -188,12 +186,10 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 int __init
 dbox2_fp_napi_init(void)
 {
-	demod = fp_get_info()->demod;
-
-	switch (demod) {
-	case DBOX_DEMOD_VES1820:
-	case DBOX_DEMOD_VES1893:
-	case DBOX_DEMOD_VES1993:
+	switch (tuxbox_dbox2_demod) {
+	case TUXBOX_DBOX2_DEMOD_VES1820:
+	case TUXBOX_DBOX2_DEMOD_VES1893:
+	case TUXBOX_DBOX2_DEMOD_VES1993:
 		return dvb_add_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL, NULL);
 	default:
 		return 0;
@@ -204,10 +200,10 @@ dbox2_fp_napi_init(void)
 void __exit
 dbox2_fp_napi_exit(void)
 {
-	switch (demod) {
-	case DBOX_DEMOD_VES1820:
-	case DBOX_DEMOD_VES1893:
-	case DBOX_DEMOD_VES1993:
+	switch (tuxbox_dbox2_demod) {
+	case TUXBOX_DBOX2_DEMOD_VES1820:
+	case TUXBOX_DBOX2_DEMOD_VES1893:
+	case TUXBOX_DBOX2_DEMOD_VES1993:
 		dvb_remove_frontend_ioctls(avia_napi_get_adapter(), dbox2_fp_napi_before_ioctl, NULL);
 		break;
 	default:

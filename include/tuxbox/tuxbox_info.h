@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_info.h,v 1.2 2003/03/03 19:07:45 obi Exp $
+ * $Id: tuxbox_info.h,v 1.3 2003/03/04 21:18:09 waldi Exp $
  */
 
 #ifndef TUXBOX_INFO_H
@@ -26,7 +26,6 @@
 
 typedef enum tuxbox_capabilities
 {
-	TUXBOX_CAPABILITIES_UNKNOWN		= 0,
 	TUXBOX_CAPABILITIES_IR_RC		= (1<<0),
 	TUXBOX_CAPABILITIES_IR_KEYBOARD		= (1<<1),
 	TUXBOX_CAPABILITIES_LCD			= (1<<2),
@@ -36,6 +35,14 @@ typedef enum tuxbox_capabilities
 	TUXBOX_CAPABILITIES_CAM_EMBEDDED	= (1<<6),
 }
 tuxbox_capabilities_t;
+
+typedef enum tuxbox_frontend
+{
+	TUXBOX_FRONTEND_SATELLITE		= 1,
+	TUXBOX_FRONTEND_CABLE			= 2,
+	TUXBOX_FRONTEND_TERRESTRIAL		= 3,
+}
+tuxbox_frontend_t;
 
 typedef enum tuxbox_model
 {
@@ -56,10 +63,9 @@ tuxbox_submodel_t;
 
 typedef enum tuxbox_vendor
 {
-	TUXBOX_VENDOR_UNKNOWN			= 0,
 	TUXBOX_VENDOR_NOKIA			= 1,
-	TUXBOX_VENDOR_SAGEM			= 2,
-	TUXBOX_VENDOR_PHILIPS			= 3,
+	TUXBOX_VENDOR_PHILIPS			= 2,
+	TUXBOX_VENDOR_SAGEM			= 3,
 	TUXBOX_VENDOR_DREAM_MM			= 4,
 	TUXBOX_VENDOR_TECHNOTREND		= 5,
 }

@@ -2,9 +2,7 @@ DRIVER_TOPDIR = ..
 
 include $(DRIVER_TOPDIR)/Config.make
 
-obj-m				:= info.o
-obj-$(CONFIG_HARDWARE_DBOX2)	+= tuxbox.o
-export-objs			:= info.o
+obj-m				:= tuxbox.o
 
 TUXBOX_OBJS			:= tuxbox_core.o
 

@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.28 2002/11/25 18:24:14 obi Exp $
+ * $Id: saa7126_core.c,v 1.29 2003/03/04 21:18:10 waldi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -33,8 +33,9 @@
 #include <linux/video_encoder.h>
 #include <linux/videodev.h>
 
-#include <dbox/info.h>
 #include <dbox/saa7126_core.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error device filesystem required
@@ -166,7 +167,6 @@ static struct file_operations saa7126_fops = {
  * module parameters
  */
 
-static int board = 0;
 static int mode  = 0;
 static int ntsc  = 0;
 
@@ -298,7 +298,7 @@ saa7126_write_inittab (struct i2c_client *client)
 	}
 
 	for (i = 0; inittab[i].id != 0xff; i++)
-		if (inittab[i].id & (1 << (board - 1)))
+		if (inittab[i].id & (1 << (tuxbox_dbox2_mid - 1)))
 			saa7126_writebuf(client, inittab[i].reg, inittab[i].buf, inittab[i].len);
 	
 	encoder->standby = 0;
@@ -777,17 +777,6 @@ static struct i2c_driver i2c_driver_saa7126 = {
 
 int __init saa7126_init(void)
 {
-	if (!board) {
-		struct dbox_info_struct dbox;
-		dbox_get_info(&dbox);
-		board = dbox.mID;
-	}
-
-	if ((board < 1) || (board > 3)) {
-		printk("saa7126.o: wrong board %d\n", board);
-		return -EIO;
-	}
-
 	i2c_add_driver(&i2c_driver_saa7126);
 
 	return 0;
@@ -798,16 +787,11 @@ void __exit saa7126_exit(void)
 	i2c_del_driver(&i2c_driver_saa7126);
 }
 
-#ifdef MODULE
 module_init(saa7126_init);
 module_exit(saa7126_exit);
 MODULE_DESCRIPTION("SAA7126 digital PAL/NTSC encoder");
 MODULE_AUTHOR("Gillem <htoa@gmx.net>, Andreas Oberritter <obi@saftware.de>");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-MODULE_PARM(board,"i");
 MODULE_PARM(mode,"i");
 MODULE_PARM(ntsc,"i");
-#endif
 

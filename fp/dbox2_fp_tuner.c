@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_tuner.c,v 1.1 2002/10/21 11:38:58 obi Exp $
+ * $Id: dbox2_fp_tuner.c,v 1.2 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -25,15 +25,14 @@
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_tuner.h>
 
+#include <tuxbox/tuxbox_hardware.h>
 
-static u8 frontend_type;
 static struct i2c_client * fp_i2c_client;
 
 
 void
 dbox2_fp_tuner_init (void)
 {
-	frontend_type = fp_get_info()->fe;
 	fp_i2c_client = fp_get_i2c();
 }
 
@@ -43,8 +42,8 @@ dbox2_fp_tuner_write (u8 *buf, u8 len)
 {
 	u8 msg [len + 3];
 
-	switch (frontend_type) {
-	case DBOX_FE_CABLE:
+	switch (tuxbox_frontend) {
+	case TUXBOX_FRONTEND_CABLE:
 		msg[0] = 0x00;
 		msg[1] = 0x07;
 		msg[2] = 0xc0;
@@ -52,12 +51,14 @@ dbox2_fp_tuner_write (u8 *buf, u8 len)
 		len += 3;
 		break;
 
-	case DBOX_FE_SAT:
+	case TUXBOX_FRONTEND_SATELLITE:
 		msg[0] = 0x00;
 		msg[1] = 0x05;
 		memcpy(msg + 2, buf, len);
 		len += 2;
 		break;
+	default:
+		return -1;
 	}
 
 	if (i2c_master_send(fp_i2c_client, msg, len) != len)

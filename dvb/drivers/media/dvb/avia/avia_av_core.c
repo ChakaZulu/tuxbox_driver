@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.56 2003/02/28 14:17:35 wjoost Exp $
+ * $Id: avia_av_core.c,v 1.57 2003/03/04 21:18:08 waldi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -51,7 +51,8 @@
 #include "avia_av.h"
 #include "avia_av_event.h"
 #include "avia_av_proc.h"
-#include <dbox/info.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -627,7 +628,6 @@ static void avia_audio_init(void)
 void avia_set_default(void)
 {
 	u32 val = (u32)0;
-	struct dbox_info_struct *dinfo = (struct dbox_info_struct *)NULL;
 
 	val  = 0;
 	val |= (0<<2);	/* 1: tristate */
@@ -666,12 +666,14 @@ void avia_set_default(void)
 	/* 0: Demux interface 2: Host Interface */
 	wDR(BITSTREAM_SOURCE, 0);
 
-	dbox_get_info_ptr(&dinfo);
-
-	if (dinfo->enxID==-1)
+	switch (tuxbox_dbox2_av) {
+	case TUXBOX_DBOX2_AV_GTX:
 		wDR(TM_MODE, 0x0a); /* GTX */
-	else
+		break;
+	case TUXBOX_DBOX2_AV_ENX:
 		wDR(TM_MODE, 0x18); /* eNX */
+		break;
+	}
 
 	wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 
@@ -1312,7 +1314,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.56 2003/02/28 14:17:35 wjoost Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.57 2003/03/04 21:18:08 waldi Exp $\n");
 
 	aviamem = 0;
 

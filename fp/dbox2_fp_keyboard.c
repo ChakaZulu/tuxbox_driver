@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_keyboard.c,v 1.2 2002/12/28 10:44:49 Jolt Exp $
+ * $Id: dbox2_fp_keyboard.c,v 1.3 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -24,6 +24,8 @@
 #include <linux/input.h>
 
 #include <dbox/dbox2_fp_core.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 static u16 keyboard_code_map[] = {
 
@@ -57,16 +59,16 @@ static void dbox2_fp_keyboard_queue_handler(u8 queue_nr)
 
 //	dprintk("event on queue %d\n", queue_nr);
 
-	switch (fp_get_info()->mID) {
+	switch (tuxbox_dbox2_mid) {
 
-		case DBOX_MID_NOKIA:
+		case TUXBOX_DBOX2_MID_NOKIA:
 
 			fp_cmd(fp_get_i2c(), 0x03, (u8 *)&scancode, 2);
 	
 			break;
 
-		case DBOX_MID_PHILIPS:
-		case DBOX_MID_SAGEM:
+		case TUXBOX_DBOX2_MID_PHILIPS:
+		case TUXBOX_DBOX2_MID_SAGEM:
 	
 			fp_cmd(fp_get_i2c(), 0x28, (u8 *)&scancode, 2);
 	

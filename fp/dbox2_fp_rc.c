@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.13 2003/01/04 01:09:39 McClean Exp $
+ * $Id: dbox2_fp_rc.c,v 1.14 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -29,6 +29,8 @@
 #include <linux/input.h>
 
 #include <dbox/dbox2_fp_core.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 #define UP_TIMEOUT (HZ / 4)
 
@@ -112,16 +114,16 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 	if ((queue_nr != 0) && (queue_nr != 3))
 		return;
 
-	switch (fp_get_info()->mID) {
+	switch (tuxbox_dbox2_mid) {
 	
-		case DBOX_MID_NOKIA:
+		case TUXBOX_DBOX2_MID_NOKIA:
 		
 			fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
 			
 			break;
 			
-		case DBOX_MID_PHILIPS:
-		case DBOX_MID_SAGEM:
+		case TUXBOX_DBOX2_MID_PHILIPS:
+		case TUXBOX_DBOX2_MID_SAGEM:
 	
 			fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc_code, sizeof(rc_code));
 			

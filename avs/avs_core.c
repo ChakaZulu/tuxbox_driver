@@ -1,5 +1,5 @@
 /*
- * $Id: avs_core.c,v 1.22 2003/01/14 15:55:49 obi Exp $
+ * $Id: avs_core.c,v 1.23 2003/03/04 21:17:58 waldi Exp $
  * 
  * audio/video switch core driver (dbox-II-project)
  *
@@ -40,8 +40,9 @@
 #include <linux/soundcard.h>
 
 #include <dbox/avs_core.h>
-#include <dbox/info.h>
 #include <dbox/event.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 #include "cxa2092.h"
 #include "cxa2126.h"
@@ -615,20 +616,18 @@ static struct i2c_client client_template =
 int __init avs_core_init(void)
 {
 	int res;
-	struct dbox_info_struct dinfo;
 
 	if (type == CXAAUTO) {
-		dbox_get_info(&dinfo);
 
-		switch(dinfo.mID) {
-		case DBOX_MID_SAGEM:
-			type = CXA2126;
+		switch(tuxbox_dbox2_mid) {
+		case TUXBOX_DBOX2_MID_NOKIA:
+			type = CXA2092;
 			break;
-		case DBOX_MID_PHILIPS:
+		case TUXBOX_DBOX2_MID_PHILIPS:
 			type = STV6412;
 			break;
-		case DBOX_MID_NOKIA:
-			type = CXA2092;
+		case TUXBOX_DBOX2_MID_SAGEM:
+			type = CXA2126;
 			break;
 		default:
 			return -ENODEV;

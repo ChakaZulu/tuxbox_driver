@@ -1,5 +1,5 @@
 /*
- * tuxbox_hardware_dbox2.h - TuxBox hardware info - dbox2
+ * tuxbox_info_dbox2.h - TuxBox hardware info - dbox2
  *
  * Copyright (C) 2003 Florian Schirmer <jolt@tuxbox.org>
  *                    Bastian Blank <waldi@tuxbox.org>
@@ -18,24 +18,35 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.h,v 1.2 2003/03/04 21:18:09 waldi Exp $
+ * $Id: tuxbox_info_dbox2.h,v 1.1 2003/03/04 21:18:09 waldi Exp $
  */
 
-#ifndef TUXBOX_HARDWARE_DBOX2_H
-#define TUXBOX_HARDWARE_DBOX2_H
+#ifndef TUXBOX_INFO_DBOX2_H
+#define TUXBOX_INFO_DBOX2_H
 
-#include <tuxbox/tuxbox_hardware.h>
-#include <tuxbox/tuxbox_info_dbox2.h>
+typedef enum tuxbox_dbox2_av
+{
+	TUXBOX_DBOX2_AV_GTX			= 1,
+	TUXBOX_DBOX2_AV_ENX			= 2,
+}
+tuxbox_dbox2_av_t;
 
-#define TUXBOX_HARDWARE_DBOX2_CAPABILITIES		( TUXBOX_CAPABILITIES_IR_RC | \
-							  TUXBOX_CAPABILITIES_IR_KEYBOARD | \
-		                                          TUXBOX_CAPABILITIES_LCD | \
-							  TUXBOX_CAPABILITIES_NETWORK | \
-							  TUXBOX_CAPABILITIES_CAM_EMBEDDED )
+typedef enum tuxbox_dbox2_demod
+{
+	TUXBOX_DBOX2_DEMOD_VES1893		= 1,
+	TUXBOX_DBOX2_DEMOD_VES1993		= 2,
+	TUXBOX_DBOX2_DEMOD_VES1820		= 3,
+	TUXBOX_DBOX2_DEMOD_TDA8044H		= 4,
+	TUXBOX_DBOX2_DEMOD_AT76C651		= 5,
+}
+tuxbox_dbox2_demod_t;
 
-extern tuxbox_dbox2_av_t tuxbox_dbox2_av;
-extern tuxbox_dbox2_demod_t tuxbox_dbox2_demod;
-extern u8 tuxbox_dbox2_fp_revision;
-extern tuxbox_dbox2_mid_t tuxbox_dbox2_mid;
+typedef enum tuxbox_dbox2_mid
+{
+	TUXBOX_DBOX2_MID_NOKIA			= 1,
+	TUXBOX_DBOX2_MID_PHILIPS		= 2,
+	TUXBOX_DBOX2_MID_SAGEM			= 3,
+}
+tuxbox_dbox2_mid_t;
 
 #endif

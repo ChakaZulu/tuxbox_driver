@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.31 2003/01/19 10:56:46 gandalfx Exp $
+ * $Id: avia_gt_core.c,v 1.32 2003/03/04 21:18:08 waldi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -47,7 +47,8 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include <dbox/info.h>
+#include <tuxbox/tuxbox_hardware_dbox2.h>
+
 #include "avia_gt.h"
 #include "avia_gt_accel.h"
 #include "avia_gt_dmx.h"
@@ -210,30 +211,31 @@ static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 int __init avia_gt_init(void)
 {
 
-	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
-	int											 result			=	(int)0;
+	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.31 2003/01/19 10:56:46 gandalfx Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.32 2003/03/04 21:18:08 waldi Exp $\n");
 
 	if (chip_type == -1) {
 
 		printk("avia_gt_core: autodetecting chip type... ");
 
-		dbox_get_info_ptr(&dbox_info);
+		switch (tuxbox_dbox2_av) {
 
-		if (dbox_info->enxID != -1) {
+		case TUXBOX_DBOX2_AV_ENX:
 
 			chip_type = AVIA_GT_CHIP_TYPE_ENX;
 
 			printk("AViA eNX found\n");
+			break;
 
-		} else if (dbox_info->gtxID != -1) {
+		case TUXBOX_DBOX2_AV_GTX:
 
 			chip_type = AVIA_GT_CHIP_TYPE_GTX;
 
 			printk("AViA GTX found\n");
+			break;
 
-		} else {
+		default:
 
 			printk("no supported chip type found\n");
 

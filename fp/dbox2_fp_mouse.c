@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_mouse.c,v 1.1 2002/12/28 10:44:49 Jolt Exp $
+ * $Id: dbox2_fp_mouse.c,v 1.2 2003/03/04 21:18:09 waldi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -29,6 +29,8 @@
 #include <linux/input.h>
 
 #include <dbox/dbox2_fp_core.h>
+
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 static struct input_dev *mouse_input_dev;
 static u32 mouse_directions;
@@ -72,16 +74,16 @@ static void dbox2_fp_mouse_queue_handler(u8 queue_nr)
 	if (queue_nr != 2)
 		return;
 
-	switch (fp_get_info()->mID) {
+	switch (tuxbox_dbox2_mid) {
 
-		case DBOX_MID_NOKIA:
+		case TUXBOX_DBOX2_MID_NOKIA:
 
 			fp_cmd(fp_get_i2c(), 0x05, (u8 *)&mousecode, 2);
 
 			break;
 
-		case DBOX_MID_PHILIPS:
-		case DBOX_MID_SAGEM:
+		case TUXBOX_DBOX2_MID_PHILIPS:
+		case TUXBOX_DBOX2_MID_SAGEM:
 
 			fp_cmd(fp_get_i2c(), 0x2A, (u8 *)&mousecode, 2);
 

@@ -56,9 +56,9 @@
 #include <dbox/dbox2_fp_timer.h>
 #include <dbox/dbox2_fp_tuner.h>
 
+#include <tuxbox/tuxbox_hardware_dbox2.h>
 
 static devfs_handle_t devfs_handle;
-static struct dbox_info_struct info;
 
 static int debug = 0;
 static int useimap = 1;
@@ -105,13 +105,6 @@ static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
 /*****************************************************************************\
  *   Generic Frontprocessor Functions
 \*****************************************************************************/
-
-struct dbox_info_struct *
-fp_get_info (void)
-{
-	return &info;
-}
-
 
 struct i2c_client *
 fp_get_i2c (void)
@@ -187,7 +180,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		return fp_getid(defdata->client);
 
 	case FP_IOCTL_POWEROFF:
-		if (info.fpREV >= 0x80)
+		if (tuxbox_dbox2_fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x00, 0x03);
 		else
 			return fp_sendcmd(defdata->client, 0x00, 0x00);
@@ -200,7 +193,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 			return -EFAULT;
 
-		if (info.fpREV >= 0x80)
+		if (tuxbox_dbox2_fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x18, val & 0xff);
 		else
 			return fp_sendcmd(defdata->client, 0x06, val & 0xff);
@@ -209,7 +202,7 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 			return -EFAULT;
 
-		if (info.fpREV >= 0x80)
+		if (tuxbox_dbox2_fp_revision >= 0x80)
 			return fp_sendcmd(defdata->client, 0x00, 0x10 | ((~val) & 1));
 		else
 			return fp_sendcmd(defdata->client, 0x10 | (val & 1), 0x00);
@@ -597,8 +590,6 @@ __init fp_init (void)
 	int res;
 	/*int i;*/
 
-	dbox_get_info(&info);
-
 	if ((res = i2c_add_driver(&fp_driver))) {
 		dprintk("fp.o: Driver registration failed, module not inserted.\n");
 		return res;
@@ -658,7 +649,6 @@ __exit fp_exit (void)
 	*/
 }
 
-EXPORT_SYMBOL(fp_get_info);
 EXPORT_SYMBOL(dbox2_fp_queue_alloc);
 EXPORT_SYMBOL(dbox2_fp_queue_free);
 EXPORT_SYMBOL(fp_cmd);

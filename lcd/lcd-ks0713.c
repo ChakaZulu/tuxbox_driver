@@ -21,6 +21,11 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.23  2003/03/04 21:18:09  waldi
+ *   - add frontend info to tuxbox module (not implemented in dreambox part)
+ *   - use the TUXBOX defines
+ *   - merge info.o into tuxbox.o
+ *
  *   Revision 1.22  2002/09/23 17:07:02  obi
  *   moved lcd-ks0713.h to include/dbox
  *
@@ -79,7 +84,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -109,7 +114,6 @@
 #include <commproc.h>
 #endif
 
-#include <dbox/info.h>
 #include <dbox/lcd-ks0713.h>
 #include "lcd-console.h"
 
@@ -906,8 +910,6 @@ void lcd_reset_init(void)
 int __init lcd_init(void)
 {
 	int status;
-	struct dbox_info_struct dinfo;
-
 	immap_t	*immap;
 
 	printk("lcd.o: init lcd driver module\n");
@@ -951,19 +953,17 @@ int __init lcd_init(void)
 
 	status = lcd_read_status();
 
-	dbox_get_info(&dinfo);
-
 	switch(status&0x0f)
 	{
 		case KS0713:
 //		case SED153X:
-			printk("lcd.o: found KS0713/SED153X lcd interface on %x\n",dinfo.mID);
+			printk("lcd.o: found KS0713/SED153X lcd interface\n");
 			break;
 		case SSD181X:
-			printk("lcd.o: found SSD181X lcd interface on %x\n",dinfo.mID);
+			printk("lcd.o: found SSD181X lcd interface\n");
 			break;
 		default:
-			printk("lcd.o: found unknown (%02X) lcd interface on %x\n",status&0x0f,dinfo.mID);
+			printk("lcd.o: found unknown (%02X) lcd interface\n",status&0x0f);
 			break;
 	}
 
