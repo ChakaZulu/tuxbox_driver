@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.63 2002/02/24 15:32:06 woglinde Exp $
+ * $Id: dvb.c,v 1.64 2002/03/02 19:42:48 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -670,21 +670,18 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				case VIDEO_STOP:
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
-					//printk("CHCH [DECODER] ABORT\n");
 					avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-					//avia_command(Abort, 0);
 					break;
 				}
 				case VIDEO_PLAY:
 				{
-					//printk("CHCH [DECODER] PLAY\n");
-					avia_command(NewChannel, 0, 0, 0);
-					//avia_command(Play, 0, 0, 0);
-					udelay(10*1000);
-					//avia_flush_pcr();
-					
-					//if (dvb->dmxdev.demux)
-					//	dvb->dmxdev.demux->flush_pcr();
+					avia_command(NewChannel, 0, 0xffff, 0xffff);
+					avia_wait(avia_command(SelectStream, 0, 0));
+					avia_wait(avia_command(SelectStream, 3, 0));
+					avia_command(NewChannel, 0, 0xffff, 0xffff);
+					avia_wait(avia_command(SelectStream, 0, 0));
+					avia_wait(avia_command(SelectStream, 3, 0));
+
 					dvb->videostate.playState=VIDEO_PLAYING;
 					break;
 				}
@@ -710,22 +707,12 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						dvb->videostate.streamSource=(videoStreamSource_t) arg;
 						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
 							return -EINVAL;
-						// printk("CHCH [DECODER] SETSTREAMTYPE\n");
-						// avia_command(SetStreamType, 0xB);
 						
 						avia_flush_pcr();
 					
 						if (dvb->dmxdev.demux)
 						    dvb->dmxdev.demux->flush_pcr();
 						
-						//avia_command(SelectStream, 0, 0);
-						//avia_command(SelectStream, 2, 0);
-						//avia_command(SelectStream, 3, 0);
-						
-						//udelay(1000*10);
-						//avia_command(NewChannel,0,0,0);
-						//wDR(0x468, 0xFFFF);	// new audio config
-
 					} else
 						return -EINVAL;
 					break;
