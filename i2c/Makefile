@@ -5,21 +5,28 @@ CURRENT=$(shell uname -r)
 #KERNEL_LOCATION=/usr/src/kernel/2.0.35
 #KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
 #KERNEL_LOCATION=/usr/src/kernel/vger
-KERNEL_LOCATION=/usr/src/linux
+KERNEL_LOCATION=/LinuxPPC/usr/src/linux
+
+#GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
+#LD =  $(CROSS_COMPILE)ld
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.0-test12/misc/
+
+BUILD_DATE=$(shell date)
 
 #################################################
 # some magic for using linux kernel settings
 # when compiling module(s)
 
 M_OBJS       = i2c-8xx.o
-GCC = powerpc-linux-gcc -I/usr/include/linux
-LD =  powerpc-linux-ld
+
+EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
+
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-#	$(LD) -m elf32ppclinux -r -o $(O_TARGET) $(M_OBJS)
-	cp $(M_OBJS) /LinuxPPC/lib/modules/2.4.0-test12/misc/
-#install:
-#	su -c "cp -v $(M_OBJS) $(MX_OBJS) /lib/modules/$(CURRENT)/misc"
+	cp $(M_OBJS) $(MODULE_DEST)
+
+install:
+	cp $(M_OBJS) $(MODULE_DEST)
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
