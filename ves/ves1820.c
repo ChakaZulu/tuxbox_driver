@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.30 2002/08/14 05:05:57 obi Exp $
+   $Id: ves1820.c,v 1.31 2002/08/17 02:03:18 Homar Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,9 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.31  2002/08/17 02:03:18  Homar
+    Tuner sei stil...
+
     Revision 1.30  2002/08/14 05:05:57  obi
     disabled unused FE_GET_FRONTEND command which uses obolete struct from
     <dbox/dvb.h>
@@ -231,26 +234,26 @@ static int SetInversion(struct i2c_client *client, int inversion)
 {
 	struct ves1820 *ves=(struct ves1820 *) client->data;
 	u8 val;
-	printk("SetInversion: Einsprung \n");
+	dprintk("SetInversion: Einsprung \n");
 	if (inversion == ves->inversion)
 		return 0;
 	val=ves->reg0;
-	printk("STATUS ves->reg0 = 0x%x\n",val);
+	dprintk("STATUS ves->reg0 = 0x%x\n",val);
 	ves->inversion=inversion;
 	switch (inversion)
 	{
 	case INVERSION_OFF:
 		val&=0xdf;
-		printk("NEUER STATUS: INVERSION = OFF    ves->reg0 = 0x%x\n",val);
+		dprintk("NEUER STATUS: INVERSION = OFF    ves->reg0 = 0x%x\n",val);
 		break;
 	case INVERSION_ON:
 		val|=0x20;
-		printk("NEUER STATUS: INVERSION = ON    ves->reg0 = 0x%x\n",val);
+		dprintk("NEUER STATUS: INVERSION = ON    ves->reg0 = 0x%x\n",val);
 		break;
 	default:
 	case INVERSION_AUTO:
 		val&=0xdf;
-		printk("NEUER STATUS: INVERSION = AUTO    ves->reg0 = 0x%x\n",val);
+		dprintk("NEUER STATUS: INVERSION = AUTO    ves->reg0 = 0x%x\n",val);
 		break;
 	}
 	ves->reg0=val;
@@ -283,7 +286,7 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
         u8 NDEC = 0;
         u32 tmp, ratio;
 
-		printk("SetSymbolrate: Einsprung \n");
+		dprintk("SetSymbolrate: Einsprung \n");
 
         if (Symbolrate >= (SACLK >> 2))
 			Symbolrate = (SACLK >> 2);
@@ -363,31 +366,31 @@ int SetQAM(struct i2c_client* client, Modulation QAM_Mode, int DoCLB)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
         int real_qam = 0;
-		printk("SetQAM: Einsprung \n");
+		dprintk("SetQAM: Einsprung \n");
 
         switch (QAM_Mode) {
         	case QAM_16 :
         		real_qam = 0;
-				printk("QAM MODE: 16\n");
+				dprintk("QAM MODE: 16\n");
         		break;
         	case QAM_32 :
         		real_qam = 1;
-				printk("QAM MODE: 32\n");
+				dprintk("QAM MODE: 32\n");
         		break;
         	case QAM_64 :
         		real_qam = 2;
-				printk("QAM MODE: 64\n");
+				dprintk("QAM MODE: 64\n");
         		break;
         	case QAM_128:
         		real_qam = 3;
-				printk("QAM MODE: 128\n");
+				dprintk("QAM MODE: 128\n");
         		break;
         	case QAM_256:
         		real_qam = 4;
-				printk("QAM MODE: 256\n");
+				dprintk("QAM MODE: 256\n");
         		break;
         	default:
-				printk("QAM MODE: !!!ERROR!!!\n");
+				dprintk("QAM MODE: !!!ERROR!!!\n");
                 return -1;
         }
         ves->reg0=(ves->reg0 & 0xe3) | (real_qam << 2);
@@ -408,7 +411,7 @@ int SetStdby(struct i2c_client* client, int DoStdby)
 {
 	u8 status;
 	struct ves1820 *ves=(struct ves1820 *) client->data;
-	printk("SetStdby: Einsprung \n");
+	dprintk("SetStdby: Einsprung \n");
 
 	if(ves)
 		status = ves->reg0;
@@ -432,7 +435,7 @@ int GetStdby(struct i2c_client* client)
 {
 	u8 status;
 
-	printk("GetStdby: Einsprung \n");
+	dprintk("GetStdby: Einsprung \n");
 	status = readreg(client,0);
 
 	return ((status>>7)&1);
@@ -445,7 +448,7 @@ int attach_adapter(struct i2c_adapter *adap)
 	struct i2c_client *client;
 
 	client_template.adapter=adap;
-	printk("attach_adapter\n");
+	dprintk("attach_adapter\n");
 
 	i2c_master_send(&client_template,NULL,0);
 
@@ -472,7 +475,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.30 2002/08/14 05:05:57 obi Exp $\n");
+        printk("$Id: ves1820.c,v 1.31 2002/08/17 02:03:18 Homar Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -514,36 +517,36 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
         {
                 struct frontend *front = (struct frontend *)arg;
                 int sync;
-				printk ("FE_GET_FRONTEND: Einsprung \n");
+				dprintk ("FE_GET_FRONTEND: Einsprung \n");
 
                 front->afc=(int)((char)(readreg(client,0x19)));
-					printk ("AFC: %16u\n",front->afc);
+					dprintk ("AFC: %16u\n",front->afc);
                 front->afc=(front->afc*(int)(front->srate/8))/128;
-					printk ("AFC / SRATE: %u / %lu %u\n",front->afc, (long)front->srate, (uint)front->srate);
+					dprintk ("AFC / SRATE: %u / %lu %u\n",front->afc, (long)front->srate, (uint)front->srate);
                 front->agc=readreg(client,0x17);
-					printk ("AGC: %16u\n",front->agc);
+					dprintk ("AGC: %16u\n",front->agc);
                 sync=front->sync=readreg(client,0x11);
 				if (sync & DVB_SYNC_SIGNAL)
 		        {
-					printk ("FE_SYNC_SIGNAL\n");
+					dprintk ("FE_SYNC_SIGNAL\n");
 				}
 				if (sync & DVB_SYNC_CARRIER)
 		        {
-					printk ("FE_SYNC_CARRIER\n");
+					dprintk ("FE_SYNC_CARRIER\n");
 				}
 				if (sync & DVB_SYNC_VITERBI)
 		        {
-					printk ("FE_SYNC_VITERBI\n");
+					dprintk ("FE_SYNC_VITERBI\n");
 				}
 				if (sync & DVB_SYNC_FSYNC)
 		        {
-					printk ("FE_SYNC_FSYNC\n");
+					dprintk ("FE_SYNC_FSYNC\n");
 				}
 				if (sync & DVB_SYNC_FRONT)
 		        {
-					printk ("FE_SYNC_FRONT\n");
+					dprintk ("FE_SYNC_FRONT\n");
 				}
-				printk ("FRONTEND STATUS: %u\n",sync);
+				dprintk ("FRONTEND STATUS: %u\n",sync);
                 front->nest=0;
 				front->vber = readreg(client,0x14);
                 front->vber|=(readreg(client,0x15)<<8);
@@ -558,7 +561,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			struct ves1820 *ves=(struct ves1820 *) client->data;
 			int sync;
 			int ber;
-			printk ("FE_READ_STATUS: Einsprung \n");
+			dprintk ("FE_READ_STATUS: Einsprung \n");
 
 			*status=0;
 
@@ -566,40 +569,40 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 			if (!sync)
 	        {
-				printk ("Searching Transponder...\n");
+				dprintk ("Searching Transponder...\n");
 				ClrBit1820(client);
 			}
 			if (sync & 1)
 	        {
 				*status|=FE_HAS_POWER;
-				printk ("Tracking...\n");
+				dprintk ("Tracking...\n");
 			}
 			if (sync & 2)
 	        {
 				*status|=FE_HAS_LOCK;
-				printk ("Demodulator has locked...\n");
+				dprintk ("Demodulator has locked...\n");
 			}
 			if (sync & 4)
 	        {
 				*status|=FE_HAS_SYNC;
-				printk ("MPEG2 sync pattern have been detected...\n");
+				dprintk ("MPEG2 sync pattern have been detected...\n");
 			}
 			if (sync & 8)
 	        {
 				*status|=FE_TUNER_HAS_LOCK;//austesten
-				printk ("Front End Locked 8-)\n");
+				dprintk ("Front End Locked 8-)\n");
 			}
 			if (sync & 64)
 	        {
 				*status|=FE_SPECTRUM_INV;
-				printk ("framing is not DVB compliant 8-(\n");
+				dprintk ("framing is not DVB compliant 8-(\n");
 			}
 
 			ber = (sync >> 4);
-			printk ("bit error rate arround: ");
-			printk (!ber?">10E-2\n":ber==1?"10E-3\n":ber==2?"10E-4\n":"<10E-4\n");
-			printk ("Status of sync: %d\n",sync);
-			printk ("Status of status: %d\n",*status);
+			dprintk ("bit error rate arround: ");
+			dprintk (!ber?">10E-2\n":ber==1?"10E-3\n":ber==2?"10E-4\n":"<10E-4\n");
+			dprintk ("Status of sync: %d\n",sync);
+			dprintk ("Status of status: %d\n",*status);
 /*
 #define FE_HAS_POWER         1
 #define FE_HAS_SIGNAL        2
@@ -612,7 +615,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 */
 			if ((sync & 15) == 3)
 			{
-				printk("inv autom.\n");
+				dprintk("inv autom.\n");
 				SetInversion	(client,ves->inversion==INVERSION_ON?INVERSION_AUTO:INVERSION_ON);
 			}
 		break;
@@ -621,27 +624,27 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
         case FE_WRITEREG:
         {
                 u8 *msg = (u8 *) arg;
-				printk ("WRITEREG: %16u / %16u\n",msg[0], msg[1]);
+				dprintk ("WRITEREG: %16u / %16u\n",msg[0], msg[1]);
                 writereg(client, msg[0], msg[1]);
                 break;
         }
         case FE_INIT:
         {
-				printk ("INIT: Einsprung \n");
+				dprintk ("INIT: Einsprung \n");
                 init(client);
                 break;
         }
 
         case FE_RESET:
         {
-				printk ("RESET: Einsprung \n");
+				dprintk ("RESET: Einsprung \n");
 				ClrBit1820(client);
 				break;
         }
         case FE_SET_INVERSION:
         {
 				struct ves1820 *ves=(struct ves1820 *) client->data;
-				printk ("STATUS INVERSION: %s     ves->reg0 = 0x%x\n",ves->inversion==INVERSION_ON?"Inversion = ON":ves->inversion==INVERSION_OFF?"Inversion = OFF":"Inversion = AUTO", ves->reg0);
+				dprintk ("STATUS INVERSION: %s     ves->reg0 = 0x%x\n",ves->inversion==INVERSION_ON?"Inversion = ON":ves->inversion==INVERSION_OFF?"Inversion = OFF":"Inversion = AUTO", ves->reg0);
                 SetInversion(client, (int) arg);
                 break;
         }
@@ -651,7 +654,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
         {
 				FrontendParameters *param = (FrontendParameters *) arg;
 
-				printk ("SET_FRONTEND: Einsprung \n");
+				dprintk ("SET_FRONTEND: Einsprung \n");
 				SetInversion(client, param->Inversion);
 				SetQAM(client, param->u.qam.QAM, 1);
 				SetSymbolrate(client, param->u.qam.SymbolRate, 1);
@@ -668,7 +671,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				buffer[1]=freq & 0xFF;
 				buffer[2]=0x80 | (((freq>>15)&3)<<6) | 4;
 				buffer[3]=(uint)freq>4017?4:(uint)freq<2737?2:1;
-				printk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
+				dprintk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
 
 				fp_set_tuner_dword(T_QAM, *((u32*)buffer));
 				break;
