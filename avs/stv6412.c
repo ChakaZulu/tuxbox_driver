@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.18  2002/03/03 06:43:19  gillem
+ *   - fix mute flag
+ *
  *   Revision 1.17  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -71,7 +74,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -216,7 +219,7 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-	if (type==0)
+	if (type==1)
 	{
 		/* save old values */
 		tc_asc = stv6412_data.tc_asc;
