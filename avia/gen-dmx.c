@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.47 $
+ *   $Revision: 1.48 $
  *   $Log: gen-dmx.c,v $
+ *   Revision 1.48  2001/06/25 22:27:22  gillem
+ *   - start autodetect
+ *
  *   Revision 1.47  2001/06/22 00:03:42  tmbinc
  *   fixed aligning of queues, system queues
  *
@@ -185,6 +188,7 @@
 
 #include <ost/demux.h>
 
+#include <dbox/info.h>
 #include <dbox/gtx.h>
 #include <dbox/enx.h>
 #include <dbox/gtx-dmx.h>
@@ -217,7 +221,13 @@ MODULE_DESCRIPTION("Avia eNX demux driver");
 #endif
 
 /* parameter stuff */
+
+#define DMX_AUTO -1
+#define DMX_GTX  0
+#define DMX_ENX  1
+
 static int debug = 0;
+static int type = DMX_AUTO;
 
 static gtx_demux_t gtx;
 
@@ -1761,8 +1771,29 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
-  dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.47 2001/06/22 00:03:42 tmbinc Exp $\n");
-  return gtx_dmx_init();
+	struct dbox_info_struct dinfo;
+	
+	if (type == DMX_AUTO)
+	{
+	    dbox_get_info(&dinfo);
+	
+		if ( dinfo.enxID != 0xFFFFFFFF )
+		{
+			printk("gen_dmx: found enx\n");
+		}
+        else if ( dinfo.gtxID != 0xFFFFFFFF )
+		{
+			printk("gen_dmx: found gtx\n");
+		}
+		else
+		{
+			printk("gen_dmx: found nothing\n");
+		}
+	}
+
+	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.48 2001/06/25 22:27:22 gillem Exp $\n");
+
+	return gtx_dmx_init();
 }
 
 void cleanup_module(void)
