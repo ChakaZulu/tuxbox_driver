@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.96 2004/11/16 14:48:17 carjay Exp $
+ * $Id: avia_av_core.c,v 1.97 2004/11/21 20:19:13 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -52,6 +52,7 @@
 TUXBOX_INFO(dbox2_gt);
 
 static int tv_standard;
+static int no_watchdog;
 static char *firmware;
 
 static int debug;
@@ -367,7 +368,7 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 	}
 
 	/* Completed audio frame decoding */ 
-	if (!avia_av_is500()){
+	if (!no_watchdog){
 		if (status & IRQ_INIT_AUDD) 
 			wake_up_interruptible(&avia_av_wdt_sleep);
 	/* Completed picture decoded */
@@ -978,7 +979,7 @@ static int avia_av_init(void)
 
 	/* 	start avia_av_wdt_sleep kernel_thread if it's not already running,
 		but don't start watchdog for Avia 500 */
-	if (!kernel_thread_pid&&!avia_av_is500()){
+	if (!kernel_thread_pid&&!no_watchdog){
 		/* init avia_av_wdt_sleep queue */
 		init_waitqueue_head(&avia_av_wdt_sleep);
 		kernel_thread_pid = kernel_thread ((int (*)(void *)) avia_av_wdt_thread, NULL, 0);
@@ -1080,7 +1081,7 @@ static int avia_av_init(void)
 
 	/* enable interrupts */
 	irq_mask = IRQ_AUD | IRQ_END_L | IRQ_END_C | IRQ_SEQ_V;
-	if (!avia_av_is500())
+	if (!no_watchdog)
 		irq_mask |= IRQ_INIT_AUDD;
 	avia_av_dram_write(INT_MASK, irq_mask);
 
@@ -1511,7 +1512,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.96 2004/11/16 14:48:17 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.97 2004/11/21 20:19:13 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
@@ -1546,6 +1547,8 @@ MODULE_LICENSE("GPL");
 MODULE_PARM(debug,"i");
 MODULE_PARM(tv_standard,"i");
 MODULE_PARM(firmware,"s");
+MODULE_PARM(no_watchdog,"i");
 MODULE_PARM_DESC(debug, "1: enable debug messages");
 MODULE_PARM_DESC(tv_standard, "0: PAL, 1: NTSC");
+MODULE_PARM_DESC(no_watchdog, "0: wd enabled, 1: wd disabled");
 MODULE_PARM_DESC(firmware, "path to microcode");
