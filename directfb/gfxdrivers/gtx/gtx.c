@@ -11,6 +11,9 @@
 #include <directfb.h>
 
 #include <core/coredefs.h>
+#include <core/coretypes.h>
+#include <core/layers.h>
+
 #include <core/gfxcard.h>
 #include <core/state.h>
 #include <core/surfaces.h>
@@ -72,6 +75,71 @@ typedef struct {
 typedef struct {
   volatile __u8 *mmio_base;
 } GTXDriverData;
+
+
+
+static int gtx_underlay_LayerDataSize()
+{
+  return 0;
+}
+
+static DFBResult
+gtx_underlay_Enable( CoreLayer *layer,
+                     void      *driver_data,
+                     void      *layer_data )
+{
+  return DFB_OK;
+}
+
+static DFBResult
+gtx_underlay_Disable( CoreLayer *layer,
+                      void      *driver_data,
+                      void      *layer_data )
+{
+  return DFB_OK;
+}
+
+static DFBResult
+gtx_underlay_InitLayer( GraphicsDevice         *device,
+                        CoreLayer              *layer,
+                        DisplayLayerInfo       *layer_info,
+                        DFBDisplayLayerConfig  *default_config,
+                        DFBColorAdjustment     *default_adj,
+                        void                   *driver_data,
+                        void                   *layer_data )
+{
+  layer_info->desc.type = DLTF_VIDEO;
+  
+  return DFB_OK;
+} 
+
+static DFBResult
+gtx_underlay_TestConfiguration( CoreLayer                  *layer,
+                                void                       *driver_data,
+                                void                       *layer_data,
+                                DFBDisplayLayerConfig      *config,
+                                DFBDisplayLayerConfigFlags *failed )
+{
+  return DFB_OK;
+}
+
+static DFBResult
+gtx_underlay_SetConfiguration( CoreLayer             *layer,
+                               void                  *driver_data,
+                               void                  *layer_data,
+                               DFBDisplayLayerConfig *config )
+{
+  return DFB_OK;
+}
+
+DisplayLayerFuncs gtx_underlay_funcs = {
+  .LayerDataSize =      gtx_underlay_LayerDataSize,
+  .InitLayer =          gtx_underlay_InitLayer,
+  .Enable =             gtx_underlay_Enable,
+  .Disable =            gtx_underlay_Disable,
+  .TestConfiguration =  gtx_underlay_TestConfiguration,
+  .SetConfiguration =   gtx_underlay_SetConfiguration
+};
 
 static __u8 gtx = 0;
 static __u8 enx = 0;
@@ -488,6 +556,9 @@ driver_init_driver( GraphicsDevice      *device,
   funcs->FillRectangle = gtxFillRectangle;
   funcs->Blit          = gtxBlit;
 
+  /* register video underlay */
+  dfb_layers_register( device, driver_data, &gtx_underlay_funcs );
+  
   return DFB_OK;
 }
 
@@ -529,6 +600,7 @@ driver_init_device( GraphicsDevice     *device,
   if (gtx) {
     gdev->orig_tcr = gtx_in16 (gdrv->mmio_base, GTX_TCR);
     gtx_out16 (gdrv->mmio_base, GTX_TCR, PIXEL_ARGB1555(0xff, 0x24, 0x50, 0x9f));
+//    gtx_out16 (gdrv->mmio_base, GTX_TCR, 0xfc0f);
   }
   else if (enx) {
 	/* this does only work for graphics mode ARGB1555 (GMD=3)
