@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.32  2002/07/10 23:10:06  tmbinc
+ *   some magic to let 8bpp/32bpp console work. may interfere with some guis, but who cares.. use pzap\!
+ *
  *   Revision 1.31  2002/05/30 00:39:03  obi
  *   fixed 640x480 fullscreen console
  *
@@ -138,7 +141,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.31 $
+ *   $Revision: 1.32 $
  *
  */
 
@@ -169,7 +172,9 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <video/fbcon.h>
+#include <video/fbcon-cfb8.h>
 #include <video/fbcon-cfb16.h>
+#include <video/fbcon-cfb32.h>
 #include "dbox/fb.h"
 #include "dbox/avia_gt.h"
 #include "dbox/avia_gt_gv.h"
@@ -574,7 +579,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.31 2002/05/30 00:39:03 obi Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.32 2002/07/10 23:10:06 tmbinc Exp $\n");
 
     gt_info = avia_gt_get_info();
 
