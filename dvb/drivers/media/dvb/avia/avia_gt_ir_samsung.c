@@ -386,7 +386,7 @@ static unsigned char chip2value(unsigned char chip)
 		case 1:
 			return 3;
 		default:
-			dprintk(KERN_INFO "illegal chip\n");
+			dprintk(KERN_INFO "invalid chip\n");
 			return 255;
 	}
 }
