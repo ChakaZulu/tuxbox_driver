@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1820.c,v 1.22 2002/02/24 15:32:06 woglinde Exp $
+   $Id: ves1820.c,v 1.23 2002/03/06 09:33:12 gillem Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -21,6 +21,10 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.23  2002/03/06 09:33:12  gillem
+    - remove dec/inc use count
+    - clean module unload (set into standby)
+
     Revision 1.22  2002/02/24 15:32:06  woglinde
     new tuner-api now in HEAD, not only in branch,
     to check out the old tuner-api should be easy using
@@ -276,6 +280,38 @@ int SetQAM(struct i2c_client* client, Modulation QAM_Mode, int DoCLB)
 	return 0;
 }
 
+/* read and write STDBY bit */
+int SetStdby(struct i2c_client* client, int DoStdby)
+{
+	u8 status;
+        struct ves1820 *ves=(struct ves1820 *) client->data;
+
+	if(ves)
+		status = ves->reg0;
+	else
+		status = readreg(client,0);
+
+	if(DoStdby)
+		status |= 0x80;
+	else
+		status &= ~0x80;
+
+        writereg(client, 0x00, status );
+
+	if(ves)
+		ves->reg0 = status;
+
+	return 0;
+}
+
+int GetStdby(struct i2c_client* client)
+{
+	u8 status;
+
+	status = readreg(client,0);
+
+	return ((status>>7)&1);
+}
 
 int attach_adapter(struct i2c_adapter *adap)
 {
@@ -302,14 +338,14 @@ int attach_adapter(struct i2c_adapter *adap)
 		kfree(client);
 		return -ENOMEM;
 	}
-       
+
 	printk("VES1820: attaching VES1820 at 0x%02x\n", (client->addr)<<1);
 	i2c_attach_client(client);
 	
 	init(client);
 	
 	printk("VES1820: attached to adapter %s\n", adap->name);
-	MOD_INC_USE_COUNT;
+//	MOD_INC_USE_COUNT;
 	
 	ves->frontend.type=DVB_C;
 	ves->frontend.capabilities=0; // kann auch nix
@@ -330,7 +366,7 @@ int detach_client(struct i2c_client *client)
 	i2c_detach_client(client);
 	kfree(client->data);
 	kfree(client);
-	MOD_DEC_USE_COUNT;
+//	MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -475,7 +511,9 @@ exit_ves1820(void)
 {
 	int res;
 	
-	if ((res = i2c_del_driver(&dvbt_driver))) 
+	SetStdby(&client_template,1);
+
+	if ((res = i2c_del_driver(&dvbt_driver)))
 	{
 		printk("dvb-tuner: Driver deregistration failed, "
 		       "module not removed.\n");
