@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.65 $
+ *   $Revision: 1.66 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.66  2002/01/18 14:48:52  tmbinc
+ *   small fix for multiple pid streaming
+ *
  *   Revision 1.65  2002/01/02 19:45:50  tmbinc
  *   added support for streaming a pid to multiple clients.
  *
@@ -311,10 +314,62 @@ const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 	};		// 512kb total + (a little bit more ;)
 
 #ifdef enx_dmx
+
+#if 0
+static unsigned short rb[4096], rrb[32];
+#endif
+
+void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid);
+void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec);
+
+#if 0
+		/* hehe da kapiert ja eh niemand was das soll, ausser willid und TripleDES vielleicht, also kanns hier auch bleiben :) */
+		/* man beachte: hier spionieren wir geheimste C-cube infos aus, indem wir auf undokumentierte register zugreifen!      */
+void enx_tdp_trace(void)
+{
+	int i, oldpc=-1;
+	unsigned short *r=(unsigned short*)enx_reg_o(TDP_INSTR_RAM);
+	enx_reg_h(EC) = 0x03;			//start tdp
+	memcpy(rb, r, 4096*2);
+	memset(rrb, 0x76, 32*2);
+	for (i=0; i<1000; i++)
+	{
+		int j;
+		int pc=enx_reg_h(EPC);
+		for (j=0; j<4096; j++)
+			if (rb[j]!=r[j])
+			{
+				printk("(%04x: %04x -> %04x)\n", j, rb[j], r[j]);
+				rb[j]=r[j];
+			}
+		if (pc!=oldpc)
+		{
+			int a;
+
+			for (a=0; a<32; a++)
+			{
+				int tr=enx_reg_h(EPC-32+a*2);
+				if (rrb[a]!=tr)
+					printk("%04x ", enx_reg_h(EPC-32+a*2));
+				else
+					printk("     ");
+				rrb[a]=tr;
+			}
+			printk("\n");
+			printk("%03x (%04x) %x\n", pc, r[pc], (r[pc]>>3)&0xFF);
+		}
+		oldpc=pc;
+		enx_reg_h(EC) = 0x03;			// und wieder nen stueck...
+	}
+	enx_reg_h(EC)=0;
+}
+#endif
+
 void enx_tdp_start(void)
 {
 	enx_reg_w(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
-	enx_reg_w(EC) = 0;			//start tdp
+//	enx_tdp_trace();
+	enx_reg_h(EC)=0;  // dann mal los...	
 }
 
 void enx_tdp_stop(void)
@@ -1412,7 +1467,6 @@ static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
 	gtx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
-	printk("set_pid_control_table, index %d -> queue %d, pid %x\n", filter->index, filter->queue, filter->pid);
 #if GTX_SECTIONS
 	if (filter->type==GTX_FILTER_PID)
 #endif
@@ -1477,7 +1531,6 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 {
 	if (!gtxfeed->tap)
 	{
-		printk("enabling tap %d (pid: %x)\n", gtxfeed->index, gtxfeed->pid);
 		gtxfeed->tap=1;
 #ifdef enx_dmx
 		if (gtxfeed->index>=17)
@@ -1504,7 +1557,6 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 {
 	if (gtxfeed->tap)
 	{
-		printk("disabling tap %d (pid: %x)\n", gtxfeed->index, gtxfeed->pid);
 		gtxfeed->tap=0;
 #ifdef enx_dmx
 		enx_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
@@ -1521,11 +1573,14 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 		if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid) && (gtx->feed[i].output&TS_PACKET))
 			used++;
 	
-	printk("update pid %02x: %d times used.\n", pid, used);
-	if (used)
-		for (i=0; i<LAST_USER_QUEUE; i++)
-			if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid))
+	for (i=0; i<LAST_USER_QUEUE; i++)
+		if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid))
+		{
+			if (used)
 				dmx_enable_tap(&gtx->feed[i]);
+			else
+				dmx_disable_tap(&gtx->feed[i]);
+		}
 }
 
 static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
@@ -1547,12 +1602,14 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 	dmx_set_filter(gtxfeed->filter);
 	feed->is_filtering=1;
 	
-	dprintk(KERN_DEBUG "gtx_dmx: STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
-	printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
-
 	gtxfeed->state=DMX_STATE_GO;
 
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
+
+#ifdef enx_dmx	
+//	udelay(100);
+//	enx_tdp_trace();
+#endif
 
 	return 0;
 }
@@ -1769,7 +1826,6 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 	filter->no_of_filters=numflt-1;
 	dprintk("gtx_dmx: section filtering start (%d filter)\n", numflt);
 #endif
-	dprintk("gtx_dmx: dmx_section_feed_start_filtering.\n");
 	
 	dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
 	
@@ -2033,7 +2089,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.65 2002/01/02 19:45:50 tmbinc Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.66 2002/01/18 14:48:52 tmbinc Exp $\n");
 
 	return gtx_dmx_init();
 }
