@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.33 2001/06/24 11:03:38 gillem Exp $
+ * $Id: dvb.c,v 1.34 2001/06/24 11:16:42 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -771,18 +771,6 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 			switch (cmd)
 			{
-				case VIDEO_DIGEST:
-				{
-					/* TODO: check values */
-					avia_wait(avia_command(Digest,\
-							((struct videoDigest*)parg)->x,
-							((struct videoDigest*)parg)->y,
-							((struct videoDigest*)parg)->skip,
-							((struct videoDigest*)parg)->decimation,
-							((struct videoDigest*)parg)->threshold,
-							((struct videoDigest*)parg)->pictureID));
-					break;
-				}
 				case VIDEO_STOP:
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
@@ -848,7 +836,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					return -ENOTSUPP;
 				}
-				case VIDEO_SET_DIPLAY_FORMAT:
+				case VIDEO_SET_DISPLAY_FORMAT:
 				{
 					switch ((videoDisplayFormat_t)arg)
 					{
@@ -871,6 +859,34 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 							return -ENOTSUPP;
 					}
 
+					return -ENOTSUPP;
+				}
+				case VIDEO_STILLPICTURE:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_FAST_FORWARD:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SLOWMOTION:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_GET_CAPABILITIES:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_CLEAR_BUFFER:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SET_ID:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SET_STREAMTYPE:
+				{
 					return -ENOTSUPP;
 				}
 				case VIDEO_SET_FORMAT:
@@ -897,18 +913,42 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					}
 
 					return -ENOTSUPP;
-	    		}
-				case VIDEO_STILLPICTURE:
+				}
+				case VIDEO_SET_SYSTEM:
 				{
 					return -ENOTSUPP;
 				}
-				case VIDEO_FAST_FORWARD:
+				case VIDEO_SET_HIGHLIGHT:
 				{
 					return -ENOTSUPP;
 				}
-				case VIDEO_SLOWMOTION:
+				case VIDEO_SET_SPU:
 				{
 					return -ENOTSUPP;
+				}
+				case VIDEO_SET_SPU_Palette:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_GET_NAVI:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_SET_ATTRIBUTES:
+				{
+					return -ENOTSUPP;
+				}
+				case VIDEO_DIGEST:
+				{
+					/* TODO: check values */
+					avia_wait(avia_command(Digest,\
+							((struct videoDigest*)parg)->x,
+							((struct videoDigest*)parg)->y,
+							((struct videoDigest*)parg)->skip,
+							((struct videoDigest*)parg)->decimation,
+							((struct videoDigest*)parg)->threshold,
+							((struct videoDigest*)parg)->pictureID));
+					break;
 				}
 				default:
 					return -ENOIOCTLCMD;
