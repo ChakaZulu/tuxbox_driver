@@ -20,7 +20,7 @@ gt-misc-objs	+= avia_gt_capture.o avia_gt_pig.o
 obj-m		+= avia_gt_v4l2.o
 endif
 ifeq ($(CONFIG_AVIA_GT_DMX),y)
-export-objs	+= avia_gt_dmx.o avia_gt_vbi.o
+export-objs	+= avia_gt_dmx.o avia_gt_vbi.o avia_gt_napi.o
 gt-misc-objs	+= avia_gt_dmx.o avia_gt_vbi.o
 obj-m		+= avia_gt_napi.o
 endif

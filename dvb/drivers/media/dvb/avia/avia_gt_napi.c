@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.197 2004/02/01 13:50:23 wjoost Exp $
+ * $Id: avia_gt_napi.c,v 1.198 2004/02/17 19:51:09 wjoost Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -47,6 +47,8 @@
 #include "avia_gt_vbi.h"
 #include "avia_napi.h"
 
+#include "dbox/dvb2eth.h"
+
 static sAviaGtInfo *gt_info;
 static struct dvb_adapter *adapter;
 static struct dvb_device *ca_dev;
@@ -57,6 +59,7 @@ static struct dmx_frontend fe_hw;
 static struct dmx_frontend fe_mem;
 static int hw_crc = 1;
 static int mode;
+dvb2eth_callback avia_gt_napi_dvr_send;
 
 /* only used for playback */
 static int need_audio_pts;
@@ -311,6 +314,7 @@ static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, 
 	u32 buf2_len = queue->get_buf2_size(queue);
 	u32 len;
 	u32 cutoff;
+	int remove;
 
 	len = buf1_len + buf2_len;
 
@@ -328,6 +332,16 @@ static void avia_gt_napi_queue_callback_ts_pes(struct avia_gt_dmx_queue *queue, 
 				buf2_len -= cutoff;
 			}
 			len -= cutoff;
+		}
+		if (avia_gt_napi_dvr_send)
+		{
+			remove = avia_gt_napi_dvr_send(
+				gt_info->mem_addr_phys + queue->get_buf1_ptr(queue),
+				buf1_len,
+				gt_info->mem_addr_phys + queue->get_buf2_ptr(queue),
+				buf2_len);
+			queue->get_data(queue,NULL,remove,0);
+			return;
 		}
 	}
 
@@ -767,7 +781,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.197 2004/02/01 13:50:23 wjoost Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.198 2004/02/17 19:51:09 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -902,6 +916,8 @@ static void __exit avia_gt_napi_exit(void)
 
 module_init(avia_gt_napi_init);
 module_exit(avia_gt_napi_exit);
+
+EXPORT_SYMBOL(avia_gt_napi_dvr_send);
 
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
