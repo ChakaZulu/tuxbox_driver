@@ -1,19 +1,15 @@
-# currently running kernel
-CURRENT=2.4.2
+KERNELRELEASE = \
+	$(shell \
+	for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION FLAVOUR ; do \
+		eval `sed -ne "/^$$TAG/s/[   ]//gp" $(KERNEL_LOCATION)/Makefile` ; \
+	done ; \
+	echo $$VERSION.$$PATCHLEVEL.$$SUBLEVEL$$EXTRAVERSION$${FLAVOUR:+-$$FLAVOUR})
 
-LINUXPPC=/LinuxPPC
+INSTALL_MOD_PATH =
+MODULE_DEST := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/misc
+BIN_DEST := $(INSTALL_MOD_PATH)/bin
 
-# where the kernel sources are located
-KERNEL_LOCATION=$(LINUXPPC)/usr/src/linux
-
-#where to put the binaries...
-INSTALL_PATH=$(LINUXPPC)/rootfs/boot
-INSTALL_MOD_PATH=$(LINUXPPC)/rootfs
-MODULE_DEST=$(INSTALL_MOD_PATH)/lib/modules/$(CURRENT)/misc
-BIN_DEST=$(LINUXPPC)/rootfs/usr/local/bin
-
-export CURRENT KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST BIN_DEST
-
+export KERNELRELEASE KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST BIN_DEST
 
 mod-subdirs := avs lcd saa7126 pcm avia fp i2c ves cam ost test info core event
 
