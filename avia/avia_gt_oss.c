@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.7  2002/08/18 18:22:30  tmbinc
+ *   added poll()-support for pcm device (untested)
+ *
  *   Revision 1.6  2002/05/06 02:18:18  obi
  *   cleanup for new kernel
  *
@@ -42,7 +45,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -309,12 +312,17 @@ static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t cou
 
 }
 
+unsigned int avia_oss_dsp_poll(struct file *file, struct poll_table_struct *wait)
+{
+	return avia_gt_pcm_poll(file, wait);
+}
+
 static struct file_operations dsp_fops = {
 
     ioctl: avia_oss_dsp_ioctl,
     owner: THIS_MODULE,
     write: avia_oss_dsp_write,
-
+    poll: avia_oss_dsp_poll,
 };
 
 static struct file_operations mixer_fops = {
@@ -327,7 +335,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.6 2002/05/06 02:18:18 obi Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.7 2002/08/18 18:22:30 tmbinc Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 

@@ -44,6 +44,7 @@ int avia_gt_pcm_set_channels(unsigned char channels);
 int avia_gt_pcm_set_signed(unsigned char signed_samples);
 int avia_gt_pcm_set_endian(unsigned char be);
 int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block);
+unsigned int avia_gt_pcm_poll(struct file *file, struct poll_table_struct *wait);
 void avia_gt_pcm_stop(void);
 
 extern int avia_gt_pcm_init(void);

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.15  2002/08/18 18:22:30  tmbinc
+ *   added poll()-support for pcm device (untested)
+ *
  *   Revision 1.14  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -67,7 +70,7 @@
  *
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -79,6 +82,7 @@
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/poll.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
@@ -530,6 +534,14 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
 
 }
 
+unsigned int avia_gt_pcm_poll(struct file *file, struct poll_table_struct *wait)
+{
+	poll_wait(file, &pcm_wait, wait);
+	if (!list_empty(&pcm_free_buffer_list))
+		return POLLOUT|POLLWRNORM;
+	return 0;
+}
+
 void avia_gt_pcm_stop(void)
 {
 /*
@@ -547,7 +559,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad;
 	unsigned short irq_pf;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.14 2002/06/07 18:06:03 Jolt Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.15 2002/08/18 18:22:30 tmbinc Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
