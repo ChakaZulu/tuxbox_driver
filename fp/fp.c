@@ -21,6 +21,14 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.72  2002/10/09 16:51:00  Zwen
+ *   - clear_wakeup fuer nokias implementiert
+ *   - FP_IOCTL_CLEAR_WAKEUP entfernt, wird jetzt im module_init ausgefuehrt
+ *   - neuer ioctl FP_IOCTL_IS_WAKEUP : Aufruf ioctl(fd, FP_IOCTL_IS_WAKEUP, &val)
+ *     Fkt: Wie sind wir heute morgen geweckt worden ?
+ *          val==0 : Sanft durch Benutzerhand
+ *          val==1 : ruede durch so nen bloeden wakeup timer :-)
+ *
  *   Revision 1.71  2002/10/08 19:42:06  Zwen
  *   - Wakeup fuer sagem/phillips implementiert
  *   - neuer IOCTL: FP_IOCTL_CLEAR_WAKEUP_TIMER loescht den wakeup-timer eines vorherigen wakeups
@@ -229,7 +237,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.71 $
+ *   $Revision: 1.72 $
  *
  */
 
@@ -280,6 +288,8 @@
 static devfs_handle_t devfs_handle[2];
 static int sec_bus_status=0;
 static struct dbox_info_struct info;
+static int is_wakeup=0;
+
 /* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
@@ -320,8 +330,7 @@ fp:
 #define FP_GETID	    0x1D
 #define FP_WAKEUP		0x11
 #define FP_WAKEUP_SAGEM		0x01
-#define FP_CLEAR_WAKEUP		0x11
-#define FP_CLEAR_WAKEUP_SAGEM	0x20
+#define FP_CLEAR_WAKEUP		0x20
 
 /* ---------------------------------------------------------------------- */
 
@@ -516,8 +525,10 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 						return -EFAULT;
 					return fp_set_wakeup_timer(val);
-				case FP_IOCTL_CLEAR_WAKEUP_TIMER:
-					return fp_clear_wakeup_timer();
+				case FP_IOCTL_IS_WAKEUP:
+					if (copy_to_user((void*)arg, &is_wakeup, sizeof(is_wakeup)))
+						return -EFAULT;
+					return 0;
 				case FP_IOCTL_GET_VCR:
 					if (copy_to_user((void*)arg, &defdata->fpVCR, sizeof(defdata->fpVCR)))
 						return -EFAULT;
@@ -1148,6 +1159,7 @@ static int fp_init(void)
 	input_irkbd.idbus=BUS_I2C;
 	input_register_device(&input_irkbd);
 #endif
+   fp_clear_wakeup_timer();
 	return 0;
 }
 
@@ -1793,7 +1805,7 @@ static int fp_clear_wakeup_timer()
 	u8 id[2]={0, 0};
 	if (info.fpREV<0x80)
 	{
-		if (fp_cmd(defdata->client, FP_CLEAR_WAKEUP_SAGEM, id, 2))
+		if (fp_cmd(defdata->client, FP_CLEAR_WAKEUP, id, 2))
 			return -1;
 	} else
 	{
@@ -1801,6 +1813,10 @@ static int fp_clear_wakeup_timer()
 		if (fp_cmd(defdata->client, FP_CLEAR_WAKEUP, id, 2))
 			return -1;
 	}
+	if(id[0]==0)
+		is_wakeup=0;
+	else
+		is_wakeup=1;
 	return 0;
 }
 
