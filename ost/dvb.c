@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.71 2002/08/14 05:27:17 obi Exp $
+ * $Id: dvb.c,v 1.72 2002/08/14 05:31:13 obi Exp $
  */
 
 #include <linux/config.h>
@@ -47,8 +47,6 @@
 #include <ost/video.h>
 #include <ost/net.h>
 
-//#include <dbox/dvb.h>
-//#include <dbox/ves.h>
 #include <dbox/avia.h>
 #include <dbox/avia_gt_pcm.h>
 #include <dbox/cam.h>
