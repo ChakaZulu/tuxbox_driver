@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.14 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_av_napi.c,v 1.15 2003/01/16 22:48:35 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -49,8 +49,8 @@
 #include "avia_av_napi.h"
 #include "avia_gt_pcm.h"
 
-static struct dvb_device *audio_dev;
-static struct dvb_device *video_dev;
+static struct dvb_device *audio_dev = NULL;
+static struct dvb_device *video_dev = NULL;
 static struct audio_status audiostate;
 static struct video_status videostate;
 static u8 have_audio = 0;
@@ -58,18 +58,14 @@ static u8 have_video = 0;
 
 int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 {
-
 	if ((dvbdmxfeed->type != DMX_TYPE_TS) && (dvbdmxfeed->type != DMX_TYPE_PES))
-		return -EINVAL;
-
-	if ((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) && (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO))
 		return -EINVAL;
 
 	if (!(dvbdmxfeed->ts_type & TS_DECODER))
 		return -EINVAL;
 
-	if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) {
-
+	switch (dvbdmxfeed->pes_type) {
+	case DMX_TS_PES_AUDIO:
 		avia_av_pid_set(AVIA_AV_TYPE_AUDIO, dvbdmxfeed->pid);
 
 		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
@@ -81,9 +77,9 @@ int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
 
 		have_audio = 1;
+		break;
 
-	} else {
-			
+	case DMX_TS_PES_VIDEO:
 		avia_av_pid_set(AVIA_AV_TYPE_VIDEO, dvbdmxfeed->pid);
 
 		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
@@ -95,436 +91,285 @@ int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
 
 		have_video = 1;
-		
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
-		
 }
 
 int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
 {
-
 	if ((dvbdmxfeed->type != DMX_TYPE_TS) && (dvbdmxfeed->type != DMX_TYPE_PES))
-		return -EINVAL;
-
-	if ((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) && (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO))
 		return -EINVAL;
 
 	if (!(dvbdmxfeed->ts_type & TS_DECODER))
 		return -EINVAL;
 
-	if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)
+	switch (dvbdmxfeed->pes_type) {
+	case DMX_TS_PES_AUDIO:
+		avia_av_pid_set(AVIA_AV_TYPE_AUDIO, 0xFFFF);
 		have_audio = 0;
-	else
+		break;
+
+	case DMX_TS_PES_VIDEO:
+		avia_av_pid_set(AVIA_AV_TYPE_VIDEO, 0xFFFF);
 		have_video = 0;
+		break;
+
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
-	
 }
 
 static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
-	
-	unsigned long arg = (unsigned long)parg;
-	int ret = 0;
+	unsigned long arg = (unsigned long) parg;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != VIDEO_GET_STATUS))
 		return -EPERM;
 
 	switch (cmd) {
+	case VIDEO_STOP:
+		avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_STOPPED);
+		videostate.play_state = VIDEO_STOPPED;
+		break;
 
-		case VIDEO_STOP:
-
-			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_STOPPED);
-			videostate.play_state = VIDEO_STOPPED;
-
-			break;
-
-		case VIDEO_PLAY:
-
-			if (have_video)
-				avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
-
-			videostate.play_state = VIDEO_PLAYING;
-
-			break;
-
-		case VIDEO_FREEZE:
-
-			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PAUSED);
-			videostate.play_state = VIDEO_FREEZED;
-
-			break;
-
-		case VIDEO_CONTINUE:
-
+	case VIDEO_PLAY:
+		if (have_video)
 			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
-			videostate.play_state = VIDEO_PLAYING;
+		videostate.play_state = VIDEO_PLAYING;
+		break;
 
+	case VIDEO_FREEZE:
+		avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PAUSED);
+		videostate.play_state = VIDEO_FREEZED;
+		break;
+
+	case VIDEO_CONTINUE:
+		avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
+		videostate.play_state = VIDEO_PLAYING;
+		break;
+
+	case VIDEO_SELECT_SOURCE:
+		if (videostate.play_state != VIDEO_STOPPED)
+			return -EINVAL;
+		videostate.stream_source = (video_stream_source_t) arg;
+		break;
+
+	case VIDEO_SET_BLANK:
+		videostate.video_blank = !!arg;
+		break;
+
+	case VIDEO_GET_STATUS:
+		memcpy(parg, &videostate, sizeof(struct video_status));
+		break;
+
+	case VIDEO_GET_EVENT:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SET_DISPLAY_FORMAT:
+	{
+		video_displayformat_t format = (video_displayformat_t) arg;
+
+		u16 val = 0;
+
+		switch (format) {
+		case VIDEO_PAN_SCAN:
+			val = 1;
 			break;
 
-		case VIDEO_SELECT_SOURCE:
-			{
-				video_stream_source_t source = (video_stream_source_t)parg;
-
-				if (videostate.play_state == VIDEO_STOPPED) {
-
-					switch (source) {
-
-						case VIDEO_SOURCE_DEMUX:
-
-//FIXME							if (videostate.stream_source != VIDEO_SOURCE_DEMUX)
-//FIXME								dvb_select_source(dvb, 0);
-
-							break;
-
-						case VIDEO_SOURCE_MEMORY:
-
-//FIXME							if (videostate.stream_source != VIDEO_SOURCE_MEMORY)
-//FIXME								dvb_select_source(dvb, 1);
-
-							break;
-
-						default:
-
-							return -EINVAL;
-
-					}
-
-					videostate.stream_source = source;
-
-				} else {
-
-					ret = -EINVAL;
-
-				}
-			}
-
+		case VIDEO_LETTER_BOX:
+			val = 2;
 			break;
 
-		case VIDEO_SET_BLANK:
-
-			videostate.video_blank = (arg != 0);
-
-			break;
-
-		case VIDEO_GET_STATUS:
-
-			memcpy(parg, &videostate, sizeof(struct video_status));
-
-			break;
-
-		case VIDEO_GET_EVENT:
-
-			ret = -EOPNOTSUPP;
-
-			break;
-
-		case VIDEO_SET_DISPLAY_FORMAT:
-			{
-
-				video_displayformat_t format = (video_displayformat_t) parg;
-
-				u16 val = 0;
-
-				switch (format) {
-
-					case VIDEO_PAN_SCAN:
-
-						val = 1;
-
-						break;
-
-					case VIDEO_LETTER_BOX:
-
-						val = 2;
-
-						break;
-
-					case VIDEO_CENTER_CUT_OUT:
-
-						val = 0;
-
-						break;
-
-					default:
-
-						return -EINVAL;
-				}
-
-				videostate.display_format = format;
-				wDR(ASPECT_RATIO_MODE, val);
-
-				break;
-
-			}
-
-		case VIDEO_SET_FORMAT:
-			{
-				video_format_t format = (video_format_t) parg;
-
-				switch (format) {
-
-					case VIDEO_FORMAT_4_3:
-
-						wDR(FORCE_CODED_ASPECT_RATIO, 2);
-
-						break;
-
-					case VIDEO_FORMAT_16_9:
-
-						wDR(FORCE_CODED_ASPECT_RATIO, 3);
-
-						break;
-
-					default:
-
-						return -EINVAL;
-
-				}
-
-				videostate.video_format = format;
-
-				break;
-			}
-
-		case VIDEO_STILLPICTURE:
-
-			if (videostate.play_state == VIDEO_STOPPED)
-				ret = -EOPNOTSUPP;
-			else
-				ret = -EINVAL;
-
-			break;
-
-		case VIDEO_FAST_FORWARD:
-
-			ret = -EOPNOTSUPP;
-
-			break;
-
-		case VIDEO_SLOWMOTION:
-
-			ret = -EOPNOTSUPP;
-
-			break;
-
-		case VIDEO_GET_CAPABILITIES:
-
-			*(int *) parg = VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2 | VIDEO_CAP_SYS | VIDEO_CAP_PROG;
-
-			break;
-
-		case VIDEO_CLEAR_BUFFER:
+		case VIDEO_CENTER_CUT_OUT:
+			val = 0;
 			break;
 
 		default:
+			return -EINVAL;
+		}
 
-			ret = -ENOIOCTLCMD;
-
-			break;
-
+		videostate.display_format = format;
+		wDR(ASPECT_RATIO_MODE, val);
+		break;
 	}
 
-	return ret;
+	case VIDEO_SET_FORMAT:
+	{
+		video_format_t format = (video_format_t) arg;
 
+		switch (format) {
+		case VIDEO_FORMAT_4_3:
+			wDR(FORCE_CODED_ASPECT_RATIO, 2);
+			break;
+
+		case VIDEO_FORMAT_16_9:
+			wDR(FORCE_CODED_ASPECT_RATIO, 3);
+			break;
+
+		default:
+			return -EINVAL;
+		}
+
+		videostate.video_format = format;
+		break;
+	}
+
+	case VIDEO_STILLPICTURE:
+		if (videostate.play_state != VIDEO_STOPPED)
+			return -EINVAL;
+		return -EOPNOTSUPP;
+
+	case VIDEO_FAST_FORWARD:
+		return -EOPNOTSUPP;
+
+	case VIDEO_SLOWMOTION:
+		return -EOPNOTSUPP;
+
+	case VIDEO_GET_CAPABILITIES:
+		arg = VIDEO_CAP_MPEG1 | VIDEO_CAP_MPEG2 | VIDEO_CAP_SYS | VIDEO_CAP_PROG;
+		break;
+
+	case VIDEO_CLEAR_BUFFER:
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
 }
 
 static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
-
-	unsigned long arg = (unsigned long)parg;
-	int ret = 0;
+	unsigned long arg = (unsigned long) parg;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != AUDIO_GET_STATUS))
 		return -EPERM;
 
 	switch (cmd) {
+	case AUDIO_STOP:
+		avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_STOPPED);
+		audiostate.play_state = AUDIO_STOPPED;
+		break;
 
-		case AUDIO_STOP:
+	case AUDIO_PLAY:
+		if (have_audio)
+			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
+		audiostate.play_state = AUDIO_PLAYING;
+		break;
 
-			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_STOPPED);
+	case AUDIO_PAUSE:
+		if (audiostate.play_state == AUDIO_PLAYING) {
+			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PAUSED);
+			audiostate.play_state = AUDIO_PAUSED;
+		}
+		break;
 
-			audiostate.play_state = AUDIO_STOPPED;
-
-			break;
-
-		case AUDIO_PLAY:
-
-			if (have_audio)
-				avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
-
+	case AUDIO_CONTINUE:
+		if (audiostate.play_state == AUDIO_PAUSED) {
+			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
 			audiostate.play_state = AUDIO_PLAYING;
-			
-			break;
+		}
+		break;
 
-		case AUDIO_PAUSE:
-		
-			if (audiostate.play_state == AUDIO_PLAYING) {
+	case AUDIO_SELECT_SOURCE:
+		if (audiostate.play_state != AUDIO_STOPPED)
+			return -EINVAL;
+		audiostate.stream_source = (audio_stream_source_t) arg;
+		break;
 
-				avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PAUSED);
-				audiostate.play_state = AUDIO_PAUSED;
+	case AUDIO_SET_MUTE:
+		if (arg) {
+			/* mute av spdif (2) and analog audio (4) */
+			wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~6);
+		} else {
+			/* unmute av spdif (2) and analog audio (4) */
+			wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 6);
+		}
+		wDR(NEW_AUDIO_CONFIG, 1);
+		audiostate.mute_state = !!arg;
+		break;
 
-			}
-			
-			break;
+	case AUDIO_SET_AV_SYNC:
+		if (arg)
+			avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_AV);
+		else
+			avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_NONE);
+		audiostate.AV_sync_state = arg;
+		break;
 
-		case AUDIO_CONTINUE:
+	case AUDIO_SET_BYPASS_MODE:
+		avia_av_bypass_mode_set(!arg);
+		audiostate.bypass_mode = arg;
+		break;
 
-			if (audiostate.play_state == AUDIO_PAUSED) {
+	case AUDIO_CHANNEL_SELECT:
+	{
+		audio_channel_select_t select = (audio_channel_select_t) arg;
 
-				avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
-				audiostate.play_state = AUDIO_PLAYING;
-
-			}
-
-			break;
-
-		case AUDIO_SELECT_SOURCE:
-
-			if (audiostate.play_state == AUDIO_STOPPED) {
-
-				audio_stream_source_t source = (audio_stream_source_t) parg;
-				
-				audiostate.stream_source = source;
-
-			} else {
-				ret = -EINVAL;
-			}
-			break;
-
-		case AUDIO_SET_MUTE:
-		
-			if (arg) {
-				/*
-				 * mute av spdif (2) and analog audio (4) 
-				 */
-				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~6);
-				/*
-				 * mute gt mpeg 
-				 */
-//FIXME				avia_gt_pcm_set_mpeg_attenuation(0x00, 0x00);
-			} else {
-				/*
-				 * unmute av spdif (2) and analog audio (4) 
-				 */
-				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 6);
-				/*
-				 * unmute gt mpeg 
-				 */
-//FIXME				avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1,
-//FIXME								(audiostate.mixer_state.volume_right + 1) >> 1);
-			}
-			
-			wDR(NEW_AUDIO_CONFIG, 1);
-			audiostate.mute_state = (arg != 0);
-			
-			break;
-
-		case AUDIO_SET_AV_SYNC:
-		
-			if (arg)
-				avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_AV);
-			else
-				avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_NONE);
-				
-			audiostate.AV_sync_state = arg;
-			
-			break;
-
-		case AUDIO_SET_BYPASS_MODE:
-
-			avia_av_bypass_mode_set(!arg);
-			
-			audiostate.bypass_mode = arg;
-			
-			break;
-
-		case AUDIO_CHANNEL_SELECT:
-			{
-				audio_channel_select_t select = (audio_channel_select_t) parg;
-
-				switch (select) {
-					case AUDIO_STEREO:
-						wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
-						wDR(NEW_AUDIO_CONFIG, 1);
-						break;
-
-					case AUDIO_MONO_LEFT:
-						wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x10);
-						wDR(NEW_AUDIO_CONFIG, 1);
-						break;
-
-					case AUDIO_MONO_RIGHT:
-						wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x20);
-						wDR(NEW_AUDIO_CONFIG, 1);
-						break;
-
-					default:
-						return -EINVAL;
-				}
-				
-				audiostate.channel_select = select;
-				
-				break;
-			}
-
-		case AUDIO_GET_STATUS:
-			memcpy(parg, &audiostate, sizeof(struct audio_status));
-			break;
-
-		case AUDIO_GET_CAPABILITIES:
-			*(int *) parg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3;
-			break;
-
-		case AUDIO_CLEAR_BUFFER:
-			break;
-
-		case AUDIO_SET_ID:
-			break;
-
-		case AUDIO_SET_MIXER:
-			memcpy(&audiostate.mixer_state, parg, sizeof(struct audio_mixer));
-
-			if (audiostate.mixer_state.volume_left > 255)
-				audiostate.mixer_state.volume_left = 255;
-			if (audiostate.mixer_state.volume_right > 255)
-				audiostate.mixer_state.volume_right = 255;
-			
-			avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1,
-											(audiostate.mixer_state.volume_right + 1) >> 1);
-			break;
-
-#if 0
-		case AUDIO_SET_SPDIF_COPIES:
-			switch ((audioSpdifCopyState_t) arg) {
-				case SCMS_COPIES_NONE:
-					wDR(IEC_958_CHANNEL_STATUS_BITS, (rDR(IEC_958_CHANNEL_STATUS_BITS) & ~1) | 4);
-					break;
-
-				case SCMS_COPIES_ONE:
-					wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS) & ~5);
-					break;
-
-				case SCMS_COPIES_UNLIMITED:
-					wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS) | 5);
-					break;
-
-				default:
-					return -EINVAL;
-			}
-
+		switch (select) {
+		case AUDIO_STEREO:
+			wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
 			wDR(NEW_AUDIO_CONFIG, 1);
 			break;
-#endif
+
+		case AUDIO_MONO_LEFT:
+			wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x10);
+			wDR(NEW_AUDIO_CONFIG, 1);
+			break;
+
+		case AUDIO_MONO_RIGHT:
+			wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x20);
+			wDR(NEW_AUDIO_CONFIG, 1);
+			break;
+
 		default:
-			ret = -ENOIOCTLCMD;
-			break;
+			return -EINVAL;
+		}
+				
+		audiostate.channel_select = select;
+		break;
 	}
 
-	return ret;
+	case AUDIO_GET_STATUS:
+		memcpy(parg, &audiostate, sizeof(struct audio_status));
+		break;
 
+	case AUDIO_GET_CAPABILITIES:
+		arg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2 | AUDIO_CAP_AC3;
+		break;
+
+	case AUDIO_CLEAR_BUFFER:
+		break;
+
+	case AUDIO_SET_ID:
+		break;
+
+	case AUDIO_SET_MIXER:
+		memcpy(&audiostate.mixer_state, parg, sizeof(struct audio_mixer));
+
+		if (audiostate.mixer_state.volume_left > 255)
+			audiostate.mixer_state.volume_left = 255;
+		if (audiostate.mixer_state.volume_right > 255)
+			audiostate.mixer_state.volume_right = 255;
+			
+		avia_gt_pcm_set_mpeg_attenuation(
+			(audiostate.mixer_state.volume_left  + 1) >> 1,
+			(audiostate.mixer_state.volume_right + 1) >> 1);
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
 }
 
 static struct file_operations avia_av_napi_video_fops = {
@@ -578,7 +423,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.14 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.15 2003/01/16 22:48:35 obi Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

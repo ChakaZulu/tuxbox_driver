@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.53 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_av_core.c,v 1.54 2003/01/16 22:48:35 obi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -80,7 +80,6 @@ static wait_queue_head_t avia_cmd_state_wait;
 static u8 bypass_mode = 0;
 static u8 bypass_mode_changed = 0;
 static u16 pid_audio = 0xFFFF;
-static u16 decoder_pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
 static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
@@ -763,10 +762,10 @@ static int errno;
 static int
 do_firmread (const char *fn, char **fp)
 {
-	int    fd								= (int)0;
-	loff_t l								= (loff_t)0;
-	char  *dp								= (char *)NULL;
-	char firmwarePath[100]	= { "\0" };
+	int fd = 0;
+	loff_t l = 0;
+	char *dp = NULL;
+	char firmwarePath[100] = { "\0" };
 
 	if (!fn)
 		return 0;
@@ -821,13 +820,13 @@ do_firmread (const char *fn, char **fp)
 
 static int init_avia(void)
 {
-	u32						*microcode	= (u32 *)NULL;
-	u32						 val				= (u32)0;
-	int						 tries			= (int)0;
-	mm_segment_t	 fs;
+	u32 *microcode = NULL;
+	u32 val = 0;
+	int tries = 0;
+	mm_segment_t fs;
 	
 	/* remap avia memory */
-	if(!aviamem)
+	if (!aviamem)
 		aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
 
 	if (!aviamem)
@@ -1075,8 +1074,7 @@ u16 avia_get_sample_rate(void)
 
 void avia_av_bypass_mode_set(u8 enable)
 {
-
-	if (enable == bypass_mode)
+	if (bypass_mode == !!enable)
 		return;
 
 	if (enable)
@@ -1085,196 +1083,121 @@ void avia_av_bypass_mode_set(u8 enable)
 		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 1);
 
 	wDR(NEW_AUDIO_CONFIG, 1);
-	
+
 	//FIXME change stream
 
-	bypass_mode = enable;
+	bypass_mode = !!enable;
 	bypass_mode_changed = 1;
 
+	printk("bypass_mode: %hu\n", bypass_mode);
 }
 
 int avia_av_pid_set(u8 type, u16 pid)
 {
-
 	if ((pid > 0x1FFF) && (pid != 0xFFFF))
 		return -EINVAL;
-		
-	switch(type) {
-	
-		case AVIA_AV_TYPE_AUDIO:
 
-			pid_audio = pid;
+	switch (type) {
+	case AVIA_AV_TYPE_AUDIO:
+		pid_audio = pid;
+		break;
 
-			break;
-	
-		case AVIA_AV_TYPE_VIDEO:
+	case AVIA_AV_TYPE_VIDEO:
+		pid_video = pid;
+		break;
 
-			pid_video = pid;
-
-			break;
-			
-		default:
-		
-			printk("avia_av: invalid pid type\n");
-		
-			return -EINVAL;
-			
+	default:
+		printk("avia_av: invalid pid type\n");
+		return -EINVAL;
 	}
-	
-	return 0;	
 
+	return 0;
 }
 
 int avia_av_play_state_set_audio(u8 new_play_state)
 {
-
-	if ( (new_play_state == play_state_audio) && ((pid_audio == decoder_pid_audio) || (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)) )
-		return 0;
-		
-	switch(new_play_state) {
-	
-		case AVIA_AV_PLAY_STATE_PAUSED:
-		
-			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
-				return -EINVAL;
-
-			dprintk("avia_av: pausing audio decoder\n");
-		
-			if (bypass_mode)
-				avia_command(SelectStream, 0x02, 0xFFFF);
-			else
-				avia_command(SelectStream, 0x03, 0xFFFF);
-		
-			break;
-
-		case AVIA_AV_PLAY_STATE_PLAYING:
-
-			dprintk("avia_av: starting audio decoder (apid=0x%04X)\n", pid_audio);
-
-			decoder_pid_audio = pid_audio;
-
-			/*
-			 * The AVIA 500 seems to have problems switching to AC3
-			 * and back in state "PLAY".
-			 */
-
-			if ((play_state_video == AVIA_AV_PLAY_STATE_PLAYING) && bypass_mode_changed && aviarev)
-			{
-//				avia_command(Reset);
-				avia_command(Abort, 0);
-				avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
-				avia_command(SelectStream, 0x00, pid_video);
-				avia_command(Play, 0, pid_video, pid_audio);
-				bypass_mode_changed = 0;
-			}
-			else
-			{
-				if (bypass_mode)
-					avia_command(SelectStream, 0x02, pid_audio);
-				else
-					avia_command(SelectStream, 0x03, pid_audio);
-
-				if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
-					avia_command(Play, 0, 0xFFFF, pid_audio);
-			}
-		
-			break;
-
-		case AVIA_AV_PLAY_STATE_STOPPED:
-
-			if ((play_state_audio != AVIA_AV_PLAY_STATE_PAUSED) &&
-				(play_state_audio != AVIA_AV_PLAY_STATE_PLAYING))
-				return -EINVAL;
-
-			dprintk("avia_av: stopping audio decoder\n");
-
-			if (bypass_mode)
-				avia_command(SelectStream, 0x02, 0xFFFF);
-			else
-				avia_command(SelectStream, 0x03, 0xFFFF);
-	
-			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
-				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
-			
-			break;
-			
-		default:
-		
-			printk("avia_av: invalid audio play state\n");
-		
+	switch (new_play_state) {
+	case AVIA_AV_PLAY_STATE_PAUSED:
+		if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
 			return -EINVAL;
-			
+
+		dprintk("avia_av: pausing audio decoder\n");
+		avia_command(SelectStream, 0x03 - bypass_mode, 0xFFFF);
+		break;
+
+	case AVIA_AV_PLAY_STATE_PLAYING:
+		printk("avia_av: audio play (apid=0x%04X, vpid=0x%04X)\n", pid_audio, pid_video);
+		avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
+		if (pid_video != 0xFFFF)
+			avia_command(SelectStream, 0x00, pid_video);
+		if (pid_audio != 0xFFFF)
+			avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+		break;
+
+	case AVIA_AV_PLAY_STATE_STOPPED:
+		if ((play_state_audio != AVIA_AV_PLAY_STATE_PAUSED) &&
+			(play_state_audio != AVIA_AV_PLAY_STATE_PLAYING))
+				return -EINVAL;
+
+		dprintk("avia_av: stopping audio decoder\n");
+		avia_command(SelectStream, 0x03 - bypass_mode, 0xFFFF);
+
+		if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
+			wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
+		break;
+
+	default:
+		printk("avia_av: invalid audio play state\n");
+		return -EINVAL;
 	}
-	
+
 	play_state_audio = new_play_state;
-
 	return 0;
-
 }
 
 int avia_av_play_state_set_video(u8 new_play_state)
 {
-
-	if (new_play_state == play_state_video)
-		return 0;
-		
-	switch(new_play_state) {
-	
-		case AVIA_AV_PLAY_STATE_PAUSED:
-		
-			if (play_state_video != AVIA_AV_PLAY_STATE_PLAYING)
-				return -EINVAL;
-		
-//			avia_command(Freeze, 0x01);
-		
-			break;
-
-		case AVIA_AV_PLAY_STATE_PLAYING:
-		
-			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
-			
-//				avia_command(Resume);
-				
-			} else {
-
-				dprintk("avia_av: starting video decoder (vpid=0x%04X)\n", pid_video);
-
-				avia_command(SelectStream, 0x00, pid_video);
-
-				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
-					avia_command(Play, 0, pid_video, 0xFFFF);
-
-			}
-		
-			break;
-
-		case AVIA_AV_PLAY_STATE_STOPPED:
-
-			if ((play_state_video != AVIA_AV_PLAY_STATE_PAUSED) &&
-				(play_state_video != AVIA_AV_PLAY_STATE_PLAYING))
-				return -EINVAL;
-
-			dprintk("avia_av: stopping video decoder\n");
-				
-			avia_command(SelectStream, 0x00, 0xFFFF);
-				
-			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
-				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
-
-			break;
-			
-		default:
-		
-			printk("avia_av: invalid video play state\n");
-		
+	switch (new_play_state) {
+	case AVIA_AV_PLAY_STATE_PAUSED:
+		if (play_state_video != AVIA_AV_PLAY_STATE_PLAYING)
 			return -EINVAL;
-			
+		avia_command(Freeze, 1);
+		break;
+
+	case AVIA_AV_PLAY_STATE_PLAYING:
+		if (play_state_video == AVIA_AV_PLAY_STATE_PLAYING)
+			return -EINVAL;
+		else if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
+			avia_command(Resume);
+		else {
+			printk("avia_av: video play (apid=0x%04X, vpid=0x%04X)\n", pid_audio, pid_video);
+			avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
+			if (pid_video != 0xFFFF)
+				avia_command(SelectStream, 0x00, pid_video);
+			if (pid_audio != 0xFFFF)
+				avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+		}
+		break;
+
+	case AVIA_AV_PLAY_STATE_STOPPED:
+		if ((play_state_video != AVIA_AV_PLAY_STATE_PAUSED) &&
+			(play_state_video != AVIA_AV_PLAY_STATE_PLAYING))
+				return -EINVAL;
+
+		dprintk("avia_av: stopping video decoder\n");
+		avia_command(SelectStream, 0x00, 0xFFFF);
+
+		if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
+			wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
+		break;
+
+	default:
+		printk("avia_av: invalid video play state\n");
+		return -EINVAL;
 	}
-	
+
 	play_state_video = new_play_state;
-
 	return 0;
-
 }
 
 int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
@@ -1438,7 +1361,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.53 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.54 2003/01/16 22:48:35 obi Exp $\n");
 
 	aviamem = 0;
 
