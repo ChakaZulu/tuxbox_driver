@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.69  2002/05/15 22:02:49  Hunz
+ *   raw register read for debugging/testing
+ *
  *   Revision 1.68  2002/05/12 11:18:38  Hunz
  *   LCD-DIMM fix (for all boxes)
  *
@@ -218,7 +221,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.68 $
+ *   $Revision: 1.69 $
  *
  */
 
@@ -503,6 +506,20 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					if (copy_to_user((void*)arg, &defdata->fpVCR, sizeof(defdata->fpVCR)))
 						return -EFAULT;
 					return 0;
+				case FP_IOCTL_GET_REGISTER:
+					{
+						unsigned long foo;
+
+						if (copy_from_user(&val, (void*)arg, sizeof(val)) )
+
+							                return -EFAULT;
+						
+						fp_cmd(defdata->client, val&0xFF, (u8*)&foo, ((val>>8)&3)+1);
+						if (copy_to_user((void*)arg, &foo, sizeof(foo)))
+							                                                return -EFAULT;
+						return 0;
+					}
+					
 				default:
 					return -EINVAL;
 			}
