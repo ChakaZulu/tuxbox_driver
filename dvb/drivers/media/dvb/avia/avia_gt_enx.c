@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_enx.c,v 1.15 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_enx.c,v 1.16 2003/01/14 22:37:58 jolt Exp $
  *
  * AViA eNX core driver (dbox-II-project)
  *
@@ -56,7 +56,7 @@ static int imr[] = {0x0110, 0x0112, 0x0114, 0x0116, 0x0118, 0x011A};
 void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    enx_reg_16n(isr[irq_reg]) = (1 << irq_bit);
+    enx_reg_write16n(isr[irq_reg], 1 << irq_bit);
 	
 }
 
@@ -64,7 +64,7 @@ unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg)
 {
 
 	if (irq_reg <= 5)
-		return enx_reg_16n(imr[irq_reg]);
+		return enx_reg_read16n(imr[irq_reg]);
 	else
 		return 0;
 	
@@ -74,7 +74,7 @@ unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg)
 {
 
 	if (irq_reg <= 5)
-		return enx_reg_16n(isr[irq_reg]);
+		return enx_reg_read16n(isr[irq_reg]);
 	else
 		return 0;
 	
@@ -83,14 +83,14 @@ unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg)
 void avia_gt_enx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-	enx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
+	enx_reg_write16n(imr[irq_reg], 1 << irq_bit);
 	
 }
 
 void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-	enx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
+	enx_reg_write16n(imr[irq_reg], (1 << irq_bit) | 1);
 	
 }
 
@@ -98,8 +98,8 @@ void enx_dac_init(void)
 {
 
     enx_reg_set(RSTR0, DAC, 0);	// Get dac out of reset state
-    enx_reg_16(DAC_PC) = 0x0000;
-    enx_reg_16(DAC_CP) = 0x0009;
+    enx_reg_write16(DAC_PC, 0x0000);
+    enx_reg_write16(DAC_CP, 0x0009);
 	
 }
 
@@ -107,98 +107,99 @@ void enx_video_init(void)
 {
 
     enx_reg_set(RSTR0, VDEO, 0);		// Get video out of reset state
-    enx_reg_16(VHT) = 857 | 0x5000;
-    enx_reg_16(VLT) = (623 | (21 << 11));
+    enx_reg_write16(VHT, 857 | 0x5000);
+    enx_reg_write16(VLT, (623 | (21 << 11)));
 
 }
 
 void enx_irq_enable(void)
 {
 
-  enx_reg_32(EHIDR) = 0;	 // IRQs an Hostprozessor weiterreichen
-  enx_reg_32(IPR4) = 0x55555555; // alles auf HIRQ0
-  enx_reg_32(IPR5) = 0x55555555; // das auch noch
+  enx_reg_write32(EHIDR, 0);	 // IRQs an Hostprozessor weiterreichen
+  enx_reg_write32(IPR4, 0x55555555); // alles auf HIRQ0
+  enx_reg_write32(IPR5, 0x55555555); // das auch noch
 
-  enx_reg_16(ISR0) = 0xFFFE;		// Clear all irq states
-  enx_reg_16(ISR1) = 0xFFFE;		// Clear all irq states
-  enx_reg_16(ISR2) = 0xFFFE;		// Clear all irq states
-  enx_reg_16(ISR3) = 0xFFFE;		// Clear all irq states
-  enx_reg_16(ISR4) = 0xFFFE;		// Clear all irq states
-  enx_reg_16(ISR5) = 0xFFFE;		// Clear all irq states
+  enx_reg_write16(ISR0, 0xFFFE);		// Clear all irq states
+  enx_reg_write16(ISR1, 0xFFFE);		// Clear all irq states
+  enx_reg_write16(ISR2, 0xFFFE);		// Clear all irq states
+  enx_reg_write16(ISR3, 0xFFFE);		// Clear all irq states
+  enx_reg_write16(ISR4, 0xFFFE);		// Clear all irq states
+  enx_reg_write16(ISR5, 0xFFFE);		// Clear all irq states
 
-  enx_reg_16(IMR0) = 0x0001;		// mask all IRQ's (=disable them)
-  enx_reg_16(IMR1) = 0x0001;
-  enx_reg_16(IMR2) = 0x0001;
-  enx_reg_16(IMR3) = 0x0001;
-  enx_reg_16(IMR4) = 0x0001;
-  enx_reg_16(IMR5) = 0x0001;
-  enx_reg_32(IDR) = 0;
+  enx_reg_write16(IMR0, 0x0001);		// mask all IRQ's (=disable them)
+  enx_reg_write16(IMR1, 0x0001);
+  enx_reg_write16(IMR2, 0x0001);
+  enx_reg_write16(IMR3, 0x0001);
+  enx_reg_write16(IMR4, 0x0001);
+  enx_reg_write16(IMR5, 0x0001);
+  enx_reg_write32(IDR, 0);
 
 }
 
 void enx_irq_disable(void) {
 
-  enx_reg_16(IMR0) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_16(IMR1) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_16(IMR2) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_16(IMR3) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_16(IMR4) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_16(IMR5) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_write16(IMR0, 0xFFFE);		// Mask all IRQ's
+  enx_reg_write16(IMR1, 0xFFFE);		// Mask all IRQ's
+  enx_reg_write16(IMR2, 0xFFFE);		// Mask all IRQ's
+  enx_reg_write16(IMR3, 0xFFFE);		// Mask all IRQ's
+  enx_reg_write16(IMR4, 0xFFFE);		// Mask all IRQ's
+  enx_reg_write16(IMR5, 0xFFFE);		// Mask all IRQ's
 
-  enx_reg_16(IMR0) = 0x0001;		// Mask all IRQ's
-  enx_reg_16(IMR1) = 0x0001;		// Mask all IRQ's
-  enx_reg_16(IMR2) = 0x0001;		// Mask all IRQ's
-  enx_reg_16(IMR3) = 0x0001;		// Mask all IRQ's
-  enx_reg_16(IMR4) = 0x0001;		// Mask all IRQ's
-  enx_reg_16(IMR5) = 0x0001;		// Mask all IRQ's
+  enx_reg_write16(IMR0, 0x0001);		// Mask all IRQ's
+  enx_reg_write16(IMR1, 0x0001);		// Mask all IRQ's
+  enx_reg_write16(IMR2, 0x0001);		// Mask all IRQ's
+  enx_reg_write16(IMR3, 0x0001);		// Mask all IRQ's
+  enx_reg_write16(IMR4, 0x0001);		// Mask all IRQ's
+  enx_reg_write16(IMR5, 0x0001);		// Mask all IRQ's
 
 }
 
 void enx_reset(void) {
 
-  enx_reg_32(RSTR0) = 0xFCF6BEFF;	// Reset all modules
+  enx_reg_write32(RSTR0, 0xFCF6BEFF);	// Reset all modules
   
 }
 
 void enx_sdram_ctrl_init(void) {
 
-  enx_reg_32(SCSC) = 0x00000000;	// Set sd-ram start address
+  enx_reg_write32(SCSC, 0x00000000);		// Set sd-ram start address
   enx_reg_set(RSTR0, SDCT, 0);		// Get sd-ram controller out of reset state
-  enx_reg_32(MC) = 0x00001011;		// Write memory configuration
-  enx_reg_32n(0x88) |= 0x3E << 4;
+  enx_reg_write32(MC, 0x00001011);		// Write memory configuration
+//  enx_reg_32n(0x88) |= 0x3E << 4;  <- Mhhhh????
   
 }
 
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.15 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.16 2003/01/14 22:37:58 jolt Exp $\n");
     
-    gt_info = avia_gt_get_info();
+	gt_info = avia_gt_get_info();
     
-    if (!avia_gt_chip(ENX)) {
+	if (!avia_gt_chip(ENX)) {
     
-	printk("avia_gt_enx: Unsupported chip type\n");
+		printk("avia_gt_enx: Unsupported chip type\n");
 	
-	return;
+		return;
     
-    }
+	}
 
-    enx_reset();
-    enx_sdram_ctrl_init();
-    enx_dac_init();
-    enx_video_init();
-    enx_irq_enable();
+	enx_reset();
+	enx_sdram_ctrl_init();
+	enx_dac_init();
+	enx_video_init();
+	enx_irq_enable();
   
-    memset(gt_info->mem_addr, 0xF, 1024 * 1024 /*ENX_MEM_SIZE*/);
+	memset(gt_info->mem_addr, 0xF, 1024 * 1024 /*ENX_MEM_SIZE*/);
 
     //bring out of reset state
-    enx_reg_32(RSTR0) &= ~(1 << 27);  // AV - Decoder
-    enx_reg_32(RSTR0) &= ~(1 << 13);  // Queue Manager
-    enx_reg_32(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
+	enx_reg_set(RSTR0, AVI, 0);  // AV - Decoder
+	enx_reg_set(RSTR0, QUE, 0);  // Queue Manager
+	enx_reg_set(RSTR0, BLIT, 0);   // Blitter / Color expander
 
-    enx_reg_32(CFGR0) &= ~(1 << 1);   // disable clip mode audio
-    enx_reg_32(CFGR0) &= ~(1 << 0);   // disable clip mode video
+	enx_reg_set(CFGR0, TCP, 0);   // disable clip mode teletext
+	enx_reg_set(CFGR0, ACP, 0);   // disable clip mode audio
+	enx_reg_set(CFGR0, VCP, 0);   // disable clip mode video
     
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_accel.c,v 1.13 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_accel.c,v 1.14 2003/01/14 22:37:58 jolt Exp $
  *
  * AViA eNX/GTX accelerator driver (dbox-II-project)
  *
@@ -62,7 +62,7 @@ void avia_gt_accel_copy(u32 buffer_src, u32 buffer_dst, u32 buffer_size, u8 decr
 
 		if (avia_gt_chip(ENX)) {
 		
-			enx_reg_16(CPCCMD) = ((!!decrement << 10)) | (3 << 8) | (transaction_size - 1);
+			enx_reg_write16(CPCCMD, ((!!decrement << 10)) | (3 << 8) | (transaction_size - 1));
 			
 		} else if (avia_gt_chip(GTX)) {
 
@@ -89,7 +89,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 	if (avia_gt_chip(ENX)) {
 
 		//enx_reg_s(CPCCRCSRC2)->CRC.CRC = 0;
-		enx_reg_32(CPCCRCSRC2) = seed ^ 0xFFFFFFFF;
+		enx_reg_write32(CPCCRCSRC2, seed ^ 0xFFFFFFFF);
 
 		enx_reg_set(CPCSRC1, Addr, buffer);
 
@@ -135,7 +135,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 		if (avia_gt_chip(ENX)) {
 
 			//enx_reg_set(CPCCMD, Len, transaction_size);
-			enx_reg_16(CPCCMD) = (1 << 14) | (transaction_size - 1);
+			enx_reg_write16(CPCCMD, (1 << 14) | (transaction_size - 1));
 
 		} else if (avia_gt_chip(GTX)) {
 
@@ -160,7 +160,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 
 	if (avia_gt_chip(ENX))
 	    //return enx_reg_s(CPCCRCSRC2)->CRC.CRC;
-		return (enx_reg_32(CPCCRCSRC2) ^ 0xFFFFFFFF);
+		return (enx_reg_read32(CPCCRCSRC2) ^ 0xFFFFFFFF);
 	else if (avia_gt_chip(GTX))
 		return (gtx_reg_32(RCRC) ^ 0xFFFFFFFF);
 
@@ -171,7 +171,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-	printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.13 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.14 2003/01/14 22:37:58 jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	

@@ -24,6 +24,7 @@
 #ifndef AVIA_GT_H
 #define AVIA_GT_H
 
+#include <asm/io.h>
 #include "avia_gt_enx.h"
 #include "avia_gt_gtx.h"
 
@@ -36,8 +37,12 @@
 typedef struct {
 
     unsigned char chip_type;
-    unsigned char *mem_addr;
-    unsigned char *reg_addr;
+    u8 *mem_addr;
+    u32 mem_addr_phys;
+	u32 mem_size;
+    u8 *reg_addr;
+    u32 reg_addr_phys;
+    u32 reg_size;
 
 } sAviaGtInfo;
 

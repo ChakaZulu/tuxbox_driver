@@ -958,13 +958,20 @@ extern void avia_gt_enx_exit(void);
 #define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
 #define enx_reg_o(offset) (gt_info->reg_addr + offset)
 #define enx_reg_s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
-#define enx_reg_sn(register, offset) ((sENX_REG_##register *)(enx_reg_o(offset)))
+//#define enx_reg_sn(register, offset) ((sENX_REG_##register *)(enx_reg_o(offset)))
 #define enx_reg_so(register, offset) ((sENX_REG_##register *)(&enx_reg_32o(register, offset)))
-#define enx_reg_32s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
-#define enx_reg_16s(register) ((sENX_REG_##register *)(&enx_reg_16(register)))
 
-#define enx_reg_set_32s(register, field, value) { u32 tmp_reg_val = enx_reg_32(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_32(register) = tmp_reg_val; }
-#define enx_reg_set_16s(register, field, value) { u16 tmp_reg_val = enx_reg_16(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_16(register) = tmp_reg_val; }
+
+#define enx_reg_read16(register) ((u16)(__raw_readw(gt_info->reg_addr + ENX_REG_ ## register)))
+#define enx_reg_read16n(offset) ((u16)(__raw_readw(gt_info->reg_addr + offset)))
+#define enx_reg_read32(register) ((u32)(__raw_readl(gt_info->reg_addr + ENX_REG_ ## register)))
+#define enx_reg_read32n(offset) ((u32)(__raw_readl(gt_info->reg_addr + offset)))
+#define enx_reg_write16(register, value) { __raw_writew(value, gt_info->reg_addr + ENX_REG_ ## register); mb(); }
+#define enx_reg_write16n(offset, value) { __raw_writew(value, gt_info->reg_addr + offset); mb(); }
+#define enx_reg_write32(register, value) { __raw_writel(value, gt_info->reg_addr + ENX_REG_ ## register); mb(); }
+
+#define enx_reg_set_32s(register, field, value) { u32 tmp_reg_val = enx_reg_read32(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_write32(register, tmp_reg_val); }
+#define enx_reg_set_16s(register, field, value) { u16 tmp_reg_val = enx_reg_read16(register); ((sENX_REG_##register *)&tmp_reg_val)->field = value; enx_reg_write16(register, tmp_reg_val); }
 #define enx_reg_set(register, field, value) do { if (sizeof(sENX_REG_##register) == 4) enx_reg_set_32s(register, field, value) else if (sizeof(sENX_REG_##register ) == 2) enx_reg_set_16s(register, field, value) else printk("ERROR: struct size is %d\n", sizeof(sENX_REG_##register)); } while(0)
 #define enx_reg_set_bit(register, bit) enx_reg_set(register, bit, 1)
 #define enx_reg_clear_bit(register, bit) enx_reg_set(register, bit, 0)

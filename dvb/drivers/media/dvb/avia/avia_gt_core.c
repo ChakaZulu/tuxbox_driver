@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.29 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_core.c,v 1.30 2003/01/14 22:37:58 jolt Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -212,7 +212,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.29 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.30 2003/01/14 22:37:58 jolt Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -264,16 +264,29 @@ int __init avia_gt_init(void)
 
 	gt_info->chip_type = chip_type;
 
+	if (avia_gt_chip(ENX)) {
+	
+		gt_info->mem_addr_phys = ENX_MEM_BASE;
+		gt_info->mem_size = ENX_MEM_SIZE;
+		gt_info->reg_addr_phys = ENX_REG_BASE;
+		gt_info->reg_size = ENX_REG_SIZE;
+		
+	} else if (avia_gt_chip(GTX)) {
+
+		gt_info->mem_addr_phys = GTX_MEM_BASE;
+		gt_info->mem_size = GTX_MEM_SIZE;
+		gt_info->reg_addr_phys = GTX_REG_BASE;
+		gt_info->reg_size = GTX_REG_SIZE;
+		
+	}
+
 	init_state = 1;
 
-	if (avia_gt_chip(ENX))
-		gt_info->reg_addr = (unsigned char *)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
-	else if (avia_gt_chip(GTX))
-		gt_info->reg_addr = (unsigned char *)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+	if (!request_mem_region(gt_info->reg_addr_phys, gt_info->reg_size, "avia_gt_reg")) {
 
-	if (!gt_info->reg_addr) {
+		printk(KERN_ERR "avia_gt_core: Failed to request register space.\n");
 
-		printk(KERN_ERR "avia_gt_core: Failed to remap register space.\n");
+		avia_gt_exit();
 
 		return -1;
 
@@ -281,12 +294,31 @@ int __init avia_gt_init(void)
 
 	init_state = 2;
 
-	if (avia_gt_chip(ENX))
-		gt_info->mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
-	else if (avia_gt_chip(GTX))
-		gt_info->mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
+	if (!(gt_info->reg_addr = (unsigned char *)ioremap(gt_info->reg_addr_phys, gt_info->reg_size))) {
 
-	if (!gt_info->mem_addr) {
+		printk(KERN_ERR "avia_gt_core: Failed to remap register space.\n");
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 3;
+
+	if (!request_mem_region(gt_info->mem_addr_phys, gt_info->mem_size, "avia_gt_mem")) {
+
+		printk(KERN_ERR "avia_gt_core: Failed to request memory space.\n");
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 4;
+
+	if (!(gt_info->mem_addr = (unsigned char *)ioremap(gt_info->mem_addr_phys, gt_info->mem_size))) {
 
 		printk(KERN_ERR "avia_gt_core: Failed to remap memory space.\n");
 
@@ -296,7 +328,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 3;
+	init_state = 5;
 
 	if (avia_gt_chip(ENX))
 		result = request_8xxirq(ENX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
@@ -313,14 +345,14 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 4;
+	init_state = 6;
 
 	if (avia_gt_chip(ENX))
 		avia_gt_enx_init();
 	else if (avia_gt_chip(GTX))
 		avia_gt_gtx_init();
 
-	init_state = 5;
+	init_state = 7;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
 	if (avia_gt_accel_init()) {
@@ -331,7 +363,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 6;
+	init_state = 8;
 
 	if (avia_gt_dmx_init()) {
 
@@ -341,7 +373,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 7;
+	init_state = 9;
 
 	if (avia_gt_gv_init()) {
 
@@ -351,7 +383,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 8;
+	init_state = 10;
 
 	if (avia_gt_pcm_init()) {
 
@@ -361,7 +393,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 9;
+	init_state = 11;
 
 	if (avia_gt_capture_init()) {
 
@@ -371,7 +403,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 10;
+	init_state = 12;
 
 	if (avia_gt_pig_init()) {
 
@@ -381,7 +413,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 11;
+	init_state = 13;
 
 	if (avia_gt_ir_init()) {
 
@@ -391,7 +423,7 @@ int __init avia_gt_init(void)
 
 	}
 
-	init_state = 12;
+	init_state = 14;
 
 	if (avia_gt_vbi_init()) {
 
@@ -401,9 +433,7 @@ int __init avia_gt_init(void)
 
 	}
 	
-//	avia_gt_vbi_start();
-
-	init_state = 13;
+	init_state = 15;
 
 #endif
 
@@ -417,32 +447,32 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-	if (init_state >= 13)
+	if (init_state >= 15)
 		avia_gt_vbi_exit();
 
-	if (init_state >= 12)
+	if (init_state >= 14)
 		avia_gt_ir_exit();
 
-	if (init_state >= 11)
+	if (init_state >= 13)
 		avia_gt_pig_exit();
 
-	if (init_state >= 10)
+	if (init_state >= 12)
 		avia_gt_capture_exit();
 
-	if (init_state >= 9)
+	if (init_state >= 11)
 		avia_gt_pcm_exit();
 
-	if (init_state >= 8)
+	if (init_state >= 10)
 		avia_gt_gv_exit();
 
-	if (init_state >= 7)
+	if (init_state >= 9)
 		avia_gt_dmx_exit();
 
-	if (init_state >= 6)
+	if (init_state >= 8)
 		avia_gt_accel_exit();
 #endif
 
-	if (init_state >= 5) {
+	if (init_state >= 7) {
 
 		if (avia_gt_chip(ENX))
 			avia_gt_enx_exit();
@@ -451,7 +481,7 @@ void avia_gt_exit(void)
 
 	}
 
-	if (init_state >= 4) {
+	if (init_state >= 6) {
 
 		if (avia_gt_chip(ENX))
 			free_irq(ENX_INTERRUPT, 0);
@@ -460,11 +490,17 @@ void avia_gt_exit(void)
 
 	}
 
-	if (init_state >= 3)
+	if (init_state >= 5)
 		iounmap(gt_info->mem_addr);
 
-	if (init_state >= 2)
+	if (init_state >= 4)
+		release_mem_region(gt_info->mem_addr_phys, gt_info->mem_size);
+
+	if (init_state >= 3)
 		iounmap(gt_info->reg_addr);
+
+	if (init_state >= 2)
+		release_mem_region(gt_info->reg_addr_phys, gt_info->reg_size);
 
 	if (init_state >= 1)
 		kfree(gt_info);
