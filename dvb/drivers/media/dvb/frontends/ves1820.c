@@ -25,9 +25,6 @@
 
 #include "compat.h"
 #include "dvb_frontend.h"
-#ifdef DBOX2
-#include <dbox/fp.h>
-#endif
 
 
 static int debug = 0;
@@ -132,11 +129,10 @@ u8 ves1820_readreg (struct dvb_i2c_bus *i2c, u8 reg)
 
 
 static
-int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
+int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 *data, u8 len)
 {
-#ifndef DBOX2
         int ret;
-        struct i2c_msg msg = { addr: addr, flags: 0, buf: data, len: 4 };
+        struct i2c_msg msg = { addr: addr, flags: 0, buf: data, len: len };
 
         ret = i2c->xfer (i2c, &msg, 1);
 
@@ -144,40 +140,46 @@ int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
                 printk("%s: i/o error (ret == %i)\n", __FUNCTION__, ret);
 
         return (ret != 1) ? -EREMOTEIO : 0;
-#else
-	return dbox2_fp_tuner_write(data, 4);
-#endif
 }
 
 
 /**
  *   set up the downconverter frequency divisor for a
- *   reference clock comparision frequency of 125 kHz.
+ *   reference clock comparision frequency of 62.5 kHz.
  */
 static
 int tuner_set_tv_freq (struct dvb_frontend *frontend, u32 freq)
 {
         u32 div;
-	static u8 addr [] = { 0x61, 0x62 };
-	static u8 byte3 [] = { 0x8e, 0x85 };
+	static u8 addr [] = { 0x61, 0x62, 0x30 };
+	static u8 byte3 [] = { 0x8e, 0x85, 0x85 };
 	int tuner_type = GET_TUNER(frontend);
-        u8 buf [4];
+        u8 buf [7];
+	u8 offs = 0;
 
-	div = (freq + 36250000 + 31250) / 125000;
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = div & 0xff;
-	buf[2] = byte3[tuner_type];
+	div = (freq + 36250000 + 31250) / 62500;
 
-	if (tuner_type == 1) {
-		buf[2] |= (div >> 10) & 0x60;
-		buf[3] = (freq < 174000000 ? 0x88 :
-			  freq < 470000000 ? 0x84 : 0x81);
+	if (tuner_type == 2) {
+		buf[0] = 0x00;
+		buf[1] = 0x07;
+		buf[2] = 0xc0;
+		offs = 3;
+	}
+	
+	buf[offs + 0] = (div >> 8) & 0x7f;
+	buf[offs + 1] = div & 0xff;
+	buf[offs + 2] = byte3[tuner_type];
+
+	if (tuner_type > 0) {
+		buf[offs + 2] |= (div >> 10) & 0x60;
+		buf[offs + 3] = (freq < 174000000 ? 0x88 :
+				 freq < 470000000 ? 0x84 : 0x81);
 	} else {
-		buf[3] = (freq < 174000000 ? 0xa1 :
-			  freq < 454000000 ? 0x92 : 0x34);
+		buf[offs + 3] = (freq < 174000000 ? 0xa1 :
+				 freq < 454000000 ? 0x92 : 0x34);
 	}
 
-        return tuner_write (frontend->i2c, addr[tuner_type], buf);
+        return tuner_write (frontend->i2c, addr[tuner_type], buf, offs + 4);
 }
 
 
@@ -191,8 +193,14 @@ int probe_tuner (struct dvb_frontend *frontend)
 		SET_TUNER(frontend,0);
 		printk ("%s: setup for tuner spXXXX\n", __FILE__);
 	} else {
-		SET_TUNER(frontend,1);
-		printk ("%s: setup for tuner sp5659c\n", __FILE__);
+		msg.addr = 0x62;
+		if (i2c->xfer(i2c, &msg, 1) == 1) {
+			SET_TUNER(frontend,1);
+			printk ("%s: setup for tuner sp5659c\n", __FILE__);
+		} else {
+			SET_TUNER(frontend,2);
+			printk("%s: setup for tuner sp5659 on nokia dbox2\n", __FILE__);
+		}
 	}
 
 	return 0;
@@ -294,14 +302,15 @@ int ves1820_set_symbolrate (struct dvb_i2c_bus *i2c, u32 symbolrate)
         s16 SFIL=0;
         u16 NDEC = 0;
         u32 tmp, ratio;
+	u32 XIN, FIN;
 
-#ifndef DBOX2
-#define XIN 57840000UL
-#define FIN (57840000UL>>4)
-#else
-#define XIN 69600000UL
-#define FIN (69600000UL>>4)
-#endif
+	/* FIXME */
+	if (0) /* siemens pci */
+		XIN = 57840000UL;
+	else /* nokia dbox2 */
+		XIN = 69600000UL;
+
+	FIN = XIN >> 4;
 
         if (symbolrate > XIN/2) 
                 symbolrate = XIN/2;
