@@ -324,10 +324,18 @@ typedef struct {
 
 typedef struct {
 
-  unsigned short Reserved1: 6;
+  unsigned char Reserved1: 6;
   unsigned short PC: 10;
   
 } sENX_REG_EPC;
+
+typedef struct {
+
+  unsigned short Reserved1: 11;
+  unsigned int Offset: 19;
+  unsigned char Reserved2: 2;
+  
+} sENX_REG_VCOFFS;
 
 typedef struct {
 
@@ -379,6 +387,16 @@ typedef struct {
   unsigned char Reserved3: 1;
   
 } sENX_REG_VCP;
+
+typedef struct {
+
+  unsigned short Reserved1: 11;
+  unsigned int OFFSET: 19;
+  unsigned char Reserved2: 2;
+  
+} sENX_REG_VPOFFS1;
+
+#define sENX_REG_VPOFFS2 sENX_REG_VPOFFS1
 
 typedef struct {
 
