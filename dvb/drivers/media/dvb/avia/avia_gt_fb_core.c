@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.33  2002/07/19 22:59:21  waldi
+ *   * use sun8x16 font
+ *   * color 0 is transparent
+ *   * use 8bit clut mode by default
+ *
  *   Revision 1.32  2002/07/10 23:10:06  tmbinc
  *   some magic to let 8bpp/32bpp console work. may interfere with some guis, but who cares.. use pzap\!
  *
@@ -141,7 +146,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.32 $
+ *   $Revision: 1.33 $
  *
  */
 
@@ -188,11 +193,11 @@ static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */	       // TODO: NTSC
     RES_X, RES_Y, RES_X, RES_Y,	 /* W,H, W, H (virtual) load xres,xres_virtual*/
     0, 0,			       /* virtual -> visible no offset */
-    16, 0,			      /* depth -> load bits_per_pixel */
-    {10, 5, 0},			 /* ARGB 1555 */
-    {5, 5, 0},
-    {0, 5, 0},
-    {15, 1, 0},			 /* transparency */
+    8, 0,			      /* depth -> load bits_per_pixel */
+    {0, 0, 0},			 /* ARGB 1555 */
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},			 /* transparency */
     0,				  /* standard pixel format */
     FB_ACTIVATE_NOW,
     -1, -1,
@@ -455,22 +460,47 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int 
 {
 
 	if (regno > 255)
-		return 0;
+		return 1;
 
-	avia_gt_gv_set_clut(regno, transp, red, green, blue);
+	//printk ("avia_gt_fb: gtx_setcolreg: bpp: %d, regno: %d, red %x, green %x, blue %x, trans %x\n", current_par.bpp, regno, red, green, blue, transp);
 
-	red >>= 11;
-	green >>= 11;
-	blue >>= 11;
-	transp >>= 8;
-
-#ifdef FBCON_HAS_CFB16
-	if (regno < 16)
-		fbcon_cfb16_cmap[regno] = ((!!transp) << 15) | (red << 10) | (green << 5) | (blue);
+	switch (current_par.bpp) {
+#ifdef FBCON_HAS_CFB4
+		case 4:
+			if (!regno)
+				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
+			else
+				avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			break;
 #endif
 
-	return 0;
+#ifdef FBCON_HAS_CFB8
+		case 8:
+			if (!regno)
+				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
+			else
+				avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			break;
+#endif
 
+#ifdef FBCON_HAS_CFB16
+		case 16:
+			red >>= 11;
+			green >>= 11;
+			blue >>= 11;
+			transp >>= 15;
+
+			if (!regno)
+				fbcon_cfb16_cmap[0] = 0xfc0f;
+			if (regno < 16)
+				fbcon_cfb16_cmap[regno] = (transp << 15) | (red << 10) | (green << 5) | (blue);
+			break;
+#endif
+		default:
+			return 1;
+	}
+
+	return 0;
 }
 
 static int gtx_blank(int blank, struct fb_info_gen *info)
@@ -510,6 +540,11 @@ static void gtx_set_disp(const void *fb_par, struct display *disp, struct fb_inf
 			disp->dispsw = &fbcon_dummy;
 			break;
 	}
+
+#ifdef CONFIG_FBCON_SHIFT
+	disp->shift_x = 4;
+	disp->shift_y = 2;
+#endif /* CONFIG_FBCON_SHIFT */
 
 	disp->scrollmode = SCROLL_YREDRAW;
 }
@@ -579,7 +614,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.32 2002/07/10 23:10:06 tmbinc Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.33 2002/07/19 22:59:21 waldi Exp $\n");
 
     gt_info = avia_gt_get_info();
 
@@ -615,6 +650,8 @@ int __init avia_gt_fb_init(void)
     fbgen_do_set_var(&disp.var, 1, &fb_info.gen);
     fbgen_set_disp(-1, &fb_info.gen);
     fbgen_install_cmap(0, &fb_info.gen);
+
+    strcpy (fb_info.gen.info.fontname, "SUN8x16");
 
     if (register_framebuffer(&fb_info.gen.info) < 0)
 	return -EINVAL;
