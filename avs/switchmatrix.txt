@@ -1,0 +1,58 @@
+CXA2092	Switch Matrix
+---------------------
+Inputs:
+1	SAA CVBS/B/U
+2	VCR B
+3	SAA VBS/G/Y
+4	VCR G
+5	SAA C/R/V
+6	VCC
+7	SAA C/R/V
+8	VCR R
+9	TV  CVBS
+10	SAA VBS/CVBS
+11	SAA VBS/G/Y
+12	VCR CVBS
+
+Outputs:
+1	TV B/U
+2	TV G/Y
+3	TV R/V/C
+4	TV CVBS/VBS
+5	VCR C
+6	VCR CVBS/Y
+7	unused
+8	unused
+
+VSW1:
+	VOUT1	VOUT2	VOUT3	VOUT4
+0	1		3		5		9
+1	Bias	Bias	6		10
+2	Bias	Bias	7		11
+3	2		4		8		12
+4	Bias	Bias	5		3
+5	1		3		5		10
+6	1		3		5		11
+7	Bias	Bias	Bias	Bias
+	
+VSW2:
+	VOUT5	VOUT6
+0	5		9
+1	6		10
+2	7		11
+3	8		12
+4	5		3
+5	Bias	Bias
+6	Bias	Bias
+7	Bias	Bias
+
+VSW3:
+	VOUT7
+0	9
+1	Bias
+2	11
+3	12
+4	3
+5	Bias
+6	Bias
+7	Bias
