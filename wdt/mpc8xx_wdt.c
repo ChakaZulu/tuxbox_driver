@@ -21,11 +21,14 @@
  *
  *
  *   $Log: mpc8xx_wdt.c,v $
+ *   Revision 1.2  2002/10/18 13:59:58  Jolt
+ *   Tweaks for in-kernel compile
+ *
  *   Revision 1.1  2002/10/16 13:05:36  Jolt
  *   WDT API driver
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -44,13 +47,10 @@
 #include <asm/8xx_immap.h>
 #include <asm/irq.h>
 
-extern unsigned char __res[];
-static bd_t *binfo;
 static int wdt_irq_dev;
 static struct semaphore wdt_sem;
 static u32 wdt_status = 0;
 static u32 wdt_timeout = 0;
-static u32 wdt_usr_if = 1;
 
 static struct watchdog_info ident = {
 
@@ -78,17 +78,41 @@ void mpc8xx_wdt_interrupt(int irq, void * dev, struct pt_regs * regs)
 
 }
 
-static void mpc8xx_wdt_handler_alloc(void)
+#ifndef MODULE
+void mpc8xx_wdt_handler_install(bd_t *binfo)
 {
 
 	u32 pitc;
+	u32 sypcr;
+
+	sypcr = ((volatile immap_t *)IMAP_ADDR)->im_siu_conf.sc_sypcr;
+
+	if (!(sypcr & 0x04)) {
+
+		printk("mpc8xx_wdt: wdt disabled (SYPCR: 0x%08X)\n", sypcr);
 	
-#define PITRTCLK 8192
+		return;
+	
+	}
+	
+	mpc8xx_wdt_reset();
+
+	printk("mpc8xx_wdt: active wdt found (SWTC: 0x%04X, SWP: 0x%01X)\n", (sypcr >> 16), sypcr & 0x01);
+
+	wdt_timeout = (sypcr >> 16) & 0xFFFF;
+
+	if (!wdt_timeout)
+		wdt_timeout = 0xFFFF;
+
+	if (sypcr & 0x01)
+		wdt_timeout *= 2048;
 
 	/*
 	 * Fire trigger if half of the wdt ticked down 
 	 */
 	 
+#define PITRTCLK 8192
+
 	if ((wdt_timeout) > (UINT_MAX / PITRTCLK))
 		pitc = wdt_timeout / binfo->bi_intfreq * PITRTCLK / 2;
 	else
@@ -97,14 +121,16 @@ static void mpc8xx_wdt_handler_alloc(void)
 	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_pitc = pitc << 16;
 	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_piscr = (mk_int_int_mask(PIT_INTERRUPT) << 8);
 
-	if (request_8xxirq(PIT_INTERRUPT, mpc8xx_wdt_interrupt, 0, "pit", &wdt_irq_dev) != 0)
-		panic("mpc8xx_wdt: could not allocate pit irq!");
+	if (request_8xxirq(PIT_INTERRUPT, mpc8xx_wdt_interrupt, 0, "watchdog", &wdt_irq_dev))
+		panic("mpc8xx_wdt: could not allocate watchdog irq!");
 
 	printk("mpc8xx_wdt: keep-alive trigger installed (PITC: 0x%04X)\n", pitc);
+	
+	wdt_timeout /= binfo->bi_intfreq;
 
 }
 
-static void mpc8xx_wdt_handler_free(void)
+void mpc8xx_wdt_handler_remove(void)
 {
 
 	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_piscr = 0;
@@ -112,20 +138,21 @@ static void mpc8xx_wdt_handler_free(void)
 	free_irq(PIT_INTERRUPT, &wdt_irq_dev);
 	
 }
+#endif
 
 static void mpc8xx_wdt_handler_disable(void)
 {
 
 	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_piscr &= ~(PISCR_PIE | PISCR_PTE);
 
-	printk("mpc8xx_wdt: keep-alive trigger deactivated");
+	printk("mpc8xx_wdt: keep-alive handler deactivated");
 
 }
 
 static void mpc8xx_wdt_handler_enable(void)
 {
 
-	printk("mpc8xx_wdt: keep-alive trigger activated");
+	printk("mpc8xx_wdt: keep-alive handler activated");
 
 	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_piscr |= PISCR_PIE | PISCR_PTE;
 
@@ -219,7 +246,7 @@ static int mpc8xx_wdt_ioctl(struct inode *inode, struct file *file, unsigned int
 
 		case WDIOC_GETTIMEOUT:
 
-			return put_user((wdt_timeout / binfo->bi_intfreq), (int *)arg);
+			return put_user(wdt_timeout, (int *)arg);
 
 		default:
 
@@ -250,40 +277,7 @@ static struct miscdevice mpc8xx_wdt_miscdev = {
 static int __init mpc8xx_wdt_init(void)
 {
 
-	u32 sypcr;
-
-	printk("mpc8xx_wdt: $Id: mpc8xx_wdt.c,v 1.1 2002/10/16 13:05:36 Jolt Exp $\n");
-
-	binfo = (bd_t *)__res;
-
-	sypcr = ((volatile immap_t *)IMAP_ADDR)->im_siu_conf.sc_sypcr;
-
-	if (sypcr & 0x04) {
-	
-		mpc8xx_wdt_reset();
-
-		printk("mpc8xx_wdt: active wdt found (SWTC: 0x%04X, SWP: 0x%01X)\n", (sypcr >> 16), sypcr & 0x01);
-
-		wdt_timeout = (sypcr >> 16) & 0xFFFF;
-
-		if (!wdt_timeout)
-			wdt_timeout = 0xFFFF;
-
-		if (sypcr & 0x01)
-			wdt_timeout *= 2048;
-
-	} else {
-
-		printk("mpc8xx_wdt: wdt disabled (SYPCR: 0x%08X)\n", sypcr);
-	
-		return 0;
-	
-	}
-	
-	/* HACK HACK HACK BEGIN */
-	mpc8xx_wdt_handler_free();
-	/* HACK HACK HACK END */
-	mpc8xx_wdt_handler_alloc();
+	printk("mpc8xx_wdt: $Id: mpc8xx_wdt.c,v 1.2 2002/10/18 13:59:58 Jolt Exp $\n");
 
 	sema_init(&wdt_sem, 1);
 
@@ -291,12 +285,10 @@ static int __init mpc8xx_wdt_init(void)
 	
 		printk(KERN_WARNING "mpc8xx_wdt: cound not register userspace interface\n");
 		
-		wdt_usr_if = 0;
+		return -EFAULT;
 		
 	}
 	
-	mpc8xx_wdt_reset();
-
 	return 0;
 
 }
@@ -304,11 +296,10 @@ static int __init mpc8xx_wdt_init(void)
 static void __exit mpc8xx_wdt_exit(void)
 {
 
-	if (wdt_usr_if)
-		misc_deregister(&mpc8xx_wdt_miscdev);
-		
-	mpc8xx_wdt_handler_free();
+	misc_deregister(&mpc8xx_wdt_miscdev);
+
 	mpc8xx_wdt_reset();
+	mpc8xx_wdt_handler_enable();
 
 }
 
