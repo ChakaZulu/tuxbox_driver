@@ -24,6 +24,13 @@
 #ifndef AVIA_GT_PCM_H
 #define AVIA_GT_PCM_H
 
+#define AVIA_GT_PCM_BUFFER_COUNT	25
+#define AVIA_GT_PCM_MAX_SAMPLES		1023
+#define AVIA_GT_PCM_MAX_BPS		4
+#define AVIA_GT_PCM_BUFFER_SIZE		(AVIA_GT_PCM_MAX_SAMPLES * AVIA_GT_PCM_MAX_BPS)
+#define AVIA_GT_PCM_MEM_SIZE		(AVIA_GT_PCM_BUFFER_COUNT * AVIA_GT_PCM_BUFFER_SIZE)
+#define AVIA_GT_PCM_MEM_OFFSET		((1024 * 1024) - AVIA_GT_PCM_MEM_SIZE)
+
 unsigned int avia_gt_pcm_get_block_size(void);
 void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right);
 void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right);

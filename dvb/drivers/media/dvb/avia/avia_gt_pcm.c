@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.8  2002/04/13 21:00:28  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.7  2002/04/13 14:47:19  Jolt
  *   eNX/GTX merge
  *
@@ -45,7 +48,7 @@
  *
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -86,8 +89,8 @@ spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 		
 unsigned char pcm_chip_type;
 unsigned char swab_samples;
-sPcmBuffer pcm_buffer_array[ENX_PCM_BUFFER_COUNT];
-unsigned char swab_buffer[ENX_PCM_BUFFER_SIZE];
+sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
+unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE];
 
 // Warning - result is _per_ channel
 unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
@@ -238,7 +241,7 @@ static void avia_gt_pcm_irq(unsigned char reg, unsigned char bit)
 unsigned int avia_gt_pcm_get_block_size(void)
 {
 
-    return avia_gt_pcm_calc_buffer_size(ENX_PCM_MAX_SAMPLES);
+    return avia_gt_pcm_calc_buffer_size(AVIA_GT_PCM_MAX_SAMPLES);
 
 }
 
@@ -420,20 +423,34 @@ int avia_gt_pcm_set_endian(unsigned char be)
 
 int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
+    unsigned char bps_16;
     unsigned long flags;
+    sPcmBuffer *pcm_buffer;
     unsigned int sample_nr;
     unsigned short *swab_dest;
     unsigned short *swab_src;
     unsigned int sample_count;
-    sPcmBuffer *pcm_buffer;
+    unsigned char stereo;
     
     sample_count = avia_gt_pcm_calc_sample_count(buffer_size);
 
-    if (sample_count > ENX_PCM_MAX_SAMPLES)
-        sample_count = ENX_PCM_MAX_SAMPLES;
+    if (sample_count > AVIA_GT_PCM_MAX_SAMPLES)
+        sample_count = AVIA_GT_PCM_MAX_SAMPLES;
+	
+    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	bps_16 = enx_reg_s(PCMC)->W;
+	stereo = enx_reg_s(PCMC)->C;
+	
+    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	bps_16 = gtx_reg_s(PCMC)->W;
+	stereo = gtx_reg_s(PCMC)->C;
+	
+    }
 	
     // If 8-bit mono then sample count has to be even
-    if ((!enx_reg_s(PCMC)->W) && (!enx_reg_s(PCMC)->C))
+    if ((!bps_16) && (!stereo))
 	sample_count &= ~1;
 
     while (list_empty(&pcm_free_buffer_list)) {
@@ -458,7 +475,7 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
 	    
     spin_unlock_irqrestore(&free_buffer_lock, flags);
     
-    if ((enx_reg_s(PCMC)->W) && (swab_samples)) {
+    if ((bps_16) && (swab_samples)) {
 
 	copy_from_user(swab_buffer, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
 
@@ -490,17 +507,21 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
 
 void avia_gt_pcm_stop(void)
 {
-
-//    enx_reg_s(PCMC)->T = 1;
-
+/*
+    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(PCMC)->T = 1;
+    else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(PCMC)->T = 1;
+*/
 }
 
 int avia_gt_pcm_init(void)
 {
 
     unsigned char buf_nr;
+    int ad_reg, ad_bit, pf_reg, pf_bit;
 
-    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.7 2002/04/13 14:47:19 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.8 2002/04/13 21:00:28 Jolt Exp $\n");
 
     pcm_chip_type = avia_gt_get_chip_type();
     
@@ -511,8 +532,24 @@ int avia_gt_pcm_init(void)
 	return -EIO;
 	
     }
+
+    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	ad_reg = ENX_IRQ_REG(ENX_IRQ_PCM_AD);
+	ad_bit = ENX_IRQ_BIT(ENX_IRQ_PCM_AD);
+	pf_reg = ENX_IRQ_REG(ENX_IRQ_PCM_PF);
+	pf_bit = ENX_IRQ_BIT(ENX_IRQ_PCM_PF);
+	
+    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	ad_reg = GTX_IRQ_REG(GTX_IRQ_PCM_AD);
+	ad_bit = GTX_IRQ_BIT(GTX_IRQ_PCM_AD);
+	pf_reg = GTX_IRQ_REG(GTX_IRQ_PCM_PF);
+	pf_bit = GTX_IRQ_BIT(GTX_IRQ_PCM_PF);
+
+    }
 		
-    if (avia_gt_alloc_irq(ENX_IRQ_PCM_AD, avia_gt_pcm_irq)) {
+    if (avia_gt_alloc_irq(ad_reg, ad_bit, avia_gt_pcm_irq)) {
 
 	printk("avia_gt_pcm: unable to get pcm-ad interrupt\n");
 	
@@ -520,11 +557,11 @@ int avia_gt_pcm_init(void)
 	
     }
 		
-    if (avia_gt_alloc_irq(ENX_IRQ_PCM_PF, avia_gt_pcm_irq)) {
+    if (avia_gt_alloc_irq(pf_reg, pf_bit, avia_gt_pcm_irq)) {
 
 	printk("avia_gt_pcm: unable to get pcm-pf interrupt\n");
 	
-	avia_gt_free_irq(ENX_IRQ_PCM_AD);
+	avia_gt_free_irq(ad_reg, ad_bit);
 	
 	return -EIO;
 	
@@ -532,18 +569,20 @@ int avia_gt_pcm_init(void)
 
     avia_gt_pcm_reset();
 
-    for (buf_nr = 0; buf_nr < ENX_PCM_BUFFER_COUNT; buf_nr++) {
+    for (buf_nr = 0; buf_nr < AVIA_GT_PCM_BUFFER_COUNT; buf_nr++) {
     
-	pcm_buffer_array[buf_nr].offset = ENX_PCM_MEM_OFFSET + (ENX_PCM_BUFFER_SIZE * buf_nr);
+	pcm_buffer_array[buf_nr].offset = AVIA_GT_PCM_MEM_OFFSET + (AVIA_GT_PCM_BUFFER_SIZE * buf_nr);
 	pcm_buffer_array[buf_nr].queued = 0;
 	
 	list_add_tail(&pcm_buffer_array[buf_nr].list, &pcm_free_buffer_list);
 	
     }
     
-
     // Use external clock from AViA 500/600
-    enx_reg_s(PCMC)->I = 0;
+    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(PCMC)->I = 0;
+    else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(PCMC)->I = 0;
 
     // Pass through mpeg samples
     avia_gt_pcm_set_mpeg_attenuation(0x80, 0x80);
@@ -562,11 +601,23 @@ int avia_gt_pcm_init(void)
 void avia_gt_pcm_exit(void)
 {
 
-    avia_gt_free_irq(ENX_IRQ_PCM_AD);
-    avia_gt_free_irq(ENX_IRQ_PCM_PF);
+    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
-    enx_reg_s(RSTR0)->PCMA = 1;
-    enx_reg_s(RSTR0)->PCM = 1;
+	avia_gt_free_irq(ENX_IRQ_PCM_AD);
+        avia_gt_free_irq(ENX_IRQ_PCM_PF);
+    
+	enx_reg_s(RSTR0)->PCMA = 1;
+	enx_reg_s(RSTR0)->PCM = 1;
+	
+    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	avia_gt_free_irq(GTX_IRQ_PCM_AD);
+        avia_gt_free_irq(GTX_IRQ_PCM_PF);
+
+        gtx_reg_s(RR0)->ACLK = 1;
+	gtx_reg_s(RR0)->PCM = 1;
+    
+    }
 
 }
 

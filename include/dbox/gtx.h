@@ -7,17 +7,11 @@
 #define GTX_MEM_BASE		0x08000000
 #define GTX_MEM_SIZE		0x00100000
 
+
 #define GTX_FB_OFFSET		0x0100000
 
+
 #define GTX_INTERRUPT		SIU_IRQ1
-
-#define GTX_PCM_BUFFER_COUNT	25
-#define GTX_PCM_MAX_SAMPLES	1023
-#define GTX_PCM_MAX_BPS		4
-#define GTX_PCM_BUFFER_SIZE	(GTX_PCM_MAX_SAMPLES * GTX_PCM_MAX_BPS)
-#define GTX_PCM_MEM_SIZE	(GTX_PCM_BUFFER_COUNT * GTX_PCM_BUFFER_SIZE)
-#define GTX_PCM_MEM_OFFSET	((1024 * 1024) - GTX_PCM_MEM_SIZE)
-
 
                     
 #undef CR0
@@ -146,8 +140,9 @@
 #define GTX_REG_VCS	0x268
 
 
-#define GTX_IRQ_REG(reg, bit)	(reg)
-#define GTX_IRQ_BIT(reg, bit)	(bit)
+unsigned char GTX_IRQ_REG(reg, bit) { return reg; }
+unsigned char GTX_IRQ_BIT(reg, bit) { return bit; }
+//#define GTX_IRQ_BIT(reg, bit)	(bit)
 
 #define GTX_IRQ_REG_ISR0	0
 #define GTX_IRQ_REG_ISR1	1
