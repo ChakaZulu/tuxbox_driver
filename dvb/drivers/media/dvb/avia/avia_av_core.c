@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.82 2003/11/24 08:50:33 obi Exp $
+ * $Id: avia_av_core.c,v 1.83 2003/12/19 20:25:04 derget Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -770,10 +770,16 @@ void avia_av_set_default(void)
 	avia_av_dram_write(UCODE_MEMORY, 0);
 
 	/* set pal or ntsc */
-	if (tv_standard == 0)
-		avia_av_dram_write(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
-	else
-		avia_av_dram_write(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
+	switch(tv_standard) {
+		case AVIA_AV_VIDEO_SYSTEM_PAL:
+			avia_av_dram_write(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
+			break;
+		case AVIA_AV_VIDEO_SYSTEM_NTSC:
+			avia_av_dram_write(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
+			break;
+		default:
+			break; 
+			}
 }
 
 /* ---------------------------------------------------------------------- */
@@ -805,6 +811,31 @@ int avia_av_set_ppc_siumcr(void)
 	}
 
 	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+
+void avia_av_set_video_system(int video_system)
+{               
+	if (video_system == tv_standard) 
+		return;
+
+	switch (video_system) {
+                        
+		case AVIA_AV_VIDEO_SYSTEM_PAL:
+			tv_standard = 0;
+			avia_av_standby(1);
+			avia_av_standby(0);
+			break;
+		case AVIA_AV_VIDEO_SYSTEM_NTSC:
+			tv_standard = 1;
+			avia_av_standby(1);
+			avia_av_standby(0);
+			break;
+		default:
+			break;
+		}
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1391,7 +1422,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.82 2003/11/24 08:50:33 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.83 2003/12/19 20:25:04 derget Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();

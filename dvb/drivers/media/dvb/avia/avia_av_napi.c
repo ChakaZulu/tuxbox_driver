@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.27 2003/11/21 19:36:19 obi Exp $
+ * $Id: avia_av_napi.c,v 1.28 2003/12/19 20:25:04 derget Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -362,7 +362,22 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 	}
 
 	case VIDEO_SET_SYSTEM:
-		return -EOPNOTSUPP;
+	{
+		video_system_t system = (video_system_t) arg;
+
+		switch (system) {
+		case VIDEO_SYSTEM_PAL:
+			avia_av_set_video_system(AVIA_AV_VIDEO_SYSTEM_PAL);
+			break;
+		case VIDEO_SYSTEM_NTSC:
+			avia_av_set_video_system(AVIA_AV_VIDEO_SYSTEM_NTSC);
+			break;
+		default:
+			 return -EINVAL;
+		}
+
+		break;
+	}
 
 	case VIDEO_SET_HIGHLIGHT:
 		return -EOPNOTSUPP;
@@ -726,7 +741,7 @@ static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.27 2003/11/21 19:36:19 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.28 2003/12/19 20:25:04 derget Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

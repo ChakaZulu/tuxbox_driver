@@ -327,6 +327,9 @@
 #define PROC_STATE_FREEZE		0x0020
 #define PROC_STATE_NEWCHANNEL		0x0080
 
+#define AVIA_AV_VIDEO_SYSTEM_PAL	0
+#define AVIA_AV_VIDEO_SYSTEM_NTSC	1
+
 void avia_av_bypass_mode_set(const u8 enable);
 u16 avia_av_get_sample_rate(void);
 int avia_av_pid_set(const u8 type, const u16 pid);
@@ -347,6 +350,8 @@ u32 avia_av_read(const u8 mode, u32 address);
 void avia_av_write(const u8 mode, u32 address, const u32 data);
 u32 avia_av_cmd(u32 cmd, ...);
 void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
+
+void avia_av_set_video_system(int video_system);
 
 #define avia_av_gbus_write(a,d)	avia_av_write(TM_GBUS, a, d)
 #define avia_av_gbus_read(a)	avia_av_read(TM_GBUS, a)
