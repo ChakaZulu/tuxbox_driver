@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.39 $
+ *   $Revision: 1.40 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.40  2001/04/21 13:08:57  tmbinc
+ *   eNX now works on philips.
+ *
  *   Revision 1.39  2001/04/21 10:57:41  tmbinc
  *   small fix.
  *
@@ -185,7 +188,7 @@ MODULE_DESCRIPTION("Avia GTX demux driver");
 #endif
 
 /* parameter stuff */
-static int debug = 1;
+static int debug = 0;
 
 static gtx_demux_t gtx;
 
@@ -224,10 +227,17 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 {
   u8 w[4];
   w[0]=type<<5;
+#ifdef enx_dmx
+  if ((enx_reg_h(0x27FE)&0xFF00)>=0xA000)
+    w[0]|=(queue)&31;
+  else
+    w[0]|=(queue+1)&31;
+#else
   if ((rh(RISC+0x7FE)&0xFF00)>=0xA000)
     w[0]|=(queue)&31;
   else
     w[0]|=(queue+1)&31;
+#endif
   w[1]=(!!fork)<<7;
   w[1]|=cw_offset<<4;
   w[1]|=cc;
@@ -244,6 +254,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 #ifdef GTX_SECTIONS
 void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec, int filt_tab_idx, int no_of_filters)
 {
+#error please fix driver first! (enx support!)
   u8 w[4];
   w[0]=type<<5;
   if ((rh(RISC+0x7FE)&0xFF00)==0xB100)
@@ -306,9 +317,9 @@ void gtx_set_queue(int queue, u32 wp, u8 size)
    */
 #ifdef enx_dmx
   if (queue>=16)
-    enx_reg_h(CFGR0)|=0x10;
+    enx_reg_w(CFGR0)|=0x10;
   else
-    enx_reg_h(CFGR0)&=~0x10;
+    enx_reg_w(CFGR0)&=~0x10;
 #else   
   if (queue>=16)
     rh(CR1)|=0x10;
@@ -320,7 +331,6 @@ void gtx_set_queue(int queue, u32 wp, u8 size)
 #ifdef enx_dmx
   enx_reg_h(0x882+4*queue)=((wp>>16)&63)|(size<<6);
   enx_reg_h(0x880+4*queue)=wp&0xFFFF;
-  printk("set queue %d @%08x size %dkb\n", queue, wp, 64*(1<<size));
 #else  
   rh(QWPnL+4*queue)=wp&0xFFFF;
   rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
@@ -331,12 +341,12 @@ void set_queue_interrupt_address(int queue, int boundary)
 {
 #ifdef enx_dmx
   if (queue>=16)
-    enx_reg_h(CFGR0)|=0x10;
+    enx_reg_w(CFGR0)|=0x10;
   else
-    enx_reg_h(CFGR0)&=~0x10;
+    enx_reg_w(CFGR0)&=~0x10;
 	queue&=0xF;
 	mb();
-	enx_reg_w(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
+	enx_reg_h(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
 #else
 	rh(QI0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);					// das geht irgendwie nicht :(
 #endif    
@@ -345,22 +355,23 @@ void set_queue_interrupt_address(int queue, int boundary)
 u32 gtx_get_queue_wptr(int queue)
 {
   u32 wp=-1, oldwp;
+#ifdef enx_dmx    
+	if (queue>=16)
+		enx_reg_w(CFGR0)|=0x10;
+	else
+		enx_reg_w(CFGR0)&=~0x10;
+#else
+	if (queue>=16)
+		rh(CR1)|=0x10;
+	else
+		rh(CR1)&=~0x10;
+#endif      
+	mb();
+	queue &= 0xF;
+  
   do
   {
     oldwp=wp;
-#ifdef enx_dmx    
-    if (queue>=16)
-      enx_reg_h(CFGR0)|=0x10;
-    else
-      enx_reg_h(CFGR0)&=~0x10;
-#else
-    if (queue>=16)
-      rh(CR1)|=0x10;
-    else
-      rh(CR1)&=~0x10;
-#endif      
-		mb();
-    queue &= 0xF;
 #ifdef enx_dmx
     wp=enx_reg_h(0x880+4*queue);
     wp|=(enx_reg_h(0x882+4*queue)&63)<<16;
@@ -408,10 +419,11 @@ void gtx_set_queue_rptr(int queue, u32 read)
 #endif  
 }
 
-void gtx_reset_queue(int queue)
+void gtx_reset_queue(gtx_demux_feed_t *feed)
 {
 	int rqueue;
-	switch (queue)
+	feed->readptr=gtx_get_queue_wptr(feed->index);
+	switch (feed->index)
 	{
 	case 0:
 		rqueue=Q_VIDEO;
@@ -425,10 +437,10 @@ void gtx_reset_queue(int queue)
 	default:
 		return;
 	}
-	gtx_set_queue_rptr(rqueue, gtx_get_queue_wptr(queue));
+	gtx_set_queue_rptr(rqueue, gtx_get_queue_wptr(feed->index));
 }
 
-__u32 datamask=0;
+static __u32 datamask=0;
 
 static void gtx_queue_interrupt(int nr, int bit)
 {
@@ -445,8 +457,6 @@ static void gtx_queue_interrupt(int nr, int bit)
 		printk("unexpected enx queue interrupt %d:%d", nr, bit);
 		return;
 	}
-	if (!(wantirq&0xF))
-	  printk("gtx_queue_interrupt on queue %d (%d)\n", queue, wantirq);
 #else
   int queue=(nr-2)*16+bit;
 #endif  
@@ -651,8 +661,7 @@ static void gtx_dmx_set_pcr_source(int pid)
   enx_reg_h(FC)|=0x100;               // force discontinuity
   discont=1;
   enx_free_irq(1, 5);
-  		// DEBUG DEBUG DEBUG! !  ! !  
-//  enx_allocate_irq(1, 5, gtx_pcr_interrupt);       // pcr reception
+	enx_allocate_irq(1, 5, gtx_pcr_interrupt);       // pcr reception
 #else
   rh(PCRPID)=(1<<13)|pid;
   rh(FCR)|=0x100;               // force discontinuity
@@ -1160,7 +1169,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   }
 
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
-  gtx_reset_queue(gtxfeed->index);
+  gtx_reset_queue(gtxfeed);
 
   filter->start_up=1;
   filter->invalid=0;
@@ -1197,8 +1206,6 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 		udelay(100*1000);
 		printk("ISR4 %x\n", enx_reg_h(0x108));
 		printk("IMR4 %x\n", enx_reg_h(0x118));
-		
-		enx_reg_h(CFGR0)&=~0x10;
 		
 		printk("-> %x %x\n", enx_reg_h(0x880+gtxfeed->index*4), enx_reg_h(0x882+gtxfeed->index*4));
   }
