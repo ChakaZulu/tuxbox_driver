@@ -48,6 +48,8 @@
 #error no devfs
 #endif
 
+static int TTX = 0;
+
 static devfs_handle_t devfs_handle;
 static int active_vtxt_pid = -1;
 static sAviaGtInfo *gt_info;
@@ -66,7 +68,14 @@ static dmx_demux_t *dmx_demux;
 static void avia_gt_vbi_reset(unsigned char reenable)
 {
 
+	if (avia_gt_chip(ENX))
+		enx_reg_set(RSTR0, TTX, 1);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(RR1, TTX, 1);
+
 	if (reenable) {
+
+		TTX = 1;
 
 		if (avia_gt_chip(ENX))
 			enx_reg_set(RSTR0, TTX, 0);
@@ -74,18 +83,16 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 			gtx_reg_set(RR1, TTX, 0);
 
 	}
-	else
-	{
-		if (avia_gt_chip(ENX))
-			enx_reg_set(RSTR0, TTX, 1);
-		else if (avia_gt_chip(GTX))
-			gtx_reg_set(RR1, TTX, 1);
-	}
 
 }
 
 static int avia_gt_vbi_stop_vtxt(void)
 {
+
+	if (avia_gt_chip(ENX))
+		enx_reg_set(TCNTL, GO, 0);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(TTCR, GO, 0);
 
 	if (active_vtxt_pid >= 0) {
 
@@ -96,8 +103,6 @@ static int avia_gt_vbi_stop_vtxt(void)
 			return -EIO;
 
 		}
-
-		avia_gt_vbi_reset(0);
 
 		active_vtxt_pid = -1;
 
@@ -112,7 +117,7 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
 	struct timespec timeout;
 
-//	avia_gt_vbi_stop_vtxt();
+	avia_gt_vbi_stop_vtxt();
 
 	if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
 
@@ -130,7 +135,7 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
 	}
 
-	avia_gt_vbi_reset(1);
+	if(!TTX) avia_gt_vbi_reset(1);
 
 	if (avia_gt_chip(ENX))
 		enx_reg_set(TCNTL, GO, 1);
@@ -190,7 +195,7 @@ static int __init avia_gt_vbi_init(void)
 
 	struct list_head *dmx_list;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.13 2002/06/12 16:29:29 LazyT Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.14 2002/06/13 18:32:14 LazyT Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
