@@ -2,12 +2,12 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = ves1820.o ves1893.o ves1993.o tda8044h.o at76c651.o
+M_OBJS = at76c651.o tda8044h.o ves1820.o ves1x93.o
 obj-m  = $(M_OBJS)
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
-EXTRA_CFLAGS=-I../../../../../include -I../../../../include -DEXPORT_SYMTAB -D__DVB_PACK__
+EXTRA_CFLAGS=-I../dvb-core -I../../../../include -I../../../../../include -DEXPORT_SYMTAB -DDBOX2
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
