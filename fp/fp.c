@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.51  2002/01/19 17:20:18  Hunz
+ *   kbd-fix?
+ *
  *   Revision 1.50  2002/01/19 08:57:38  Hunz
  *   last idea
  *
@@ -164,7 +167,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.50 $
+ *   $Revision: 1.51 $
  *
  */
 
@@ -941,6 +944,7 @@ void irkbd_leds(unsigned char leds) {
 }
 
 void __init irkbd_init_hw(void) {
+  kbd_request_region();
   printk("fp.o: IR-Keyboard initialized\n");
 }
 
@@ -1044,7 +1048,7 @@ static int fp_init(void)
 #ifdef CONFIG_MAGIC_SYSRQ
         ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
-
+	irkbd_init_hw();
 	return 0;
 }
 
