@@ -516,7 +516,7 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 		*ber = ves1x93_readreg (i2c, 0x15);
                 *ber |= (ves1x93_readreg (i2c, 0x16) << 8);
-                *ber |= (ves1x93_readreg (i2c, 0x17) << 16);
+                *ber |= ((ves1x93_readreg (i2c, 0x17) & 0x0F) << 16);
 		*ber *= 10;
 		break;
 	}
