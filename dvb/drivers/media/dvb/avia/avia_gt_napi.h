@@ -95,6 +95,7 @@ typedef struct gtx_demux_feed_s
   int sec_recv;
   int sec_len;
   int check_crc;
+  u32 sec_crc;
   char sec_ccn;
 
   int index, int_nr, int_bit;
