@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.22  2001/03/11 22:58:09  gillem
+ *   - fix ts parser
+ *
  *   Revision 1.21  2001/03/11 21:34:29  gillem
  *   - fix af parser
  *
@@ -63,7 +66,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -558,12 +561,24 @@ static void gtx_task(void *data)
 				// go home paket !
 				if ( tsbuf[4] > 182 )
 				{
-					dprintk("WARNING !!! DoS ATTACKE detect [AF+PL] ;-) (ignore): %d\n",tsbuf[4]);
+					dprintk("warning afle=%d (ignore)\n",tsbuf[4]);
 	                continue;
 				}
                 tr-=tsbuf[4]+1;
                 p+=tsbuf[4]+1;
+
+				// go home paket !
+				if ( (tsbuf[p]+tsbuf[4]) > 182 )
+				{
+					dprintk("warning afle=%d plle=%d (ignore)\n",tsbuf[4],tsbuf[p]);
+	                continue;
+				}
               } else
+  			  if ( tsbuf[4] > 183 )
+			  {
+				dprintk("warning plle=%d (ignore)\n",tsbuf[4]);
+                continue;
+			  }
 
               if (tsbuf[1]&0x40)                // PUSI
               {
