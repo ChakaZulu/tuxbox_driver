@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.40 2002/11/12 08:45:24 obi Exp $
+ * $Id: at76c651.c,v 1.41 2002/11/16 02:45:33 obi Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -25,12 +25,15 @@
  *
  */
 
-#include <asm/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+
+#if defined(__powerpc__)
+#include <asm/bitops.h>
+#endif
 
 #include "dvb_frontend.h"
 #include "dvb_i2c.h"
@@ -70,6 +73,22 @@ static struct dvb_frontend_info at76c651_info = {
 		/* FE_CAN_QAM_512 | FE_CAN_QAM_1024 |  */
 
 };
+
+#if ! defined(__powerpc__)
+static __inline__ int __ilog2 (unsigned long x)
+{
+	int i;
+
+	if (x == 0)
+		return -1;
+
+	for (i = 0; x != 0; i++)
+		x >>= 1;
+
+	return i - 1;
+}
+		
+#endif
 
 static int at76c651_writereg(struct dvb_i2c_bus *i2c, u8 reg, u8 data)
 {
@@ -259,6 +278,14 @@ static int at76c651_set_qam(struct dvb_i2c_bus *i2c, fe_modulation_t qam)
 		case QAM_256:
 			qamsel = 0x08;
 			break;
+#if 0
+		case QAM_512:
+			qamsel = 0x09;
+			break;
+		case QAM_1024:
+			qamsel = 0x0A;
+			break;
+#endif
 		default:
 			return -EINVAL;
 			
@@ -466,7 +493,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.40 2002/11/12 08:45:24 obi Exp $\n");
+	printk("$Id: at76c651.c,v 1.41 2002/11/16 02:45:33 obi Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
