@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.70 2003/08/01 17:31:21 obi Exp $
+ * $Id: avia_av_core.c,v 1.71 2003/08/01 22:48:37 alexw Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1005,8 +1005,8 @@ static int avia_av_init(void)
 	avia_av_dram_write(OSD_BUFFER_END, 0x03a000);
 
 	avia_av_cmd(Reset);
-
-	udelay(1000);
+	udelay(1500);
+	avia_av_cmd(Reset);	/* this fixes init problems, tested on sagem */
 
 	avia_av_cmd(SelectStream, 0x00, 0xFFFF);
 	avia_av_cmd(SelectStream, 0x03, 0xFFFF);
@@ -1322,7 +1322,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.70 2003/08/01 17:31:21 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.71 2003/08/01 22:48:37 alexw Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
