@@ -189,7 +189,7 @@ int FESetFrontend(int fd, struct dvb_frontend_parameters *parameters)
 	
 }
 
-int main(void)
+int main (void)
 {
 
 	int fe_fd;
@@ -211,19 +211,38 @@ int main(void)
 	if (fe_info.type == FE_QAM) {
 
 		fe_param.frequency = 394000000;
+		fe_param.inversion = INVERSION_OFF;
 		fe_param.u.qam.symbol_rate = 6900000;
+		fe_param.u.qam.fec_inner = FEC_AUTO;
 		fe_param.u.qam.modulation = QAM_64;
-		fe_param.inversion = INVERSION_AUTO;
 	
 	} else if (fe_info.type == FE_QPSK) {
-	
-		//FIXME
+
+		fe_param.frequency = 12669500-10600000;
+		fe_param.inversion = INVERSION_OFF;
+		fe_param.u.qpsk.symbol_rate = 22000000;
+		fe_param.u.qpsk.fec_inner = FEC_AUTO;
 	
 	} else if (fe_info.type == FE_OFDM) {
-	
-		//FIXME
-	
+
+		fe_param.frequency = 730000000;
+		fe_param.inversion = INVERSION_OFF;
+		fe_param.u.ofdm.bandwidth = BANDWIDTH_8_MHZ;
+		fe_param.u.ofdm.code_rate_HP = FEC_2_3;
+		fe_param.u.ofdm.code_rate_LP = FEC_1_2;
+		fe_param.u.ofdm.constellation = QAM_16;
+		fe_param.u.ofdm.transmission_mode = TRANSMISSION_MODE_2K;
+		fe_param.u.ofdm.guard_interval = GUARD_INTERVAL_1_8;
+		fe_param.u.ofdm.hierarchy_information = HIERARCHY_NONE;
+		
+	} else {
+
+		printf("invalid fe_info.type\n");
+		
+		return -1;
+
 	}
+		
 	
 	FESetFrontend(fe_fd, &fe_param);
 	FEDumpBER(fe_fd);
@@ -232,4 +251,5 @@ int main(void)
 
 	close(fe_fd);
 
-}	
+}
+
