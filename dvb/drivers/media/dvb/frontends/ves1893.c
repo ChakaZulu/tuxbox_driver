@@ -1,5 +1,5 @@
 /* 
-    $Id: ves1893.c,v 1.16 2002/01/22 23:38:28 fnbrd Exp $
+    $Id: ves1893.c,v 1.17 2002/01/27 22:31:40 Hunz Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -21,6 +21,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.17  2002/01/27 22:31:40  Hunz
+    removed that annoying sync:-printk
+
     Revision 1.16  2002/01/22 23:38:28  fnbrd
     reverted to old api
 
@@ -378,7 +381,7 @@ void ves_set_frontend(struct frontend *front)
   }
   SetFEC(dclient, front->fec);
   SetSymbolrate(dclient, front->srate, 1);
-  printk("sync: %x\n", readreg(dclient, 0x0E));
+//  printk("sync: %x\n", readreg(dclient, 0x0E));
 }
 
 void ves_get_frontend(struct frontend *front)
