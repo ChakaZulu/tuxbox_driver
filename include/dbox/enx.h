@@ -10,6 +10,13 @@
 
 #define ENX_FB_OFFSET		0x00100000
 
+#define ENX_PCM_SIZE		(2 * 2048)
+//#define ENX_PCM_OFFSET		(ENX_MEM_SIZE - ENX_PCM_SIZE)
+#define ENX_PCM_OFFSET		((1024*1024) - ENX_PCM_SIZE)
+
+#define ENX_IR_SIZE		512
+#define ENX_IR_OFFSET		(ENX_PCM_OFFSET - ENX_IR_SIZE)
+
 
 #define ENX_INTERRUPT		SIU_IRQ1
 
@@ -48,6 +55,8 @@
 #define ENX_REG_CPCSRC1		0x05D0			// Copy/CRC Engine Source Address 1 Register
 #define ENX_REG_CPCDST		0x05D4			// Copy/CRC Engine Destination Address Register
 #define ENX_REG_CPCCMD		0x05D8			// Copy/CRC Engine Command Register
+#define ENX_REG_CPCTCAR		0x05DA			// Copy/CRC Engine Transparent Color or Alpha Register
+#define ENX_REG_CPCCRCSRC2	0x05DC			// Graphics Copy CRC-32 Accumulator or Source 2 Address
 #define ENX_REG_GCPWn		0x0640			// Graphics Copy Buffer Word n
 #define ENX_REG_CPCBWn		0x0680			// Copy/CRC Engine Buffer Word n
 #define ENX_REG_TMCR		0x0800			// Timer Master Control Register
@@ -277,6 +286,21 @@
 #define ENX_REG_QWPnL           0x0880
 #define ENX_REG_QWPnH           0x0882
 
+#define ENX_IRQ_REG(reg, bit)	(reg)
+#define ENX_IRQ_BIT(reg, bit)	(bit)
+
+#define ENX_IRQ_REG_ISR0	0
+#define ENX_IRQ_REG_ISR1	1
+#define ENX_IRQ_REG_ISR2	2
+#define ENX_IRQ_REG_ISR3	3
+#define ENX_IRQ_REG_ISR4	4
+#define ENX_IRQ_REG_ISR5	5
+
+#define ENX_IRQ_IR_TX		ENX_IRQ_REG_ISR0, 1
+#define ENX_IRQ_IR_RX		ENX_IRQ_REG_ISR0, 2
+#define ENX_IRQ_PCM_PF		ENX_IRQ_REG_ISR0, 3
+#define ENX_IRQ_PCM_AD		ENX_IRQ_REG_ISR0, 4
+
 typedef struct {
 
   unsigned char Reserved1: 3;
@@ -312,6 +336,48 @@ typedef struct {
   unsigned char VCP: 1;
 
 } sENX_REG_CFGR0;
+
+typedef struct {
+
+  unsigned char W: 1;
+  unsigned char C: 1;
+  unsigned char P: 1;
+  unsigned char N: 1;
+  unsigned char T: 1;
+  unsigned char D: 1;
+  unsigned char Cmd: 2;
+  unsigned char Reserved1: 2;
+  unsigned char Len: 6;
+
+} sENX_REG_CPCCMD;
+
+typedef struct {
+
+  union {
+    
+    struct {
+    
+      unsigned int CRC;
+	
+    } CRC;
+	
+    struct {
+
+      unsigned char Reserved1: 8;
+      unsigned int Addr: 24;
+	
+    } Composite;
+    
+  };
+
+} sENX_REG_CPCCRCSRC2;
+
+typedef struct {
+
+  unsigned char Reserved1: 8;
+  unsigned int Addr: 24;
+
+} sENX_REG_CPCSRC1;
 
 typedef struct {
 
@@ -382,6 +448,172 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char E: 1;
+  unsigned char L: 1;
+  unsigned char Reserved1: 7;
+  unsigned char Offset: 7;
+  
+} sENX_REG_IRRE;
+
+typedef struct {
+
+  unsigned short Reserved1: 9;
+  unsigned char Offset: 7;
+  
+} sENX_REG_IRRO;
+
+typedef struct {
+
+  unsigned char E: 1;
+  unsigned char C: 1;
+  unsigned char Reserved1: 7;
+  unsigned char Offset: 7;
+  
+} sENX_REG_IRTE;
+
+typedef struct {
+
+  unsigned short Reserved1: 9;
+  unsigned char Offset: 7;
+  
+} sENX_REG_IRTO;
+
+typedef struct {
+
+  unsigned char Reserved1: 8;
+  unsigned short Addr: 15;
+  unsigned short Reserved2: 9;
+  
+} sENX_REG_IRQA;
+
+typedef struct {
+
+  unsigned char Reserved1: 8;
+  unsigned int Addr: 23;
+  unsigned char W: 1;
+  
+} sENX_REG_PCMA;
+
+typedef struct {
+
+  unsigned char R: 2;
+  unsigned char W: 1;
+  unsigned char C: 1; 
+  unsigned char S: 1; 
+  unsigned char T: 1; 
+  unsigned char V: 1;
+  unsigned char P: 1; 
+  unsigned char M: 1; 
+  unsigned char I: 1; 
+  unsigned char Reserved: 2;
+  unsigned char ACD: 2;
+  unsigned char BCD: 2;
+  
+} sENX_REG_PCMC;
+
+typedef struct {
+
+  unsigned char PCMAL: 7;
+  unsigned char Reserved1: 1;
+  unsigned char PCMAR: 7;
+  unsigned char Reserved2: 1;
+  unsigned char MPEGAL: 7;
+  unsigned char Reserved3: 1;
+  unsigned char MPEGAR: 7;
+  unsigned char Reserved4: 1;
+  
+} sENX_REG_PCMN;
+
+typedef struct {
+
+  unsigned char Reserved1: 4;
+  unsigned short NSAMP: 12;
+  
+} sENX_REG_PCMS;
+
+typedef struct {
+
+  unsigned char Reserved1: 7;
+  unsigned char P: 1;
+  unsigned char Filt_H: 4;
+  unsigned char Filt_L: 4;
+  
+} sENX_REG_RFR;
+
+typedef struct {
+
+  unsigned char Reserved1: 8;
+  unsigned char RTCH: 8;
+  
+} sENX_REG_RPH;
+
+typedef struct {
+
+    unsigned char FRCH: 1;
+  unsigned char SC2: 1;
+  unsigned char SC1: 1;
+  unsigned char PCM: 1;
+  unsigned char AVI: 1;
+  unsigned char IR: 1;
+  unsigned char Reserved1: 2;
+  unsigned char FRMR: 1;
+  unsigned char TDMP: 1;
+  unsigned char TTX: 1;
+  unsigned char DAC: 1;
+  unsigned char Reserved2: 1;
+  unsigned char IDC: 1;
+  unsigned char PIG2: 1;
+  unsigned char Reserved3: 1;
+  unsigned char SPRC: 1;
+  unsigned char Reserved4: 1;
+  unsigned char QUE: 1;
+  unsigned char SDCT: 1;
+  unsigned char GFIX: 1;
+  unsigned char VIDC: 1;
+  unsigned char VDEO: 1;
+  unsigned char Reserved5: 1;
+  unsigned char PIG1: 1;
+  unsigned char BLIT: 1;
+  unsigned char COPY: 1;
+  unsigned char TIMR: 1;
+  unsigned char UART2: 1;
+  unsigned char UART1: 1;
+  unsigned char PAR1284: 1;
+  unsigned char PCMA: 1;
+
+} sENX_REG_RSTR0;
+
+typedef struct {
+
+  unsigned char Reserved1: 7;
+  unsigned char S: 1;
+  unsigned char RTC: 8;
+  
+} sENX_REG_RTC;
+
+typedef struct {
+
+  unsigned char Reserved1: 3;
+  unsigned short TickPeriod: 13;
+  
+} sENX_REG_RTP;
+
+typedef struct {
+
+  unsigned char Reserved1: 1;
+  unsigned char PE: 1;
+  unsigned char Reserved2: 1;
+  unsigned char RP: 1;
+  unsigned char FP: 1;
+  unsigned char Reserved3: 1;
+  unsigned char GO: 1;
+  unsigned char IE: 1;
+  unsigned char Data_ID: 8;
+  
+} sENX_REG_TCNTL;
+
+typedef struct {
+
   unsigned char Reserved1: 7;
   unsigned char E: 1;
   unsigned char Red: 8;
@@ -389,6 +621,16 @@ typedef struct {
   unsigned char Blue: 8;
   
 } sENX_REG_TCR1;
+
+typedef struct {
+
+  unsigned char PTS: 1;
+  unsigned char R: 1;
+  unsigned char E: 1;
+  unsigned char Reserved1: 8;
+  unsigned char State: 5;
+  
+} sENX_REG_TSTATUS;
 
 typedef struct {
 
