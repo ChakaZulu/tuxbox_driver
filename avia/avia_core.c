@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.28  2002/03/17 16:25:38  happydude
+ *   allow digital recording from SPDIF output
+ *
  *   Revision 1.27  2002/03/06 09:01:55  gillem
  *   - fix output
  *
@@ -134,7 +137,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.27 $
+ *   $Revision: 1.28 $
  *
  */
 
@@ -817,6 +820,9 @@ static void avia_audio_init(void)
 
         /* AUDIO_ATTENUATION */
         wDR(AUDIO_ATTENUATION, 0);
+
+	/* SET SCMS */
+	wDR(IEC_958_CHANNEL_STATUS_BITS, rDR(IEC_958_CHANNEL_STATUS_BITS)&~4);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1472,7 +1478,7 @@ init_module (void)
 {
 	int err;
 
-        printk ("AVIA: $Id: avia_core.c,v 1.27 2002/03/06 09:01:55 gillem Exp $\n");
+        printk ("AVIA: $Id: avia_core.c,v 1.28 2002/03/17 16:25:38 happydude Exp $\n");
 
 	aviamem = 0;
 
