@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.20 2002/04/09 23:50:12 kwon Exp $
+   $Id: ves1893.c,v 1.21 2002/04/13 05:30:33 obi Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.21  2002/04/13 05:30:33  obi
+    added FE_READ_UNCORRECTED_BLOCKS
+
     Revision 1.20  2002/04/09 23:50:12  kwon
     - mini-DiSEqC works correctly now
 
@@ -423,7 +426,9 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case FE_READ_UNCORRECTED_BLOCKS: 
 	{
 		u32 *ublocks=(u32 *) arg;
-		*ublocks=0;
+		*ublocks = readreg(client,0x18) & 0x7f;
+		writereg(client, 0x18, 0x00); // toggle bit 7 to clear count
+		writereg(client, 0x18, 0x80);
 		break;
 	}
 	case FE_READ_AFC:
