@@ -19,6 +19,4 @@ struct dvb_ts_header {
 
 #pragma pack()
 
-extern struct dvb_demux *avia_gt_napi_get_demux(void);
-
 #endif

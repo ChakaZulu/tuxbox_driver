@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.147  2002/11/10 21:34:50  Jolt
+ *   Fixes
+ *
  *   Revision 1.146  2002/11/10 21:25:24  Jolt
  *   Fixes
  *
@@ -248,7 +251,7 @@
  *
  *
  *
- *   $Revision: 1.146 $
+ *   $Revision: 1.147 $
  *
  */
 
@@ -1954,7 +1957,7 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 		
 			} else if (avia_gt_chip(GTX)) {
 			
-				if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) = (((u16 *)src)[pos / 2])) {
+				if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) != (((u16 *)src)[pos / 2])) {
 
 					gtx_reg_16n(GTX_REG_RISC + offset + pos) = ((u16 *)src)[pos / 2];
 					
@@ -2123,7 +2126,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.146 2002/11/10 21:25:24 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.147 2002/11/10 21:34:50 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

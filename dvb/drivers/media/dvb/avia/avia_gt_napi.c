@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.159 $
+ *   $Revision: 1.160 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.160  2002/11/10 21:34:50  Jolt
+ *   Fixes
+ *
  *   Revision 1.159  2002/11/05 22:03:25  Jolt
  *   Decoder work
  *
@@ -514,15 +517,21 @@
 
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dvb_demux.h"
+#include "../dvb-core/dvb_frontend.h"
 #include "../dvb-core/dmxdev.h"
 
+#include "avia_napi.h"
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_napi.h"
 #include "avia_gt_accel.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static struct dvb_adapter *adapter;
 static struct dvb_demux demux;
+static dmxdev_t dmxdev;
+static dmx_frontend_t fe_hw;
+static dmx_frontend_t fe_mem;
 static int hw_crc = 1;
 static int hw_dmx_ts = 1;
 static int hw_dmx_pes = 1;
@@ -902,17 +911,44 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 }
 
-struct dvb_demux *avia_gt_napi_get_demux(void)
+static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 {
 
-	return &demux;
+	if ((fe_status) & FE_HAS_LOCK) {
+
+		if (avia_gt_chip(ENX)) {
+		
+			enx_reg_set(FC, FE, 1);
+			enx_reg_set(FC, FH, 1);
 	
+		} else if (avia_gt_chip(GTX)) {
+		
+			//FIXME
+			
+		}
+	
+	} else {
+
+		if (avia_gt_chip(ENX)) {
+		
+			enx_reg_set(FC, FE, 0);
+	
+		} else if (avia_gt_chip(GTX)) {
+		
+			//FIXME
+			
+		}
+	
+	}
+
 }
 
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.159 2002/11/05 22:03:25 Jolt Exp $\n");
+	int result;
+
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.160 2002/11/10 21:34:50 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -923,6 +959,11 @@ int __init avia_gt_napi_init(void)
 		return -EIO;
 
     }
+	
+	adapter = avia_napi_get_adapter();
+	
+	if (!adapter)
+		return -EINVAL;
 	
 	memset(&demux, 0, sizeof(demux));
 
@@ -953,6 +994,81 @@ int __init avia_gt_napi_init(void)
 		
 	}
 
+	dmxdev.filternum = 31;
+	dmxdev.demux = &demux.dmx;
+	dmxdev.capabilities = 0;
+	
+	if ((result = dvb_dmxdev_init(&dmxdev, adapter)) < 0) {
+	
+		printk("avia_gt_napi: dvb_dmxdev_init failed (errno = %d)\n", result);
+
+		dvb_dmx_release(&demux);
+		
+		return result;
+	
+	}
+
+	fe_hw.id = "hw_frontend";
+	fe_hw.vendor = "Dummy Vendor";
+	fe_hw.model = "hw";
+	fe_hw.source = DMX_FRONTEND_0;
+
+	if ((result = demux.dmx.add_frontend(&demux.dmx, &fe_hw)) < 0) {
+	
+		printk("avia_napi: add_frontend (hw) failed (errno = %d)\n", result);
+
+		dvb_dmxdev_release(&dmxdev);
+		dvb_dmx_release(&demux);
+		
+		return result;
+		
+	}
+	
+	fe_mem.id = "mem_frontend";
+	fe_mem.vendor = "memory";
+	fe_mem.model = "sw";
+	fe_mem.source = DMX_MEMORY_FE;
+
+	if ((result = demux.dmx.add_frontend(&demux.dmx, &fe_mem)) < 0) {
+	
+		printk("avia_napi: add_frontend (mem) failed (errno = %d)\n", result);
+
+		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
+		dvb_dmxdev_release(&dmxdev);
+		dvb_dmx_release(&demux);
+		
+		return result;
+		
+	}
+
+	if ((result = demux.dmx.connect_frontend(&demux.dmx, &fe_hw)) < 0) {
+	
+		printk("avia_napi: connect_frontend failed (errno = %d)\n", result);
+
+		demux.dmx.remove_frontend(&demux.dmx, &fe_mem);
+		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
+		dvb_dmxdev_release(&dmxdev);
+		dvb_dmx_release(&demux);
+		
+		return result;
+		
+	}
+
+	if ((result = dvb_add_frontend_notifier(adapter, avia_gt_napi_before_after_tune, NULL)) < 0) {
+	
+		printk("avia_gt_napi: dvb_add_frontend_notifier failed (errno = %d)\n", result);
+
+		demux.dmx.close(&demux.dmx);
+		demux.dmx.disconnect_frontend(&demux.dmx);
+		demux.dmx.remove_frontend(&demux.dmx, &fe_mem);
+		demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
+		dvb_dmxdev_release(&dmxdev);
+		dvb_dmx_release(&demux);
+		
+		return result;
+		
+	}
+
 	return 0;
 
 }
@@ -960,11 +1076,15 @@ int __init avia_gt_napi_init(void)
 void __exit avia_gt_napi_exit(void)
 {
 
+	dvb_remove_frontend_notifier(adapter, avia_gt_napi_before_after_tune);
+	demux.dmx.close(&demux.dmx);
+	demux.dmx.disconnect_frontend(&demux.dmx);
+	demux.dmx.remove_frontend(&demux.dmx, &fe_mem);
+	demux.dmx.remove_frontend(&demux.dmx, &fe_hw);
+	dvb_dmxdev_release(&dmxdev);
 	dvb_dmx_release(&demux);
 
 }
-
-EXPORT_SYMBOL(avia_gt_napi_get_demux);
 
 #ifdef MODULE
 module_init(avia_gt_napi_init);
