@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx_pcm.c,v $
+ *   Revision 1.4  2002/04/05 23:15:13  Jolt
+ *   Improved buffer management - MP3 is rocking solid now
+ *
  *   Revision 1.3  2002/04/02 18:14:10  Jolt
  *   Further features/bugfixes. MP3 works very well now 8-)
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -59,44 +62,23 @@
 
 DECLARE_WAIT_QUEUE_HEAD(enx_pcm_wait);
 
-#define MAX_BUF 2
-int buf_size = (ENX_PCM_SIZE / MAX_BUF);
-int buf_ptr[MAX_BUF];
-unsigned char buf_busy[MAX_BUF];
-int buf_playing = 0;
-int buf_last = 1;
+typedef struct {
+
+    struct list_head List;
+    unsigned int Id;
+    unsigned int Offset;
+    unsigned int SampleCount;
+    unsigned char Queued;
+		
+} sPcmBuffer;
+		
+LIST_HEAD(pcm_busy_buffer_list);
+LIST_HEAD(pcm_free_buffer_list);
+		
 int swab_samples;
+sPcmBuffer pcm_buffer_array[ENX_PCM_BUFFER_COUNT];
 
-#define dprintk(...)
-//#define dprintk printk
-
-static void enx_pcm_irq(int reg, int bit)
-{
-
-    dprintk("enx_pcm: irq (reg=%d, bit=%d)\n", reg, bit);
-
-    dprintk("enx_pcm: irq begin (buf_busy[0]=%d buf_busy[1]=%d buf_playing=%d)\n", buf_busy[0], buf_busy[1], buf_playing);
-    
-    if (!buf_playing) {
-    
-	printk("enx_pcm: doh - not playing?!\n");
-    
-    } else {
-    
-	buf_busy[buf_playing - 1] = 0;
-	
-	if (buf_busy[!(buf_playing - 1)])
-	    buf_playing = (!(buf_playing - 1)) + 1;
-	else
-	    buf_playing = 0;
-    }
-
-    dprintk("enx_pcm: irq end (buf_busy[0]=%d buf_busy[1]=%d buf_playing=%d)\n", buf_busy[0], buf_busy[1], buf_playing);
-    
-    wake_up_interruptible(&enx_pcm_wait);
-
-}
-
+// Warning - result is _per_ channel
 unsigned int enx_pcm_calc_sample_count(unsigned int buffer_size)
 {
 
@@ -108,6 +90,71 @@ unsigned int enx_pcm_calc_sample_count(unsigned int buffer_size)
 
     return buffer_size;
     
+}
+
+// Warning - if stereo result is for _both_ channels
+unsigned int enx_pcm_calc_buffer_size(unsigned int sample_count)
+{
+
+    if (enx_reg_s(PCMC)->W)
+	sample_count *= 2;
+
+    if (enx_reg_s(PCMC)->C)
+	sample_count *= 2;
+
+    return sample_count;
+    
+}
+
+void enx_pcm_queue_buffer(void)
+{
+
+    sPcmBuffer *pcm_buffer;
+    struct list_head *ptr;
+
+    if (!enx_reg_s(PCMA)->W)
+        return;
+    
+    list_for_each(ptr, &pcm_busy_buffer_list) {
+    
+	pcm_buffer = list_entry(ptr, sPcmBuffer, List);
+	    
+	if (!pcm_buffer->Queued) {
+	
+    	    enx_reg_s(PCMS)->NSAMP = pcm_buffer->SampleCount;
+	    enx_reg_s(PCMA)->Addr = pcm_buffer->Offset >> 1;
+	    enx_reg_s(PCMA)->W = 0;
+
+	    pcm_buffer->Queued = 1;
+
+	    return;
+
+	}
+
+    }
+
+}
+
+static void enx_pcm_irq(int reg, int bit)
+{
+
+    sPcmBuffer *pcm_buffer;
+
+    if (!list_empty(&pcm_busy_buffer_list)) {
+    
+	pcm_buffer = list_entry(pcm_busy_buffer_list.next, sPcmBuffer, List);
+	list_del(&pcm_buffer->List);
+	
+	pcm_buffer->Queued = 0;
+	
+	list_add_tail(&pcm_buffer->List, &pcm_free_buffer_list);
+
+    }
+
+    enx_pcm_queue_buffer();
+
+    wake_up_interruptible(&enx_pcm_wait);
+
 }
 
 void enx_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
@@ -129,10 +176,9 @@ void enx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 int enx_pcm_set_rate(unsigned short rate)
 {
 
-    dprintk("enx_pcm: setting rate (rate=%d)\n", rate);
-
     switch(rate) {
     
+	case 48000:
 	case 44100:
 	
 	    enx_reg_s(PCMC)->R = 3;
@@ -166,8 +212,6 @@ int enx_pcm_set_rate(unsigned short rate)
 int enx_pcm_set_width(unsigned char width)
 {
 
-    dprintk("enx_pcm: setting width (width=%d)\n", width);
-
     if ((width == 8) || (width == 16))
 	enx_reg_s(PCMC)->W = (width == 16);
     else
@@ -179,8 +223,6 @@ int enx_pcm_set_width(unsigned char width)
 
 int enx_pcm_set_channels(unsigned char channels)
 {
-
-    dprintk("enx_pcm: setting channels (channels=%d)\n", channels);
 
     if ((channels == 1) || (channels == 2))
         enx_reg_s(PCMC)->C = (channels == 2);
@@ -194,8 +236,6 @@ int enx_pcm_set_channels(unsigned char channels)
 int enx_pcm_set_signed(unsigned char signed_samples)
 {
 
-    dprintk("enx_pcm: setting signed (signed=%d)\n", signed_samples);
-
     if ((signed_samples == 0) || (signed_samples == 1))
 	enx_reg_s(PCMC)->S = (signed_samples == 1);
     else
@@ -208,8 +248,6 @@ int enx_pcm_set_signed(unsigned char signed_samples)
 int enx_pcm_set_endian(unsigned char be)
 {
 
-    dprintk("enx_pcm: setting endian (be=%d)\n", be);
-
     if ((be == 0) || (be == 1))
 	swab_samples = (be == 0);
     else
@@ -221,93 +259,65 @@ int enx_pcm_set_endian(unsigned char be)
 
 int enx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
-    int buf_nr, i;
-    unsigned short *swap_target;
-    unsigned short swap_buffer[buf_size];
+    int i;
+    unsigned short *swab_target;
+    unsigned short swab_buffer[ENX_PCM_BUFFER_SIZE];
+    unsigned int SampleCount;
+    sPcmBuffer *pcm_buffer;
 
-    if (buffer_size > buf_size)
-	buffer_size = buf_size;
+    SampleCount = enx_pcm_calc_sample_count(buffer_size);
 
-    dprintk("enx_pcm: playing buffer (addr=0x%X, size=%d)\n", (unsigned int)buffer, buffer_size);
-
-    if (!enx_reg_s(PCMA)->W) {
-    
-	if (block) {
-
-	    dprintk("enx_pcm: pcm unit busy - blocking\n");
-	    
-    	    if (wait_event_interruptible(enx_pcm_wait, enx_reg_s(PCMA)->W))
-	    	return -ERESTARTSYS;
-
-	    dprintk("enx_pcm: blocking done\n");
-	    
-	} else {
-
-	    dprintk("enx_pcm: pcm unit busy - returning\n");
+    if (SampleCount > ENX_PCM_MAX_SAMPLES)
+        SampleCount = ENX_PCM_MAX_SAMPLES;
 	
-	    return -EWOULDBLOCK;
-	    
-	}
-	
-    }
-    
-    buf_nr = !buf_last;
+    // If 8-bit mono then sample count has to be even
+    if ((!enx_reg_s(PCMC)->W) && (!enx_reg_s(PCMC)->C))
+	SampleCount &= ~1;
 
-    if (buf_busy[buf_nr]) {
+    while (list_empty(&pcm_free_buffer_list)) {
 
 	if (block) {
 
-	    dprintk("enx_pcm: buffer queue busy - blocking\n");
-	    
-    	    if (wait_event_interruptible(enx_pcm_wait, !(buf_busy[buf_nr])))
+    	    if (wait_event_interruptible(enx_pcm_wait, !list_empty(&pcm_busy_buffer_list)))
 	    	return -ERESTARTSYS;
 
-	    dprintk("enx_pcm: blocking done\n");
-	    
 	} else {
 
-	    dprintk("enx_pcm: buffer queue busy - returning\n");
-	
 	    return -EWOULDBLOCK;
 	    
 	}
     
     }
-    
-    dprintk("enx_pcm: play_buffer (buf_busy[0]=%d buf_busy[1]=%d buf_nr=%d buf_playing=%d buf_ptr[buf_nr]=0x%X)\n", buf_busy[0], buf_busy[1], buf_nr, buf_playing, (unsigned int)buf_ptr[buf_nr]);
-    
+
+    pcm_buffer = list_entry(pcm_free_buffer_list.next, sPcmBuffer, List);
+    list_del(&pcm_buffer->List);
+	    
     if ((enx_reg_s(PCMC)->W) && (swab_samples)) {
 
-	copy_from_user(swap_buffer, buffer, buffer_size);
-	swap_target = (unsigned short *)(enx_get_mem_addr() + buf_ptr[buf_nr]);
+	copy_from_user(swab_buffer, buffer, enx_pcm_calc_buffer_size(SampleCount));
+	swab_target = (unsigned short *)(enx_get_mem_addr() + pcm_buffer->Offset);
 	
-	for (i = 0; i < buffer_size / 2; i++)
-	    swap_target[i] = swab16(swap_buffer[i]);
+	for (i = 0; i < enx_pcm_calc_buffer_size(SampleCount) / 2; i++)
+	    swab_target[i] = swab16(swab_buffer[i]);
     
     } else {
     
-	copy_from_user(enx_get_mem_addr() + buf_ptr[buf_nr], buffer, buffer_size);
+	copy_from_user(enx_get_mem_addr() + pcm_buffer->Offset, buffer, enx_pcm_calc_buffer_size(SampleCount));
 	
     }
     
-    buf_busy[buf_nr] = 1;
-    buf_last = buf_nr;
+    pcm_buffer->SampleCount = SampleCount;
     
-    if (!buf_playing)
-	buf_playing = buf_nr + 1;
+    list_add_tail(&pcm_buffer->List, &pcm_busy_buffer_list);
+    
+    enx_pcm_queue_buffer();
 
-    enx_reg_s(PCMS)->NSAMP = enx_pcm_calc_sample_count(buffer_size);
-    enx_reg_s(PCMA)->Addr = buf_ptr[buf_nr] >> 1;
-    enx_reg_s(PCMA)->W = 0;
-
-    return buffer_size;
+    return enx_pcm_calc_buffer_size(SampleCount);
 
 }
 
 void enx_pcm_stop(void)
 {
-
-    printk("enx_pcm: stopping playmode\n");
 
 //    enx_reg_s(PCMC)->T = 1;
 
@@ -331,12 +341,19 @@ static sAviaPcmOps enx_pcm_ops = {
 static int __init enx_pcm_init(void)
 {
 
-    printk("enx_pcm: $Id: enx_pcm.c,v 1.3 2002/04/02 18:14:10 Jolt Exp $\n");
+    unsigned char buf_nr;
 
-    buf_ptr[0] = ENX_PCM_OFFSET;
-    buf_busy[0] = 0;
-    buf_ptr[1] = ENX_PCM_OFFSET + buf_size;
-    buf_busy[1] = 0;
+    printk("enx_pcm: $Id: enx_pcm.c,v 1.4 2002/04/05 23:15:13 Jolt Exp $\n");
+
+    for (buf_nr = 0; buf_nr < ENX_PCM_BUFFER_COUNT; buf_nr++) {
+    
+	pcm_buffer_array[buf_nr].Id = buf_nr + 1;
+	pcm_buffer_array[buf_nr].Offset = ENX_PCM_MEM_OFFSET + (ENX_PCM_BUFFER_SIZE * buf_nr);
+	pcm_buffer_array[buf_nr].Queued = 0;
+	
+	list_add_tail(&pcm_buffer_array[buf_nr].List, &pcm_free_buffer_list);
+	
+    }
     
     // Reset PCM module
     enx_reg_s(RSTR0)->PCM = 1;
@@ -388,8 +405,6 @@ static void __exit enx_pcm_cleanup(void)
 
     enx_free_irq(ENX_IRQ_PCM_AD);
     enx_free_irq(ENX_IRQ_PCM_PF);
-    
-    enx_pcm_stop();
     
     enx_reg_s(RSTR0)->PCM = 1;
 
