@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.66  2002/03/02 19:09:09  tmbinc
+ *   fixed status
+ *
  *   Revision 1.65  2002/03/02 19:00:49  tmbinc
  *   ups, small typo
  *
@@ -209,7 +212,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.65 $
+ *   $Revision: 1.66 $
  *
  */
 
@@ -1438,7 +1441,7 @@ static void fp_check_queues(void)
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
 	if(defdata->fpVCR!=status)
-		fp_handle_vcr(defdata,status&1);
+		fp_handle_vcr(defdata,status);
 
 	iwork=0;
 /*
