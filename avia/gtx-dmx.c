@@ -17,6 +17,16 @@
 
 #include "gtx.h"
 #include "gtx-dmx.h"
+#include "avia.h"
+
+static unsigned char* gtxmem;
+static unsigned char* gtxreg;
+
+#ifdef MODULE
+MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+MODULE_DESCRIPTION("GTX DMX Driver");
+#endif
+
 
 #define NUM_QUEUES      32
 #define VIDEO_QUEUE     0
@@ -398,10 +408,13 @@ void gtx_dmx_set_time_source(int pid)
 #define PID_V   0x0FF
 #define PID_A   0x100
 
-void gtx_dmx_init(void)
+int gtx_dmx_init(void)
 {
   int i;
-  printk("initializing gtx_dmx_init\n");
+  printk("gtx_dmx: ");
+  gtxmem=gtx_get_mem();
+  gtxreg=gtx_get_reg();
+
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
   rh(RR0)=0;            // autsch, das muss so. kann das mal wer überprüfen?
   rh(RR1)=0;
@@ -413,7 +426,6 @@ void gtx_dmx_init(void)
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
  
-
   printk("AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
 
   for (i=0; i<NUM_PID_FILTER; i++)      // disable all pid filters
@@ -424,9 +436,6 @@ void gtx_dmx_init(void)
   
   for (i=0; i<15; i++)
     rh(QI0+i*2)=0x8000;
-  
-  gtx_allocate_irq(2, 0, gtx_queue_interrupt);
-  gtx_allocate_irq(2, 1, gtx_queue_interrupt);
 
   gtx_set_queue_pointer(Q_VIDEO, 0, 0, 11, 0);
   gtx_set_queue_pointer(Q_AUDIO, 0, 0, 8, 0);
@@ -454,6 +463,10 @@ void gtx_dmx_init(void)
   }
 
   init_waitqueue_head(&queuewait);
+
+  gtx_allocate_irq(2, 0, gtx_queue_interrupt);
+  gtx_allocate_irq(2, 1, gtx_queue_interrupt);
+
   gtx_set_queue_pointer(Q_VIDEO, gtx_queue[VIDEO_QUEUE].base, gtx_queue[VIDEO_QUEUE].base, 10, 0);        // set system queues
   gtx_set_queue_pointer(Q_AUDIO, gtx_queue[AUDIO_QUEUE].base, gtx_queue[AUDIO_QUEUE].base, 10, 0);
   gtx_set_queue_pointer(Q_TELETEXT, gtx_queue[AUDIO_QUEUE].base, gtx_queue[AUDIO_QUEUE].base, 10, 0);
@@ -463,8 +476,9 @@ void gtx_dmx_init(void)
   if (register_chrdev(GTXDMX_MAJOR, "gtx-dmx", &gtx_fops))
   {
     printk("gtx-dmx: unable to get major %d\n", GTXDMX_MAJOR);
-    return;
+    return -1;
   }
+  return 0;
 }
 
 void gtx_dmx_close(void)
@@ -481,3 +495,21 @@ void gtx_dmx_close(void)
       gtx_free_irq(j+2, i);
   gtx_free_irq(0, 8);           // PCR
 }
+
+#ifdef MODULE
+
+
+int init_module(void)
+{
+  return gtx_dmx_init();
+}
+
+void cleanup_module(void)
+{ 
+  printk("dmx: close\n");
+  gtx_dmx_close();
+}
+
+EXPORT_SYMBOL(cleanup_module);
+
+#endif

@@ -24,6 +24,9 @@
 #define RES_X           720
 #define RES_Y           576
 
+static unsigned char* gtxmem;
+static unsigned char* gtxreg;
+
 static void InitGraphics(int pal)
 {
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
@@ -263,6 +266,8 @@ static struct fb_ops gtxfb_ops = {
 
 int __init gtxfb_init(void)
 {
+  gtxmem=gtx_get_mem();
+  gtxreg=gtx_get_reg();
   fb_info.gen.fbhw = &gtx_switch;
   strcpy(fb_info.gen.info.modename, "AViA GTX Framebuffer");
   fb_info.gen.info.node = -1;
@@ -283,13 +288,16 @@ int __init gtxfb_init(void)
   fbgen_set_disp(-1, &fb_info.gen);
   fbgen_install_cmap(0, &fb_info.gen);
   
+  
   InitGraphics(1);
 
   if (register_framebuffer(&fb_info.gen.info) < 0) return -EINVAL;
 
   printk(KERN_INFO "fb%d: %s frame buffer device\n", 
          GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
-
+#ifdef MODULE
+  atomic_set(& THIS_MODULE->uc.usecount, 1);
+#endif
   return 0;
 }
 
@@ -298,3 +306,14 @@ void gtxfb_close(void)
   unregister_framebuffer((struct fb_info*)&fb_info);
 }
 
+#ifdef MODULE
+
+int init_module(void)
+{
+  return gtxfb_init();
+}
+void cleanup_module(void)
+{
+  gtxfb_close();
+}
+#endif

@@ -215,20 +215,22 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
   wDR(0x2AC, 0); // ACK
 }
 
-u32 Command(u32 command, u32 a1, u32 a2, u32 a3, u32 a4, u32 a5, u32 a6)
+u32 avia_command(u32 command, ...)
 {
-  u32 stataddr, tries;
+  u32 stataddr, tries, i;
+  va_list ap;
+  va_start(ap, command);
                 // TODO: kernel lock (somewhat DRINGEND wenn wir mal irgendwann .. und so weiter)
   tries=100;
   while (!rDR(0x5C)) { udelay(10000); if (! (tries--)) { printk("AVIA timeout.\n"); return -1; } }
   
   wDR(0x40, command);
-  wDR(0x44, a1);
-  wDR(0x48, a2);
-  wDR(0x4c, a3);
-  wDR(0x50, a4);
-  wDR(0x54, a5);
-  wDR(0x58, a6);
+  
+  for (i=0; i<((command&0x7F00)>>8); i++)
+    wDR(0x44+i*4, va_arg(ap, int));
+  va_end(ap);
+  for (; i<8; i++)
+    wDR(0x44+i*4, 0);
 
   wDR(0x5C, 0);
     // TODO: host-to-decoder interrupt
@@ -238,7 +240,7 @@ u32 Command(u32 command, u32 a1, u32 a2, u32 a3, u32 a4, u32 a5, u32 a6)
   return stataddr;
 }
 
-u32 WaitCommand(u32 sa)                 // sagte ich dass wir DRINGEND nen irq brauchen?
+u32 avia_wait(u32 sa)                 // sagte ich dass wir DRINGEND nen irq brauchen?
 {
   int tries=2000;
   if (sa==-1)
@@ -397,7 +399,7 @@ int init_module(void)
     printk("new_audio_config timeout\n");
     
 
-  if (WaitCommand(Command(0x8146, 0xB, 0, 0, 0, 0, 0))==-1)             // BR
+  if (avia_wait(avia_command(SetStreamType, 0xB))==-1)             // BR
     return 0;
 
 /*  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0xB, 0, 0, 0, 0, 0)));
@@ -408,16 +410,12 @@ int init_module(void)
 
   avia_set_pcr(0xFF00, 00);
 
-  WaitCommand(Command(0x0231, 0, 0xFF, 0, 0, 0, 0));
-  WaitCommand(Command(0x0231, 2, 0x100, 0, 0, 0, 0));
-  WaitCommand(Command(0x0231, 3, 0x100, 0, 0, 0, 0));
-  /* WaitCommand(*/ Command(0x343, 0, 0, 0, 0, 0, 0); //   );
+  avia_wait(avia_command(SelectStream, 0, 0xFF));
+  avia_wait(avia_command(SelectStream, 2, 0x100));
+  avia_wait(avia_command(SelectStream, 3, 0x100));
+  avia_command(Play, 0, 0, 0);
 
   printk("Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
-  printk("%x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
-  udelay(1000*1000);
-  udelay(1000*1000);
-  udelay(1000*1000);
   printk("%x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
   return 0;
 }
