@@ -115,27 +115,11 @@ dprintk("\n");
 
 int cxa2126_set_volume( struct i2c_client *client, int vol )
 {
-	int c=0,f=0;
-
-	if ( vol<=63 )
-	{
-		if (vol)
-		{
-	    		c = vol/8;
-
-			// check round :-/
-			if ( (c*8) > vol )
-				c--;
-
-	    		f = vol-(c*8);
-		}
-	} else
-	{
+	if ((vol > 63) || (vol < 0))
 		return -EINVAL;
-	}
-
-	cxa2126_data.evc = c;
-	cxa2126_data.evf = f;
+	
+	cxa2126_data.evc = (vol >> 3) & 7;
+	cxa2126_data.evf = vol & 7;
 
 	return cxa2126_set(client);
 }

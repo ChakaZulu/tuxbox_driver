@@ -97,29 +97,11 @@ int cxa2092_set(struct i2c_client *client)
 
 int cxa2092_set_volume( struct i2c_client *client, int vol )
 {
-	int c=0,f=0;
-
-	if ( vol<=63 )
-	{
-        if (vol)
-		{
-    		c = vol/8;
-
-            // check round :-/
-            if ( (c*8) > vol )
-			{
-                c--;
-            }
-
-    		f = vol-(c*8);
-        }
-	} else
-	{
+	if ((vol > 63) || (vol < 0))
 		return -EINVAL;
-	}
-
-	cxa2092_data.evc = c;
-	cxa2092_data.evf = f;
+	
+	cxa2092_data.evc = (vol >> 3) & 7;
+	cxa2092_data.evf = vol & 7;
 
 	return cxa2092_set(client);
 }
