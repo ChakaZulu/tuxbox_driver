@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.194 2003/12/07 15:50:19 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.195 2003/12/10 14:09:07 carjay Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -415,7 +415,7 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 	int err;
 
 	if (!clipmode) {
-		printk(KERN_CRIT "avia_gt_napi: FIXME - write to decoder during disabled clipmode\n");
+//		printk(KERN_CRIT "avia_gt_napi: FIXME - write to decoder during disabled clipmode\n");
 		return -EINVAL;
 	}
 
@@ -720,7 +720,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.194 2003/12/07 15:50:19 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.195 2003/12/10 14:09:07 carjay Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
