@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.12  2002/02/21 17:31:22  gillem
+ *   - fix mute
+ *
  *   Revision 1.11  2002/01/01 14:16:28  gillem
  *   - update
  *
@@ -55,7 +58,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -195,10 +198,8 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-	stv6412_data.c_ag = type&1;
-
-	// test only !
-	stv6412_data.svm  = type&1;
+	stv6412_data.tc_asc = type&1;	// tv & cinch mute
+	stv6412_data.v_asc  = type&1;	// vcr mute
 
 	return stv6412_set(client);
 }
