@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.7 2001/03/06 22:08:45 Hunz Exp $
+ * $Id: dvb.c,v 1.8 2001/03/07 17:39:58 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -206,6 +206,58 @@ int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
   dvb->front.volt=volt;
   SetSec(power,volt,dvb->front.ttk);
   return 0;
+}
+
+int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
+{
+        int i, ret, burst, len;
+        u8 msg[16];
+	u32 final_msg;
+
+        switch (seq->miniCommand) {
+        case SEC_MINI_NONE:
+                burst=-1;
+                break;
+        case SEC_MINI_A:
+                burst=0;
+                break;
+        case SEC_MINI_B:
+                burst=1;
+                break;
+        default:
+                return -EINVAL;
+        }
+        for (i=0; i<seq->numCommands; i++) {
+                switch (seq->commands[i].type) {
+                case SEC_CMDTYPE_DISEQC:
+                        len=seq->commands[i].u.diseqc.numParams;
+                        if (len>SEC_MAX_DISEQC_PARAMS)
+                                return -EINVAL;
+
+                        msg[0]=0xe0;
+                        msg[1]=seq->commands[i].u.diseqc.addr;
+                        msg[2]=seq->commands[i].u.diseqc.cmd;
+                        memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
+			memcpy(&final_msg,msg,4);
+                        fp_send_diseqc(final_msg);
+                        break;
+                case SEC_CMDTYPE_PAUSE:
+                        // what to do here ??
+                        break;
+                case SEC_CMDTYPE_VSEC:
+                default:
+                        return -EINVAL;
+                }
+        }
+        
+	// TODO: MINI-DiSEqC
+        //if (burst!=-1)
+        //        SendDiSEqCMsg(dvb, 0, msg, burst);
+
+	ret=secSetVoltage(dvb, seq->voltage);
+        if (ret<0)
+	  return ret;
+        return secSetTone(dvb, seq->continuousTone);
 }
 
 int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct file *file)
@@ -530,10 +582,13 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	  break;
 	case SEC_SEND_SEQUENCE:
 	  {
+	    struct secCmdSequence seq;
 	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 	      return -EPERM;
-	    return -ENOSYS; // TODO
-	  }
+	    if(copy_from_user(&seq, parg, sizeof(seq)))
+	      return -EFAULT;
+	    return secSendSequence(dvb, &seq);
+ 	  }
 	case SEC_SET_TONE:
 	  {
 	    secToneMode mode = (secToneMode) arg;
