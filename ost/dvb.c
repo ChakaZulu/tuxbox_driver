@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.32 2001/06/24 10:54:37 gillem Exp $
+ * $Id: dvb.c,v 1.33 2001/06/24 11:03:38 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -1213,10 +1213,22 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					return cam_reset();
 				}
+				case CA_GET_CAP:
+				{
+					return -EOPNOTSUPP;
+				}
+				case CA_GET_SLOT_INFO:
+				{
+					return -EOPNOTSUPP;
+				}
+				case CA_GET_DESCR_INFO:
+				{
+					return -EOPNOTSUPP;
+				}
 				case CA_GET_MSG:
 				{
-					ca_msg.slot_num = 0;
-					ca_msg.type = 0;
+					ca_msg.index = 0;
+					ca_msg.type  = 0;
 
 					if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
 					{
@@ -1243,8 +1255,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 					return 0;
 				}
+				case CA_SET_DESCR:
+				{
+					return -EOPNOTSUPP;
+				}
 				default:
-					return -EINVAL;
+				{
+					return -EOPNOTSUPP;
+				}
 			}
 
 			return 0;
