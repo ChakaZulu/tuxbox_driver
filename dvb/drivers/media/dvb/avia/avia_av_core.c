@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.50  2002/12/27 16:50:25  wjoost
+ *   AVIA 500 AC3 (kein Wunder das es die nicht mehr gibt)
+ *
  *   Revision 1.49  2002/12/17 16:41:14  wjoost
  *   Audioumschaltung
  *
@@ -203,7 +206,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.49 $
+ *   $Revision: 1.50 $
  *
  */
 
@@ -266,6 +269,7 @@ static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
 static u8 bypass_mode = 0;
+static u8 bypass_mode_changed = 0;
 static u16 pid_audio = 0xFFFF;
 static u16 decoder_pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
@@ -642,6 +646,16 @@ u32 avia_command(u32 command, ...)
 	va_list ap;
 	u32 status_addr;
 	
+
+#if 0
+	va_start(ap, command);
+	printk(KERN_INFO "Avia-Command: 0x%04X ",command);
+	for (i = 0; i < ((command & 0x7F00) >> 8); i++)
+		printk("0x%04X ",va_arg(ap, int));
+	va_end(ap);
+	printk("\n");
+#endif
+
 	if (!avia_cmd_status_get_addr()) {
 	
 		printk(KERN_ERR "avia_av: status timeout - chip not ready for new command\n");
@@ -1255,6 +1269,9 @@ u16 avia_get_sample_rate(void)
 void avia_av_bypass_mode_set(u8 enable)
 {
 
+	if (enable == bypass_mode)
+		return;
+
 	if (enable)
 		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
 	else
@@ -1265,6 +1282,7 @@ void avia_av_bypass_mode_set(u8 enable)
 	//FIXME change stream
 
 	bypass_mode = enable;
+	bypass_mode_changed = 1;
 
 }
 
@@ -1328,13 +1346,30 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			decoder_pid_audio = pid_audio;
 
-			if (bypass_mode)
-				avia_command(SelectStream, 0x02, pid_audio);
-			else
-				avia_command(SelectStream, 0x03, pid_audio);
+			/*
+			 * The AVIA 500 seems to have problems switching to AC3
+			 * and back in state "PLAY".
+			 */
 
-			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
-				avia_command(Play, 0, 0xFFFF, pid_audio);
+			if ((play_state_video == AVIA_AV_PLAY_STATE_PLAYING) && bypass_mode_changed && aviarev)
+			{
+				avia_command(Reset);
+				avia_command(SelectStream,3 - bypass_mode,pid_audio);
+				avia_command(SelectStream,0,pid_video);
+				avia_command(Play,0,pid_video,pid_audio);
+				bypass_mode_changed = 0;
+			}
+			else
+			{
+
+				if (bypass_mode)
+					avia_command(SelectStream, 0x02, pid_audio);
+				else
+					avia_command(SelectStream, 0x03, pid_audio);
+
+				if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
+					avia_command(Play, 0, 0xFFFF, pid_audio);
+			}
 		
 			break;
 
@@ -1350,7 +1385,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 				avia_command(SelectStream, 0x02, 0xFFFF);
 			else
 				avia_command(SelectStream, 0x03, 0xFFFF);
-		
+	
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
 				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 			
@@ -1623,7 +1658,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.49 2002/12/17 16:41:14 wjoost Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.50 2002/12/27 16:50:25 wjoost Exp $\n");
 
 	aviamem = 0;
 
