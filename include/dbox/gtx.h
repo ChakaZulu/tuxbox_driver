@@ -99,6 +99,10 @@
 
 #define gQI0            0x1C0
 
+#define gVSCA 		0x260
+#define gVSCP			0x264
+#define gVCS			0x268
+
 #define rw(a) (*((volatile unsigned long*)(gtxreg+g ## a)))
 #define rh(a) (*((volatile unsigned short*)(gtxreg+g ## a)))
 
