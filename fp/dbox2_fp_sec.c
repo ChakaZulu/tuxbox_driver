@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_sec.c,v 1.6 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_sec.c,v 1.7 2004/01/14 22:11:17 derget Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -203,11 +203,14 @@ dbox2_fp_sec_set_power (u8 power)
 	return dbox2_fp_sec_set(power, sec_voltage, sec_high_voltage, sec_tone);
 }
 
+/* UGLY , set voltage only makes sense whenn power is 1 
+   and i need it here , otherwise after SEC_VOLTAGE_OFF it never would go on
+   cause a SEC_VOLTAGE_ON issnt implemented */
 
 int
 dbox2_fp_sec_set_voltage (u8 voltage)
 {
-	return dbox2_fp_sec_set(sec_power, voltage, sec_high_voltage, sec_tone);
+	return dbox2_fp_sec_set(1, voltage, sec_high_voltage, sec_tone);
 }
 
 
