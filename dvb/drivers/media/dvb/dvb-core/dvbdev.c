@@ -39,7 +39,6 @@
 #include <linux/slab.h>
 #include <linux/videodev.h>
 
-#include "compat.h"
 #include "dvbdev.h"
 
 static int dvbdev_debug = 0;
@@ -67,6 +66,67 @@ static char *dnames[] = {
 	#define DVB_MAX_IDS              4
 	#define nums2minor(num,type,id)  ((num << 6) | (id << 4) | type)
 	#define DVB_DEVFS_FLAGS          (DEVFS_FL_DEFAULT)
+
+/* this is the same as video_usercopy() and should be replaced as
+   discussed already with something like generic_usercopy() */
+int dvb_usercopy(struct inode *inode, struct file *file,
+	             unsigned int cmd, unsigned long arg,
+		     int (*func)(struct inode *inode, struct file *file,
+		     unsigned int cmd, void *arg))
+{
+        char    sbuf[128];
+        void    *mbuf = NULL;
+        void    *parg = NULL;
+        int     err  = -EINVAL;
+
+        /*  Copy arguments into temp kernel buffer  */
+        switch (_IOC_DIR(cmd)) {
+        case _IOC_NONE:
+                parg = (void *)arg;
+                break;
+        case _IOC_READ: /* some v4l ioctls are marked wrong ... */
+        case _IOC_WRITE:
+        case (_IOC_WRITE | _IOC_READ):
+                if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
+                        parg = sbuf;
+                } else {
+                        /* too big to allocate from stack */
+                        mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+                        if (NULL == mbuf)
+                                return -ENOMEM;
+                        parg = mbuf;
+                }
+
+                err = -EFAULT;
+                if (copy_from_user(parg, (void *)arg, _IOC_SIZE(cmd)))
+                        goto out;
+                break;
+        }
+
+        /* call driver */
+        if ((err = func(inode, file, cmd, parg)) == -ENOIOCTLCMD)
+                err = -EINVAL;
+
+        if (err < 0)
+                goto out;
+
+        /*  Copy results into user buffer  */
+        switch (_IOC_DIR(cmd))
+        {
+        case _IOC_READ:
+        case (_IOC_WRITE | _IOC_READ):
+                if (copy_to_user((void *)arg, parg, _IOC_SIZE(cmd)))
+                        err = -EFAULT;
+                break;
+        }
+
+out:
+        if (mbuf)
+                kfree(mbuf);
+
+        return err;
+}
+
 
 
 static
@@ -173,7 +233,7 @@ int dvb_generic_ioctl(struct inode *inode, struct file *file,
 	if (!dvbdev->kernel_ioctl)
 		return -EINVAL;
 
-	return video_usercopy (inode, file, cmd, arg, dvbdev->kernel_ioctl);
+	return dvb_usercopy (inode, file, cmd, arg, dvbdev->kernel_ioctl);
 }
 
 

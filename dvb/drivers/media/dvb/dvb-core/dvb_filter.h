@@ -224,7 +224,7 @@ typedef struct audio_i{
 	uint32_t off;
 } AudioInfo;
 
-int get_ac3info(uint8_t *mbuf, int count, AudioInfo *ai, int pr);
+int dvb_filter_get_ac3info(uint8_t *mbuf, int count, AudioInfo *ai, int pr);
 
 
 #endif

@@ -30,7 +30,6 @@
 #include <linux/compatmac.h>
 #include <linux/list.h>
 
-#include "compat.h"
 #include "dvb_frontend.h"
 #include "dvbdev.h"
 
@@ -172,7 +171,7 @@ void dvb_bend_frequency (struct dvb_frontend_data *this_fe, int recursive)
 		frequency += this_fe->lnb_drift;
 		frequency += this_fe->bending;
 
-		if (this_fe != fe &&
+		if (this_fe != fe && fe->lost_sync_count != -1 &&
                     frequency > f - stepsize && frequency < f + stepsize)
 		{
 			if (recursive % 2)
@@ -515,6 +514,8 @@ void dvb_frontend_stop (struct dvb_frontend_data *fe)
 		wake_up_interruptible (&fe->wait_queue);
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout (5);
+		if (signal_pending(current))
+			break;
 	};
 }
 
@@ -613,13 +614,13 @@ int dvb_frontend_open (struct inode *inode, struct file *file)
 	if ((ret = dvb_generic_open (inode, file)) < 0)
 		return ret;
 
-	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		dvb_frontend_start (fe);
 
 		/*  empty event queue */
 		fe->events.eventr = fe->events.eventw;
 	}
-
+	
 	return ret;
 }
 
@@ -632,7 +633,7 @@ int dvb_frontend_release (struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (!((file->f_flags & O_ACCMODE) == O_RDONLY))
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		fe->release_jiffies = jiffies;
 
 	return dvb_generic_release (inode, file);

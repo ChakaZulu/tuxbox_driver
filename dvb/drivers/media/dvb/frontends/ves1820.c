@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "compat.h"
 #include "dvb_frontend.h"
 
 

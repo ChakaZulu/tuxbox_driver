@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "compat.h"
 #include "dvb_frontend.h"
 
 static int debug = 0;

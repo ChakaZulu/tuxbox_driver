@@ -5,8 +5,7 @@
 M_OBJS = dvb-core.o
 
 DVB_CORE = dvbdev.o dmxdev.o dvb_demux.o dvb_filter.o \
-	   dvb_frontend.o dvb_i2c.o dvb_net.o dvb_ksyms.o \
-	   compat.o
+	   dvb_frontend.o dvb_i2c.o dvb_net.o dvb_ksyms.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)

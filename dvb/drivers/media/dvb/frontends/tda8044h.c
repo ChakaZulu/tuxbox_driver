@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.20 2002/11/22 11:04:00 thegoodguy Exp $
+ * $Id: tda8044h.c,v 1.21 2003/01/02 05:23:57 obi Exp $
  *   
  * Philips TDA8044H QPSK Demodulator DVB API driver
  *
@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "compat.h"
 #include "dvb_frontend.h"
 #include "dvb_i2c.h"
 

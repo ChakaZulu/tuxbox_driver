@@ -27,7 +27,6 @@
 #include <linux/videodev.h>
 #include <asm/uaccess.h>
 
-#include "compat.h"
 #include "dmxdev.h"
 
 

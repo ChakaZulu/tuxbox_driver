@@ -41,4 +41,5 @@ EXPORT_SYMBOL(dvb_generic_release);
 
 EXPORT_SYMBOL(dvb_filter_pes2ts_init);
 EXPORT_SYMBOL(dvb_filter_pes2ts);
+EXPORT_SYMBOL(dvb_filter_get_ac3info);
 
