@@ -19,10 +19,13 @@
  *
  *
  *   $Log: i2c-8xx.h,v $
+ *   Revision 1.4  2001/02/20 18:37:05  gillem
+ *   - remove polling some drivers not work now !
+ *
  *   Revision 1.3  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -30,13 +33,15 @@
 #define _I2C_H_
 
 void i2c_init(int speed);
+
 void i2c_send( unsigned char address,
-              unsigned char secondary_address,
-              int enable_secondary,
-              unsigned short size, unsigned char dataout[] );
+				unsigned char secondary_address,
+				int enable_secondary,
+				unsigned short size, unsigned char dataout[] );
+
 void i2c_receive(unsigned char address,
-		unsigned char secondary_address,
-		int enable_secondary,
+				unsigned char secondary_address,
+				int enable_secondary,
                 unsigned short size_to_expect, unsigned char datain[] );
 
 #endif

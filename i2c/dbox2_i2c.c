@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.16  2001/02/20 18:36:54  gillem
+ *   - remove polling some drivers not work now !
+ *
  *   Revision 1.15  2001/02/18 13:18:02  gillem
  *   - more debug output
  *
@@ -32,7 +35,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -62,13 +65,15 @@
 
 /* parameter stuff */
 static int debug = 0;
-static int noint = 0;
+
+#define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
 /* mutex stuff */
 #define I2C_NONE		0
 #define I2C_INT_EVENT 	1
 
 int i2c_event_mask = 0;
+
 static DECLARE_MUTEX(i2c_mutex);
 
 /* interrupt stuff */
@@ -76,8 +81,6 @@ static void i2c_interrupt(void*);
 static wait_queue_head_t i2c_wait;
 
 /* ------------------------------------------------------------------------- */
-
-#define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
 #define TXBD_R 		0x8000  /* Transmit buffer ready to send */
 #define TXBD_W 		0x2000  /* Wrap, last buffer in buffer circle */
@@ -97,14 +100,14 @@ static wait_queue_head_t i2c_wait;
 
 #define RXBD_OV 	0x0002	/* indicates overrun */
 
-#define I2C_BUF_LEN      128
+/* ------------------------------------------------------------------------- */
 
-#define I2C_PPC_MASTER	 1
-#define I2C_PPC_SLAVE	 0
+#define I2C_PPC_MASTER	1
+#define I2C_PPC_SLAVE	0
+#define I2C_BUF_LEN     128
+#define I2C_INTR_TIMOUT 500
 
-#define I2C_INTR_TIMOUT  500
-
-#define MAXBD 4
+#define I2C_MAXBD		4
 
 /* ------------------------------------------------------------------------- */
 
@@ -117,17 +120,17 @@ typedef volatile struct I2C_BD {
 typedef volatile struct RX_TX_BD {
 	I2C_BD *rxbd;
 	I2C_BD *txbd;
-	unsigned char *rxbuf[MAXBD];
-	unsigned char *txbuf[MAXBD];
+	unsigned char *rxbuf[I2C_MAXBD];
+	unsigned char *txbuf[I2C_MAXBD];
 	int rxnum;
 	int txnum;
 } RX_TX_BD;
 
 static struct RX_TX_BD I2CBD;
 
-static I2C_BD *rxbd, *txbd;
+//static I2C_BD *rxbd, *txbd;
 
-static unsigned char *rxbuf, *txbuf;
+//static unsigned char *rxbuf, *txbuf;
 
 static	volatile i2c8xx_t	*i2c;
 static	volatile iic_t		*iip;
@@ -138,11 +141,9 @@ volatile cbd_t	*tbdf, *rbdf;
 /* ------------------------------------------------------------------------- */
 
 static inline int i2c_roundrate (int hz, int speed, int filter, int modval,
-				    int *brgval, int *totspeed)
+						int *brgval, int *totspeed)
 {
-	int moddiv = 1 << (5-(modval & 3)),
-	brgdiv,
-	div;
+	int moddiv = 1 << (5-(modval & 3)), brgdiv, div;
 
   	brgdiv = hz / (moddiv * speed);
 
@@ -165,6 +166,7 @@ static int i2c_setrate (int hz, int speed)
 {
 	immap_t	 *immap = (immap_t *)IMAP_ADDR ;
 	i2c8xx_t *i2c	= (i2c8xx_t *)&immap->im_i2c;
+
 	int brgval,
       modval,           // 0-3
       bestspeed_diff = speed,
@@ -248,8 +250,8 @@ static int i2c_init(int speed)
   	/* Set SDMA bus arbitration level to 5 (SDCR) */
   	immap->im_siu_conf.sc_sdcr = 0x0001 ;
 
-  	iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc (MAXBD*sizeof(I2C_BD)*2);
-  	iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + (MAXBD*sizeof(I2C_BD));
+  	iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc (I2C_MAXBD*sizeof(I2C_BD)*2);
+  	iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + (I2C_MAXBD*sizeof(I2C_BD));
 
   	I2CBD.rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
   	I2CBD.txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
@@ -259,7 +261,7 @@ static int i2c_init(int speed)
   	dprintk("[i2c-8xx]: RXBD1 = %08x\n", (int)I2CBD.rxbd);
   	dprintk("[i2c-8xx]: TXBD1 = %08x\n", (int)I2CBD.txbd);
 
-	for(i=0;i<MAXBD;i++) {
+	for(i=0;i<I2C_MAXBD;i++) {
 	  	I2CBD.rxbuf[i] = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
 		if (I2CBD.rxbuf[i]==NULL)
 		{
@@ -289,25 +291,6 @@ static int i2c_init(int speed)
 
   	I2CBD.rxbd[i-1].status |= RXBD_W;
   	I2CBD.txbd[i-1].status |= TXBD_W;
-
-/*
-	if (rxbuf==0)
-	{
-		dprintk("INIT ERROR: no RXBUF mem available\n");
-		return -1;
-	}
-
-  dprintk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
-
-	if (txbuf==0)
-	{
-		dprintk("INIT ERROR: no TXBUF mem available\n");
-		return -1;
-	}
-
-  dprintk("TXBD1->ADDR = %08X\n",(uint)txbd[0].addr);
-  dprintk("TXBD2->ADDR = %08X\n",(uint)txbd[1].addr);
-*/
 
   	/* Set big endian byte order */
   	iip->iic_tfcr = 0x15;
@@ -471,6 +454,13 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 	struct i2c_msg *pmsg;
 	int i,last,ret;
 
+	/* HACK HACK HACK */
+	if ( in_interrupt() )
+	{
+    	dprintk("[i2c-8xx]: Bad day for you.\n");	
+		return -EREMOTEIO;
+	}
+
 	down(&i2c_mutex);
 
 	ret = num;
@@ -482,12 +472,12 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		return -EREMOTEIO;
 	}
 
-	if ( num > (MAXBD*2) ) {
+	if ( num > (I2C_MAXBD*2) ) {
 		up(&i2c_mutex);
 		return -EREMOTEIO;
 	}
 
-	for(i=0;i<MAXBD;i++) {
+	for(i=0;i<I2C_MAXBD;i++) {
 		I2CBD.rxbd[i].status = RXBD_E;
 		I2CBD.txbd[i].status = 0;
 		I2CBD.rxbd[i].length = 0;
@@ -533,10 +523,8 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
     	}
   	}
 
-	if ( (!in_interrupt()) && (!noint) ) {
-		save_flags(flags);
-		cli();
-	}
+	save_flags(flags);
+	cli();
 
     /* Clear interrupt. */
   	i2c->i2c_i2cer = 0xff;
@@ -546,7 +534,7 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 
   	/* Enable I2C */
   	i2c->i2c_i2mod |= 1;
-
+/*
   	dprintk("[i2c-8xx]: ON  MOD: %04X CER: %04X COM: %04X ADD: %04X BRG: %04X CMR: %04X\n",\
 		i2c->i2c_i2mod,\
 		i2c->i2c_i2cer,\
@@ -554,25 +542,15 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		i2c->i2c_i2add,\
 		i2c->i2c_i2brg,\
 		i2c->i2c_i2cmr);
-
+*/
   	/* Transmit */
   	i2c->i2c_i2com |= 0x80;
 
-	/* TODO: fix this */
-	if ( in_interrupt() || noint ) {
-		/* TODO: add timeout */
-		udelay(1000*10);
-	  	dprintk("[i2c-8xx]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
-	} else {
-		i=interruptible_sleep_on_timeout(&i2c_wait,I2C_INTR_TIMOUT);
-		dprintk("[i2c-8xx]: intrspeed:=%d\n",I2C_INTR_TIMOUT-i);
-		restore_flags(flags);
-	}
+	i=interruptible_sleep_on_timeout(&i2c_wait,I2C_INTR_TIMOUT);
+	dprintk("[i2c-8xx]: intrspeed:=%d\n",I2C_INTR_TIMOUT-i);
+	restore_flags(flags);
 
-	/* TODO: i=0 : TIMEOUT no INTR !!!! */
-	if ( (!in_interrupt()) && (!noint) && (i==0)) {
-	}
-
+/*
   	dprintk("[i2c-8xx]: OFF MOD: %04X CER: %04X COM: %04X ADD: %04X BRG: %04X CMR: %04X\n", \
 		i2c->i2c_i2mod,\
 		i2c->i2c_i2cer,\
@@ -580,6 +558,7 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		i2c->i2c_i2add,\
 		i2c->i2c_i2brg,\
 		i2c->i2c_i2cmr);
+*/
 
 	/* copy rx-buffer */
 	I2CBD.rxnum = 0;
@@ -601,7 +580,7 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 
 			if ( I2CBD.rxbd[I2CBD.rxnum].status & RXBD_OV ) {
 				dprintk("[i2c-8xx]: RXBD: OVERRUN\n");
-			 	rxbd->status &= (~RXBD_OV);
+			 	I2CBD.rxbd[I2CBD.rxnum].status &= (~RXBD_OV);
 				ret = -EREMOTEIO;
 			}
 
@@ -638,14 +617,13 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 	i2c->i2c_i2mod&=(~1);
 
     up(&i2c_mutex);
-
   	return ret;
 }
 
 /* ------------------------------------------------------------------------- */
 
 static int algo_control(struct i2c_adapter *adapter,
-	unsigned int cmd, unsigned long arg)
+							unsigned int cmd, unsigned long arg)
 {
 	return 0;
 }
@@ -661,12 +639,12 @@ static u32 p8xx_func(struct i2c_adapter *adap)
 
 static struct i2c_algorithm i2c_8xx_algo = {
 	"PowerPC 8xx Algo",
-	I2C_ALGO_EXP,                   /* vorerst */
+	I2C_ALGO_EXP,		/* vorerst */
 	xfer_8xx,
 	NULL,
 	NULL,				/* slave_xmit		*/
 	NULL,				/* slave_recv		*/
-	algo_control,			/* ioctl		*/
+	algo_control,		/* ioctl		*/
 	p8xx_func,			/* functionality	*/
 };
 
@@ -679,7 +657,8 @@ static int __init i2c_algo_8xx_init (void)
 	printk("[i2c-8xx]: mpc 8xx i2c init\n");
 
 
-	if ( i2c_init(100000) < 0 ) {
+	if ( i2c_init(100000) < 0 )
+	{
 		printk("[i2c-8xx]: init failed\n");
 		return -1;
 	}
@@ -693,7 +672,7 @@ static int __init i2c_algo_8xx_init (void)
 //  MOD_INC_USE_COUNT;
 #endif
 
-  printk("i2c-8xx.o: adapter: %x\n", i2c_add_adapter(&adap));
+  printk("[i2c-8xx]: adapter: %x\n", i2c_add_adapter(&adap));
 
   return 0;
 }
@@ -706,11 +685,12 @@ static int i2c_8xx_del_bus(struct i2c_adapter *adap)
 
 	cpm_free_handler( CPMVEC_I2C );
 
-	if ((res = i2c_del_adapter(adap)) < 0) {
+	if ((res = i2c_del_adapter(adap)) < 0)
+	{
     	return res;
 	}
 
-	printk("i2c-8xx.o: adapter unregistered: %s\n",adap->name);
+	printk("[i2c-8xx]: adapter unregistered: %s\n",adap->name);
 
 #ifdef MODULE
 //  MOD_DEC_USE_COUNT;
@@ -727,7 +707,6 @@ MODULE_DESCRIPTION("I2C-Bus MPC8xx Intgrated I2C");
 
 MODULE_PARM(debug,"i");
 MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
-MODULE_PARM(noint,"i");
 
 int init_module(void)
 {
