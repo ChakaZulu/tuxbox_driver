@@ -5,7 +5,7 @@
 M_OBJS   = info.o
 obj-m    = info.o
 
-EXTRA_CFLAGS=-I../include -I../cvs/driver/include
+EXTRA_CFLAGS=-I../include -I../cvs/driver/include -DEXPORT_SYMTAB
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=

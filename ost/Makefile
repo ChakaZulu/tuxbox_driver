@@ -9,7 +9,7 @@ TEST_APPZ = test_audio test_av test_dmx test_front test_video
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../include
+EXTRA_CFLAGS=-I../include -DEXPORT_SYMTAB
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
