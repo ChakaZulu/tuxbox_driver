@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.15  2001/03/16 20:49:21  gillem
+ *   - fix errors
+ *
  *   Revision 1.14  2001/03/14 17:05:04  gillem
  *   - fix mute/unmute
  *
@@ -59,7 +62,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -137,7 +140,7 @@ int cxa2092_set(struct i2c_client *client)
 
 /* ---------------------------------------------------------------------- */
 
-inline int cxa2092_set_volume( struct i2c_client *client, int vol )
+int cxa2092_set_volume( struct i2c_client *client, int vol )
 {
 	int c=0,f=0;
 
@@ -265,7 +268,7 @@ inline int cxa2092_set_asw( struct i2c_client *client, int sw, int type )
 	return cxa2092_set(client);
 }
 
-inline int cxa2092_get_volume(void)
+int cxa2092_get_volume(void)
 {
     return ((cxa2092_data.evc*8)+cxa2092_data.evf);
 }

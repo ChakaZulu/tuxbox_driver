@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.6  2001/03/16 20:49:21  gillem
+ *   - fix errors
+ *
  *   Revision 1.5  2001/03/15 22:20:23  Hunz
  *   nothing important...
  *
@@ -37,7 +40,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -460,16 +463,16 @@ int i2c_avs_init(void)
 //		return -EIO;
 //	}
 
-  devfs_handle = devfs_register ( NULL, "dbox/avs0", DEVFS_FL_DEFAULT,
+	devfs_handle = devfs_register ( NULL, "dbox/avs0", DEVFS_FL_DEFAULT,
                                   0, 0,
                                   S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                                   &avs_fops, NULL );
 
-  if ( ! devfs_handle )
-  {
-    i2c_del_driver ( &driver );
-    return -EIO;
-  }
+	if ( ! devfs_handle )
+	{
+		i2c_del_driver ( &driver );
+		return -EIO;
+	}
 
   //  avs_mixerdev=register_sound_mixer(&avs_mixer_fops, -1);
 
@@ -480,13 +483,10 @@ int i2c_avs_init(void)
 void cleanup_module(void)
 {
   // unregister_sound_mixer(avs_mixerdev);
+
 	i2c_del_driver(&driver);
 
-//	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
-//		printk("[AVS]: unable to release major %d\n", AVS_MAJOR);
-//	}
-
-  devfs_unregister ( devfs_handle );
+	devfs_unregister ( devfs_handle );
 }
 #endif
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.7  2001/03/16 20:49:21  gillem
+ *   - fix errors
+ *
  *   Revision 1.6  2001/03/12 01:15:28  kwon
  *   cosmetics
  *
@@ -40,7 +43,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -129,7 +132,7 @@ int cxa2126_set(struct i2c_client *client)
 
 /* ---------------------------------------------------------------------- */
 
-inline int cxa2126_set_volume( struct i2c_client *client, int vol )
+int cxa2126_set_volume( struct i2c_client *client, int vol )
 {
 	int c=0,f=0;
 
@@ -255,7 +258,7 @@ inline int cxa2126_set_asw( struct i2c_client *client, int sw, int type )
 	return cxa2126_set(client);
 }
 
-inline int cxa2126_get_volume(void)
+int cxa2126_get_volume(void)
 {
     return ((cxa2126_data.evc*8)+cxa2126_data.evf);
 }
