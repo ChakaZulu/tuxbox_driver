@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.13 2001/03/10 12:21:42 gillem Exp $
+ * $Id: dvb.c,v 1.14 2001/03/10 18:53:25 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -277,6 +277,8 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
     return DmxDevFilterAlloc(&dvb->dmxdev, file);
   case DVB_DEVICE_DVR:
     return DmxDevDVROpen(&dvb->dmxdev, file);
+  case DVB_DEVICE_CA:
+	break;
   default:
     return -EINVAL;
   }
@@ -303,6 +305,8 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
     return DmxDevFilterFree(&dvb->dmxdev, file);
   case DVB_DEVICE_DVR:
     return DmxDevDVRClose(&dvb->dmxdev, file);
+  case DVB_DEVICE_CA:
+	break;
   default:
     return -EINVAL;
   }
@@ -322,6 +326,8 @@ ssize_t dvb_read(struct dvb_device *dvbdev, int type, struct file *file, char *b
     return DmxDevRead(&dvb->dmxdev, file, buf, count, ppos);
   case DVB_DEVICE_DVR:
     return DmxDevDVRRead(&dvb->dmxdev, file, buf, count, ppos);
+  case DVB_DEVICE_CA:
+	break;
   default:
     return -EOPNOTSUPP;
   }
@@ -339,6 +345,8 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
 //        case DVB_DEVICE_AUDIO:
   case DVB_DEVICE_DVR:
     return DmxDevDVRWrite(&dvb->dmxdev, file, buf, count, ppos);
+  case DVB_DEVICE_CA:
+    return -ENOSYS;
   default:
     return -EOPNOTSUPP;
   }
@@ -671,8 +679,38 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	{
 		switch (cmd)
 		{
+			ca_msg_t ca_msg;
+
 			case CA_RESET:
-				cam_reset();
+				return cam_reset();
+				break;
+			case CA_GET_MSG:
+                ca_msg.slot_num = 0;
+                ca_msg.type = 0;
+
+				if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+				{
+					return -EFAULT;
+				}
+
+				((ca_msg_t*)parg)->length = cam_read_message( ((ca_msg_t*)parg)->msg, ca_msg.length );
+/*
+				if(copy_to_user(parg, &ca_msg, sizeof(ca_msg_t)))
+				{
+					return -EFAULT;
+				}
+*/
+				return 0;
+				break;
+			case CA_SEND_MSG:
+				if(copy_from_user(&ca_msg, parg, sizeof(ca_msg_t)))
+				{
+					return -EFAULT;
+				}
+
+				cam_write_message( ca_msg.msg, ca_msg.length );
+
+				return 0;
 				break;
 			default:
 				return -EINVAL;
