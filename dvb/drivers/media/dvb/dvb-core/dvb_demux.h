@@ -62,6 +62,8 @@ struct dvb_demux_filter {
 };
 
 
+#define DMX_FEED_ENTRY(pos) list_entry(pos, struct dvb_demux_feed, list_head)
+
 struct dvb_demux_feed {
         union {
 	        dmx_ts_feed_t ts;
@@ -92,11 +94,8 @@ struct dvb_demux_feed {
         int cc;
 
         u16 peslen;
-};
 
-struct dvb_demux_feed_chain {
-	struct dvb_demux_feed * feed;
-	u8		        next;
+	struct list_head list_head;
 };
 
 struct dvb_demux {
@@ -126,8 +125,7 @@ struct dvb_demux {
         int recording; 
 
 #define DMX_MAX_PID 0x2000
-        u8 pid2feedindex[DMX_MAX_PID+1];
-	struct dvb_demux_feed_chain * feedchain;
+	struct list_head feed_list;
         u8 tsbuf[188];
         int tsbufp;
 
@@ -139,7 +137,7 @@ struct dvb_demux {
 int dvb_dmx_init(struct dvb_demux *dvbdemux);
 int dvb_dmx_release(struct dvb_demux *dvbdemux);
 void dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf);
-void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, int count);
+void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, size_t count);
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count);
 
 #endif /* _DVB_DEMUX_H_ */

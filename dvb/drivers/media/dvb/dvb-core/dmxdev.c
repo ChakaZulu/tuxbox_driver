@@ -581,11 +581,10 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *filter)
 		/* find active filter/feed with same PID */
 		for (i=0; i<dmxdev->filternum; i++) {
 			if (dmxdev->filter[i].state >= DMXDEV_STATE_GO &&
-			    dmxdev->filter[i].pid == para->pid) {
-				if (dmxdev->filter[i].type == DMXDEV_TYPE_SEC) {
-					*secfeed = dmxdev->filter[i].feed.sec;
-					break;
-				}
+			    dmxdev->filter[i].pid == para->pid && 
+			    dmxdev->filter[i].type == DMXDEV_TYPE_SEC) {
+				*secfeed = dmxdev->filter[i].feed.sec;
+				break;
 			}
 		}
 
@@ -946,14 +945,7 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 			up(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
-		if ( (arg < 1024) || (arg > 512 * 1024) )
-		{
-			ret = -EINVAL;
-		}
-		else
-		{
-			ret=dvb_dmxdev_set_buffer_size(dmxdevfilter, arg);
-		}
+		ret=dvb_dmxdev_set_buffer_size(dmxdevfilter, arg);
 		up(&dmxdevfilter->mutex);
 		break;
 	
