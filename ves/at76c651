@@ -1,5 +1,0 @@
-#!/bin/sh
-
-CFLAGS="-D__KERNEL__ -I/LinuxPPC/usr/src/linux/include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -fno-strict-aliasing -D__powerpc__ -fsigned-char -msoft-float -pipe -ffixed-r2 -Wno-uninitialized -mmultiple -mstring -mcpu=860 -I../8xx_io -DMODULE -I../include"
-
-ppc_8xx-gcc $CFLAGS -c at76c651.c -o at76c651.o
