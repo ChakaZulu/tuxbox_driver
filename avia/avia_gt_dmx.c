@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.57 $
+ *   $Revision: 1.58 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.58  2001/10/14 19:49:27  tmbinc
+ *   added fix
+ *
  *   Revision 1.57  2001/09/09 19:10:43  TripleDES
  *   changed the user-queue sizes for streaming (cheap workaround)
  *   - we need a better queue-management
@@ -1107,6 +1110,17 @@ static void gtx_task(void *data)
 					}	else
 						gtx->feed[queue].readptr=wptr;
 					
+					if (gtxfeed->queeue)	// workaround for videoqueue PES packets w/ wrong offset
+					{
+						b1l-=*b1;
+						b1+=*b1;
+						if (b1l<0)
+						{
+							b2l+=b1l;
+							b1l=0;
+						}
+					}
+					
           switch (gtx->feed[queue].type)
           {
 						// handle TS
@@ -1946,7 +1960,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.57 2001/09/09 19:10:43 TripleDES Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.58 2001/10/14 19:49:27 tmbinc Exp $\n");
 
 	return gtx_dmx_init();
 }

@@ -22,6 +22,7 @@ typedef struct Pcr_s
 // timing stuff
 /* PCR Processing for DAC output */
 #define TICK_RATE (27000000)                  /* 27MHz tick rate */
+#define TICK_QUEUE_MAX  010000	 								/* max video rate before changing queue */
 #define TICK_HI_RATE ((TICK_RATE)/600)        /* 45KHz tick rate ; for hi portion of Pcr */
 #define MAX_HI_DELTA ((TICK_HI_RATE)/5)       /* now 200 mse before 100 msec */
 #define TIME_THRESHOLD ((TICK_RATE)/4)        /* 250 msec @ 27 MHz */
@@ -30,6 +31,7 @@ typedef struct Pcr_s
 #else
 #define TIME_HI_THRESHOLD ((TICK_HI_RATE)/2)  /* 500 msec @ 45 KHz */
 #endif
+#define queeue pid==TICK_QUEUE_MAX						/* video queue update rate */
 #define MAX_DELTA_COUNT 3               /* max # of large deltas detected before declaring discontinuity */
 #define MAX_DAC 0x7FFF                  /*#define MAX_DAC 0x1FFF*/  /* maximum DAC range (+/-) */
 #define LARGE_POSITIVE_NUMBER 32760
