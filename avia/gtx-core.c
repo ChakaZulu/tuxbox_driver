@@ -20,11 +20,74 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: gtx-core.c,v $
+ *   Revision 1.2  2001/12/12 17:20:38  obi
+ *   version history was gone
+ *
  *   Revision 1.1  2001/12/12 01:47:10  obi
  *   re-added with correct file rights
  *
+ *   Revision 1.2  2001/10/15 21:04:33  tmbinc
+ *   sorry, CRLF sucks   
  *
- *   $Revision: 1.1 $
+ *   Revision 1.1  2001/10/15 20:59:47  tmbinc
+ *   re-added because of lameness
+ *
+ *   Revision 1.26  2001/08/18 18:21:10  TripleDES
+ *   moved the ucode loading to dmx
+ *
+ *   Revision 1.25  2001/07/22 09:55:38  gillem
+ *   - define bug fixed
+ *
+ *   Revision 1.24  2001/07/19 22:22:46  gillem
+ *   - add proc fs
+ *
+ *   Revision 1.23  2001/05/15 22:42:03  kwon
+ *   make do_firmread() do a printk on error even if not loaded with debug=1
+ *
+ *   Revision 1.22  2001/04/20 01:20:19  Jolt
+ *   Final Merge :-)
+ *
+ *   Revision 1.21  2001/04/19 23:32:27  Jolt
+ *   Merge Part II
+ *
+ *   Revision 1.20  2001/04/17 22:55:05  Jolt
+ *   Merged framebuffer
+ *
+ *   Revision 1.19  2001/04/03 22:38:32  kwon
+ *   make /proc/bus/gtx writable, just in case...
+ *
+ *   Revision 1.18  2001/03/21 15:30:25  tmbinc
+ *   Added SYNC-delay for avia, resulting in faster zap-time.
+ *
+ *   Revision 1.17  2001/03/18 00:03:35  Hunz
+ *   framebuffer fix
+ *
+ *   Revision 1.16  2001/03/04 13:02:25  tmbinc
+ *   Added uCode interface for debugging.
+ *
+ *   Revision 1.15  2001/03/03 11:27:17  gillem
+ *   - fix dprintk
+ *
+ *   Revision 1.14  2001/02/16 20:05:44  gillem
+ *   - add new options ucode,debug
+ *
+ *   Revision 1.13  2001/02/11 15:53:25  tmbinc
+ *   section filtering (not yet working)
+ *
+ *   Revision 1.12  2001/02/03 16:39:17  tmbinc
+ *   sound fixes
+ *
+ *   Revision 1.11  2001/02/03 14:48:16  gillem
+ *   - more audio fixes :-/
+ *
+ *   Revision 1.10  2001/02/03 11:30:10  gillem
+ *   - fix audio
+ *
+ *   Revision 1.9  2001/01/31 17:17:46  tmbinc
+ *   Cleaned up avia drivers. - tmb
+ *
+ *
+ *   $Revision: 1.2 $
  *
  */
 
