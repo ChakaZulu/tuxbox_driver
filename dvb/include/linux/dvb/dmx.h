@@ -154,7 +154,7 @@ typedef enum {
 	DMX_SOURCE_DVR0   = 16,
 	DMX_SOURCE_DVR1,
 	DMX_SOURCE_DVR2,
-	DMX_SOURCE_DVR3,
+	DMX_SOURCE_DVR3
 } dmx_source_t;
 
 

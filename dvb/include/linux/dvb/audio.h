@@ -47,7 +47,7 @@ typedef enum {
 typedef enum {
         AUDIO_STEREO,
         AUDIO_MONO_LEFT, 
-	AUDIO_MONO_RIGHT, 
+	AUDIO_MONO_RIGHT 
 } audio_channel_select_t;
 
 
