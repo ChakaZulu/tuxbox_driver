@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.76 $
+ *   $Revision: 1.77 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.77  2002/04/19 11:28:26  Jolt
+ *   Final DMX merge
+ *
  *   Revision 1.76  2002/04/19 11:02:43  obi
  *   build fix
  *
@@ -268,26 +271,14 @@
 
 #include <ost/demux.h>
 
-#include <dbox/info.h>
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
-#include <dbox/avia.h>
 #include "crc32.h"
 
 
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 static unsigned char dmx_chip_type;
-
-#ifdef ENX
-#undef rh
-#undef rw
-#define enx_dmx
-#else
-#undef enx_reg_w
-#undef enx_reg_h
-#define gtx_dmx
-#endif
 
 // #undef GTX_SECTIONS
 
@@ -296,11 +287,7 @@ static char *ucode = 0;
 #ifdef MODULE
 MODULE_PARM(ucode,"s");
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-#ifdef ENX
-MODULE_DESCRIPTION("Avia GTX demux driver");
-#else
-MODULE_DESCRIPTION("Avia eNX demux driver");
-#endif
+MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
 #endif
 
 static gtx_demux_t gtx;
@@ -335,8 +322,6 @@ const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
 	7, 7, 7, 7, 7, 7, 7, 7	// user 24..31
 	};		// 512kb total + (a little bit more ;)
-
-#ifdef enx_dmx
 
 #if 0
 static unsigned short rb[4096], rrb[32];
@@ -411,7 +396,7 @@ void enx_tdp_init(u8 *microcode)
 		*instr_ram++ = *src++;
 	}
 }
-#else
+
 void LoaduCode (u8 * microcode)
 {
 	unsigned short *dst=(unsigned short*)&rh (RISC);
@@ -440,7 +425,6 @@ void LoaduCode (u8 * microcode)
 		return;
 	}
 }
-#endif
 
 static int errno;
 
@@ -494,39 +478,48 @@ do_firmread (const char *fn, char **fp)
 
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
-#ifdef enx_dmx
-	enx_reg_16n(0x2700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
-#else
-	rh(RISC+0x700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
-#endif	
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_16n(0x2700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
+    else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	rh(RISC + 0x700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
+
 }
 
 void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec)
 {
-	u8 w[4];
-	w[0]=type<<5;
-#ifdef enx_dmx
-	if ((enx_reg_16n(0x27FE)&0xFF00)>=0xA000)
-		w[0]|=(queue)&31;
+
+    u8 w[4];
+    w[0] = type << 5;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
+	if ((enx_reg_16n(0x27FE) & 0xFF00) >= 0xA000)
+	    w[0] |= (queue) & 31;
 	else
-		w[0]|=(queue+1)&31;
-#else
-	if ((rh(RISC+0x7FE)&0xFF00)>=0xA000)
-		w[0]|=(queue)&31;
+	    w[0] |= (queue + 1) & 31;
+	    
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
+	if ((rh(RISC + 0x7FE) & 0xFF00) >= 0xA000)
+		w[0] |= (queue) & 31;
 	else
-		w[0]|=(queue+1)&31;
-#endif
-	w[1]=(!!fork)<<7;
-	w[1]|=cw_offset<<4;
-	w[1]|=cc;
-	w[2]=(!!start_up)<<6;
-	w[2]|=(!!pec)<<5;
-	w[3]=0;
-#ifdef enx_dmx
-	enx_reg_32n(0x2740+entry*4)=*(u32*)w;
-#else	
-	rw(RISC+0x740+entry*4)=*(u32*)w;
-#endif	
+		w[0] |= (queue + 1) & 31;
+		
+    }
+    
+    w[1] = (!!fork) << 7;
+    w[1] |= cw_offset << 4;
+    w[1] |= cc;
+    w[2] = (!!start_up) << 6;
+    w[2] |= (!!pec) << 5;
+    w[3] = 0;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_32n(0x2740 + entry * 4) = *(u32*)w;
+    else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	rw(RISC + 0x740 + entry * 4) = *(u32*)w;
+
 }
 
 #ifdef GTX_SECTIONS
@@ -590,73 +583,107 @@ void gtx_set_filter_parameter_table(int entry, u8 mask[8], u8 param[8], int not_
 
 void gtx_set_queue(int queue, u32 wp, u8 size)
 {
+
 	/* the 32 queue pointers are visible to the
 	 * host processor in two banks of 16.
 	 */
-#ifdef enx_dmx
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	if (queue>=16)
 		enx_reg_w(CFGR0)|=0x10;
 	else
 		enx_reg_w(CFGR0)&=~0x10;
-#else	 
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	if (queue>=16)
 		rh(CR1)|=0x10;
 	else
 		rh(CR1)&=~0x10;
-#endif	 
+
+    }
+
 	mb(); 
 	queue &= 0xF;
-#ifdef enx_dmx
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	enx_reg_16n(0x882+4*queue)=((wp>>16)&63)|(size<<6);
 	enx_reg_16n(0x880+4*queue)=wp&0xFFFF;
-#else	
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	rh(QWPnL+4*queue)=wp&0xFFFF;
 	rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
-#endif	
+	
+    }	
+    
 }
 
 void set_queue_interrupt_address(int queue, int boundary)
 {
-#ifdef enx_dmx
-	if (queue>=16)
-		enx_reg_w(CFGR0)|=0x10;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	if (queue >= 16)
+		enx_reg_w(CFGR0) |= 0x10;
 	else
-		enx_reg_w(CFGR0)&=~0x10;
-	queue&=0xF;
+		enx_reg_w(CFGR0) &= ~0x10;
+		
+	queue &= 0xF;
+	
 	mb();
-	enx_reg_16n(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
-#else
-	rh(QI0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);					// das geht irgendwie nicht :(
-#endif		
+	
+	enx_reg_16n(0x8C0 + queue * 2) = (boundary == -1) ? 0 : ((1 << 15) | boundary);
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	rh(QI0 + queue * 2) = (boundary == -1) ? 0 : ((1 << 15) | boundary);					// das geht irgendwie nicht :(
+
+    }		
+    
 }
 
 u32 gtx_get_queue_wptr(int queue)
 {
 	u32 wp=-1, oldwp;
-#ifdef enx_dmx		
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	if (queue>=16)
 		enx_reg_w(CFGR0)|=0x10;
 	else
 		enx_reg_w(CFGR0)&=~0x10;
-#else
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	if (queue>=16)
 		rh(CR1)|=0x10;
 	else
 		rh(CR1)&=~0x10;
-#endif			
+		
+    }			
+    
 	mb();
 	queue &= 0xF;
 	
 	do
 	{
 		oldwp=wp;
-#ifdef enx_dmx
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 		wp=enx_reg_16n(0x880+4*queue);
 		wp|=(enx_reg_16n(0x882+4*queue)&63)<<16;
-#else
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 		wp=rh(QWPnL+4*queue);
 		wp|=(rh(QWPnH+4*queue)&63)<<16;
-#endif		
+		
+    }
+
 	} while (wp!=oldwp);
 	return wp;
 }
@@ -667,47 +694,71 @@ u32 gtx_get_queue_wptr(int queue)
 
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 {
-#ifdef enx_dmx
-	int base=queue*8+0x8E0;
+
+    int base;
+    
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	base = queue * 8 + 0x8E0;
 	
-	enx_reg_16n(base)=read&0xFFFF;
-	enx_reg_16n(base+4)=write&0xFFFF;
-	enx_reg_16n(base+6)=((write>>16)&63)|(size<<6);
-	enx_reg_16n(base+2)=((read>>16)&63);
-#else
-	int base=queue*8+0x1E0;
+	enx_reg_16n(base) = read & 0xFFFF;
+	enx_reg_16n(base + 4) = write & 0xFFFF;
+	enx_reg_16n(base + 6) = ((write >> 16) & 63) | (size << 6);
+	enx_reg_16n(base + 2) = ((read >> 16) & 63);
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	base = queue * 8 + 0x1E0;
 	
-	rhn(base)=read&0xFFFF;
-	rhn(base+4)=write&0xFFFF;
-	rhn(base+6)=((write>>16)&63)|(size<<6);
-	rhn(base+2)=((read>>16)&63)|(halt<<15);
-#endif	
+	rhn(base) = read & 0xFFFF;
+	rhn(base + 4) = write & 0xFFFF;
+	rhn(base + 6) = ((write >> 16) & 63) | (size << 6);
+	rhn(base + 2) = ((read >> 16) & 63) | (halt << 15);
+	
+    }	
+	
 }
 
 void gtx_set_system_queue_rptr(int queue, u32 read)
 {
-#ifdef enx_dmx
-	int base=queue*8+0x8E0;
-	enx_reg_16n(base)=read&0xFFFF;
-	enx_reg_16n(base+2)=(read>>16)&63;
-#else
-	int base=queue*8+0x1E0;
-	rhn(base)=read&0xFFFF;
-	rhn(base+2)=((read>>16)&63)|(rhn(base+2)&(1<<15));
-#endif	
+
+    int base;
+    
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	base = queue * 8 + 0x8E0;
+	enx_reg_16n(base) = read & 0xFFFF;
+	enx_reg_16n(base + 2) = (read >> 16) & 63;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	base = queue * 8 + 0x1E0;
+	rhn(base) = read & 0xFFFF;
+	rhn(base + 2) = ((read >> 16) & 63) | (rhn(base + 2) & (1 << 15));
+	
+    }	
+	
 }
 
 void gtx_set_system_queue_wptr(int queue, u32 write)
 {
-#ifdef enx_dmx
-	int base=queue*8+0x8E0;
+
+    int base;
+    
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	base=queue*8+0x8E0;
 	enx_reg_16n(base+4)=write&0xFFFF;
 	enx_reg_16n(base+6)=((write>>16)&63)|(enx_reg_16n(base+6)&~63);
-#else
-	int base=queue*8+0x1E0;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	base=queue*8+0x1E0;
 	rhn(base+4)=write&0xFFFF;
 	rhn(base+6)=((write>>16)&63)|(rhn(base+6)&~63);
-#endif	
+	
+    }
+	
 }
 
 void gtx_reset_queue(gtx_demux_feed_t *feed)
@@ -739,8 +790,10 @@ static void gtx_queue_interrupt(unsigned short irq)
 
     unsigned char nr = AVIA_GT_IRQ_REG(irq); 
     unsigned char bit = AVIA_GT_IRQ_BIT(irq);
-#ifdef enx_dmx
-	int queue;
+    int queue;
+    
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	if (nr==3)
 		queue=bit+16;
 	else if (nr==4)
@@ -752,9 +805,13 @@ static void gtx_queue_interrupt(unsigned short irq)
 		printk("unexpected enx queue interrupt %d:%d", nr, bit);
 		return;
 	}
-#else
-	int queue=(nr-2)*16+bit;
-#endif
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	queue=(nr-2)*16+bit;
+
+    }
+
 	datamask|=1<<queue;
 	wantirq++;
 
@@ -764,60 +821,90 @@ static void gtx_queue_interrupt(unsigned short irq)
 
 static Pcr_t gtx_read_transport_pcr(void)
 {
-	Pcr_t pcr;
-#ifdef enx_dmx
-	 pcr.hi =enx_reg_h(TP_PCR_2)<<16;
-	pcr.hi|=enx_reg_h(TP_PCR_1);
-	pcr.lo =enx_reg_h(TP_PCR_0)&0x81FF;
-#else 
-	pcr.hi =rh(PCR2)<<16;
-	pcr.hi|=rh(PCR1);
-	pcr.lo =rh(PCR0)&0x81FF;
-#endif	
-	return pcr;
+
+    Pcr_t pcr;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	pcr.hi = enx_reg_h(TP_PCR_2) << 16;
+	pcr.hi |= enx_reg_h(TP_PCR_1);
+	pcr.lo = enx_reg_h(TP_PCR_0) & 0x81FF;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	pcr.hi = rh(PCR2) << 16;
+	pcr.hi |= rh(PCR1);
+	pcr.lo = rh(PCR0) & 0x81FF;
+
+    }
+
+    return pcr;
+
 }
 
 static Pcr_t gtx_read_latched_clk(void)
 {
-	Pcr_t pcr;
-#ifdef enx_dmx
-	pcr.hi =enx_reg_h(LC_STC_2)<<16;
-	pcr.hi|=enx_reg_h(LC_STC_1);
-	pcr.lo =enx_reg_h(LC_STC_0)&0x81FF;
-#else	
-	pcr.hi =rh(LSTC2)<<16;
-	pcr.hi|=rh(LSTC1);
-	pcr.lo =rh(LSTC0)&0x81FF;
-#endif	
-	return pcr;
+
+    Pcr_t pcr;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	pcr.hi = enx_reg_h(LC_STC_2) << 16;
+	pcr.hi |= enx_reg_h(LC_STC_1);
+	pcr.lo = enx_reg_h(LC_STC_0) & 0x81FF;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	pcr.hi = rh(LSTC2) << 16;
+	pcr.hi |= rh(LSTC1);
+	pcr.lo = rh(LSTC0) & 0x81FF;
+
+    }
+
+    return pcr;
+    
 }
 
 static Pcr_t gtx_read_current_clk(void)
 {
-	Pcr_t pcr;
-#ifdef enx_dmx
+
+    Pcr_t pcr;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	pcr.hi =enx_reg_h(STC_COUNTER_2)<<16;
 	pcr.hi|=enx_reg_h(STC_COUNTER_1);
 	pcr.lo =enx_reg_h(STC_COUNTER_0)&0x81FF;
-#else	
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	pcr.hi =rh(STC2)<<16;
 	pcr.hi|=rh(STC1);
 	pcr.lo =rh(STC0)&0x81FF;
-#endif
-	return pcr;
+
+    }
+    
+    return pcr;
+
 }
 
 static void gtx_set_pcr(Pcr_t pcr)
 {
-#ifdef enx_dmx
-	enx_reg_h(STC_COUNTER_2)=pcr.hi>>16;
-	enx_reg_h(STC_COUNTER_1)=pcr.hi&0xFFFF;
-	enx_reg_h(STC_COUNTER_0)=pcr.lo&0x81FF;
-#else
-	rh(STC2)=pcr.hi>>16;
-	rh(STC1)=pcr.hi&0xFFFF;
-	rh(STC0)=pcr.lo&0x81FF;
-#endif
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	enx_reg_h(STC_COUNTER_2) = pcr.hi >> 16;
+	enx_reg_h(STC_COUNTER_1) = pcr.hi & 0xFFFF;
+	enx_reg_h(STC_COUNTER_0) = pcr.lo & 0x81FF;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	rh(STC2) = pcr.hi >> 16;
+	rh(STC1) = pcr.hi & 0xFFFF;
+    	rh(STC0) = pcr.lo & 0x81FF;
+
+    }
+
 }
 
 static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
@@ -870,11 +957,12 @@ static void gtx_pcr_interrupt(unsigned short irq)
 		dprintk(/* KERN_DEBUG*/	"gtx_dmx: we have a discont:\n");
 		dprintk(KERN_DEBUG "gtx_dmx: new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
 		deltaPCR_AVERAGE=0;
-#ifdef enx_dmx		
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX)
 		enx_reg_h(FC)|=0x100;							 // force discontinuity
-#else
+    else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX)
 		rh(FCR)|=0x100;							 // force discontinuity
-#endif
+
 		gtx_set_pcr(TPpcr);
 		avia_set_pcr(TPpcr.hi, TPpcr.lo);
 		return;
@@ -923,16 +1011,20 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 	rw(DPCR)=((-deltaClk)<<16)|0x0009; */
 
-#ifdef enx_dmx
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
 
 	enx_reg_h(DAC_PC)=deltaClk;
 	enx_reg_h(DAC_CP)=9;
-#else
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
 
 	rw(DPCR)=(deltaClk<<16)|9;
-#endif	
+
+    }
 
 	oldClk=latchedClk;
 	return;
@@ -943,29 +1035,38 @@ WE_HAVE_DISCONTINUITY:
 
 static void gtx_flush_pcr(void)
 {
-	discont=1;
-#ifdef enx_dmx
-	enx_reg_h(FC)|=0x100;
-#else	
-	rh(FCR)|=0x100;
-#endif	
+
+    discont = 1;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_h(FC) |= 0x100;
+
+    else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	rh(FCR) |= 0x100;
+
 }
 
 static void gtx_dmx_set_pcr_source(int pid)
 {
-#ifdef enx_dmx
-	enx_reg_h(PCR_PID)=(1<<13)|pid;
-	enx_reg_h(FC)|=0x100;							 // force discontinuity
-	discont=1;
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	enx_reg_h(PCR_PID) = (1 << 13) | pid;
+	enx_reg_h(FC) |= 0x100;							 // force discontinuity
+	discont = 1;
 	avia_gt_free_irq(ENX_IRQ_PCR);
 	avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
-#else
-	rh(PCRPID)=(1<<13)|pid;
-	rh(FCR)|=0x100;							 // force discontinuity
-	discont=1;
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+	rh(PCRPID) = (1 << 13) | pid;
+	rh(FCR) |= 0x100;							 // force discontinuity
+	discont = 1;
 	avia_gt_free_irq(GTX_IRQ_PCR);
 	avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
-#endif	
+
+    }
+
 }
 
 extern int register_demux(struct dmx_demux_s *demux);
@@ -989,16 +1090,22 @@ int gtx_dmx_init(void)
 	}
 	set_fs(fs);
 	
-#ifdef enx_dmx
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	enx_reg_w(RSTR0)|=(1<<31)|(1<<23)|(1<<22);
 	enx_tdp_init(microcode);
 	enx_tdp_start();
-#else
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	LoaduCode(microcode);
-#endif				
+
+    }
+    
 	vfree(microcode);
 
-#ifdef enx_dmx
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	enx_reg_w(RSTR0) &= ~(1 << 27);
 	enx_reg_w(RSTR0) &= ~(1 << 13);
 	enx_reg_w(RSTR0) &= ~(1 << 11);
@@ -1022,10 +1129,12 @@ int gtx_dmx_init(void)
 	enx_reg_w(CFGR0) &= ~3; 				// disable clip mode
 
 	printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
+
 	if (!enx_reg_h(FIFO_PDCT))
 		printk("there MIGHT be no TS :(\n");
 
-#else
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 //	rh(RR1)&=~0x1C;							 // take framer, ci, avi module out of reset
 	rh(RR1)|=1<<6;
 	rh(RR1)&=~(1<<6);
@@ -1039,8 +1148,7 @@ int gtx_dmx_init(void)
 	rh(AVI)=0x71F;
 	rh(AVI+2)=0xF;
 	
-	//gtx_pcm_set_mpeg_attenuation(0x80, 0x80);
-#endif
+    }
 
 	GtxDmxInit(&gtx);
 	register_demux(&gtx.dmx);
@@ -1053,13 +1161,13 @@ extern int unregister_demux(struct dmx_demux_s *demux);
 void gtx_dmx_close(void)
 {
 	int i;
-#ifndef enx_dmx
 	int j;
-#endif
+
 	unregister_demux(&gtx.dmx);
 	GtxDmxCleanup(&gtx);
 
-#ifdef enx_dmx
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 	for (i=1; i<16; i++)
 	{
 		avia_gt_free_irq(AVIA_GT_IRQ(3, i));
@@ -1068,13 +1176,17 @@ void gtx_dmx_close(void)
 	avia_gt_free_irq(AVIA_GT_IRQ(5, 6));
 	avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
 	avia_gt_free_irq(ENX_IRQ_PCR);					 // PCR
-#else
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
 	for (j=0; j<2; j++)
 		for (i=0; i<16; i++)
 			avia_gt_free_irq(AVIA_GT_IRQ(j+2, i));
 
 	avia_gt_free_irq(GTX_IRQ_PCR);					 // PCR
-#endif
+
+    }
+
 }
 								// nokia api
 
@@ -1550,7 +1662,9 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 	if (!gtxfeed->tap)
 	{
 		gtxfeed->tap=1;
-#ifdef enx_dmx
+
+    if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
 		if (gtxfeed->index>=17)
 		{
 			gtxfeed->int_nr=3;
@@ -1565,23 +1679,27 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 			gtxfeed->int_bit=gtxfeed->index+6;
 		}
 		avia_gt_alloc_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit), gtx_queue_interrupt);
-#else	
-		avia_gt_alloc_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15), gtx_queue_interrupt);
-#endif
+
+    } else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+	avia_gt_alloc_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15), gtx_queue_interrupt);
+    }
 	}
 }
 
 static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 {
-	if (gtxfeed->tap)
-	{
-		gtxfeed->tap=0;
-#ifdef enx_dmx
-		avia_gt_free_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit));
-#else
-		avia_gt_free_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15));
-#endif
-	}
+
+    if (gtxfeed->tap) {
+
+	gtxfeed->tap = 0;
+
+        if (dmx_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	    avia_gt_free_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit));
+	else if (dmx_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	    avia_gt_free_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15));
+	
+    }
+    
 }
 
 static void dmx_update_pid(gtx_demux_t *gtx, int pid)
@@ -1624,10 +1742,8 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
 
-#ifdef enx_dmx	
 //	udelay(100);
 //	enx_tdp_trace();
-#endif
 
 	return 0;
 }
@@ -2083,7 +2199,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_dmx_init(void)
 {
 
-    printk("avia_gt_dmx: $Id: avia_gt_napi.c,v 1.76 2002/04/19 11:02:43 obi Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_napi.c,v 1.77 2002/04/19 11:28:26 Jolt Exp $\n");
 
     dmx_chip_type = avia_gt_get_chip_type();
     
