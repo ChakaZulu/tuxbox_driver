@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.66 2003/07/18 23:03:27 homar Exp $
+ * $Id: avia_av_core.c,v 1.67 2003/07/18 23:06:35 homar Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -492,7 +492,7 @@ u32 avia_av_cmd(u32 command, ...)
 	va_list ap;
 	u32 status_addr;
 
-#if 1
+#if 0
 	va_start(ap, command);
 	printk(KERN_INFO "Avia-Command: 0x%04X ",command);
 	for (i = 0; i < ((command & 0x7F00) >> 8); i++)
@@ -1354,7 +1354,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.66 2003/07/18 23:03:27 homar Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.67 2003/07/18 23:06:35 homar Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
