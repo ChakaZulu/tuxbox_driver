@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.4  2001/02/11 21:29:43  gillem
+ *   - some stuff
+ *
  *   Revision 1.3  2001/02/11 12:31:29  gillem
  *   - add ioctl SAAIOGREG,SAAIOSINP,SAAIOSENC
  *   - change i2c stuff
@@ -31,200 +34,204 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
-#define SAAIOGREG		1
-#define SAAIOSINP		2
-#define SAAIOSENC		3
+#define SAAIOGREG		1 /* read registers			*/
+#define SAAIOSINP		2 /* input control			*/
+#define SAAIOSOUT		3 /* output control 		*/
+#define SAAIOSENC		4 /* set encoder (pal/ntsc)	*/
 
-#ifdef __KERNEL__
 
 typedef struct s_saa_data {
-	unsigned char version   : 3;
-	unsigned char ccrdo     : 1;
-	unsigned char ccrde     : 1;
-	unsigned char res01     : 1;
-	unsigned char fseq      : 1;
-	unsigned char o_2       : 1;
+	unsigned char version   : 3  __attribute__((packed));
+	unsigned char ccrdo     : 1  __attribute__((packed));
+	unsigned char ccrde     : 1  __attribute__((packed));
+	unsigned char res01     : 1  __attribute__((packed));
+	unsigned char fseq      : 1  __attribute__((packed));
+	unsigned char o_2       : 1  __attribute__((packed));
 
-	unsigned char res02[0x25-0x01];	// NULL
+	unsigned char res02[0x26-0x01]   __attribute__((packed));	// NULL
 
-	unsigned char wss_7_0   : 8;
+	unsigned char wss_7_0   : 8  __attribute__((packed));
 
-	unsigned char wsson     : 1;
-	unsigned char res03     : 1;
-	unsigned char wss_13_8  : 6;
+	unsigned char wsson     : 1  __attribute__((packed));
+	unsigned char res03     : 1  __attribute__((packed));
+	unsigned char wss_13_8  : 6  __attribute__((packed));
 
-	unsigned char deccol    : 1;
-	unsigned char decfis    : 1;
-	unsigned char bs        : 6;
+	unsigned char deccol    : 1  __attribute__((packed));
+	unsigned char decfis    : 1  __attribute__((packed));
+	unsigned char bs        : 6  __attribute__((packed));
 
-	unsigned char sres      : 1;
-	unsigned char res04     : 1;
-	unsigned char be        : 6;
+	unsigned char sres      : 1  __attribute__((packed));
+	unsigned char res04     : 1  __attribute__((packed));
+	unsigned char be        : 6  __attribute__((packed));
 
-	unsigned char cg_7_0    : 8;
+	unsigned char cg_7_0    : 8  __attribute__((packed));
 
-	unsigned char cg_15_8   : 8;
+	unsigned char cg_15_8   : 8  __attribute__((packed));
 
-	unsigned char cgen      : 1;
-	unsigned char res05     : 3;
-	unsigned char cg_19_16  : 4;
+	unsigned char cgen      : 1  __attribute__((packed));
+	unsigned char res05     : 3  __attribute__((packed));
+	unsigned char cg_19_16  : 4  __attribute__((packed));
 
-	unsigned char vbsen     : 2;
-	unsigned char cvbsen    : 1;
-	unsigned char cen       : 1;
-	unsigned char cvbstri   : 1;
-	unsigned char rtri      : 1;
-	unsigned char gtri      : 1;
-	unsigned char btri      : 1;
+	unsigned char vbsen     : 2  __attribute__((packed));
+	unsigned char cvbsen    : 1  __attribute__((packed));
+	unsigned char cen       : 1  __attribute__((packed));
+	unsigned char cvbstri   : 1  __attribute__((packed));
+	unsigned char rtri      : 1  __attribute__((packed));
+	unsigned char gtri      : 1  __attribute__((packed));
+	unsigned char btri      : 1  __attribute__((packed));
 
-	unsigned char res06[0x37-0x2e];	// NULL
+	unsigned char res06[0x38-0x2e]  __attribute__((packed));	// NULL
 
-	unsigned char res07     : 3;
-	unsigned char gy        : 5;
+	unsigned char res07     : 3  __attribute__((packed));
+	unsigned char gy        : 5  __attribute__((packed));
 
-	unsigned char res08     : 3;
-	unsigned char gcd       : 5;
+	unsigned char res08     : 3  __attribute__((packed));
+	unsigned char gcd       : 5  __attribute__((packed));
 
-	unsigned char vbenb     : 1;
-	unsigned char res09     : 2;
-	unsigned char symp      : 1;
-	unsigned char demoff    : 1;
-	unsigned char csync     : 1;
-	unsigned char mp2c      : 2;
+	unsigned char vbenb     : 1  __attribute__((packed));
+	unsigned char res09     : 2  __attribute__((packed));
+	unsigned char symp      : 1  __attribute__((packed));
+	unsigned char demoff    : 1  __attribute__((packed));
+	unsigned char csync     : 1  __attribute__((packed));
+	unsigned char mp2c      : 2  __attribute__((packed));
 
-	unsigned char vpsen     : 1;
-	unsigned char ccirs     : 1;
-	unsigned char res10     : 4;
-	unsigned char edge      : 2;
+	unsigned char res10[0x54-0x3b]  __attribute__((packed));	// ???
 
-	unsigned char vps5      : 8;
-	unsigned char vps11     : 8;
-	unsigned char vps12     : 8;
-	unsigned char vps13     : 8;
-	unsigned char vps14     : 8;
+	unsigned char vpsen     : 1  __attribute__((packed));
+	unsigned char ccirs     : 1  __attribute__((packed));
+	unsigned char res11     : 4  __attribute__((packed));
+	unsigned char edge      : 2  __attribute__((packed));
 
-	unsigned char chps      : 8;
-	unsigned char gainu_7_0 : 8;
-	unsigned char gainv_7_0 : 8;
+	unsigned char vps5      : 8  __attribute__((packed));
+	unsigned char vps11     : 8  __attribute__((packed));
+	unsigned char vps12     : 8  __attribute__((packed));
+	unsigned char vps13     : 8  __attribute__((packed));
+	unsigned char vps14     : 8  __attribute__((packed));
 
-	unsigned char gainu_8   : 1;
-	unsigned char decoe     : 1;
-	unsigned char blckl     : 6;
+	unsigned char chps      : 8  __attribute__((packed));
+	unsigned char gainu_7_0 : 8  __attribute__((packed));
+	unsigned char gainv_7_0 : 8  __attribute__((packed));
 
-	unsigned char gainv_8   : 1;
-	unsigned char decph     : 1;
-	unsigned char blnnl     : 6;
+	unsigned char gainu_8   : 1  __attribute__((packed));
+	unsigned char decoe     : 1  __attribute__((packed));
+	unsigned char blckl     : 6  __attribute__((packed));
 
-	unsigned char ccrs      : 2;
-	unsigned char blnvb     : 6;
+	unsigned char gainv_8   : 1  __attribute__((packed));
+	unsigned char decph     : 1  __attribute__((packed));
+	unsigned char blnnl     : 6  __attribute__((packed));
 
-	unsigned char res11     : 8; // NULL
+	unsigned char ccrs      : 2  __attribute__((packed));
+	unsigned char blnvb     : 6  __attribute__((packed));
 
-	unsigned char downb     : 1;
-	unsigned char downa     : 1;
-	unsigned char inpi      : 1;
-	unsigned char ygs       : 1;
-	unsigned char res12     : 1;
-	unsigned char scbw      : 1;
-	unsigned char apl       : 1;
-	unsigned char fise      : 1;
+	unsigned char res12     : 8  __attribute__((packed)); // NULL
+
+	unsigned char downb     : 1  __attribute__((packed));
+	unsigned char downa     : 1  __attribute__((packed));
+	unsigned char inpi      : 1  __attribute__((packed));
+	unsigned char ygs       : 1  __attribute__((packed));
+	unsigned char res13     : 1  __attribute__((packed));
+	unsigned char scbw      : 1  __attribute__((packed));
+	unsigned char pal       : 1  __attribute__((packed));
+	unsigned char fise      : 1  __attribute__((packed));
 
 	// 62h
-	unsigned char rtce      : 1;
-	unsigned char bsta      : 7;
+	unsigned char rtce      : 1  __attribute__((packed));
+	unsigned char bsta      : 7  __attribute__((packed));
 
-	unsigned char fsc0      : 8;
-	unsigned char fsc1      : 8;
-	unsigned char fsc2      : 8;
-	unsigned char fsc3      : 8;
+	unsigned char fsc0      : 8  __attribute__((packed));
+	unsigned char fsc1      : 8  __attribute__((packed));
+	unsigned char fsc2      : 8  __attribute__((packed));
+	unsigned char fsc3      : 8  __attribute__((packed));
 
-	unsigned char l21o0     : 8;
-	unsigned char l21o1     : 8;
-	unsigned char l21e0     : 8;
-	unsigned char l21e1     : 8;
+	unsigned char l21o0     : 8  __attribute__((packed));
+	unsigned char l21o1     : 8  __attribute__((packed));
+	unsigned char l21e0     : 8  __attribute__((packed));
+	unsigned char l21e1     : 8  __attribute__((packed));
 
-	unsigned char srcv0     : 1;
-	unsigned char srcv1     : 1;
-	unsigned char trcv2     : 1;
-	unsigned char orcv1     : 1;
-	unsigned char prcv1     : 1;
-	unsigned char cblf      : 1;
-	unsigned char orcv2     : 1;
-	unsigned char prcv2     : 1;
+	unsigned char srcv0     : 1  __attribute__((packed));
+	unsigned char srcv1     : 1  __attribute__((packed));
+	unsigned char trcv2     : 1  __attribute__((packed));
+	unsigned char orcv1     : 1  __attribute__((packed));
+	unsigned char prcv1     : 1  __attribute__((packed));
+	unsigned char cblf      : 1  __attribute__((packed));
+	unsigned char orcv2     : 1  __attribute__((packed));
+	unsigned char prcv2     : 1  __attribute__((packed));
 
 	// 6ch
-	unsigned char htrig0    : 8;
-	unsigned char htrig1    : 8;
+	unsigned char htrig0    : 8  __attribute__((packed));
+	unsigned char htrig1    : 8  __attribute__((packed));
 
-	unsigned char sblbn     : 1;
-	unsigned char blckon    : 1;
-	unsigned char phres     : 2;
-	unsigned char ldel      : 2;
-	unsigned char flc       : 2;
+	unsigned char sblbn     : 1  __attribute__((packed));
+	unsigned char blckon    : 1  __attribute__((packed));
+	unsigned char phres     : 2  __attribute__((packed));
+	unsigned char ldel      : 2  __attribute__((packed));
+	unsigned char flc       : 2  __attribute__((packed));
 
-	unsigned char ccen      : 2;
-	unsigned char ttxen     : 1;
-	unsigned char sccln     : 5;
+	unsigned char ccen      : 2  __attribute__((packed));
+	unsigned char ttxen     : 1  __attribute__((packed));
+	unsigned char sccln     : 5  __attribute__((packed));
 
-	unsigned char rcv2s_lsb : 8;
-	unsigned char rcv2e_lsb : 8;
+	unsigned char rcv2s_lsb : 8  __attribute__((packed));
+	unsigned char rcv2e_lsb : 8  __attribute__((packed));
 
-	unsigned char res13     : 1;
-	unsigned char rvce_mbs  : 3;
-	unsigned char res14     : 1;
-	unsigned char rvcs_mbs  : 3;
+	unsigned char res14     : 1  __attribute__((packed));
+	unsigned char rvce_mbs  : 3  __attribute__((packed));
+	unsigned char res15     : 1  __attribute__((packed));
+	unsigned char rvcs_mbs  : 3  __attribute__((packed));
 
-	unsigned char ttxhs     : 8;
-	unsigned char ttxhl     : 4;
-	unsigned char ttxhd     : 4;
+	unsigned char ttxhs     : 8  __attribute__((packed));
+	unsigned char ttxhl     : 4  __attribute__((packed));
+	unsigned char ttxhd     : 4  __attribute__((packed));
 
-	unsigned char csynca    : 5;
-	unsigned char vss       : 3;
+	unsigned char csynca    : 5  __attribute__((packed));
+	unsigned char vss       : 3  __attribute__((packed));
 
-	unsigned char ttxovs    : 8;
-	unsigned char ttxove    : 8;
-	unsigned char ttxevs    : 8;
-	unsigned char ttxeve    : 8;
+	unsigned char ttxovs    : 8  __attribute__((packed));
+	unsigned char ttxove    : 8  __attribute__((packed));
+	unsigned char ttxevs    : 8  __attribute__((packed));
+	unsigned char ttxeve    : 8  __attribute__((packed));
 
 	// 7ah
-	unsigned char fal       : 8;
-	unsigned char lal       : 8;
+	unsigned char fal       : 8  __attribute__((packed));
+	unsigned char lal       : 8  __attribute__((packed));
 
-	unsigned char ttx60     : 1;
-	unsigned char lal8      : 1;
-	unsigned char ttx0      : 1;
-	unsigned char fal8      : 1;
-	unsigned char ttxeve8   : 1;
-	unsigned char ttxove8   : 1;
-	unsigned char ttxevs8   : 1;
-	unsigned char ttxovs8   : 1;
+	unsigned char ttx60     : 1  __attribute__((packed));
+	unsigned char lal8      : 1  __attribute__((packed));
+	unsigned char ttx0      : 1  __attribute__((packed));
+	unsigned char fal8      : 1  __attribute__((packed));
+	unsigned char ttxeve8   : 1  __attribute__((packed));
+	unsigned char ttxove8   : 1  __attribute__((packed));
+	unsigned char ttxevs8   : 1  __attribute__((packed));
+	unsigned char ttxovs8   : 1  __attribute__((packed));
 
-	unsigned char res15     : 8;
+	unsigned char res16     : 8  __attribute__((packed));
 
-	unsigned char ttxl12    : 1;
-	unsigned char ttxl11    : 1;
-	unsigned char ttxl10    : 1;
-	unsigned char ttxl9     : 1;
-	unsigned char ttxl8     : 1;
-	unsigned char ttxl7     : 1;
-	unsigned char ttxl6     : 1;
-	unsigned char ttxl5     : 1;
+	unsigned char ttxl12    : 1  __attribute__((packed));
+	unsigned char ttxl11    : 1  __attribute__((packed));
+	unsigned char ttxl10    : 1  __attribute__((packed));
+	unsigned char ttxl9     : 1  __attribute__((packed));
+	unsigned char ttxl8     : 1  __attribute__((packed));
+	unsigned char ttxl7     : 1  __attribute__((packed));
+	unsigned char ttxl6     : 1  __attribute__((packed));
+	unsigned char ttxl5     : 1  __attribute__((packed));
 
-	unsigned char ttxl20    : 1;
-	unsigned char ttxl19    : 1;
-	unsigned char ttxl18    : 1;
-	unsigned char ttxl17    : 1;
-	unsigned char ttxl16    : 1;
-	unsigned char ttxl15    : 1;
-	unsigned char ttxl14    : 1;
-	unsigned char ttxl13    : 1;
+	unsigned char ttxl20    : 1  __attribute__((packed));
+	unsigned char ttxl19    : 1  __attribute__((packed));
+	unsigned char ttxl18    : 1  __attribute__((packed));
+	unsigned char ttxl17    : 1  __attribute__((packed));
+	unsigned char ttxl16    : 1  __attribute__((packed));
+	unsigned char ttxl15    : 1  __attribute__((packed));
+	unsigned char ttxl14    : 1  __attribute__((packed));
+	unsigned char ttxl13    : 1  __attribute__((packed));
 } s_saa_data;
 
 #define SAA_DATA_SIZE		sizeof(s_saa_data)
+
+#ifdef __KERNEL__
 
 #define BOARD_NOKIA		0
 #define BOARD_PHILIPS	1
