@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.2  2002/11/04 23:18:39  Jolt
+ *   More decoder work
+ *
  *   Revision 1.1  2002/11/04 23:04:02  Jolt
  *   Some decoder work
  *
@@ -28,7 +31,7 @@
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -52,7 +55,7 @@
 #include "avia_av.h"
 #include "avia_av_napi.h"
 
-//static struct dvb_device *audio_dev;
+static struct dvb_device *audio_dev;
 static u8 dev_registered = 0;
 static struct dvb_device *video_dev;
 
@@ -311,11 +314,11 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 	
 }
 
-#if 0
-static int
-audio_ioctl(struct dvb_device *dvbdev, struct file *file,
-            unsigned int cmd, unsigned long arg)
+static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
+
+#if 0
+
 	struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
 	void *parg=(void *)arg;
 	int ret=0;
@@ -592,8 +595,12 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 		break;
 	}
 	return ret;
-}
+
 #endif
+
+	return 0;
+
+}
 
 static struct file_operations avia_av_napi_video_fops = {
 
@@ -619,26 +626,28 @@ static struct dvb_device avia_av_napi_video_dev = {
 	
 };
 
-/*static struct file_operations avia_napi_audio_fops = {
+static struct file_operations avia_av_napi_audio_fops = {
 
 	.owner = THIS_MODULE,
-	.write = avia_napi_audio_write,
-	.ioctl = avia_napi_generic_ioctl,
-	.open = avia_napi_audio_open,
-	.release = avia_napi_audio_release,
-	.poll = avia_napi_audio_poll,
+	//.write = avia_av_napi_audio_write,
+	.ioctl = dvb_generic_ioctl,
+	//.open = avia_av_napi_audio_open,
+	.open = dvb_generic_open,
+	//.release = avia_av_napi_audio_release,
+	.release = dvb_generic_release,
+	//.poll = avia_av_napi_audio_poll,
 	
 };
 
-static struct dvb_device avia_napi_audio_dev = {
+static struct dvb_device avia_av_napi_audio_dev = {
 
 	.priv = 0,
 	.users = 1,
 	.writers = 1,
-	.fops = &avia_napi_audio_fops,
-	.kernel_ioctl = avia_napi_audio_ioctl,
+	.fops = &avia_av_napi_audio_fops,
+	.kernel_ioctl = avia_av_napi_audio_ioctl,
 	
-};*/
+};
 
 int avia_av_napi_register(struct dvb_adapter *adapter, void *priv)
 {
@@ -655,7 +664,7 @@ int avia_av_napi_register(struct dvb_adapter *adapter, void *priv)
 		
 	}
 
-/*	if ((result = dvb_register_device(adapter, &audio_dev, &avia_napi_audio_dev, priv, DVB_DEVICE_AUDIO)) < 0) {
+	if ((result = dvb_register_device(adapter, &audio_dev, &avia_av_napi_audio_dev, priv, DVB_DEVICE_AUDIO)) < 0) {
 
 		printk("avia_av_napi: dvb_register_device (audio) failed (errno = %d)\n", result);
 
@@ -663,7 +672,7 @@ int avia_av_napi_register(struct dvb_adapter *adapter, void *priv)
 		
 		return result;
 		
-	}*/
+	}
 
 	dev_registered = 1;
 	
@@ -677,7 +686,7 @@ void avia_av_napi_unregister(void)
 
 	if (dev_registered) {
 
-//		dvb_unregister_device(audio_dev);
+		dvb_unregister_device(audio_dev);
 		dvb_unregister_device(video_dev);
 
 		dev_registered = 0;
@@ -689,7 +698,7 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.1 2002/11/04 23:04:02 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.2 2002/11/04 23:18:39 Jolt Exp $\n");
 
 	return 0;
 
