@@ -1,9 +1,0 @@
-*.o
-*.flags
-*~
-decode
-test_dmx
-test_sec
-test_tbl
-test_front
-test_ram

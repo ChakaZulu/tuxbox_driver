@@ -2,9 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS    = dvb_demux.o dvbdev.o dvb.o dmxdev.o dvb_net.o dvb_frontend.o
-TEST_APPZ = test_audio test_av test_dmx test_front test_video
-
+M_OBJS = dmxdev.o dvb.o dvb_demux.o dvb_frontend.o dvb_net.o dvbdev.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
@@ -18,7 +16,7 @@ install:
 	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(TEST_APPZ) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
 
 include $(KERNEL_LOCATION)/Rules.make
 
