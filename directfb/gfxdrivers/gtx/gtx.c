@@ -76,21 +76,21 @@ gtx_validate_color (GTXDriverData *gdrv,
       switch (state->destination->format)
         {
         case DSPF_LUT8:
-          gtx_out32 (gdrv->mmio_base, GTX_BCLR, state->color_index);
+          gtx_out16 (gdrv->mmio_base, GTX_BCLR, state->color_index);
           break;
         case DSPF_RGB332:
-          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB332 (state->color.r,
+          gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB332 (state->color.r,
                                                               state->color.g,
                                                               state->color.b));
           break;
         case DSPF_ARGB1555:
-          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_ARGB1555 (state->color.a,
+          gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_ARGB1555 (state->color.a,
                                                                 state->color.r,
                                                                 state->color.g,
                                                                 state->color.b));
           break;
         case DSPF_RGB16:
-          gtx_out32 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB16 (state->color.r,
+          gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB16 (state->color.r,
                                                              state->color.g,
                                                              state->color.b));
           break;
@@ -104,9 +104,33 @@ gtx_validate_color (GTXDriverData *gdrv,
       switch (state->destination->format)
         {
         case DSPF_LUT8:
-          //gtx_out32 (gdrv->mmio_base, ENX_BCLR01, xxx);
-          //gtx_out32 (gdrv->mmio_base, ENX_BCLR23, xxx);
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, state->color_index);
           break;
+        case DSPF_RGB332:
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_RGB332 (state->color.r,
+                                                              state->color.g,
+                                                              state->color.b));
+          break;
+        case DSPF_ARGB1555:
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
+			  (state->color.a << 24) |
+			  (state->color.r << 16) |
+			  (state->color.g << 8) |
+			  state->color.b);
+          break;
+        case DSPF_RGB16:
+	  BUG("DSPF_RGB16");
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
+			  (state->color.r << 16) |
+		          (state->color.g << 8) |
+			  state->color.b);
+          break;
+	case DSPF_RGB32:
+	  BUG("DSPF_RGB32 not implemented");
+	  break;
+	case DSPF_ARGB:
+	  BUG("DSPF_ARGB not implemented");
+	  break;
         default:
           BUG ("unexpected pixelformat");
           break;
@@ -165,6 +189,10 @@ gtxCheckState (void *drv, void *dev,
     case DSPF_ARGB1555:
     case DSPF_RGB16:
       break;
+    case DSPF_RGB32:
+    case DSPF_ARGB:
+      if (enx)
+        break;
     default:
       return;
     }
@@ -242,7 +270,7 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
   int   pitch  = gdev->dst_pitch;
   int   width  = rect->w * pw;
   int   height = rect->h;
-  __u16 data   = pw == 2 ? 0x5555 : 0xFFFF;
+  __u32 data   = pw == 2 ? 0x55555555UL : 0xFFFFFFFFUL;
   __u32 addr   = gdev->mem_offset + gdev->dst_offset + rect->x * pw + rect->y * pitch;
 
   if (gtx) {
@@ -265,7 +293,7 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
             /* do 16 pixels per iteration */
             for (i = (239 >> 4) + 1; i != 0; --i)
               {
-                gtx_out16 (mmio, GTX_BDR, data);
+                gtx_out16 (mmio, GTX_BDR, data & 0xFFFF);
               }
           }
 
@@ -273,11 +301,48 @@ gtxFillRectangle (void *drv, void *dev, DFBRectangle *rect)
         gtx_out16 (mmio, GTX_BPW, w);
         for (w = ((w - 1) >> 4) + 1; w != 0; --w)
         {
-          gtx_out16 (mmio, GTX_BDR, data);
+          gtx_out16 (mmio, GTX_BDR, data & 0xFFFF);
         }
 
         /* Flush the blitter internal registers by writing 16 masked pixels */
-        gtx_out32 (mmio, GTX_BMR, 0);
+        gtx_out16 (mmio, GTX_BMR, 0);
+
+        addr += pitch; /* Do next scanline */
+    }
+  }
+  else if (enx) {
+
+    gtx_out16 (mmio, ENX_BPO, 0x00000); /* Set Mode */
+
+    while (height--)
+      {
+        int w,i;
+
+	gtx_out32 (mmio, ENX_BDST, addr); /* Set destination address */
+
+	/* If the rectangle is greater than 240 pixels wide, break it up
+         * into a series of 240-pixel wide blits
+         */
+        for (w = width; w > 0x3ff; w -= 0x3ff)
+          {
+            gtx_out16 (mmio, ENX_BPW, 0x3ff);
+
+            /* do 32 pixels per iteration */
+            for (i = ((0x3ff - 1) >> 5) + 1; i != 0; --i)
+              {
+                gtx_out32 (mmio, ENX_BDR, data);
+              }
+          }
+
+        /* Do the remainder of the last block */
+        gtx_out16 (mmio, ENX_BPW, w);
+        for (i = ((w - 1) >> 5) + 1; i != 0; --i)
+        {
+          gtx_out32 (mmio, ENX_BDR, data);
+        }
+
+        /* Flush the blitter internal registers by writing 16 masked pixels */
+        gtx_out32 (mmio, ENX_BMR, 0);
 
         addr += pitch; /* Do next scanline */
     }
