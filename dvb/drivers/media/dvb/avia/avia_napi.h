@@ -25,5 +25,5 @@
 #define AVIA_NAPI_H
 
 struct dvb_adapter *avia_napi_get_adapter(void);
-	    
+
 #endif
