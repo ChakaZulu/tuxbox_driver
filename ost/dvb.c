@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.56 2002/01/31 18:59:00 gillem Exp $
+ * $Id: dvb.c,v 1.57 2002/01/31 20:40:23 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -428,6 +428,8 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 		{
 			if (!dvb->dmxdev.demux)
 				return -ENOENT;
+			if ((file->f_flags&O_ACCMODE)!=O_RDWR)
+				return -EINVAL;
 			return DmxDevFilterAlloc(&dvb->dmxdev, file);
 		}
 		case DVB_DEVICE_SEC:
@@ -857,6 +859,7 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
 		}
 		case DVB_DEVICE_DVR:
 		{
+	                return DmxDevDVRWrite(&dvb->dmxdev, file, buf, count, ppos);
 			break;
 		}
 		case DVB_DEVICE_CA:
