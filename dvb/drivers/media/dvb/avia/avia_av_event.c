@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_event.c,v 1.5 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_av_event.c,v 1.6 2003/04/17 07:29:48 obi Exp $
  *   
  * AViA 500/600 event driver (dbox-II-project)
  *
@@ -61,11 +61,11 @@ static void avia_av_event_timer_function(unsigned long data)
 
 		if (reg) {
 		
-			if (((rDR(H_SIZE)&0xFFFF) != reg->hsize) ||
-				((rDR(V_SIZE)&0xFFFF) != reg->vsize)) {
+			if (((avia_av_dram_read(H_SIZE) & 0xFFFF) != reg->hsize) ||
+				((avia_av_dram_read(V_SIZE) & 0xFFFF) != reg->vsize)) {
 				
-				reg->hsize = (rDR(H_SIZE) & 0xFFFF);
-				reg->vsize = (rDR(V_SIZE) & 0xFFFF);
+				reg->hsize = (avia_av_dram_read(H_SIZE) & 0xFFFF);
+				reg->vsize = (avia_av_dram_read(V_SIZE) & 0xFFFF);
 
 				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_VHSIZE_CHANGE;
@@ -73,9 +73,9 @@ static void avia_av_event_timer_function(unsigned long data)
 				
 			}
 
-			if ((rDR(ASPECT_RATIO) & 0xFFFF) != reg->aratio) {
+			if ((avia_av_dram_read(ASPECT_RATIO) & 0xFFFF) != reg->aratio) {
 			
-				reg->aratio = (rDR(ASPECT_RATIO) & 0xFFFF);
+				reg->aratio = (avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
 
 				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_ARATIO_CHANGE;
@@ -83,17 +83,17 @@ static void avia_av_event_timer_function(unsigned long data)
 				
 			}
 
-			if ((rDR(FRAME_RATE) & 0xFFFF) != reg->frate)
-				reg->frate = rDR(FRAME_RATE) & 0xFFFF;
+			if ((avia_av_dram_read(FRAME_RATE) & 0xFFFF) != reg->frate)
+				reg->frate = avia_av_dram_read(FRAME_RATE) & 0xFFFF;
 
-			if ((rDR(BIT_RATE) & 0xFFFF) != reg->brate)
-				reg->brate = rDR(BIT_RATE) & 0xFFFF;
+			if ((avia_av_dram_read(BIT_RATE) & 0xFFFF) != reg->brate)
+				reg->brate = avia_av_dram_read(BIT_RATE) & 0xFFFF;
 
-			if ((rDR(VBV_SIZE) & 0xFFFF) != reg->vbsize)
-				reg->vbsize = rDR(VBV_SIZE) & 0xFFFF;
+			if ((avia_av_dram_read(VBV_SIZE) & 0xFFFF) != reg->vbsize)
+				reg->vbsize = avia_av_dram_read(VBV_SIZE) & 0xFFFF;
 
-			if ((rDR(AUDIO_TYPE) & 0xFFFF) != reg->atype)
-				reg->atype = rDR(AUDIO_TYPE) & 0xFFFF;
+			if ((avia_av_dram_read(AUDIO_TYPE) & 0xFFFF) != reg->atype)
+				reg->atype = avia_av_dram_read(AUDIO_TYPE) & 0xFFFF;
 
 		}
 		
@@ -109,7 +109,7 @@ static void avia_av_event_timer_function(unsigned long data)
 int avia_av_event_init(void)
 {
 
-	printk("avia_av_event: $Id: avia_av_event.c,v 1.5 2003/01/02 05:26:43 obi Exp $\n");
+	printk("avia_av_event: $Id: avia_av_event.c,v 1.6 2003/04/17 07:29:48 obi Exp $\n");
 
 	event_delay = 0;
 
@@ -150,4 +150,8 @@ void avia_av_event_exit(void)
 #if defined(STANDALONE)
 module_init(avia_av_event_init);
 module_exit(avia_av_event_exit);
+
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA 500/600 event driver");
+MODULE_LICENSE("GPL");
 #endif

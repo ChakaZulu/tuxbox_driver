@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.167 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.168 2003/04/17 07:29:48 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -55,6 +55,7 @@
 //#define DEBUG
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dvb_demux.h"
+#include "avia_av.h"
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_accel.h"
@@ -81,7 +82,6 @@ static char *ucode = NULL;
 static s32 hw_sections = 1;
 static u8 force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
-extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
 static s8 section_filter_umap[32];
 static sFilter_Definition_Entry filter_definition_table[32];
@@ -1643,7 +1643,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 		printk(KERN_INFO "avia_gt_dmx: reloading stc\n");
 
-		avia_set_pcr(PCR_BASE(tp_pcr) >> 1, (PCR_BASE(tp_pcr) & 0x01) << 15);
+		avia_av_set_pcr(PCR_BASE(tp_pcr) >> 1, (PCR_BASE(tp_pcr) & 0x01) << 15);
 		force_stc_reload = 0;
 
 	}
@@ -2229,7 +2229,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.167 2003/04/14 00:13:10 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.168 2003/04/17 07:29:48 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

@@ -19,25 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: avia_av.h,v $
- *   Revision 1.12  2002/11/20 12:03:46  Jolt
- *   SPTS mode support (which is now default)
- *
- *   Revision 1.11  2002/11/18 11:40:18  Jolt
- *   Support for AC3 and non sync mode
- *
- *   Revision 1.10  2002/11/16 16:53:14  Jolt
- *   AVIA API work
- *
- *   Revision 1.9  2002/10/03 12:47:58  Jolt
- *   AViA AV cleanups
- *
- *
- *
- *
- *   $Revision: 1.12 $
- *
  */
 
 
@@ -57,25 +38,24 @@
 #define AVIA_AV_SYNC_MODE_VIDEO		0x05
 #define AVIA_AV_SYNC_MODE_AV		0x06
 
-#define AVIA_AV_TYPE_AUDIO			0x01
-#define AVIA_AV_TYPE_VIDEO			0x02
+#define AVIA_AV_TYPE_AUDIO		0x01
+#define AVIA_AV_TYPE_VIDEO		0x02
 
 #define TM_DRAM  0x00
 #define TM_GBUS  0x80
 #define TM_SRAM  0xC0
 
-extern u32 avia_rd(int mode, int address);
-extern void avia_wr(int mode, u32 address, u32 data);
+u32 avia_av_read(const u8 mode, u32 address);
+void avia_av_write(const u8 mode, u32 address, const u32 data);
+u32 avia_av_cmd(u32 cmd, ...);
+void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
 
-extern u32 avia_command(u32 cmd, ...);
-extern void avia_flush_pcr(void);
-
-#define wGB(a, d) avia_wr(TM_GBUS, a, d)
-#define rGB(a) avia_rd(TM_GBUS, a)
-#define wSR(a, d) avia_wr(TM_SRAM, a, d)
-#define rSR(a) avia_rd(TM_SRAM, a)
-#define wDR(a, d) avia_wr(TM_DRAM, a, d)
-#define rDR(a) avia_rd(TM_DRAM, a)
+#define avia_av_gbus_write(a,d)	avia_av_write(TM_GBUS, a, d)
+#define avia_av_gbus_read(a)	avia_av_read(TM_GBUS, a)
+#define avia_av_sram_write(a,d)	avia_av_write(TM_SRAM, a, d)
+#define avia_av_sram_read(a)	avia_av_read(TM_SRAM, a)
+#define avia_av_dram_write(a,d)	avia_av_write(TM_DRAM, a, d)
+#define avia_av_dram_read(a)	avia_av_read(TM_DRAM, a)
 
 #define Abort				0x8120
 #define Digest				0x0621
@@ -314,11 +294,15 @@ extern void avia_flush_pcr(void);
 #define PROC_STATE_FREEZE		0x0020
 #define PROC_STATE_NEWCHANNEL		0x0080
 
-void avia_av_bypass_mode_set(u8 enable);
-int avia_av_pid_set(u8 type, u16 pid);
-int avia_av_play_state_set_audio(u8 new_play_state);
-int avia_av_play_state_set_video(u8 new_play_state);
-int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio);
-int avia_av_sync_mode_set(u8 new_sync_mode);
+void avia_av_bypass_mode_set(const u8 enable);
+u16 avia_av_get_sample_rate(void);
+int avia_av_pid_set(const u8 type, const u16 pid);
+int avia_av_play_state_set_audio(const u8 new_play_state);
+int avia_av_play_state_set_video(const u8 new_play_state);
+void avia_av_set_audio_attenuation(const u8 att);
+void avia_av_set_pcr(const u32 hi, const u32 lo);
+int avia_av_standby(const int state);
+int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_type_audio);
+int avia_av_sync_mode_set(const u8 new_sync_mode);
 
 #endif

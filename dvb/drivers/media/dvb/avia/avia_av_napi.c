@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.16 2003/02/28 14:17:35 wjoost Exp $
+ * $Id: avia_av_napi.c,v 1.17 2003/04/17 07:29:48 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -126,7 +126,8 @@ int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
-static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static
+int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
 
@@ -196,7 +197,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 		}
 
 		videostate.display_format = format;
-		wDR(ASPECT_RATIO_MODE, val);
+		avia_av_dram_write(ASPECT_RATIO_MODE, val);
 		break;
 	}
 
@@ -206,11 +207,11 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		switch (format) {
 		case VIDEO_FORMAT_4_3:
-			wDR(FORCE_CODED_ASPECT_RATIO, 2);
+			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 2);
 			break;
 
 		case VIDEO_FORMAT_16_9:
-			wDR(FORCE_CODED_ASPECT_RATIO, 3);
+			avia_av_dram_write(FORCE_CODED_ASPECT_RATIO, 3);
 			break;
 
 		default:
@@ -246,7 +247,8 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 	return 0;
 }
 
-static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static
+int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
 
@@ -288,12 +290,12 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 	case AUDIO_SET_MUTE:
 		if (arg) {
 			/* mute av spdif (2) and analog audio (4) */
-			wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~6);
+			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) & ~6);
 		} else {
 			/* unmute av spdif (2) and analog audio (4) */
-			wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 6);
+			avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 6);
 		}
-		wDR(NEW_AUDIO_CONFIG, 1);
+		avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
 		audiostate.mute_state = !!arg;
 		break;
 
@@ -316,18 +318,18 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 		switch (select) {
 		case AUDIO_STEREO:
-			wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
-			wDR(NEW_AUDIO_CONFIG, 1);
+			avia_av_dram_write(AUDIO_DAC_MODE, avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30);
+			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
 			break;
 
 		case AUDIO_MONO_LEFT:
-			wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x10);
-			wDR(NEW_AUDIO_CONFIG, 1);
+			avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | 0x10);
+			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
 			break;
 
 		case AUDIO_MONO_RIGHT:
-			wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE) & ~0x30) | 0x20);
-			wDR(NEW_AUDIO_CONFIG, 1);
+			avia_av_dram_write(AUDIO_DAC_MODE, (avia_av_dram_read(AUDIO_DAC_MODE) & ~0x30) | 0x20);
+			avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
 			break;
 
 		default:
@@ -359,10 +361,9 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			audiostate.mixer_state.volume_left = 255;
 		if (audiostate.mixer_state.volume_right > 255)
 			audiostate.mixer_state.volume_right = 255;
-			
-		avia_gt_pcm_set_mpeg_attenuation(
-			(audiostate.mixer_state.volume_left  + 1) >> 1,
-			(audiostate.mixer_state.volume_right + 1) >> 1);
+
+		avia_av_set_audio_attenuation(((255 - max(audiostate.mixer_state.volume_left, audiostate.mixer_state.volume_right)) * 96) / 255);
+		avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1, (audiostate.mixer_state.volume_right + 1) >> 1);
 		break;
 
 	default:
@@ -372,58 +373,45 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 	return 0;
 }
 
-static struct file_operations avia_av_napi_video_fops = {
-
+static
+struct file_operations avia_av_napi_video_fops = {
 	.owner = THIS_MODULE,
-	//.write = avia_napi_video_write,
 	.ioctl = dvb_generic_ioctl,
-	//.open = avia_napi_video_open,
 	.open = dvb_generic_open,
-	//.release = avia_napi_video_release,
 	.release = dvb_generic_release,
-	//.poll = avia_napi_video_poll,
-
 };
 
-static struct dvb_device avia_av_napi_video_dev = {
-
+static
+struct dvb_device avia_av_napi_video_dev = {
 	.priv = 0,
 	.users = 1,
 	.writers = 1,
 	.fops = &avia_av_napi_video_fops,
 	.kernel_ioctl = avia_av_napi_video_ioctl,
-
 };
 
-static struct file_operations avia_av_napi_audio_fops = {
-
+static
+struct file_operations avia_av_napi_audio_fops = {
 	.owner = THIS_MODULE,
-	//.write = avia_av_napi_audio_write,
 	.ioctl = dvb_generic_ioctl,
-	//.open = avia_av_napi_audio_open,
 	.open = dvb_generic_open,
-	//.release = avia_av_napi_audio_release,
 	.release = dvb_generic_release,
-	//.poll = avia_av_napi_audio_poll,
-
 };
 
-static struct dvb_device avia_av_napi_audio_dev = {
-
+static
+struct dvb_device avia_av_napi_audio_dev = {
 	.priv = 0,
 	.users = 1,
 	.writers = 1,
 	.fops = &avia_av_napi_audio_fops,
 	.kernel_ioctl = avia_av_napi_audio_ioctl,
-
 };
 
 int __init avia_av_napi_init(void)
 {
-
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.16 2003/02/28 14:17:35 wjoost Exp $\n");
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.17 2003/04/17 07:29:48 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -441,33 +429,23 @@ int __init avia_av_napi_init(void)
 	videostate.display_format = VIDEO_CENTER_CUT_OUT;
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &video_dev, &avia_av_napi_video_dev, NULL, DVB_DEVICE_VIDEO)) < 0) {
-
-		printk("avia_av_napi: dvb_register_device (video) failed (errno = %d)\n", result);
-
+		printk(KERN_ERR "%s: dvb_register_device (video) failed (errno = %d)\n", __FILE__, result);
 		return result;
-
 	}
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &audio_dev, &avia_av_napi_audio_dev, NULL, DVB_DEVICE_AUDIO)) < 0) {
-
-		printk("avia_av_napi: dvb_register_device (audio) failed (errno = %d)\n", result);
-
+		printk(KERN_ERR "%s: dvb_register_device (audio) failed (errno = %d)\n", __FILE__, result);
 		dvb_unregister_device(video_dev);
-
 		return result;
-
 	}
 
 	return 0;
-
 }
 
 void __exit avia_av_napi_exit(void)
 {
-
 	dvb_unregister_device(audio_dev);
 	dvb_unregister_device(video_dev);
-
 }
 
 module_init(avia_av_napi_init);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_oss.c,v 1.17 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_oss.c,v 1.18 2003/04/17 07:29:48 obi Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
@@ -39,13 +39,11 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
+#include "avia_av.h"
 #include "avia_gt_pcm.h"
 
 static int avia_oss_dsp_dev = 0;
 static int avia_oss_mixer_dev = 0;
-
-extern int avia_standby(int state);
-extern u16 avia_get_sample_rate(void);
 
 static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -212,10 +210,10 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 
 		dprintk("avia_oss: IOCTL: SNDCTL_DSP_SPEED (arg=%d)\n", val);
 		
-		if ((val != 48000) && (val != 24000) && (val != 12000) && (avia_get_sample_rate() != 44100)) {
+		if ((val != 48000) && (val != 24000) && (val != 12000) && (avia_av_get_sample_rate() != 44100)) {
 
-			avia_standby(1);
-			avia_standby(0);
+			avia_av_standby(1);
+			avia_av_standby(0);
 		
 		}
 
@@ -320,7 +318,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.17 2003/04/14 00:13:10 obi Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.18 2003/04/17 07:29:48 obi Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 
