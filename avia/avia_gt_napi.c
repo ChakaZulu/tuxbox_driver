@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.86 $
+ *   $Revision: 1.87 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.87  2002/05/06 12:58:37  Jolt
+ *   obi[TM] fix 8-)
+ *
  *   Revision 1.86  2002/05/06 02:18:18  obi
  *   cleanup for new kernel
  *
@@ -409,7 +412,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 
     if (avia_gt_chip(ENX)) {
 
-	if ((enx_reg_16n(TDP_INSTR_RAM * 0x7FE) & 0xFF00) >= 0xA000)
+	if ((enx_reg_16n(TDP_INSTR_RAM + 0x7FE) & 0xFF00) >= 0xA000)
 	    w[0] |= (queue) & 31;
 	else
 	    w[0] |= (queue + 1) & 31;
@@ -1609,7 +1612,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.86 2002/05/06 02:18:18 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.87 2002/05/06 12:58:37 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
