@@ -21,11 +21,14 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.2  2001/07/07 23:39:38  tmbinc
+ *   fixes
+ *
  *   Revision 1.1  2001/04/19 22:48:10  tmbinc
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -56,8 +59,20 @@ static int tda_set_freq(int freq);
 static int tda_set_sec(int power,int tone);
 static int tda_send_diseqc(u8 *cmd,unsigned int len);
 static int tda_sec_status(void);
-      
+
+#define TDA_INTERRUPT 14
+static void tda_interrupt(int irq, void *vdev, struct pt_regs * regs);
+
+static void tda_task(void*);
+
+struct tq_struct tda_tasklet=
+{
+	routine: tda_task,
+	data: 0
+};
+
 static int debug = 1;
+static DECLARE_MUTEX(i2c_mutex);
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -131,7 +146,9 @@ u8 Init8044Tab[] =
 
 typedef struct tda8044h_s
 {
-	int inversion, srate, sync;
+	int inversion, srate, sync, fec;
+	
+	int loopopen;
 } tda8044h_t;
 
 /* ---------------------------------------------------------------------- */
@@ -140,13 +157,17 @@ int writereg(struct i2c_client *client, u8 reg, u8 data)
 {
 	int ret;
 	u8 msg[] = {0x1E, 0x00};
-        
+
+	if (down_interruptible(&i2c_mutex))
+		return -EAGAIN;
+
 	msg[0]=reg; msg[1]=data;
 	ret=i2c_master_send(client, msg, 2);
 	if (ret!=2)
 		dprintk("tda8044h.o: writereg error\n");
 	mdelay(10);
-  return ret;
+	up(&i2c_mutex);
+	return ret;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -157,7 +178,10 @@ u8 readreg(struct i2c_client *client, u8 reg)
 	unsigned char mm1[] = {0x1e};
 	unsigned char mm2[] = {0x00};
 	struct i2c_msg msgs[2];
-        
+
+	if (down_interruptible(&i2c_mutex))
+		return -EAGAIN;
+
 	msgs[0].flags=0;
 	msgs[1].flags=I2C_M_RD;
 	msgs[0].addr=msgs[1].addr=client->addr;
@@ -165,7 +189,8 @@ u8 readreg(struct i2c_client *client, u8 reg)
 	msgs[0].len=1; msgs[1].len=1;
 	msgs[0].buf=mm1; msgs[1].buf=mm2;
 	i2c_transfer(adap, msgs, 2);
-        
+	up(&i2c_mutex);
+
 	return mm2[0];
 }
 
@@ -192,7 +217,7 @@ int init(struct i2c_client *client)
 	udelay(10000);
 	Init8044Tab[0]=4;
 	Init8044Tab[0xF]=0x50;
-	Init8044Tab[0x1F]=0x00;		// interrupt selection
+	Init8044Tab[0x1F]=0x7F;		// interrupt selection
 
 	for (i=0; i<sizeof(Init8044Tab); i++)
 		if (writereg(client, i, Init8044Tab[i])<0)
@@ -205,7 +230,7 @@ int init(struct i2c_client *client)
 
 static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
 {
-//	tda8044h_t *tda=(tda8044h_t*)client->data;
+	tda8044h_t *tda=(tda8044h_t*)client->data;
 	__u8 srate[16];
 	int i;
 	
@@ -232,11 +257,14 @@ static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
 		wer lust auf bitschieben und dividieren hat kann das ja mal machen.
 	*/
 	
+	if (Symbolrate==21997000)
+		Symbolrate=22000000;
+	
 	// super-billig-calc:
 	if (Symbolrate==27500000)
 		memcpy(srate+2, "\x6F\xB5\x87\x22", 4);
 	else if (Symbolrate==22000000)
-		memcpy(srate+2, "\x7A\xE1\x47\x23", 4);
+		memcpy(srate+2, "\x8b\xa2\xe9\x23", 4);
 	else
 		dprintk("unsupported symbolrate %d! please fix driver!\n", Symbolrate);
 	srate[6]=0;									// sigma delta
@@ -260,6 +288,7 @@ static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
 	printk("\n");
 	i2c_master_send(client, "\x17\x68\x9a", 3);
 	i2c_master_send(client, "\x22\xf9", 2);				// SCPC
+	tda->loopopen=1;
 }
 
 int attach_adapter(struct i2c_adapter *adap)
@@ -271,7 +300,13 @@ int attach_adapter(struct i2c_adapter *adap)
 	
 	if (writereg(&client_template, 0x89, 00)<0)
 		return -EINVAL;
-	
+
+	if (readreg(&client_template, 0)!=4)
+	{
+		printk("no TDA8044H found!\n!");
+		return -EINVAL;
+	}
+
 	if (!(client=kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
 		return -ENOMEM;
 	
@@ -291,6 +326,15 @@ int attach_adapter(struct i2c_adapter *adap)
 	if (register_demod(&tda8044h))
 		printk("tda8044h.o: can't register demod.\n");
 
+	tda_tasklet.data = (void*)client->data;
+
+	if (request_8xxirq(TDA_INTERRUPT, tda_interrupt, SA_ONESHOT, "tda8044h", NULL) != 0)
+	{
+		i2c_del_driver(&dvbt_driver);
+		dprintk("tda8044h.o: can't request interrupt\n");
+		return -EBUSY;
+	}
+
 	return 0;
 }
 
@@ -301,6 +345,7 @@ int detach_client(struct i2c_client *client)
 	i2c_detach_client(client);
 	kfree(client->data);
 	kfree(client);
+	free_irq(TDA_INTERRUPT, NULL);
 	return 0;
 }
 
@@ -311,68 +356,36 @@ static void tda_write_reg(int reg, int val)
 
 static void tda_init(void)
 {
-	int tries=1000;
 	if (dclient)
 		init(dclient);
 	else
 		panic("tried to initialize pure virtual tuner.\n");
-
-#if 0	
-	printk("---------------------\n");
-	// set sec
-	tda_set_sec(3, 1);		// tone, H
-
-	// initialize decoder
-	printk("sym\n");
-	SetSymbolrate(dclient, 27500000, 3);
-	
-	i2c_master_send(dclient, "\x17\x68\x9a", 3);
-	i2c_master_send(dclient, "\x22\xf9", 2);
-	// tune
-	printk("set freq.\n");
-	tda_set_freq(1158000000);
-	printk("freq set.\n");
-
-	while (tries--)
-		if (readreg(dclient, 0x02)&2)
-			break;
-	if (tries<0)
-		printk("still no CLCK :(\n");
-	// close loop
-	i2c_master_send(dclient, "\x0B\x68\x70", 3);
-	tries=100;
-	while (tries--)
-		if ((readreg(dclient, 0x02)&0x1F)==0x1F)
-			break;
-	printk("%d tries left.\n", tries);
-	printk("---------------------\n");
-#endif
 }
 
 static void tda_set_frontend(struct frontend *front)
 {
 	SetSymbolrate(dclient, front->srate, front->fec);
-
-	udelay(1000*1000);
-	printk("rsync: %x - aber nu ist aus!\n", readreg(dclient, 0x02));
-	printk("CLK: %02x%02x%02x\n", readreg(dclient, 0x11), readreg(dclient, 0x12), readreg(dclient, 0x13));
-	printk("AFC: %02x%02x%02x\n", readreg(dclient, 5), readreg(dclient, 6), readreg(dclient, 7));
-	i2c_master_send(dclient, "\x0b\x68\x70", 3);
-	udelay(1000*1000);
-	printk("rsync: %x - aber nu ist aus!\n", readreg(dclient, 0x02));
+	i2c_master_send(dclient, "\x0b\x68\x70", 3);		// stop sweep, close loop
 }
 
 static void tda_get_frontend(struct frontend *front)
 {
+	tda8044h_t *tda=(tda8044h_t*)dclient->data;
 	front->type=FRONT_DVBS;
-	front->afc=readreg(dclient, 5)<<16;
+/*	front->afc=readreg(dclient, 5)<<16;
 	front->afc|=readreg(dclient, 6)<<8;
 	front->afc|=readreg(dclient, 7);
-	front->agc=readreg(dclient, 1);
-	front->sync=readreg(dclient, 2)&0x1F;
-	printk("sync: %x\n", front->sync);
+	front->agc=readreg(dclient, 1); */
+	front->sync=tda->sync;
+/*	printk("s/n ratio: %d\n", readreg(dclient, 8));
+	printk("nr. of lost blocks: %d\n", readreg(dclient, 0xF));
+	printk("nr. of corrected blocks: %d\n", readreg(dclient, 0x10)); */
+/*	front->vber=readreg(dclient, 0xb)<<16;
+	front->vber|=readreg(dclient, 0xc)<<8;
+	front->vber|=readreg(dclient, 0xd);
+
+	printk("nr. of bit-errors: %d:%d\n", front->vber>>21, front->vber&0x1FFFFF); */
 	front->nest=-1;
-	front->vber=-1;
 }
 
 static int tda_get_unc_packet(uint32_t *uncp)
@@ -383,7 +396,7 @@ static int tda_get_unc_packet(uint32_t *uncp)
 
 static int tda_set_freq(int freq)
 {
-	int ret, tries=10;
+	int tries=10;
 	u8 msg[4]={0, 0, 0x81, 0x60};
 
 		// semaphore, irgendwie
@@ -392,7 +405,6 @@ static int tda_set_freq(int freq)
 	msg[0]=(freq/1000000)>>8;
 	msg[1]=(freq/1000000)&0xFF;
 
-	printk("tuner: %02x %02x %02x %02x\n", msg[0], msg[1], msg[2], msg[3]);
 	if (i2c_master_send(&tuner, msg, 4)!=4)
 		dprintk("tda8044h.o: writereg error\n");
 
@@ -400,14 +412,12 @@ static int tda_set_freq(int freq)
 	
 	while (tries--)
 	{
-		udelay(100*1000);
+		udelay(10*1000);
 		writereg(dclient, 0x1C, 0x80);
 	
 		if (i2c_master_recv(&tuner, msg, 1)!=1)
 			dprintk("tda8044h.o: read tuner error\n");
 	
-		printk("tuner: %x\n", msg[0]);
-
 		writereg(dclient, 0x1C, 0x0);
 		if (msg[0]&0x40)		// in-lock flag
 			return 0;
@@ -447,6 +457,41 @@ static int tda_send_diseqc(u8 *cmd,unsigned int len)
 static int tda_sec_status(void)
 {
 	return 0;
+}
+
+static void tda_interrupt(int irq, void *vdev, struct pt_regs * regs)
+{
+	schedule_task(&tda_tasklet);
+}
+
+static void tda_task(void *data)
+{
+	tda8044h_t *tda=(tda8044h_t*)dclient->data;
+	int sync;
+	writereg(dclient, 0, 4);
+	enable_irq(TDA_INTERRUPT);
+	
+	sync=readreg(dclient, 2);
+	
+	if (tda->loopopen && (sync&2) && (!(tda->sync&2)))
+	{
+		printk("loop open, lock acquired, closing loop.\n");
+//		i2c_master_send(dclient, "\x0b\x68\x70", 3);		// stop sweep, close loop
+		tda->loopopen=0;
+	}
+	
+	if ((sync == 0x1F) && (tda->sync != 0x1F))
+	{
+		int val=readreg(dclient, 0xE);
+		tda->inversion=!!(val&0x80);
+		tda->fec=val&7;
+		printk("acquired full sync, found FEC: %d/%d, %sspectral inversion\n", tda->fec, tda->fec+1, tda->inversion?"":"no ");
+	}
+	
+	if (sync&0x20)
+		tda->sync=0;
+	else
+		tda->sync=sync&0x1F;
 }
 
 static void inc_use (struct i2c_client *client)
@@ -489,7 +534,7 @@ void cleanup_module(void)
 	if ((res = i2c_del_driver(&dvbt_driver))) 
 	{
 		printk("TDA8044H: Driver deregistration failed, "
-		       "module not removed.\n");
+					 "module not removed.\n");
 	}
 	dprintk("TDA8044H: cleanup\n");
 }
