@@ -890,6 +890,7 @@ __exit fp_exit (void)
 
 
 
+EXPORT_SYMBOL(fp_get_info);
 
 #ifdef MODULE
 module_init(fp_init);
