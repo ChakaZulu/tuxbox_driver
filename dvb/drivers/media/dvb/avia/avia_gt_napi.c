@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.133 $
+ *   $Revision: 1.134 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.134  2002/10/06 18:53:13  wjoost
+ *   Debug-Code raus ;)
+ *
  *   Revision 1.133  2002/10/06 18:49:02  wjoost
  *   Gleichzeitiger PES und TS-Empfang möglich, wenn TS zuerst gestartet wird.
  *
@@ -1366,7 +1369,6 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 		case DMX_TS_PES_TELETEXT:
 
 			queue_nr = avia_gt_dmx_alloc_queue_teletext(NULL, avia_gt_napi_queue_callback, gtx);
-			printk(KERN_INFO "DMX_TS_PES_TELETEXT: queue number: %0d\n",queue_nr);
 
 		break;
 
@@ -1502,9 +1504,6 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 	u8 i = 0;
 	u8 used = 0;
 
-	if (pid == 0x0212)
-		printk(KERN_INFO "dmx_update_pid for 0x0212\n");
-
 	for (i = 0; i < LAST_USER_QUEUE; i++) {
 
 		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid) && (gtx->feed[i].output & TS_PACKET)) {
@@ -1516,9 +1515,6 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 		}
 
 	}
-
-	if (pid == 0x0212)
-		printk(KERN_INFO "used: %d\n",used);
 
 	for (i = 0; i < LAST_USER_QUEUE; i++) {
 
@@ -2073,7 +2069,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.133 2002/10/06 18:49:02 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.134 2002/10/06 18:53:13 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
