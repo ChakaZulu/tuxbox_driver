@@ -28,7 +28,7 @@ commands listed below. You must have openssl development headers installed on
 your system to succeed. "ucodex" has been tested on Linux and FreeBSD, but it
 should work on any platform which has a c-compiler and openssl.
 
-   cvs -d:pserver:anonymous@cvs.berlios.de:/cvsroot/tuxbox -z3 co hostapps
+   cvs -d:pserver:anonymous@cvs.tuxbox.org:/cvs/tuxbox -z3 co hostapps
    cd hostapps
    ./autogen.sh
    ./configure
