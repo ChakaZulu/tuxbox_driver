@@ -124,47 +124,259 @@
 #define GVS_SET_XSZ(X)   rw(GVS) = ((rw(GVS)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
 
-
+/* Graphics */
 #define GTX_REG_GMR	0x000
+#define GTX_REG_CLTA	0x004
+#define FTX_REG_CLTD	0x006
 #define GTX_REG_TCR	0x008
+#define GTX_REG_CCR	0x00A
 #define GTX_REG_GVSA	0x00C
 #define GTX_REG_GVP	0x010
 #define GTX_REG_GVS	0x014
+#define GTX_REG_CSA	0x018
+#define GTX_REG_CPOS	0x01C
+#define GTX_REG_GFUNC	0x020
+
+/* SAR */
+#define GTX_REG_TRP	0x040
+#define GTX_REG_TRW	0x044
+#define GTX_REG_TRL	0x046
+#define GTX_REG_RRP	0x048
+#define GTX_REG_RRW	0x04C
+#define GTX_REG_RRL	0x04E
+#define GTX_REG_RVCA	0x050
+#define GTX_REG_RVCD	0x052
+#define GTX_REG_STXC	0x054
+#define GTX_REG_SRXC	0x056
+
+/* Smart Card */
+#define GTX_REG_TMA	0x060
+#define GTX_REG_RMA	0x064
+#define GTX_REG_SCS	0x068
+#define GTX_REG_TMS	0x06A
+#define GTX_REG_RMS	0x06C
+#define GTX_REG_SCC	0x06E
+#define GTX_REG_CWI	0x070
+#define GTX_REG_ETU	0x072
+#define GTX_REG_GDT	0x074
+#define GTX_REG_SCON	0x076
+
+/* Interrupt */
 #define GTX_REG_ISR0	0x080
 #define GTX_REG_ISR1	0x082
 #define GTX_REG_ISR2	0x084
-#define GTX_REG_ISR3	0x092            // ?!
 #define GTX_REG_IMR0	0x086
 #define GTX_REG_IMR1	0x088
 #define GTX_REG_IMR2	0x08A
-#define GTX_REG_IMR3	0x094            // ?!
 #define GTX_REG_IPR0	0x08C
 #define GTX_REG_IPR1	0x08E
 #define GTX_REG_IPR2	0x090
-#define GTX_REG_IPR3	0x094            // ?!
+#define GTX_REG_ISR3	0x092 // ?
+#define GTX_REG_IMR3	0x094 // ?
+#define GTX_REG_IPR3	0x094 // 0x096?
+#define GTX_REG_ICC	0x09C
+#define GTX_REG_DCC	0x09E
+
+/* CRC */
+#define GTX_REG_CRCC	0x0A0
+#define GTX_REG_TCRC	0x0A4
+#define GTX_REG_RCRC	0x0A8
+
+/* Blitter */
+#define GTX_REG_BDST	0x0B0
+#define GTX_REG_BMR	0x0B4
+#define GTX_REG_BDR	0x0B6
+#define GTX_REG_BCLR	0x0B8
+#define GTX_REG_BPW	0x0BC
+#define GTX_REG_BPO	0x0BE
+
+/* Infrared */
+#define GTX_REG_CWP	0x0C0
+#define GTX_REG_CWPH	0x0C2
+#define GTX_REG_MSP	0x0C4
+#define GTX_REG_MSPL	0x0C6
+#define GTX_REG_RTC	0x0C8
+#define GTX_REG_RTP	0x0CA
+
+/* SPI */
+#define GTX_REG_SPID	0x0D0
+#define GTX_REG_SPIC	0x0D2
+
+/* PCM Audio */
 #define GTX_REG_PCMA	0x0E0
 #define GTX_REG_PCMN	0x0E4
 #define GTX_REG_PCMC	0x0E8
 #define GTX_REG_PCMD	0x0EC
+
+/* Video */
+#define GTX_REG_VBR	0x0F0
+#define GTX_REG_VCR	0x0F4
 #define GTX_REG_VLC	0x0F6
 #define GTX_REG_VLI1	0x0F8
+#define GTX_REG_VHT	0x0FA
+#define GTX_REG_VLT	0x0FC
+#define GTX_REG_VLI2	0x0FE
+
+/* Configuration and Control */
 #define GTX_REG_RR0	0x100
 #define GTX_REG_RR1	0x102
 #define GTX_REG_CR0	0x104
 #define GTX_REG_CR1	0x106
+#define GTX_REG_C0CR	0x10C
+#define GTX_REG_C1CR	0x10E
+
+/* DAC */
+#define GTX_REG_DPCR	0x110
+
+/* Framer */
+#define GTX_REG_PRCPID	0x120
+#define GTX_REG_PCR2	0x122
+#define GTX_REG_PCR1	0x124
+#define GTX_REG_PCR0	0x126
+#define GTX_REG_LSTC2	0x128
+#define GTX_REG_LSTC1	0x12A
+#define GTX_REG_LSTC0	0x12C
+#define GTX_REG_STCC2	0x12E
+#define GTX_REG_STCC1	0x130
+#define GTX_REG_STCC0	0x132
+#define GTX_REG_FCR	0x134
+#define GTX_REG_SYNCH	0x136
+#define GTX_REG_PFIFO	0x138
+
+/* IDC */
+#define GTX_REG_IDCCR	0x140
+#define GTX_REG_IDCSR	0x142
+#define GTX_REG_IDCSA	0x144
+#define GTX_REG_IDCRD	0x146
+#define GTX_REG_IDCMA	0x148
+#define GTX_REG_IDCTD	0x14A
+#define GTX_REG_IDCC	0x14C
+#define GTX_REG_IDCFF	0x14E
+
+/* Audio/Video Decoder Interface */
+#define GTX_REG_AVI	0x150
+
+/* RISC Engine */
+#define GTX_REG_RISCPC	0x170
+#define GTX_REG_RISCCON	0x178
+
+/* Queue Write Pointer */
+#define GTX_REG_QWP0L	0x180
+#define GTX_REG_QWP0H	0x182
+#define GTX_REG_QWP1L	0x184
+#define GTX_REG_QWP1H	0x186
+#define GTX_REG_QWP2L	0x188
+#define GTX_REG_QWP2H	0x18A
+#define GTX_REG_QWP3L	0x18C
+#define GTX_REG_QWP3H	0x18E
+#define GTX_REG_QWP4L	0x190
+#define GTX_REG_QWP4H	0x192
+#define GTX_REG_QWP5L	0x194
+#define GTX_REG_QWP5H	0x196
+#define GTX_REG_QWP6L	0x198
+#define GTX_REG_QWP6H	0x19A
+#define GTX_REG_QWP7L	0x19C
+#define GTX_REG_QWP7H	0x19E
+#define GTX_REG_QWP8L	0x1A0
+#define GTX_REG_QWP8H	0x1A2
+#define GTX_REG_QWP9L	0x1A4
+#define GTX_REG_QWP9H	0x1A6
+#define GTX_REG_QWP10L	0x1A8
+#define GTX_REG_QWP10H	0x1AA
+#define GTX_REG_QWP11L	0x1AC
+#define GTX_REG_QWP11H	0x1AE
+#define GTX_REG_QWP12L	0x1B0
+#define GTX_REG_QWP12H	0x1B2
+#define GTX_REG_QWP13L	0x1B4
+#define GTX_REG_QWP13H	0x1B6
+#define GTX_REG_QWP14L	0x1B8
+#define GTX_REG_QWP14H	0x1BA
+#define GTX_REG_QWP15L	0x1BC
+#define GTX_REG_QWP15H	0x1BE
+
+/* Queue Interrupt */
+#define GTX_REG_QI0	0x1C0
+#define GTX_REG_QI1	0x1C2
+#define GTX_REG_QI2	0x1C4
+#define GTX_REG_QI3	0x1C6
+#define GTX_REG_QI4	0x1C8
+#define GTX_REG_QI5	0x1CA
+#define GTX_REG_QI6	0x1CC
+#define GTX_REG_QI7	0x1CE
+#define GTX_REG_QI8	0x1D0
+#define GTX_REG_QI9	0x1D2
+#define GTX_REG_QI10	0x1D4
+#define GTX_REG_QI11	0x1D6
+#define GTX_REG_QI12	0x1D8
+#define GTX_REG_QI13	0x1DA
+#define GTX_REG_QI14	0x1DC
+#define GTX_REG_QI15	0x1DE
+
+/* Audio Queue Manager */
+#define GTX_REG_AQRPL	0x1E0
+#define GTX_REG_AQRPH	0x1E2
+#define GTX_REG_AQWPL	0x1E4
+#define GTX_REG_AQWPH	0x1E6
+
+/* Teletext Queue Manager */
+#define GTX_REG_TQRPL	0x1E8
+#define GTX_REG_TQRPH	0x1EA
+#define GTX_REG_TQWPL	0x1EC
+#define GTX_REG_TQWPH	0x1EE
+
+/* Video Queue Manager */
 #define GTX_REG_VQRPL	0x1F0
 #define GTX_REG_VQRPH	0x1F2
 #define GTX_REG_VQWPL	0x1F4
 #define GTX_REG_VQWPH	0x1F6
+
+/* Copy Engine */
+#define GTX_REG_CBW0	0x200
+#define GTX_REG_CBW1	0x202
+#define GTX_REG_CBW2	0x204
+#define GTX_REG_CBW3	0x206
+#define GTX_REG_CBW4	0x208
+#define GTX_REG_CBW5	0x20A
+#define GTX_REG_CBW6	0x20C
+#define GTX_REG_CBW7	0x20E
+#define GTX_REG_CCSA	0x220
+#define GTX_REG_CDA	0x224
+#define GTX_REG_CCOM	0x228
+#define GTX_REG_RWTC	0x22A
+#define GTX_REG_CCOM2	0x22C
+#define GTX_REG_CCOM3	0x22E
+
+/* Vide Plane Display */
 #define GTX_REG_VPSA	0x240
 #define GTX_REG_VPO	0x244
 #define GTX_REG_VPP	0x248
 #define GTX_REG_VPS	0x24C
+#define GTX_REG_VPOE	0x250
+
+/* Video Capture */
 #define GTX_REG_VCSA	0x260
 #define GTX_REG_VCSP	0x264
 #define GTX_REG_VCS	0x268
 
+/* Semaphore */
+#define GTX_REG_SEM1	0x270
+#define GTX_REG_SEM2	0x272
 
+/* Teletext */
+#define GTX_REG_PTS0	0x280
+#define GTX_REG_PTS1	0x282
+#define GTX_REG_PTSO	0x284
+#define GTX_REG_TTCR	0x286
+#define GTX_REG_TSR	0x288
+
+/* Infrared */
+#define GTX_REG_RFR	0x2AC
+#define GTX_REG_RPH	0x2AE
+#define GTX_REG_IRQA	0x2B0
+#define GTX_REG_IRRE	0x2B4
+#define GTX_REG_IRTE	0x2B6
+#define GTX_REG_IRRO	0x2B8
+#define GTX_REG_IRTO	0x2BA
 
 
 #define GTX_IRQ_REG_ISR0	0
