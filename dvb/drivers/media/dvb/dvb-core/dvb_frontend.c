@@ -682,7 +682,7 @@ dvb_remove_frontend_ioctls (struct dvb_adapter *adapter,
                             int (*after_ioctl)  (struct dvb_frontend *frontend,
                                                  unsigned int cmd, void *arg))
 {
-        struct list_head *entry;
+	struct list_head *entry, *n;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -701,6 +701,22 @@ dvb_remove_frontend_ioctls (struct dvb_adapter *adapter,
 			fe->frontend.before_ioctl = NULL;
 			fe->frontend.after_ioctl = NULL;
 
+		}
+	}
+
+	list_for_each_safe (entry, n, &frontend_ioctl_list) {
+		struct dvb_frontend_ioctl_data *ioctl;
+
+		ioctl = list_entry (entry, struct dvb_frontend_ioctl_data, list_head);
+
+		if (ioctl->adapter == adapter &&
+		    ioctl->before_ioctl == before_ioctl &&
+		    ioctl->after_ioctl == after_ioctl)
+		{
+			list_del (&ioctl->list_head);
+			kfree (ioctl);
+			
+			break;
 		}
 	}
 
@@ -759,7 +775,7 @@ void
 dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 			      void (*callback) (fe_status_t s, void *data))
 {
-	struct list_head *entry;
+	struct list_head *entry, *n;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -776,6 +792,21 @@ dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 		{
 			fe->frontend.notifier_callback = NULL;
 
+		}
+	}
+
+	list_for_each_safe (entry, n, &frontend_notifier_list) {
+		struct dvb_frontend_notifier_data *notifier;
+
+		notifier = list_entry (entry, struct dvb_frontend_notifier_data, list_head);
+
+		if (notifier->adapter == adapter &&
+		    notifier->callback == callback)
+		{
+			list_del (&notifier->list_head);
+			kfree (notifier);
+			
+			break;
 		}
 	}
 
