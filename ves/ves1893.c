@@ -375,7 +375,7 @@ void ves_get_frontend(struct frontend *front)
   front->type=FRONT_DVBS;
   front->afc=((int)((char)(readreg(dclient,0x0a)<<1)))/2;
   front->afc=(front->afc*(int)(front->srate/8))/16;
-  front->agc=(readreg(dclient,0x0b)<<8);
+  front->agc=((255-readreg(dclient,0x0b))<<8);
   front->sync=readreg(dclient,0x0e);
   printk("sync: %x\n", front->sync);
   front->nest=(readreg(dclient,0x1c)<<8);
