@@ -24,7 +24,7 @@
 #ifndef _OST_SEC_H_
 #define _OST_SEC_H_
 
-#define SEC_MAX_DISEQC_PARAMS 3
+#define SEC_MAX_DISEQC_PARAMS 1 
 
 struct secDiseqcCmd {
 	uint8_t addr;
