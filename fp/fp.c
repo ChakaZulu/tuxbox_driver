@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.34  2001/11/06 15:54:59  tmbinc
+ *   added FP_WAKEUP and ioctls. (only for nokia)
+ *
  *   Revision 1.33  2001/10/30 23:17:26  derget
  *
  *   FP_IOCTL_POWEROFF für sagem eingebaut
@@ -104,7 +107,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.33 $
+ *   $Revision: 1.34 $
  *
  */
 
@@ -184,6 +187,7 @@ fp:
 #define I2C_FP_DRIVERID     0xF060
 #define RCBUFFERSIZE        16
 #define FP_GETID            0x1D
+#define FP_WAKEUP						0x11
 
 /* ---------------------------------------------------------------------- */
 
@@ -231,6 +235,8 @@ static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
 static int fp_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size);
 static int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1);
 static void fp_check_queues(void);
+static int fp_set_wakeup_timer(int minutes);
+static int fp_get_wakeup_timer(void);
 
 static void fp_restart(char *cmd);
 static void fp_power_off(void);
@@ -278,9 +284,11 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					return fp_getid(defdata->client);
 					break;
 
-				case FP_IOCTL_POWEROFF:
-					fp_sendcmd(defdata->client, 0, 3);
-					return fp_sendcmd(defdata->client, 0, 0);
+				case FP_IOCTL_POWEROFF:	
+					if (info.fpREV>=0x80)
+						return fp_sendcmd(defdata->client, 0, 3);
+					else
+						return fp_sendcmd(defdata->client, 0, 0);
 					break; 
 
 				case FP_IOCTL_LCD_DIMM:
@@ -300,7 +308,18 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
 					return fp_sendcmd(defdata->client, 0x10|(val&1), 0);
 					break;
-
+				case FP_IOCTL_GET_WAKEUP_TIMER:
+					val=fp_get_wakeup_timer();
+					if (val==-1)
+						return -EIO;
+					if (copy_to_user((void*)arg, &val, sizeof(val)))
+						return -EFAULT;
+					return 0;
+					break;
+				case FP_IOCTL_SET_WAKEUP_TIMER:
+					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
+						return -EFAULT;
+					return fp_set_wakeup_timer(val);
 				default:
 					return -EINVAL;
 			}
@@ -525,7 +544,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 	if (kind<0)
 	{
 		int fpid;
-		u8 buf[2];
+//		u8 buf[2];
 		immap_t *immap=(immap_t*)IMAP_ADDR;
 
 		/* FP ID
@@ -1115,6 +1134,41 @@ int fp_set_sec(int power,int tone)
   return 0;
 }
 
+
+static int fp_set_wakeup_timer(int minutes)
+{
+	if (info.fpREV<0x80)
+	{
+		dprintk("fp.o: fp_set_wakeup_timer on sagem/philips nyi\n");
+		return -1;
+	} else
+	{
+		u8 cmd[3]={0x11, minutes&0xFF, minutes>>8};
+
+		if (i2c_master_send(defdata->client, cmd, 3)!=3)
+			return -1;
+
+		return 0;
+	}
+}
+
+static int fp_get_wakeup_timer()
+{
+	if (info.fpREV<0x80)
+	{
+		dprintk("fp.o: fp_set_wakeup_timer on sagem/philips nyi\n");
+		return -1;
+	} else
+	{
+		u8 id[2]={0, 0};
+
+		if (fp_cmd(defdata->client, FP_WAKEUP, id, 2))
+			return -1;
+
+		return id[0]+id[1]*256;
+	}
+}
+
 /* ------------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(fp_set_tuner_dword);
@@ -1129,8 +1183,10 @@ EXPORT_SYMBOL(fp_sagem_set_SECpower);
 
 static void fp_restart(char *cmd)
 {
-	fp_sendcmd(defdata->client, 0, 20); // nokia 	
-	fp_sendcmd(defdata->client, 0, 9);  // sagem/philips
+	if (info.fpREV>=0x80)
+		fp_sendcmd(defdata->client, 0, 20); // nokia 	
+	else
+		fp_sendcmd(defdata->client, 0, 9);  // sagem/philips
 	for (;;);
 }
 
@@ -1138,8 +1194,10 @@ static void fp_restart(char *cmd)
 
 static void fp_power_off(void)
 {
-	fp_sendcmd(defdata->client, 0, 3);
-	fp_sendcmd(defdata->client, 0, 0);
+	if (info.fpREV>=0x80)
+		fp_sendcmd(defdata->client, 0, 3);
+	else
+		fp_sendcmd(defdata->client, 0, 0);
 	for (;;);
 }
 
