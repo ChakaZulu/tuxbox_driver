@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.8 2001/03/07 17:39:58 Hunz Exp $
+ * $Id: dvb.c,v 1.9 2001/03/07 20:59:43 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -89,7 +89,6 @@ static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
     b|=freq;
     
     fp_set_tuner_dword(T_QPSK, b);
-    fp_set_sec(1,1);
     return 0;
   } else if (dvb->front.type==FRONT_DVBC)
   {
