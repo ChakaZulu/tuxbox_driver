@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.15  2001/03/11 18:28:50  gillem
+ *   - add new option (test only)
+ *
  *   Revision 1.14  2001/03/08 14:08:50  Hunz
  *   DiSEqC number of params changed to 0-3
  *
@@ -45,7 +48,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -87,6 +90,7 @@ static devfs_handle_t devfs_handle[2];
 
 #ifdef MODULE
 static int debug=0;
+static int useimap=1;
 #endif
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
@@ -421,10 +425,13 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 			return -1;
 		}
     
-		immap->im_ioport.iop_papar&=~2;
-		immap->im_ioport.iop_paodr&=~2;
-		immap->im_ioport.iop_padir|=2;
-		immap->im_ioport.iop_padat&=~2;
+		if(useimap)
+		{
+			immap->im_ioport.iop_papar&=~2;
+			immap->im_ioport.iop_paodr&=~2;
+			immap->im_ioport.iop_padir|=2;
+			immap->im_ioport.iop_padat&=~2;
+		}
 
 /*    fp_sendcmd(new_client, 0x22, 0x40);
     fp_sendcmd(new_client, 0x22, 0xbf);
@@ -586,7 +593,8 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
 	immap_t *immap=(immap_t*)IMAP_ADDR;
 
-	immap->im_ioport.iop_padat|=2;
+	if(useimap)
+		immap->im_ioport.iop_padat|=2;
 	schedule_task(&fp_tasklet);
 	return;
 }
@@ -775,7 +783,10 @@ static void fp_task(void *arg)
 	immap_t *immap=(immap_t*)IMAP_ADDR;
 
 	fp_check_queues();
-	immap->im_ioport.iop_padat&=~2;
+
+	if(useimap)
+		immap->im_ioport.iop_padat&=~2;
+
 	enable_irq(FP_INTERRUPT);
 }
 
@@ -928,6 +939,7 @@ MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 Frontprocessor");
 
 MODULE_PARM(debug,"i");
+MODULE_PARM(useimap,"i");
 
 int init_module(void)
 {
