@@ -21,6 +21,10 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.20  2002/04/25 12:08:49  happydude
+ *   unified scart pin 8 voltage setting for lazyT :)
+ *   hopefully fix mute status on Philips for sat24
+ *
  *   Revision 1.19  2002/04/22 05:51:02  happydude
  *   fix AVSIOGFNC
  *
@@ -77,7 +81,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -383,7 +387,7 @@ int stv6412_get_volume(void)
 
 inline int stv6412_get_mute(void)
 {
-	return stv6412_data.c_ag;
+	return ((tc_asc == 0) & (v_asc == 0));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -454,6 +458,9 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	int val=0;
 
+	unsigned char scartPin8Table[3] = { 0, 2, 3 };
+	unsigned char scartPin8Table_reverse[4] = { 0, 0, 1, 2 };
+
 	dprintk("[AVS]: command\n");
 	
 	if (cmd&AVSIOSET)
@@ -488,6 +495,8 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			case AVSIOSFBLK:
 				return stv6412_set_fblk(client,val);
 			/* set slow blanking (tv) */
+			case AVSIOSSCARTPIN8:
+				return stv6412_set_t_sb(client,scartPin8Table[val]);
 			case AVSIOSFNC:
 				return stv6412_set_t_sb(client,val);
 			default:
@@ -528,6 +537,9 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			case AVSIOGFBLK:
                                 val = stv6412_get_fblk();
                                 break;
+			case AVSIOGSCARTPIN8:
+				val = scartPin8Table_reverse[stv6412_get_t_sb()];
+				break;
 			/* get slow blanking (tv) */
 			case AVSIOGFNC:
 				val = stv6412_get_t_sb();

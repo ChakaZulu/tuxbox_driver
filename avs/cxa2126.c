@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.22  2002/04/25 12:08:50  happydude
+ *   unified scart pin 8 voltage setting for lazyT :)
+ *   hopefully fix mute status on Philips for sat24
+ *
  *   Revision 1.21  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -86,7 +90,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -430,7 +434,8 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			/* set video fast blanking */
 			case AVSIOSFBLK:	return cxa2126_set_fblk(client,val);
 			/* set video function switch control */
-			case AVSIOSFNC:		return cxa2126_set_fnc(client,val);
+			case AVSIOSFNC:
+			case AVSIOSSCARTPIN8:	return cxa2126_set_fnc(client,val);
 			/* set output throgh vout 8 */
 //			case AVSIOSYCM:		return cxa2126_set_ycm(val);
 			/* set zero cross detector */
@@ -477,6 +482,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
                                 break;
 			/* get video function switch control */
 			case AVSIOGFNC:
+			case AVSIOGSCARTPIN8:
                                 val = cxa2126_get_fnc();
                                 break;
 			/* get output throgh vout 8 */

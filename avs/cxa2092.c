@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.24  2002/04/25 12:08:49  happydude
+ *   unified scart pin 8 voltage setting for lazyT :)
+ *   hopefully fix mute status on Philips for sat24
+ *
  *   Revision 1.23  2002/02/28 21:44:34  gillem
  *   - fix default routing
  *
@@ -87,7 +91,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -451,6 +455,7 @@ int cxa2092_get_status(struct i2c_client *client)
 int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	int val;
+
 	dprintk("[AVS]: command %x\n",cmd);
 	
 	if (cmd&AVSIOSET)
@@ -486,6 +491,7 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 				return cxa2092_set_fblk(client,val);
 			/* set video function switch control */
 			case AVSIOSFNC:	
+			case AVSIOSSCARTPIN8:
 				return cxa2092_set_fnc(client,val);
 			/* set output throgh vout 8 */
 			case AVSIOSYCM:
@@ -542,6 +548,7 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
                                 break;
 			/* get video function switch control */
 			case AVSIOGFNC:
+			case AVSIOGSCARTPIN8:
                                 val = cxa2092_get_fnc();
                                 break;
 			/* get output throgh vout 8 */
