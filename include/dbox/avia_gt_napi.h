@@ -100,8 +100,6 @@ typedef struct gtx_demux_feed_s
 
   int index;
 
-  int readptr;
-
 } gtx_demux_feed_t;
 
 typedef struct gtx_demux_s
