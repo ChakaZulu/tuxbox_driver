@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS       = dbox2_i2c.o dbox2_i2c_napi.o
+M_OBJS       = dbox2_i2c.o
 
 # 2.4.x Kernel Option
 obj-m        = $(M_OBJS)

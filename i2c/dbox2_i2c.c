@@ -19,6 +19,11 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.25  2003/01/04 11:05:31  Jolt
+ *   - Removed DVB I2C <-> MPC8xx I2C hack
+ *   - Added generich DVB I2C <-> Linux I2C bridge
+ *   - Tweaked rcS to follow I2C changes
+ *
  *   Revision 1.24  2002/11/21 15:51:11  obi
  *   LinuxTV sync
  *
@@ -59,7 +64,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -692,7 +697,14 @@ static struct i2c_algorithm i2c_8xx_algo = {
 
 /* ------------------------------------------------------------------------- */
 
-static struct i2c_adapter adap;
+static struct i2c_adapter adap = {
+
+	.name = "PowerPC 8xx I2C adapter",
+	.algo = &i2c_8xx_algo,
+	.timeout = 100,
+	.retries = 3,
+
+};
 
 static int __init i2c_algo_8xx_init (void)
 {
@@ -706,9 +718,6 @@ static int __init i2c_algo_8xx_init (void)
 	}
 
 	adap.id=i2c_8xx_algo.id;
-	adap.algo=&i2c_8xx_algo;
-	adap.timeout=100;
-	adap.retries=3;
 
 #ifdef MODULE
 //  MOD_INC_USE_COUNT;

@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS = dvb-core.o
+M_OBJS = dvb-core.o dvb_i2c_bridge.o
 
 DVB_CORE = dvbdev.o dmxdev.o dvb_demux.o dvb_filter.o \
 	   dvb_frontend.o dvb_i2c.o dvb_net.o dvb_ksyms.o

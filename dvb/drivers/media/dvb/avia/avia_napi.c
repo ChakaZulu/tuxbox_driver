@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.9 2003/01/02 05:26:43 obi Exp $
+ * $Id: avia_napi.c,v 1.10 2003/01/04 11:05:31 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 
 #include "../dvb-core/dvbdev.h"
+#include "../dvb-core/dvb_i2c_bridge.h"
 
 static struct dvb_adapter *adap;
 
@@ -45,11 +46,21 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.9 2003/01/02 05:26:43 obi Exp $\n");
+	printk("$Id: avia_napi.c,v 1.10 2003/01/04 11:05:31 Jolt Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
 		printk("avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
+		
+		return result;
+		
+	}
+
+	if ((result = dvb_i2c_bridge_register(adap)) < 0) {
+	
+		printk("avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
+
+		dvb_unregister_adapter(adap);
 		
 		return result;
 		
@@ -66,6 +77,7 @@ static void __exit avia_napi_exit(void)
 
 //FIXME	dvb_net_release(&net);
 
+	dvb_i2c_bridge_unregister(adap);
 	dvb_unregister_adapter(adap);
 
 }
