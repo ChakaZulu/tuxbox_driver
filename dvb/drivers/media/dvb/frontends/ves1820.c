@@ -209,9 +209,9 @@ int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0)
 	/**
 	 *  check lock and toggle inversion bit if required...
 	 */
-	if (!ves1820_readreg (fe, 0x11) & 0x08) {
+	if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
 		ddelay(1);
-		if (!ves1820_readreg (fe, 0x11) & 0x08) {
+		if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
 			reg0 ^= 0x20;
 			ves1820_writereg (fe, 0x00, reg0 & 0xfe);
         		ves1820_writereg (fe, 0x00, reg0);
