@@ -21,6 +21,7 @@
 #define gGMR            0x00
 #define gCLTA           0x04
 #define gCLTD           0x06
+#define gTCR            0x08
 #define gCCR            0x0A
 #define gGVSA           0x0C
 #define gGVP            0x10
@@ -77,8 +78,8 @@
 #define gPTS0			0x280
 #define gPTS1			0x282
 #define gPTSO			0x284
-#define gTCR            0x286
-#define gTSR            0x288
+#define gTTCR			0x286
+#define gTTSR			0x288
 
 #define gAQRPL			0x1E0
 #define gAQRPH			0x1E2
