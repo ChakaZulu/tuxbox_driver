@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.188 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.189 2003/10/25 15:45:34 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -713,7 +713,7 @@ void avia_gt_dmx_queue_irq(unsigned short irq)
 
 	u8 bit = AVIA_GT_IRQ_BIT(irq);
 	u8 nr = AVIA_GT_IRQ_REG(irq);
-	u32 old_hw_write_pos;
+	u32 old_hw_write_pos,written,too_much;
 
 	u8 queue_nr = AVIA_GT_DMX_QUEUE_COUNT;
 
@@ -745,6 +745,31 @@ void avia_gt_dmx_queue_irq(unsigned short irq)
 
 	old_hw_write_pos = q->hw_write_pos;
 	q->hw_write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
+
+	/*
+	 * Deliver only complete ts-packets. Otherwise, /dev/dvr gets confused.
+	 */
+
+	if (q->mode == AVIA_GT_DMX_QUEUE_MODE_TS)
+	{
+		if (old_hw_write_pos < q->hw_write_pos)
+		{
+			written = q->hw_write_pos - old_hw_write_pos;
+		}
+		else
+		{
+			written = q->hw_write_pos + q->size - old_hw_write_pos;
+		}
+		too_much = written % 188;
+		if (too_much > q->hw_write_pos)
+		{
+			q->hw_write_pos = q->size + q->hw_write_pos - too_much;
+		}
+		else
+		{
+			q->hw_write_pos -= too_much;
+		}
+	}
 
 	if (!q->qim_mode) {
 		q->qim_irq_count++;
@@ -2027,7 +2052,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.188 2003/09/30 05:45:35 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.189 2003/10/25 15:45:34 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
