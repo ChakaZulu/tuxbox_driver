@@ -21,13 +21,16 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.7  2001/01/26 23:51:33  gillem
+ *   some kernel styles change
+ *
  *   Revision 1.6  2001/01/20 19:01:21  gillem
  *   - add pixel function
  *
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -324,14 +327,17 @@ int lcd_set_pixel( struct lcd_pixel * pix )
 {
     int y=0,val,bit=0,v;
 
-    if ( pix->y >= (LCD_ROWS*8) )
+    if ( pix->y >= (LCD_ROWS*8) ) {
         return -EINVAL;
+    }
 
-    if ( pix->x >= LCD_COLS )
+    if ( pix->x >= LCD_COLS ) {
         return -EINVAL;
+    }
 
-    if (pix->y)
+    if (pix->y) {
         y = (pix->y/8);
+    }
 
     bit = pix->y - (y*8);
 
@@ -343,13 +349,15 @@ int lcd_set_pixel( struct lcd_pixel * pix )
     v = pix->v;
 
     // invertieren
-    if ( v == 2 )
+    if ( v == 2 ) {
         v = (((~val)>>bit)&1);
+    }
 
-    if ( v == 1 )
+    if ( v == 1 ) {
         val |= (1<<bit);
-    else
+    } else {
         val &= ~(1<<bit);
+    }
 
 	// set dram pointer
 	lcd_set_pos( y, pix->x );
@@ -364,15 +372,13 @@ void lcd_read_dram( unsigned char * dest )
 {
 	int pa,col;
 
-	for(pa=0;pa<LCD_ROWS;pa++)
-	{
+	for(pa=0;pa<LCD_ROWS;pa++) {
 		// set dram pointer
 		lcd_set_pos( pa, 0 );
 
 		lcd_read_dummy();
 
-		for(col=0;col<LCD_COLS;col++)
-		{
+		for(col=0;col<LCD_COLS;col++) {
 			dest[(pa*LCD_COLS)+col] = lcd_read_byte();
 		}
 	}
@@ -389,7 +395,6 @@ void lcd_write_dram( unsigned char * source )
 		lcd_set_pos( pa, 0 );
 
 		for(col=0;col<LCD_COLS;col++) {
-
 			lcd_write_byte( source[(pa*LCD_COLS)+col] );
 		}
 	}
@@ -404,16 +409,17 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 	int pa,col,i;
     int ret;
 
-	printk("COUNT: %d\n",count);
-
-	if (count>LCD_BUFFER_SIZE)
+	if (count>LCD_BUFFER_SIZE) {
 		return -EFAULT;
+    }
 
-	if ( lcd_read_status() & LCD_STAT_BUSY )
+	if ( lcd_read_status() & LCD_STAT_BUSY ) {
 		return -EBUSY;
+    }
 
-	if ( (obp = kmalloc( count, GFP_KERNEL)) == NULL )
+	if ( (obp = kmalloc( count, GFP_KERNEL)) == NULL ) {
 		return -ENOMEM;
+    }
 
 	bp = obp;
 
@@ -458,14 +464,17 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 	char *obp, *bp;
 	int pa,col;
 	
-	if (count<=0)
+	if (count<=0) {
 		return -EFAULT;
+    }
 
-	if ( lcd_read_status() & LCD_STAT_BUSY )
+	if ( lcd_read_status() & LCD_STAT_BUSY ) {
 		return -EBUSY;
+    }
 
-	if ( (obp = kmalloc( count, GFP_KERNEL)) == NULL )
+	if ( (obp = kmalloc( count, GFP_KERNEL)) == NULL ) {
 		return -ENOMEM;
+    }
 
 	if ( copy_from_user( obp, buf, count ) ) {
 		kfree(obp);
@@ -488,8 +497,7 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 				lcd_write_byte( *bp );
 			}
 		}
-	}
-	else if ( LCD_MODE == LCD_MODE_ASC ) {
+	} else if ( LCD_MODE == LCD_MODE_ASC ) {
 		lcd_console_put_data( bp, count );
 	} else {
 		kfree(obp);
@@ -506,7 +514,7 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 
 static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 {
-	printk("[LCD]: OFFSET = %d\n",offset);
+//	printk("[LCD]: OFFSET = %d\n",offset);
 
 	switch ( origin ) {
 
@@ -527,7 +535,7 @@ static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 					break;
 	}
 
-	printk("[LCD]: OFFSET = %d\n",offset);
+//	printk("[LCD]: OFFSET = %d\n",offset);
 
 	return ( (offset >=0) ? (f_vars.pos=offset) : -EINVAL );
 }
@@ -781,7 +789,7 @@ int __init lcd_init(void)
 	f_vars.row = 0;
 	f_vars.col = 0;
 
-    /* reset lcd */
+    /* reset lcd todo ;-) */
 //    lcd_reset();
 
 	// set defaults

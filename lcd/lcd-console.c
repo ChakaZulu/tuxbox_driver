@@ -21,10 +21,13 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.5  2001/01/26 23:51:33  gillem
+ *   some kernel styles change
+ *
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -76,26 +79,25 @@ void lcd_console_put_data( unsigned char *data, int len )
 {
 	int i;
 
-	for(i=0;i<len;i++)
-	{
-//		printk("%02X\n",data[i]);
+	for(i=0;i<len;i++) {
 
-		switch(data[i])
-		{
-			case 0x0A:	lcd_console_new_line();
-									continue;
-									break;
-			default:		break;
+		switch(data[i]) {
+
+			case 0x0A:
+                    lcd_console_new_line();
+					continue;
+					break;
+
+			default:
+                    break;
 		}
 
-		if (col == MAX_COL)
-		{
+    	if (col == MAX_COL) {
 			col=0;
 			row++;
 		}
 
-		if ( row == MAX_ROW )
-		{
+		if ( row == MAX_ROW ) {
 			lcd_console_new_line();
 			row--;
 		}
@@ -117,8 +119,7 @@ void lcd_console_put_char( unsigned char data )
 
 	lcd_set_pos( row, col*8 );
 
-	for(i=0;i<8;i++)
-	{
+	for(i=0;i<8;i++) {
 		lcd_write_byte( b[i] );
 	}
 }
@@ -127,23 +128,17 @@ void lcd_console_put_char( unsigned char data )
 
 void lcd_console_new_line()
 {
-//	printk("NL: %02X %02X\n",row,col);
-
-	for(;col<=MAX_COL;col++)
-	{
+	for(;col<=MAX_COL;col++) {
 		lcd_console_put_char(0x20);
 	}
 
-	if ( row == MAX_ROW )
-	{
+    if ( row == MAX_ROW ) {
 		row--;
 		lcd_console_scroll_down( 1 );
 
-		for(col=0;col<=MAX_COL;col++)
-		{
+		for(col=0;col<=MAX_COL;col++) {
 			lcd_console_put_char(0x20);
 		}
-
 	}
 
 	row++;
