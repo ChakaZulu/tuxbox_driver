@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.193 2003/11/29 21:58:45 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.194 2003/12/07 15:50:19 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -60,6 +60,7 @@ static int mode;
 
 /* only used for playback */
 static int need_audio_pts;
+static int clipmode;
 
 static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
 
@@ -413,6 +414,11 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 	int pes_offset;
 	int err;
 
+	if (!clipmode) {
+		printk(KERN_CRIT "avia_gt_napi: FIXME - write to decoder during disabled clipmode\n");
+		return -EINVAL;
+	}
+
 	if (ts->sync_byte != 0x47)
 		return -EINVAL;
 
@@ -590,9 +596,11 @@ static int avia_gt_napi_connect_frontend(struct dmx_demux *demux, struct dmx_fro
 	if ((err = dvbdmx_connect_frontend(demux, frontend)) < 0)
 		return err;
 
-	if (demux->frontend->source == DMX_MEMORY_FE)
+	if (demux->frontend->source == DMX_MEMORY_FE) {
 		if ((err = avia_gt_dmx_enable_clip_mode(AVIA_GT_DMX_SYSTEM_QUEUES)) < 0)
 			return err;
+		clipmode = 1;
+	}
 
 	return 0;
 }
@@ -601,9 +609,11 @@ static int avia_gt_napi_disconnect_frontend(struct dmx_demux *demux)
 {
 	int err;
 
-	if (demux->frontend->source == DMX_MEMORY_FE)
+	if (demux->frontend->source == DMX_MEMORY_FE) {
 		if ((err = avia_gt_dmx_disable_clip_mode(AVIA_GT_DMX_SYSTEM_QUEUES)) < 0)
 			return err;
+		clipmode = 0;
+	}
 
 	return dvbdmx_disconnect_frontend(demux);
 }
@@ -710,7 +720,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.193 2003/11/29 21:58:45 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.194 2003/12/07 15:50:19 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
