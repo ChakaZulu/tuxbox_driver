@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.7  2002/04/13 14:47:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.6  2002/04/12 13:50:37  Jolt
  *   eNX/GTX merge
  *
@@ -42,7 +45,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -255,12 +258,12 @@ void avia_gt_pcm_reset(void)
     } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
 
 	// Reset PCM module
-//        gtx_reg_s(RR0)->PCMA = 1;
-//	gtx_reg_s(RR0)->PCM = 1;
+        gtx_reg_s(RR0)->ACLK = 1;
+	gtx_reg_s(RR0)->PCM = 1;
     
         // Get PCM module out of reset state
-//	gtx_reg_s(RR0)->PCM = 0;
-//        gtx_reg_s(RR0)->PCMA = 0;
+	gtx_reg_s(RR0)->PCM = 0;
+        gtx_reg_s(RR0)->ACLK = 0;
     
     }
     
@@ -497,11 +500,11 @@ int avia_gt_pcm_init(void)
 
     unsigned char buf_nr;
 
-    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.6 2002/04/12 13:50:37 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.7 2002/04/13 14:47:19 Jolt Exp $\n");
 
     pcm_chip_type = avia_gt_get_chip_type();
     
-    if ((pcm_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (pcm_chip_type != AVIA_GT_CHIP_TYPE_ENX)) {
+    if ((pcm_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (pcm_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
 	printk("avia_gt_pcm: Unsupported chip type\n");
 	

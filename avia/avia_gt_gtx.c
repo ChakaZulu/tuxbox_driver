@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.6  2002/04/13 14:47:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.5  2002/04/12 23:20:25  Jolt
  *   eNX/GTX merge
  *
@@ -96,7 +99,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -149,10 +152,49 @@ static int gtx_proc_initialized;
 
 #endif /* CONFIG_PROC_FS */
 
-static int debug = 0;
-
 static int isr[] = {gISR0, gISR1, gISR2, gISR3};
 static int imr[] = {gIMR0, gIMR1, gIMR2, gIMR3};
+
+void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
+{
+
+    gtx_reg_16n(isr[irq_reg]) = (1 << irq_bit);
+	
+}
+
+unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg)
+{
+
+    if (irq_reg <= 5)
+	return gtx_reg_16n(imr[irq_reg]);
+    else
+	return 0;
+	
+}
+
+unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg)
+{
+
+    if (irq_reg <= 5)
+	return gtx_reg_16n(isr[irq_reg]);
+    else
+	return 0;
+	
+}
+
+void avia_gt_gtx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
+{
+
+    gtx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
+	
+}
+
+void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
+{
+
+    gtx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
+	
+}
 
 static void gtx_intialize_interrupts(void)
 {
@@ -199,14 +241,22 @@ static void gtx_close_interrupts(void)
 
 }
 
-static void avia_gt_gtx_init(void)
+void avia_gt_gtx_reset(void) 
+{
+
+    gtx_reg_16(RR0) = 0xFFFF;
+    gtx_reg_16(RR1) = 0x00FF;
+
+}
+
+void avia_gt_gtx_init(void)
 {
         int cr;
 
-        dprintk (KERN_INFO "gtx-core: loading AViA GTX core driver\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.6 2002/04/13 14:47:19 Jolt Exp $\n");
+	
+	avia_gt_gtx_reset();
 
-        rh(RR0) = 0xFFFF;
-        rh(RR1) = 0x00FF;
         udelay (500);
         rh(RR0) &= ~( (1 << 13) | (1 << 12) | (1 << 10)
                       | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
@@ -214,6 +264,7 @@ static void avia_gt_gtx_init(void)
         udelay (500);
 
         memset (avia_gt_get_mem_addr(), 0xFF, 2 * 1024 * 1024);          // clear ram
+	
         gtx_proc_init ();
 
         cr = rh (CR0);
@@ -266,7 +317,7 @@ static void avia_gt_gtx_init(void)
 	
 }
 
-static void avia_gt_gtx_exit(void)
+void avia_gt_gtx_exit(void)
 {
 	gtx_proc_cleanup ();
 

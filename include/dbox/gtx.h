@@ -136,6 +136,7 @@
 #define GTX_REG_PCMD	0x0EC
 #define GTX_REG_VLI1	0x0F8
 #define GTX_REG_RR0	0x100
+#define GTX_REG_RR1	0x102
 #define GTX_REG_VPSA	0x240
 #define GTX_REG_VPO	0x244
 #define GTX_REG_VPP	0x248
@@ -198,6 +199,27 @@ typedef struct {
   unsigned char Reserved4: 1;
   
 } sGTX_REG_PCMN;
+
+typedef struct {
+
+    unsigned char PIG: 1;
+    unsigned char VCAP: 1;
+    unsigned char VID: 1;
+    unsigned char ACLK: 1;
+    unsigned char COPY: 1;
+    unsigned char DRAM: 1;
+    unsigned char PCM: 1;
+    unsigned char SPI: 1;
+    unsigned char IR: 1;
+    unsigned char BLIT: 1;
+    unsigned char CRC: 1;
+    unsigned char INT: 1;
+    unsigned char SCD: 1;
+    unsigned char SRX: 1;
+    unsigned char STX: 1;
+    unsigned char GV: 1;
+
+} sGTX_REG_RR0;
 
 typedef struct {
 

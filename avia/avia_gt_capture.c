@@ -21,12 +21,15 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.6  2002/04/13 14:47:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.5  2002/04/12 14:00:20  Jolt
  *   eNX/GTX merge
  *
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -338,7 +341,7 @@ int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.5 2002/04/12 14:00:20 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.6 2002/04/13 14:47:19 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
@@ -359,7 +362,7 @@ int __init avia_gt_capture_init(void)
 
     capture_chip_type = avia_gt_get_chip_type();
 
-    if ((capture_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (capture_chip_type != AVIA_GT_CHIP_TYPE_ENX)) {
+    if ((capture_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (capture_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
         printk("avia_gt_pcm: Unsupported chip type\n");
 

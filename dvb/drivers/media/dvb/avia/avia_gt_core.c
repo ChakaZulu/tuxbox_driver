@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.4  2002/04/13 14:47:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.3  2002/04/12 21:29:35  Jolt
  *   eNX/GTX merge
  *
@@ -31,7 +34,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -109,8 +112,8 @@ void avia_gt_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	avia_gt_enx_clear_irq(irq_reg, irq_bit);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	avia_gt_gtx_clear_irq(irq_reg, irq_bit);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	avia_gt_gtx_clear_irq(irq_reg, irq_bit);
     
 }
 
@@ -126,8 +129,8 @@ unsigned short avia_gt_get_irq_mask(unsigned char irq_reg)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	return avia_gt_enx_get_irq_mask(irq_reg);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	return avia_gt_gtx_get_irq_mask(irq_reg);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	return avia_gt_gtx_get_irq_mask(irq_reg);
 
     return 0;
 
@@ -138,8 +141,8 @@ unsigned short avia_gt_get_irq_status(unsigned char irq_reg)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	return avia_gt_enx_get_irq_status(irq_reg);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	return avia_gt_gtx_get_irq_status(irq_reg);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	return avia_gt_gtx_get_irq_status(irq_reg);
 
     return 0;
 
@@ -164,8 +167,8 @@ void avia_gt_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
     
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	avia_gt_enx_mask_irq(irq_reg, irq_bit);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	avia_gt_gtx_mask_irq(irq_reg, irq_bit);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	avia_gt_gtx_mask_irq(irq_reg, irq_bit);
 	
 }
 	
@@ -174,8 +177,8 @@ void avia_gt_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	avia_gt_enx_unmask_irq(irq_reg, irq_bit);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	avia_gt_gtx_unmask_irq(irq_reg, irq_bit);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	avia_gt_gtx_unmask_irq(irq_reg, irq_bit);
 
 }
 	
@@ -262,7 +265,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.3 2002/04/12 21:29:35 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.4 2002/04/13 14:47:19 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -363,13 +366,13 @@ int __init avia_gt_init(void)
     
 #endif
 	    
-    printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX core driver\n");
+    printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
 
     return 0;
   
 }
 
-void __exit avia_gt_exit(void)
+void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
