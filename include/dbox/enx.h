@@ -271,7 +271,8 @@
 #define MSR_2		0x0758			// Modem Status Register
 #define SPR_1		0x071C			// Scratch Pad Register
 #define SPR_2		0x075C			// Scratch Pad Register
-
+#define QWPnL           0x0880
+#define QWPnH           0x0882
 
 typedef struct {
 
