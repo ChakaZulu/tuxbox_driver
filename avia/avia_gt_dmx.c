@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.79  2002/05/02 20:23:10  Jolt
+ *   Fixes
+ *
  *   Revision 1.78  2002/05/02 12:37:35  Jolt
  *   Merge
  *
@@ -33,7 +36,7 @@
  *
  *
  *
- *   $Revision: 1.78 $
+ *   $Revision: 1.79 $
  *
  */
 
@@ -233,7 +236,7 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 		enx_reg_s(PCR_PID)->E = 0;
 		enx_reg_s(PCR_PID)->PID = pid;
 		enx_reg_s(PCR_PID)->E = 1;
-		
+
 		avia_gt_free_irq(ENX_IRQ_PCR);
 		avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
@@ -406,9 +409,8 @@ static Pcr_t gtx_read_transport_pcr(void)
 
     if (avia_gt_chip(ENX)) {
     
-		pcr.hi = enx_reg_16(TP_PCR_2) << 16;
-		pcr.hi |= enx_reg_16(TP_PCR_1);
-		pcr.lo = enx_reg_16(TP_PCR_0) & 0x81FF;
+		pcr.hi = (enx_reg_16(TP_PCR_2) << 16) | enx_reg_16(TP_PCR_1);
+		pcr.lo = enx_reg_16(TP_PCR_0) & 0x8000;
 
     } else if (avia_gt_chip(GTX)) {
 
@@ -429,9 +431,8 @@ static Pcr_t avia_gt_dmx_get_latched_stc(void)
 
     if (avia_gt_chip(ENX)) {
     
-		pcr.hi = enx_reg_s(LC_STC_2)->Latched_STC_Base << 16;
-		pcr.hi |= enx_reg_s(LC_STC_1)->Latched_STC_Base;
-		pcr.lo = enx_reg_16(LC_STC_0) & 0x81FF;
+		pcr.hi = (enx_reg_s(LC_STC_2)->Latched_STC_Base << 16) | enx_reg_s(LC_STC_1)->Latched_STC_Base;
+		pcr.lo = enx_reg_s(LC_STC_0)->Latched_STC_Base << 15;
 
     } else if (avia_gt_chip(GTX)) {
 
@@ -452,8 +453,8 @@ Pcr_t avia_gt_dmx_get_stc(void)
 
     if (avia_gt_chip(ENX)) {
     
-		pcr.hi = ((enx_reg_s(STC_COUNTER_2)->STC_Count << 16) | enx_reg_s(STC_COUNTER_1)->STC_Count);
-		pcr.lo = (enx_reg_16(STC_COUNTER_0) & 0x81FF);
+		pcr.hi = (enx_reg_s(STC_COUNTER_2)->STC_Count << 16) | enx_reg_s(STC_COUNTER_1)->STC_Count;
+		pcr.lo = enx_reg_s(STC_COUNTER_0)->STC_Count << 15;
 
     } else if (avia_gt_chip(GTX)) {
 
@@ -621,7 +622,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.78 2002/05/02 12:37:35 Jolt Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.79 2002/05/02 20:23:10 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
