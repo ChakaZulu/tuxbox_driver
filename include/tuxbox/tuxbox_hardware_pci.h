@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_pci.h,v 1.1 2003/03/03 19:07:45 obi Exp $
+ * $Id: tuxbox_hardware_pci.h,v 1.2 2003/03/03 20:47:01 obi Exp $
  */
 
 #ifndef TUXBOX_HARDWARE_PCI_H
@@ -31,3 +31,4 @@
 	 TUXBOX_CAPABILITIES_NETWORK | \
 	 TUXBOX_CAPABILITIES_HDD)
 
+#endif /* TUXBOX_HARDWARE_PCI_H */
