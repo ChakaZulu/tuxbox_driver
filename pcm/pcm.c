@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.10  2001/02/02 23:45:33  tmbinc
+ *   Modified for strictly halfword-aligned accesses to gtxmem. -tmb
+ *
  *   Revision 1.9  2001/02/02 22:08:36  tmbinc
  *   Fixed Buffer, removed DAC-Setting (as it's for the PCR), optimized swab.
  *
@@ -47,7 +50,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -372,16 +375,21 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
     if (tocopy>2048)
       tocopy=2048;
 
+    tocopy&=~3;
+
+    if (!tocopy)
+      return -EIO;
+
     if (bit16)          // swap bytes
     {
-      u8 *d=gtxmem+buffer_wptr, *s=swapbuffer;
+      u16 *d=(u16*)(gtxmem+buffer_wptr);
+      u8 *s=swapbuffer;
       if (copy_from_user(swapbuffer, buf, tocopy))
         return -EFAULT;
 
       for (i=0; i<tocopy; i+=2)
       {
-        *d++=s[1];
-        *d++=s[0];
+        *d++=(s[1]<<8)|s[0];
         s+=2;
       }
     } else
@@ -445,6 +453,7 @@ static void pcm_interrupt( int reg, int bit )
   
   if (buffer_rptr == buffer_wptr)       // no data :(
   {
+    printk("stop.\n");
     stopplay();
     return;
   }
@@ -457,7 +466,13 @@ static void pcm_interrupt( int reg, int bit )
     if (buffer_wptr>=buffer_end)
       buffer_wptr-=buffer_size;
   }
-    
+  
+  if (rh(PCMC)&(1<<9))
+  {
+    printk("OVERFLOW.\n");
+    rh(PCMC)&=~(1<<9);
+  }
+
   rw(PCMA)=buffer_rptr;
 }
 
