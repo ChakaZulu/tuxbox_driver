@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.6 2002/12/03 00:19:29 Zwen Exp $
+ * $Id: dbox2_fp_timer.c,v 1.7 2002/12/03 18:22:39 Zwen Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -108,7 +108,7 @@ dbox2_fp_timer_clear (void)
 	cmd = FP_CLEAR_WAKEUP;
 	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 		return -1;
-	boot_trigger = (id[0] == 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
+	boot_trigger = (id[0] & 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
 
 	// nokia needs an additional read to restore normal shutdown behavior
 	if(manufacturer_id==DBOX_MID_NOKIA)
