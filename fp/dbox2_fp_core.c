@@ -21,6 +21,10 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.46  2002/01/19 07:48:35  Hunz
+ *   OOPS I did it again...
+ *   (but that one was a really nasty one - hope it works now)
+ *
  *   Revision 1.45  2002/01/19 05:59:28  Hunz
  *   I will first look for bugs and then commit
  *   I will first look for bugs and then commit
@@ -148,7 +152,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.45 $
+ *   $Revision: 1.46 $
  *
  */
 
@@ -341,7 +345,7 @@ unsigned char fn_keymap[128] = {
 };
 
 unsigned char irkbd_flags=0;
-
+int fn_scan=0;
 #define IRKBD_FN 1
 #define IRKBD_MOUSER 2
 #define IRKBD_MOUSEL 4
@@ -883,10 +887,19 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
   /* i wonder wether that's enough... */
   if((scancode&0x7f)==0x49) /* Fn toggled */
     return 0;
-  if(!(irkbd_flags&IRKBD_FN))
-    *keycode=keymap[scancode&0x7f];
-  else
+
+  if(irkbd_flags&IRKBD_FN) {            /* Fn + other key pressed */
     *keycode=fn_keymap[scancode&0x7f];
+    fn_scan=scancode&0x7f;
+  }
+  /* Fn released but other key still pressed */
+  else if((!(irkbd_flags&IRKBD_FN)) && (fn_scan==(scancode&0x7f)) && (fn_scan!=0)) {
+     *keycode=fn_keymap[scancode&0x7f];
+     fn_scan=0;
+  }
+  else
+    *keycode=keymap[scancode&0x7f];
+
   if(*keycode==0) {
     if (!raw_mode)
       printk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
@@ -1119,10 +1132,12 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
-	if(scancode==0x49)
+	if(scancode==0x49) {
 	  irkbd_flags|=IRKBD_FN;
-	else if (scancode==0xC9)
+	}
+	else if (scancode==0xC9) {
 	  irkbd_flags&=~IRKBD_FN;
+	}
 	 /* mouse button changed */
 	else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
 	  irkbd_mousebutton(scancode);
