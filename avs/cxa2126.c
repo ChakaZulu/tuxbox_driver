@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.13  2001/04/25 08:05:22  fnbrd
+ *   Debugausgabe raus.
+ *
  *   Revision 1.12  2001/04/25 07:36:58  fnbrd
  *   Fixed mute/unmute.
  *
@@ -58,7 +61,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -283,7 +286,6 @@ int cxa2126_get_volume(void)
 
 inline int cxa2126_get_mute(void)
 {
-  dprintk("tvmute1: %d\n", cxa2126_data.tvmute1);
     return cxa2126_data.tvmute1;
 }
 
