@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.23  2001/04/09 19:49:40  TripleDES
+ *   added fp_cam_reset for sagem/philips? support
+ *
  *   Revision 1.22  2001/04/06 21:15:20  tmbinc
  *   Finally added new rc-support.
  *
@@ -69,7 +72,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -491,14 +494,14 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 			immap->im_ioport.iop_padat&=~2;
 		}
 
-/*    fp_sendcmd(new_client, 0x22, 0x40);
+    fp_sendcmd(new_client, 0x04, 0x71); //sagem / philips ? needs this
     fp_sendcmd(new_client, 0x22, 0xbf);
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
     fp_sendcmd(new_client, 0x18, 0xb3);
-    fp_cmd(new_client, 0x1e, buf, 2); */
+    fp_cmd(new_client, 0x1e, buf, 2); 
 
-		fp_sendcmd(new_client, 0x26, 0x0);		// disable (non-working) break code
+		fp_sendcmd(new_client, 0x26, 0x80);		// disable (non-working) break code
     
 		fp_cmd(new_client, 0x23, buf, 1);
 		fp_cmd(new_client, 0x20, buf, 1);
@@ -764,6 +767,28 @@ static int fp_close(void)
 }
 
 /* ------------------------------------------------------------------------- */
+int fp_cam_reset()    //needed for sagem / philips?
+{
+	char msg[2]={0x05, 0xEF,0x0e,0x00,0x00};
+	
+	dprintk("fp: CAM-RESET\n");
+
+	if (i2c_master_send(defdata->client, msg, 2)!=2)
+	{
+		return -1;
+	}
+
+	msg[1]=0xFF;
+
+	if (i2c_master_send(defdata->client, msg, 2)!=2)
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
 
 int fp_do_reset(int type)
 {
@@ -992,6 +1017,7 @@ int fp_set_sec(int power,int tone)
 EXPORT_SYMBOL(fp_set_tuner_dword);
 EXPORT_SYMBOL(fp_set_sec);
 EXPORT_SYMBOL(fp_do_reset);
+EXPORT_SYMBOL(fp_cam_reset);
 EXPORT_SYMBOL(fp_send_diseqc);
 EXPORT_SYMBOL(fp_sec_status);
 
