@@ -317,6 +317,13 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char AlphaOut: 8;
+  unsigned char AlphaIn: 8;
+
+} sENX_REG_BALP;
+
+typedef struct {
+
   unsigned char PCMA: 1;
   unsigned char PAR1284: 1;
   unsigned char UART2: 1;
@@ -354,20 +361,20 @@ typedef struct {
 /*typedef struct {
 
   union {
-    
+
     struct {
-    
+
       unsigned int CRC;
-	
+
     } CRC;
-	
+
     struct {
 
       unsigned char Reserved1: 8;
       unsigned int Addr: 24;
-	
+
     } Composite;
-    
+
   };
 
 } sENX_REG_CPCCRCSRC2;*/
@@ -385,22 +392,31 @@ typedef struct {
   unsigned char API_VERSION: 8;
   unsigned char VERSION: 8;
   unsigned char REVISION: 8;
-  
+
 } sENX_REG_CRR;
 
 typedef struct {
 
   unsigned char Reserved1: 6;
   unsigned short PC: 10;
-  
+
 } sENX_REG_EPC;
 
 typedef struct {
 
   unsigned char BLEV11;
   unsigned char BLEV10;
-  
+
 } sENX_REG_GBLEV1;
+
+typedef struct {
+
+  unsigned short Reserved1: 14;
+  unsigned char CFT: 2;
+
+} sENX_REG_G1CFR;
+
+#define sENX_REG_G2CFR sENX_REG_G1CFR
 
 typedef struct {
 
@@ -415,7 +431,7 @@ typedef struct {
   unsigned char BANK: 4;
   unsigned short STRIDE: 14;
   unsigned char Reserved1: 2;
-  
+
 } sENX_REG_GMR1;
 
 typedef struct {
@@ -425,7 +441,7 @@ typedef struct {
   unsigned short XPOS: 10;
   unsigned char Reserved2: 6;
   unsigned short YPOS: 10;
-  
+
 } sENX_REG_GVP1;
 
 typedef struct {
@@ -433,7 +449,7 @@ typedef struct {
   unsigned char Reserved1: 8;
   unsigned int Addr: 22;
   unsigned char Reserved2: 2;
-  
+
 } sENX_REG_GVSA1;
 
 typedef struct {
@@ -443,7 +459,7 @@ typedef struct {
   unsigned short XSZ: 10;
   unsigned char Reserved2: 6;
   unsigned short YSZ: 10;
-  
+
 } sENX_REG_GVSZ1;
 
 typedef struct {
@@ -452,14 +468,14 @@ typedef struct {
   unsigned char L: 1;
   unsigned char Reserved1: 7;
   unsigned char Offset: 7;
-  
+
 } sENX_REG_IRRE;
 
 typedef struct {
 
   unsigned short Reserved1: 9;
   unsigned char Offset: 7;
-  
+
 } sENX_REG_IRRO;
 
 typedef struct {
@@ -468,14 +484,14 @@ typedef struct {
   unsigned char C: 1;
   unsigned char Reserved1: 7;
   unsigned char Offset: 7;
-  
+
 } sENX_REG_IRTE;
 
 typedef struct {
 
   unsigned short Reserved1: 9;
   unsigned char Offset: 7;
-  
+
 } sENX_REG_IRTO;
 
 typedef struct {
@@ -483,7 +499,7 @@ typedef struct {
   unsigned char Reserved1: 8;
   unsigned short Addr: 15;
   unsigned short Reserved2: 9;
-  
+
 } sENX_REG_IRQA;
 
 typedef struct {
@@ -491,13 +507,13 @@ typedef struct {
   unsigned char Latched_STC_Base: 1;
   unsigned char Reserved1: 6;
   unsigned short Latched_STC_Extension: 9;
-  
+
 } sENX_REG_LC_STC_0;
 
 typedef struct {
 
   unsigned short Latched_STC_Base: 16;
-  
+
 } sENX_REG_LC_STC_1;
 
 #define sENX_REG_LC_STC_2 sENX_REG_LC_STC_1
@@ -507,24 +523,24 @@ typedef struct {
   unsigned char Reserved1: 8;
   unsigned int Addr: 23;
   unsigned char W: 1;
-  
+
 } sENX_REG_PCMA;
 
 typedef struct {
 
   unsigned char R: 2;
   unsigned char W: 1;
-  unsigned char C: 1; 
-  unsigned char S: 1; 
-  unsigned char T: 1; 
+  unsigned char C: 1;
+  unsigned char S: 1;
+  unsigned char T: 1;
   unsigned char V: 1;
-  unsigned char P: 1; 
-  unsigned char M: 1; 
-  unsigned char I: 1; 
+  unsigned char P: 1;
+  unsigned char M: 1;
+  unsigned char I: 1;
   unsigned char Reserved: 2;
   unsigned char ACD: 2;
   unsigned char BCD: 2;
-  
+
 } sENX_REG_PCMC;
 
 typedef struct {
@@ -537,14 +553,14 @@ typedef struct {
   unsigned char Reserved3: 1;
   unsigned char MPEGAR: 7;
   unsigned char Reserved4: 1;
-  
+
 } sENX_REG_PCMN;
 
 typedef struct {
 
   unsigned char Reserved1: 4;
   unsigned short NSAMP: 12;
-  
+
 } sENX_REG_PCMS;
 
 typedef struct {
@@ -552,7 +568,7 @@ typedef struct {
 	u8 Reserved1: 2;
 	u8 E: 1;
 	u16 PID: 13;
-	
+
 } sENX_REG_PCR_PID;
 
 typedef struct {
@@ -576,14 +592,14 @@ typedef struct {
   unsigned char P: 1;
   unsigned char Filt_H: 4;
   unsigned char Filt_L: 4;
-  
+
 } sENX_REG_RFR;
 
 typedef struct {
 
   unsigned char Reserved1: 8;
   unsigned char RTCH: 8;
-  
+
 } sENX_REG_RPH;
 
 typedef struct {
@@ -627,14 +643,14 @@ typedef struct {
   unsigned char Reserved1: 7;
   unsigned char S: 1;
   unsigned char RTC: 8;
-  
+
 } sENX_REG_RTC;
 
 typedef struct {
 
   unsigned char Reserved1: 3;
   unsigned short TickPeriod: 13;
-  
+
 } sENX_REG_RTP;
 
 typedef struct {
@@ -642,13 +658,13 @@ typedef struct {
   unsigned char STC_Count: 1;
   unsigned char Reserved1: 6;
   unsigned short STC_Extension: 9;
-  
+
 } sENX_REG_STC_COUNTER_0;
 
 typedef struct {
 
   unsigned short STC_Count: 16;
-  
+
 } sENX_REG_STC_COUNTER_1;
 
 #define sENX_REG_STC_COUNTER_2 sENX_REG_STC_COUNTER_1
@@ -664,7 +680,7 @@ typedef struct {
   unsigned char GO: 1;
   unsigned char IE: 1;
   unsigned char Data_ID: 8;
-  
+
 } sENX_REG_TCNTL;
 
 typedef struct {
@@ -674,8 +690,10 @@ typedef struct {
   unsigned char Red: 8;
   unsigned char Green: 8;
   unsigned char Blue: 8;
-  
+
 } sENX_REG_TCR1;
+
+#define sENX_REG_TCR2 sENX_REG_TCR1
 
 typedef struct {
 
@@ -684,15 +702,25 @@ typedef struct {
   unsigned char E: 1;
   unsigned char Reserved1: 8;
   unsigned char State: 5;
-  
+
 } sENX_REG_TSTATUS;
+
+typedef struct {
+
+  unsigned char Reserved1: 7;
+  unsigned char E: 1;
+  unsigned char Y: 8;
+  unsigned char Cr: 8;
+  unsigned char Cb: 8;
+
+} sENX_REG_VBR;
 
 typedef struct {
 
   unsigned short Reserved1: 11;
   unsigned int Offset: 19;
   unsigned char Reserved2: 2;
-  
+
 } sENX_REG_VCOFFS;
 
 typedef struct {
@@ -704,8 +732,22 @@ typedef struct {
   unsigned char OVOFFS: 4;
   unsigned short EVPOS: 9;
   unsigned char Reserved3: 1;
-  
+
 } sENX_REG_VCP;
+
+typedef struct {
+
+  unsigned char S: 1;
+  unsigned char P: 1;
+  unsigned char C: 1;
+  unsigned char Reserved1: 1;
+  unsigned char HP: 2;
+  unsigned char FP: 2;
+  unsigned char E: 1;
+  unsigned char D: 1;
+  unsigned char Reserved2: 6;
+
+} sENX_REG_VCR;
 
 typedef struct {
 
@@ -713,7 +755,7 @@ typedef struct {
   unsigned int Addr: 22;
   unsigned char Reserved2: 1;
   unsigned char E: 1;
-  
+
 } sENX_REG_VCSA1;
 
 typedef struct {
@@ -721,7 +763,7 @@ typedef struct {
   unsigned char Reserved1: 8;
   unsigned int Addr: 22;
   unsigned char Reserved2: 2;
-  
+
 } sENX_REG_VCSA2;
 
 typedef struct {
@@ -730,7 +772,7 @@ typedef struct {
   unsigned short STRIDE: 11;
   unsigned char Reserved2: 1;
   unsigned char B: 1;
-  
+
 } sENX_REG_VCSTR;
 
 typedef struct {
@@ -743,7 +785,7 @@ typedef struct {
   unsigned char Reserved2: 2;
   unsigned short VSIZE: 9;
   unsigned char B: 1;
-  
+
 } sENX_REG_VCSZ;
 
 typedef struct {
@@ -751,7 +793,7 @@ typedef struct {
   unsigned char Reserved1: 6;
   unsigned short LINE: 9;
   unsigned char F: 1;
-      
+
 } sENX_REG_VLC;
 
 typedef struct {
@@ -760,17 +802,24 @@ typedef struct {
   unsigned char Reserved1: 5;
   unsigned short LINE: 9;
   unsigned char F: 1;
-  
+
 } sENX_REG_VLI1;
 
 #define sENX_REG_VLI2 sENX_REG_VLI1
 
 typedef struct {
 
+  unsigned short Reserved1: 14;
+  unsigned char FFM: 2;
+
+} sENX_REG_VMCR;
+
+typedef struct {
+
   unsigned short Reserved1: 11;
   unsigned int OFFSET: 19;
   unsigned char Reserved2: 2;
-  
+
 } sENX_REG_VPOFFS1;
 
 #define sENX_REG_VPOFFS2 sENX_REG_VPOFFS1
@@ -783,7 +832,7 @@ typedef struct {
   unsigned char Reserved2: 6;
   unsigned short VPOS: 9;
   unsigned char F: 1;
-  
+
 } sENX_REG_VPP1;
 
 typedef struct {
@@ -801,7 +850,7 @@ typedef struct {
 
   unsigned short Reserved1: 14;
   unsigned char SO: 2;
-  
+
 } sENX_REG_VPSO1;
 
 #define sENX_REG_VPSO2 sENX_REG_VPSO1
@@ -814,7 +863,7 @@ typedef struct {
   unsigned char Reserved2: 6;
   unsigned short HEIGHT: 9;
   unsigned char P: 1;
-  
+
 } sENX_REG_VPSZ1;
 
 typedef struct {

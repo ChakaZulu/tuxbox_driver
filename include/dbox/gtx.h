@@ -1,133 +1,20 @@
-#ifndef __GTX_H
-#define __GTX_H
+#ifndef __GTX_H__
+#define __GTX_H__
 
+#undef CR0
+#undef CR1
 
 #define GTX_REG_BASE		0x08400000
 #define GTX_REG_SIZE		0x00003000
 #define GTX_MEM_BASE		0x08000000
 #define GTX_MEM_SIZE		0x00200000
-
-
 #define GTX_FB_OFFSET		0x0100000
-
-
 #define GTX_INTERRUPT		SIU_IRQ1
-
-                    
-#undef CR0
-#undef CR1
-#define gRR0            0x100
-#define gRR1            0x102
-#define gCR0            0x104
-#define gCR1            0x106
-
-#define gVBR            0xF0
-#define gVCR            0xF4
-#define gVLC            0xF6
-#define gVLI1           0xF8
-#define gVHT            0xFA
-#define gVLT            0xFC
-#define gVLI2           0xFE
-
-#define gGMR            0x00
-#define gCLTA           0x04
-#define gCLTD           0x06
-#define gTCR            0x08
-#define gCCR            0x0A
-#define gGVSA           0x0C
-#define gGVP            0x10
-#define gGVS            0x14
-#define gCSA            0x18
-#define gCPOS           0x1C
-#define gGFUNC          0x20
-
-#define gQWPnL          0x180
-#define gQWPnH          0x182
-
-#define gISR0           0x80
-#define gISR1           0x82
-#define gISR2           0x84
-#define gISR3           0x92            // ?!
-
-#define gIMR0           0x86
-#define gIMR1           0x88
-#define gIMR2           0x8A
-#define gIMR3           0x94            // ?!
-
-#define gIPR0           0x8C
-#define gIPR1           0x8E
-#define gIPR2           0x90
-#define gIPR3           0x94            // ?!
-
-#define gAVI            0x150
-
-#define gRISCPC         0x170
-#define gRISCCON        0x178
-#define gRISC           0x1000
-
-#define gPCRPID         0x120
-#define gPCR2           0x122
-#define gPCR1           0x124
-#define gPCR0           0x126
-#define gLSTC2          0x128
-#define gLSTC1          0x12A
-#define gLSTC0          0x12C
-#define gSTC2           0x12E
-#define gSTC1           0x130
-#define gSTC0           0x132
-
-#define gFCR            0x134
-#define gSYNCH          0x136
-#define gPFIFO          0x138
-#define gDPCR           0x110
-
-#define gPCMA           0xe0
-#define gPCMN           0xe4
-#define gPCMC           0xe8
-#define gPCMD           0xec
-
-#define gPTS0			0x280
-#define gPTS1			0x282
-#define gPTSO			0x284
-#define gTTCR			0x286
-#define gTTSR			0x288
-
-#define gAQRPL			0x1E0
-#define gAQRPH			0x1E2
-#define gAQWPL			0x1E4
-#define gAQWPH			0x1E6
-#define gTQRPL			0x1E8
-#define gTQRPH			0x1EA
-#define gTQWPL			0x1EC
-#define gTQWPH			0x1EE
-#define gVQRPL			0x1F0
-#define gVQRPH			0x1F2
-#define gVQWPL			0x1F4
-#define gVQWPH			0x1F6
-
-#define gC0CR			0x10C
-#define gC1CR			0x10E
-
-#define gQI0            0x1C0
-
-#define gVSCA 		0x260
-#define gVSCP			0x264
-#define gVCS			0x268
-
-#define VCR_SET_HP(X)    rh(VCR) = ((rh(VCR)&(~(3<<10))) | ((X&3)<<10))
-#define VCR_SET_FP(X)    rh(VCR) = ((rh(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
-#define GVP_SET_SPP(X)   rw(GVP) = ((rw(GVP)&(~(0x01F<<26))) | ((X&0x1F)<<26))
-#define GVP_SET_X(X)     rw(GVP) = ((rw(GVP)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define GVP_SET_Y(X)     rw(GVP) = ((rw(GVP)&(~0x3FF))|(X&0x3FF))
-#define GVP_SET_COORD(X,Y) GVP_SET_X(X); GVP_SET_Y(Y)
-
-#define GVS_SET_XSZ(X)   rw(GVS) = ((rw(GVS)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
 
 /* Graphics */
 #define GTX_REG_GMR	0x000
 #define GTX_REG_CLTA	0x004
-#define FTX_REG_CLTD	0x006
+#define GTX_REG_CLTD	0x006
 #define GTX_REG_TCR	0x008
 #define GTX_REG_CCR	0x00A
 #define GTX_REG_GVSA	0x00C
@@ -171,9 +58,9 @@
 #define GTX_REG_IPR0	0x08C
 #define GTX_REG_IPR1	0x08E
 #define GTX_REG_IPR2	0x090
-#define GTX_REG_ISR3	0x092 // ?
-#define GTX_REG_IMR3	0x094 // ?
-#define GTX_REG_IPR3	0x094 // 0x096?
+#define GTX_REG_ISR3	0x092
+#define GTX_REG_IMR3	0x094
+#define GTX_REG_IPR3	0x096
 #define GTX_REG_ICC	0x09C
 #define GTX_REG_DCC	0x09E
 
@@ -349,7 +236,7 @@
 #define GTX_REG_CCOM2	0x22C
 #define GTX_REG_CCOM3	0x22E
 
-/* Vide Plane Display */
+/* Video Plane Display */
 #define GTX_REG_VPSA	0x240
 #define GTX_REG_VPO	0x244
 #define GTX_REG_VPP	0x248
@@ -381,6 +268,7 @@
 #define GTX_REG_IRRO	0x2B8
 #define GTX_REG_IRTO	0x2BA
 
+#define GTX_REG_RISC	0x1000
 
 #define GTX_IRQ_REG_ISR0	0
 #define GTX_IRQ_REG_ISR1	1
@@ -397,293 +285,421 @@
 
 #pragma pack(1)
 
+/* Graphics */
 typedef struct {
 
-    unsigned char GMD: 2;
-    unsigned char L: 1;
-    unsigned char F: 1;
-    unsigned char C: 1;
-    unsigned char I: 1;
-    unsigned char CFT: 2;
-    unsigned char BLEV1: 4;
-    unsigned char BLEV0: 4;
-    unsigned char Reserved1: 5;
-    unsigned short STRIDE: 10;
-    unsigned char Reserved2: 1;
+	unsigned char GMD: 2;
+	unsigned char L: 1;
+	unsigned char F: 1;
+	unsigned char C: 1;
+	unsigned char I: 1;
+	unsigned char CFT: 2;
+	unsigned char BLEV1: 4;
+	unsigned char BLEV0: 4;
+	unsigned char Reserved1: 5;
+	unsigned short STRIDE: 10;
+	unsigned char Reserved2: 1;
 
 } sGTX_REG_GMR;
 
 typedef struct {
 
-    unsigned char E: 1;
-    unsigned char R: 5;
-    unsigned char G: 5;
-    unsigned char B: 5;
+	unsigned char Reserved1: 8;
+	unsigned char Addr: 8;
+
+} sGTX_REG_CLTA;
+
+typedef struct {
+
+	unsigned char T: 1;
+	unsigned char R: 5;
+	unsigned char G: 5;
+	unsigned char B: 5;
+
+} sGTX_REG_CLTD;
+
+typedef struct {
+
+	unsigned char E: 1;
+	unsigned char R: 5;
+	unsigned char G: 5;
+	unsigned char B: 5;
 
 } sGTX_REG_TCR;
 
 typedef struct {
 
-    unsigned short Reserved1: 10;
-    unsigned int Addr: 21;
-    unsigned char Reserved2: 1;
+	unsigned char Reserved1: 1;
+	unsigned char R: 5;
+	unsigned char G: 5;
+	unsigned char B: 5;
+
+} sGTX_REG_CCR;
+
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 21;
+	unsigned char Reserved2: 1;
 
 } sGTX_REG_GVSA;
 
 typedef struct {
 
-    unsigned char SPP: 5;
-    unsigned char Reserved1: 1;
-    unsigned short XPOS: 10;
-    unsigned char Reserved2: 6;
-    unsigned short YPOS: 10;
+	unsigned char SPP: 5;
+	unsigned char Reserved1: 1;
+	unsigned short XPOS: 10;
+	unsigned char Reserved2: 6;
+	unsigned short YPOS: 10;
 
 } sGTX_REG_GVP;
 
 typedef struct {
 
-    unsigned char IPS: 5;
-    unsigned char Reserved1: 1;
-    unsigned short XSZ: 10;
-    unsigned char Reserved2: 6;
-    unsigned short YSZ: 10;
+	unsigned char IPS: 5;
+	unsigned char Reserved1: 1;
+	unsigned short XSZ: 10;
+	unsigned char Reserved2: 6;
+	unsigned short YSZ: 10;
 
 } sGTX_REG_GVS;
 
 typedef struct {
 
-    unsigned short NSAMP: 10;
-    unsigned int Addr: 21;
-    unsigned char W: 1;
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 21;
+	unsigned char Reserved2: 1;
+
+} sGTX_REG_CSA;
+
+typedef struct {
+
+	unsigned short Reserved1: 11;
+	unsigned char D: 1;
+	unsigned char Bank: 4;
+
+} sGTX_REG_GFUNC;
+
+
+
+/* PCM Audio */
+typedef struct {
+
+	unsigned short NSAMP: 10;
+	unsigned int Addr: 21;
+	unsigned char W: 1;
 
 } sGTX_REG_PCMA;
 
 typedef struct {
 
-  unsigned char PCMAL: 7;
-  unsigned char Reserved1: 1;
-  unsigned char PCMAR: 7;
-  unsigned char Reserved2: 1;
-  unsigned char MPEGAL: 7;
-  unsigned char Reserved3: 1;
-  unsigned char MPEGAR: 7;
-  unsigned char Reserved4: 1;
-  
+	unsigned char PCMAL: 7;
+	unsigned char Reserved1: 1;
+	unsigned char PCMAR: 7;
+	unsigned char Reserved2: 1;
+	unsigned char MPEGAL: 7;
+	unsigned char Reserved3: 1;
+	unsigned char MPEGAR: 7;
+	unsigned char Reserved4: 1;
+
 } sGTX_REG_PCMN;
 
 typedef struct {
 
-  unsigned char R: 2;
-  unsigned char W: 1;
-  unsigned char C: 1; 
-  unsigned char S: 1; 
-  unsigned char T: 1; 
-  unsigned char V: 1;
-  unsigned char P: 1; 
-  unsigned char M: 1; 
-  unsigned char I: 1; 
-  unsigned char ADV: 2;
-  unsigned char ACD: 2;
-  unsigned char BCD: 2;
-  
+	unsigned char R: 2;
+	unsigned char W: 1;
+	unsigned char C: 1;
+	unsigned char S: 1;
+	unsigned char T: 1;
+	unsigned char V: 1;
+	unsigned char P: 1;
+	unsigned char M: 1;
+	unsigned char I: 1;
+	unsigned char ADV: 2;
+	unsigned char ACD: 2;
+	unsigned char BCD: 2;
+
 } sGTX_REG_PCMC;
+
+
+
+/* Video */
+typedef struct {
+
+	unsigned char Reserved1: 7;
+	unsigned char E: 1;
+	unsigned char Y: 8;
+	unsigned char Cr: 8;
+	unsigned char Cb: 8;
+
+} sGTX_REG_VBR;
 
 typedef struct {
 
-  unsigned char Reserved1: 6;
-  unsigned short LINE: 9;
-  unsigned char F: 1;
-  
+	unsigned char S: 1;
+	unsigned char P: 1;
+	unsigned char C: 1;
+	unsigned char A: 1;
+	unsigned char HP: 2;
+	unsigned char FP: 2;
+	unsigned char E: 1;
+	unsigned char D: 1;
+	unsigned char N: 1;
+	unsigned char DELAY: 5;
+
+} sGTX_REG_VCR;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned short LINE: 9;
+	unsigned char F: 1;
+
 } sGTX_REG_VLC;
 
 typedef struct {
 
-  unsigned char E: 1;
-  unsigned char Reserved1: 5;
-  unsigned short LINE: 9;
-  unsigned char F: 1;
-  
-} sGTX_REG_VLI1;
+	unsigned char E: 1;
+	unsigned char Reserved1: 5;
+	unsigned short LINE: 9;
+	unsigned char F: 1;
 
-#define sGTX_REG_VLI2 sGTX_REG_VLI1
+} sGTX_REG_VLI1;
 
 typedef struct {
 
-    unsigned char PIG: 1;
-    unsigned char VCAP: 1;
-    unsigned char VID: 1;
-    unsigned char ACLK: 1;
-    unsigned char COPY: 1;
-    unsigned char DRAM: 1;
-    unsigned char PCM: 1;
-    unsigned char SPI: 1;
-    unsigned char IR: 1;
-    unsigned char BLIT: 1;
-    unsigned char CRC: 1;
-    unsigned char INT: 1;
-    unsigned char SCD: 1;
-    unsigned char SRX: 1;
-    unsigned char STX: 1;
-    unsigned char GV: 1;
+	unsigned char SD: 2;
+	unsigned char Reserved1: 4;
+	unsigned short Width: 10;
+
+} sGTX_REG_VHT;
+
+typedef struct {
+
+	unsigned char VBI: 5;
+	unsigned char Reserved1: 1;
+	unsigned short Lines: 10;
+
+} sGTX_REG_VLT;
+
+typedef struct {
+
+	unsigned char E: 1;
+	unsigned char Reserved1: 5;
+	unsigned short LINE: 9;
+	unsigned char F: 1;
+
+} sGTX_REG_VLI2;
+
+
+
+/* Configuration and Control */
+typedef struct {
+
+	unsigned char PIG: 1;
+	unsigned char VCAP: 1;
+	unsigned char VID: 1;
+	unsigned char ACLK: 1;
+	unsigned char COPY: 1;
+	unsigned char DRAM: 1;
+	unsigned char PCM: 1;
+	unsigned char SPI: 1;
+	unsigned char IR: 1;
+	unsigned char BLIT: 1;
+	unsigned char CRC: 1;
+	unsigned char INT: 1;
+	unsigned char SCD: 1;
+	unsigned char SRX: 1;
+	unsigned char STX: 1;
+	unsigned char GV: 1;
 
 } sGTX_REG_RR0;
 
 typedef struct {
 
-    unsigned char Reserved1: 8;
-    unsigned char TTX: 1;
-    unsigned char DAC: 1;
-    unsigned char RISC: 1;
-    unsigned char FRMR: 1;
-    unsigned char CHAN: 1;
-    unsigned char AVD: 1;
-    unsigned char IDC: 1;
-    unsigned char DESC: 1;
+	unsigned char Reserved1: 8;
+	unsigned char TTX: 1;
+	unsigned char DAC: 1;
+	unsigned char RISC: 1;
+	unsigned char FRMR: 1;
+	unsigned char CHAN: 1;
+	unsigned char AVD: 1;
+	unsigned char IDC: 1;
+	unsigned char DESC: 1;
 
 } sGTX_REG_RR1;
 
 typedef struct {
 
-    unsigned char REV_ID: 4;
-    unsigned char GOF: 1;
-    unsigned char SOF: 1;
-    unsigned char POF: 1;
-    unsigned char WBD: 1;
-    unsigned char DD1: 1;
-    unsigned char DD0: 1;
-    unsigned char DOD: 1;
-    unsigned char SPI: 1;
-    unsigned char _16M: 1;
-    unsigned char RFD: 1;
-    unsigned char MAP: 1;
-    unsigned char RES: 1;
+	unsigned char REV_ID: 4;
+	unsigned char GOF: 1;
+	unsigned char SOF: 1;
+	unsigned char POF: 1;
+	unsigned char WBD: 1;
+	unsigned char DD1: 1;
+	unsigned char DD0: 1;
+	unsigned char DOD: 1;
+	unsigned char SPI: 1;
+	unsigned char _16M: 1;
+	unsigned char RFD: 1;
+	unsigned char MAP: 1;
+	unsigned char RES: 1;
 
 } sGTX_REG_CR0;
 
 typedef struct {
 
-    unsigned char BRD_ID: 8;
-    unsigned char Reserved1: 3;
-    unsigned char UPQ: 1;
-    unsigned char TCP: 1;
-    unsigned char FH: 1;
-    unsigned char ACP: 1;
-    unsigned char VCP: 1;
+	unsigned char BRD_ID: 8;
+	unsigned char Reserved1: 3;
+	unsigned char UPQ: 1;
+	unsigned char TCP: 1;
+	unsigned char FH: 1;
+	unsigned char ACP: 1;
+	unsigned char VCP: 1;
 
 } sGTX_REG_CR1;
 
+
+
+/* Queue Write Pointer */
 typedef struct {
 
-    unsigned short Video_Read: 16;
-
-} sGTX_REG_VQRPL;
-
-typedef struct {
-
-    unsigned char H: 1;
-    unsigned short Reserved1: 9;
-    unsigned char Video_Read: 6;
-
-} sGTX_REG_VQRPH;
-
-typedef struct {
-
-    unsigned short Video_Write: 16;
-
-} sGTX_REG_VQWPL;
-
-typedef struct {
-
-    unsigned char Reserved1: 6;
-    unsigned char Q_Size: 4;
-    unsigned char Video_Write: 6;
-
-} sGTX_REG_VQWPH;
-
-typedef struct {
-
-    unsigned char Reserved1: 6;
-    unsigned char Q_Size: 4;
-    unsigned char Upper_WD_n: 6;
+	unsigned char Reserved1: 6;
+	unsigned char Q_Size: 4;
+	unsigned char Upper_WD_n: 6;
 
 } sGTX_REG_QWPnH;
 
 typedef struct {
 
-    unsigned short Queue_n_Write_Pointer: 16;
+	unsigned short Queue_n_Write_Pointer: 16;
 
 } sGTX_REG_QWPnL;
 
+
+
+/* Video Queue Manager */
 typedef struct {
 
-    unsigned short Reserved1: 10;
-    unsigned int Addr: 21;
-    unsigned char E: 1;
+	unsigned short Video_Read: 16;
+
+} sGTX_REG_VQRPL;
+
+typedef struct {
+
+	unsigned char H: 1;
+	unsigned short Reserved1: 9;
+	unsigned char Video_Read: 6;
+
+} sGTX_REG_VQRPH;
+
+typedef struct {
+
+	unsigned short Video_Write: 16;
+
+} sGTX_REG_VQWPL;
+
+typedef struct {
+
+	unsigned char Reserved1: 6;
+	unsigned char Q_SIZE: 4;
+	unsigned char Video_Write: 6;
+
+} sGTX_REG_VQWPH;
+
+
+
+/* Video Plane Display */
+typedef struct {
+
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 21;
+	unsigned char E: 1;
 
 } sGTX_REG_VPSA;
 
 typedef struct {
 
-    unsigned short OFFSET;
-    unsigned char Reserved1: 4;
-    unsigned short STRIDE: 11;
-    unsigned char B: 1;
+	unsigned short OFFSET;
+	unsigned char Reserved1: 4;
+	unsigned short STRIDE: 11;
+	unsigned char B: 1;
 
 } sGTX_REG_VPO;
 
 typedef struct {
 
-    unsigned char Reserved1: 6;
-    unsigned short HPOS: 9;
-    unsigned char Reserved2: 7;
-    unsigned short VPOS: 9;
-    unsigned char F: 1;
+	unsigned char Reserved1: 6;
+	unsigned short HPOS: 9;
+	unsigned char Reserved2: 7;
+	unsigned short VPOS: 9;
+	unsigned char F: 1;
 
 } sGTX_REG_VPP;
 
 typedef struct {
 
-    unsigned char Reserved1: 6;
-    unsigned short WIDTH: 9;
-    unsigned char S: 1;
-    unsigned char Reserved2: 6;
-    unsigned short HEIGHT: 9;
-    unsigned char P: 1;
+	unsigned char Reserved1: 6;
+	unsigned short WIDTH: 9;
+	unsigned char S: 1;
+	unsigned char Reserved2: 6;
+	unsigned short HEIGHT: 9;
+	unsigned char P: 1;
 
 } sGTX_REG_VPS;
 
+
+
+/* Video Capture */
 typedef struct {
 
-    unsigned short Reserved1: 10;
-    unsigned int Addr: 21;
-    unsigned char E: 1;
+	unsigned short Reserved1: 10;
+	unsigned int Addr: 21;
+	unsigned char E: 1;
 
 } sGTX_REG_VCSA;
 
 typedef struct {
 
-    unsigned char V: 1;
-    unsigned char Reserved1: 5;
-    unsigned short HPOS: 9;
-    unsigned char Reserved2: 3;
-    unsigned char OVOFFS: 4;
-    unsigned short EVPOS: 9;
-    unsigned char Reserved3: 1;
+	unsigned char V: 1;
+	unsigned char Reserved1: 5;
+	unsigned short HPOS: 9;
+	unsigned char Reserved2: 3;
+	unsigned char OVOFFS: 4;
+	unsigned short EVPOS: 9;
+	unsigned char Reserved3: 1;
 
 } sGTX_REG_VCSP;
 
 typedef struct {
 
-    unsigned short HDEC: 4;
-    unsigned char Reserved1: 2;
-    unsigned short HSIZE: 9;
-    unsigned char F: 1;
-    unsigned char VDEC: 4;
-    unsigned char Reserved2: 2;
-    unsigned short VSIZE: 9;
-    unsigned char B: 1;
+	unsigned short HDEC: 4;
+	unsigned char Reserved1: 2;
+	unsigned short HSIZE: 9;
+	unsigned char F: 1;
+	unsigned char VDEC: 4;
+	unsigned char Reserved2: 2;
+	unsigned short VSIZE: 9;
+	unsigned char B: 1;
 
 } sGTX_REG_VCS;
+
+
+
+/* Teletext */
+typedef struct {
+
+	unsigned char Reserved1: 1;
+	unsigned char PE: 1;
+	unsigned char Reserved2: 1;
+	unsigned char RP: 1;
+	unsigned char FP: 1;
+	unsigned char Reserved3: 1;
+	unsigned char GO: 1;
+	unsigned char IE: 1;
+	unsigned char Data_ID: 8;
+
+} sGTX_REG_TTCR;
 
 #pragma pack()
 
@@ -709,8 +725,7 @@ extern void avia_gt_gtx_exit(void);
 #define rw(a) (*((volatile unsigned long*)(gt_info->reg_addr+g ## a)))
 #define rh(a) (*((volatile unsigned short*)(gt_info->reg_addr+g ## a)))
 
-#define rwn(a) (*((volatile unsigned long*)(gt_info->reg_addr+a))) 
-#define rhn(a) (*((volatile unsigned short*)(gt_info->reg_addr+a))) 
+#define rwn(a) (*((volatile unsigned long*)(gt_info->reg_addr+a)))
+#define rhn(a) (*((volatile unsigned short*)(gt_info->reg_addr+a)))
 
-
-#endif
+#endif /* __GTX_H__ */
