@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.3  2002/12/31 21:24:55  obi
+ *   mid is stored in the bmon area, not in the dallas chip
+ *
  *   Revision 1.2  2002/12/30 22:13:14  Jolt
  *   Style changes
  *
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -58,173 +61,45 @@
 #include <dbox/info.h>
 #include <dbox/tuxbox.h>
 
-static unsigned char dsid[8];
-
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
 #endif
 
-volatile cpm8xx_t *cpm;
+static unsigned int manufacturer;
 
-static int ds_reset(void)
+static int read_manufacturer_id(void)
 {
+	unsigned char *conf = (unsigned char *) ioremap(0x1001FFE0, 0x20);
 
-	int success;
-	
-	cpm->cp_pbdat &= ~4;
-	cpm->cp_pbdir |= 4;
-
-	udelay(480);
-
-	cpm->cp_pbdir &= ~4;
-
-	udelay(120);
-
-	success = (cpm->cp_pbdat & 4);
-
-	udelay(360);
-	
-	return success;
-	
-}
-
-static void write1(void)
-{
-
-	cpm->cp_pbdat &= ~4;
-	cpm->cp_pbdir |= 4;
-	
-	udelay(1);
-	
-	cpm->cp_pbdir &= ~4;
-	
-	udelay(59);
-	
-}
-
-static void write0(void)
-{
-
-	cpm->cp_pbdat &= ~4;
-	cpm->cp_pbdir |= 4;
-
-	udelay(55);
-
-	cpm->cp_pbdir &= ~4;
-
-	udelay(5);
-
-}
-
-static int readx(void)
-{
-
-	int result;
-
-	cpm->cp_pbdat &= ~4;
-	cpm->cp_pbdir |= 4;
-
-	udelay(1);
-
-	cpm->cp_pbdir &= ~4;
-
-	udelay(14);
-
-	result = (cpm->cp_pbdat & 4) >> 2;
-
-	udelay(45);
-
-	return result;
-
-}
-
-static void writebyte(int data)
-{
-
-	int loop;
-
-	for (loop = 0; loop < 8; loop++)
-	{
-
-		if(data & (0x01 << loop))
-				write1();
-			else
-				write0();
-
+	if (!conf) {
+		printk("tuxbox: Could not remap memory\n");
+		return -1;
 	}
 
-}
-
-static int readbyte(void)
-{
-
-	int loop;
-	int result = 0;
-
-	for(loop = 0; loop < 8; loop++)
-		result = result + (readx() << loop);
-		
-	return result;
-	
-}
-
-static void get_dsid(void)
-{
-
-	int i;
-
-	immap_t *immap = (immap_t *)IMAP_ADDR;
-
-	cpm = &immap->im_cpm;
-
-	cpm->cp_pbpar &= ~4;
-	cpm->cp_pbodr |= 4;
-
-	if (ds_reset())
-		printk("DS not responding!!! - please report\n");
-		
-	writebyte(0x33);
-	
-	for (i = 0; i < 8; i++)
-		dsid[i] = readbyte();
-	
-	return;
-
-}
-
-static int tuxbox_read_proc(char *buf, char **start, off_t offset, int len,	int *eof , void *private)
-{
-
-	unsigned int manufacturer;
-	
-	switch(dsid[0]) {
-	
-		case DBOX_MID_NOKIA:
-			
-			manufacturer = TUXBOX_MANUFACTURER_NOKIA;
-
-			break;
-
-		case DBOX_MID_SAGEM:
-			
-			manufacturer = TUXBOX_MANUFACTURER_SAGEM;
-			
-			break;
-			
-		case DBOX_MID_PHILIPS:
-			
-			manufacturer = TUXBOX_MANUFACTURER_PHILIPS;
-			
-			break;
-
-		default:
-			
-			manufacturer = TUXBOX_MANUFACTURER_UNKOWN;
-			
+	switch (conf[0]) {
+	case DBOX_MID_NOKIA:
+		manufacturer = TUXBOX_MANUFACTURER_NOKIA;
+		break;
+	case DBOX_MID_SAGEM:
+		manufacturer = TUXBOX_MANUFACTURER_SAGEM;
+		break;
+	case DBOX_MID_PHILIPS:
+		manufacturer = TUXBOX_MANUFACTURER_PHILIPS;
+		break;
+	default:
+		manufacturer = TUXBOX_MANUFACTURER_UNKOWN;
+		break;
 	}
 
+	iounmap(conf);
+
+	return 0;
+
+}
+
+static int tuxbox_read_proc(char *buf, char **start, off_t offset, int len, int *eof, void *private)
+{
 	return sprintf(buf, "TUXBOX_VERSION=%d\nTUXBOX_MANUFACTURER=%d\nTUXBOX_MODEL=%d\n", TUXBOX_VERSION, manufacturer, TUXBOX_MODEL_DBOX2);
-
 }
 
 int __init tuxbox_init(void)
@@ -232,11 +107,17 @@ int __init tuxbox_init(void)
 
 	struct proc_dir_entry *tuxbox_proc_entry;
 
-	get_dsid();
+	if (read_manufacturer_id() < 0) {
+
+		printk("tuxbox: Could not read manufacturer id\n");
+
+		return -ENODEV;
+
+	}
 
 	if (!proc_bus) {
 	
-		printk("tuxbox: /proc/bus/ does not exist");
+		printk("tuxbox: /proc/bus does not exist\n");
 		
 		return -ENOENT;
 		
@@ -246,7 +127,7 @@ int __init tuxbox_init(void)
 
 	if (!tuxbox_proc_entry)	{
 	
-		printk("tuxbox: Could not create /proc/bus/tuxbox");
+		printk("tuxbox: Could not create /proc/bus/tuxbox\n");
 		
 		return -ENOENT;
 		
@@ -267,12 +148,14 @@ void __exit tuxbox_exit(void)
 	
 }
 
-#ifdef MODULE
 module_init(tuxbox_init);
 module_exit(tuxbox_exit);
+
+#ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("tuxbox info");
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
 #endif
+
