@@ -27,15 +27,9 @@
 #define AVIA_AV_EVENT_TIMER 100	/* max. ~100Hz (not realtime...) */
 
 struct avia_av_event_reg {
-
 	u16 hsize;
 	u16 vsize;
 	u16 aratio;
-	u16 frate;
-	u16 brate;
-	u16 vbsize;
-	u16 atype;
-	
 };
 
 extern int avia_av_event_init(void);
