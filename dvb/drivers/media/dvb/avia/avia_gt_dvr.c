@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.6  2002/08/22 14:18:58  Jolt
+ *   DVR cleanups
+ *
  *   Revision 1.5  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -65,7 +68,7 @@
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
-static sAviaGtInfo *gt_info		= (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
 static unsigned int vpointer=0;
 static unsigned int apointer=0;
@@ -350,19 +353,13 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 
 
 
-static int enx_iframe_init(void)
+int __init avia_gt_dvr_init(void)
 {
-		int i = (int)0;
-    devfs_handle = devfs_register(NULL,"dvrv",DEVFS_FL_DEFAULT,0,0,S_IFCHR|
-				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
-				  &iframe_fops,NULL);
 
-    adevfs_handle = devfs_register(NULL,"dvra",DEVFS_FL_DEFAULT,0,0,S_IFCHR|
-				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
-				  &aiframe_fops,NULL);
-
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.5 2002/08/22 13:39:33 Jolt Exp $\n");
+	int i = (int)0;
 	
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.6 2002/08/22 14:18:58 Jolt Exp $\n");
+
     gt_info = avia_gt_get_info();
 		
     if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
@@ -372,13 +369,15 @@ static int enx_iframe_init(void)
         return -EIO;
 							
     }
+	
+    devfs_handle = devfs_register(NULL, "dvrv", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &iframe_fops, NULL);
+    adevfs_handle = devfs_register(NULL, "dvra", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &aiframe_fops, NULL);
 										
-		memset(gt_info->mem_addr,0,1024*1024*2);
+	memset(gt_info->mem_addr,0,1024*1024*2);
 		
     if (avia_gt_chip(ENX)) {
 
 		enx_reg_set(CFGR0, VCP, 1);
-		enx_reg_set(CFGR0, ACP, 1);
 		enx_reg_set(CFGR0, ACP, 1);
 
 		enx_reg_32(CFGR0)&=~0x10; // Mhhhhhh ???
