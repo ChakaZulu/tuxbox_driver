@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.150 $
+ *   $Revision: 1.151 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.151  2002/11/03 14:14:50  Jolt
+ *   Bugfix
+ *
  *   Revision 1.150  2002/11/02 17:29:17  Jolt
  *   PCR handling
  *
@@ -599,11 +602,11 @@ static void avia_gt_napi_queue_callback_generic(u8 queue_nr, void *data)
 		} else {
 
 			dvb_dmx_swfilter_packet(dvbdmxfeed->demux, gt_info->mem_addr + queue->mem_addr + queue->read_pos);
+			queue_info->get_data(queue_nr, NULL, 188, 0);
 				
 		}
 		
 		chunkall -= 188;
-		queue_info->get_data(queue_nr, NULL, 188, 0);
 		
 	}
 					
@@ -769,7 +772,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.150 2002/11/02 17:29:17 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.151 2002/11/03 14:14:50 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
