@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.25  2002/10/11 09:57:54  Jolt
+ *   HW copy stuff
+ *
  *   Revision 1.24  2002/10/09 20:20:07  Jolt
  *   Uhhh :)
  *
@@ -97,7 +100,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -116,6 +119,7 @@
 
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_gv.h>
+#include <dbox/avia_gt_accel.h>
 
 static u16 input_height = 576;
 static u8 input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
@@ -133,10 +137,9 @@ void avia_gt_gv_copyarea(u16 src_x, u16 src_y, u16 width, u16 height, u16 dst_x,
 	u16 bpp = avia_gt_get_bpp();
 	u16 line;
 	u16 stride = avia_gt_gv_get_stride();
-	u8 *vmem = gt_info->mem_addr + AVIA_GT_MEM_GV_OFFS;
 	
 	for (line = 0; line < height; line++)
-		memcpy(vmem + dst_y * stride + dst_x * bpp, vmem + src_y * stride + src_x * bpp, stride);
+		avia_gt_accel_copy(AVIA_GT_MEM_GV_OFFS + (src_y + line) * stride + src_x * bpp, AVIA_GT_MEM_GV_OFFS + (dst_y + line) * stride + dst_x * bpp, width * bpp, 0);
 
 }
 
@@ -632,7 +635,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.24 2002/10/09 20:20:07 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.25 2002/10/11 09:57:54 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
