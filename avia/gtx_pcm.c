@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx_pcm.c,v $
+ *   Revision 1.3  2002/04/05 23:27:16  Jolt
+ *   Backport of improved eNX driver
+ *
  *   Revision 1.2  2002/04/02 20:13:22  Jolt
  *   GTX fixes
  *
@@ -28,7 +31,7 @@
  *   Untested gtx_pcm import 8-)
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -55,44 +58,23 @@
 
 DECLARE_WAIT_QUEUE_HEAD(gtx_pcm_wait);
 
-#define MAX_BUF 2
-int buf_size = (GTX_PCM_SIZE / MAX_BUF);
-int buf_ptr[MAX_BUF];
-unsigned char buf_busy[MAX_BUF];
-int buf_playing = 0;
-int buf_last = 1;
+typedef struct {
+
+    struct list_head List;
+    unsigned int Id;
+    unsigned int Offset;
+    unsigned int SampleCount;
+    unsigned char Queued;
+		
+} sPcmBuffer;
+		
+LIST_HEAD(pcm_busy_buffer_list);
+LIST_HEAD(pcm_free_buffer_list);
+		
 int swab_samples;
+sPcmBuffer pcm_buffer_array[GTX_PCM_BUFFER_COUNT];
 
-#define dprintk(...)
-//#define dprintk printk
-
-static void gtx_pcm_irq(int reg, int bit)
-{
-
-    dprintk("gtx_pcm: irq (reg=%d, bit=%d)\n", reg, bit);
-
-    dprintk("gtx_pcm: irq begin (buf_busy[0]=%d buf_busy[1]=%d buf_playing=%d)\n", buf_busy[0], buf_busy[1], buf_playing);
-    
-    if (!buf_playing) {
-    
-	printk("gtx_pcm: doh - not playing?!\n");
-    
-    } else {
-    
-	buf_busy[buf_playing - 1] = 0;
-	
-	if (buf_busy[!(buf_playing - 1)])
-	    buf_playing = (!(buf_playing - 1)) + 1;
-	else
-	    buf_playing = 0;
-    }
-
-    dprintk("gtx_pcm: irq end (buf_busy[0]=%d buf_busy[1]=%d buf_playing=%d)\n", buf_busy[0], buf_busy[1], buf_playing);
-    
-    wake_up_interruptible(&gtx_pcm_wait);
-
-}
-
+// Warning - result is _per_ channel
 unsigned int gtx_pcm_calc_sample_count(unsigned int buffer_size)
 {
 
@@ -104,6 +86,71 @@ unsigned int gtx_pcm_calc_sample_count(unsigned int buffer_size)
 
     return buffer_size;
     
+}
+
+// Warning - if stereo result is for _both_ channels
+unsigned int gtx_pcm_calc_buffer_size(unsigned int sample_count)
+{
+
+    if (gtx_reg_s(PCMC)->W)
+	sample_count *= 2;
+
+    if (gtx_reg_s(PCMC)->C)
+	sample_count *= 2;
+
+    return sample_count;
+    
+}
+
+void gtx_pcm_queue_buffer(void)
+{
+
+    sPcmBuffer *pcm_buffer;
+    struct list_head *ptr;
+
+    if (!gtx_reg_s(PCMA)->W)
+        return;
+    
+    list_for_each(ptr, &pcm_busy_buffer_list) {
+    
+	pcm_buffer = list_entry(ptr, sPcmBuffer, List);
+	    
+	if (!pcm_buffer->Queued) {
+	
+    	    gtx_reg_s(PCMA)->NSAMP = pcm_buffer->SampleCount;
+	    gtx_reg_s(PCMA)->Addr = pcm_buffer->Offset >> 1;
+	    gtx_reg_s(PCMA)->W = 0;
+
+	    pcm_buffer->Queued = 1;
+
+	    return;
+
+	}
+
+    }
+
+}
+
+static void gtx_pcm_irq(int reg, int bit)
+{
+
+    sPcmBuffer *pcm_buffer;
+
+    if (!list_empty(&pcm_busy_buffer_list)) {
+    
+	pcm_buffer = list_entry(pcm_busy_buffer_list.next, sPcmBuffer, List);
+	list_del(&pcm_buffer->List);
+	
+	pcm_buffer->Queued = 0;
+	
+	list_add_tail(&pcm_buffer->List, &pcm_free_buffer_list);
+
+    }
+
+    gtx_pcm_queue_buffer();
+
+    wake_up_interruptible(&gtx_pcm_wait);
+
 }
 
 void gtx_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
@@ -125,10 +172,9 @@ void gtx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 int gtx_pcm_set_rate(unsigned short rate)
 {
 
-    dprintk("gtx_pcm: setting rate (rate=%d)\n", rate);
-
     switch(rate) {
     
+	case 48000:
 	case 44100:
 	
 	    gtx_reg_s(PCMC)->R = 3;
@@ -162,8 +208,6 @@ int gtx_pcm_set_rate(unsigned short rate)
 int gtx_pcm_set_width(unsigned char width)
 {
 
-    dprintk("gtx_pcm: setting width (width=%d)\n", width);
-
     if ((width == 8) || (width == 16))
 	gtx_reg_s(PCMC)->W = (width == 16);
     else
@@ -175,8 +219,6 @@ int gtx_pcm_set_width(unsigned char width)
 
 int gtx_pcm_set_channels(unsigned char channels)
 {
-
-    dprintk("gtx_pcm: setting channels (channels=%d)\n", channels);
 
     if ((channels == 1) || (channels == 2))
         gtx_reg_s(PCMC)->C = (channels == 2);
@@ -190,8 +232,6 @@ int gtx_pcm_set_channels(unsigned char channels)
 int gtx_pcm_set_signed(unsigned char signed_samples)
 {
 
-    dprintk("gtx_pcm: setting signed (signed=%d)\n", signed_samples);
-
     if ((signed_samples == 0) || (signed_samples == 1))
 	gtx_reg_s(PCMC)->S = (signed_samples == 1);
     else
@@ -204,8 +244,6 @@ int gtx_pcm_set_signed(unsigned char signed_samples)
 int gtx_pcm_set_endian(unsigned char be)
 {
 
-    dprintk("gtx_pcm: setting endian (be=%d)\n", be);
-
     if ((be == 0) || (be == 1))
 	swab_samples = (be == 0);
     else
@@ -217,93 +255,65 @@ int gtx_pcm_set_endian(unsigned char be)
 
 int gtx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
-    int buf_nr, i;
-    unsigned short *swap_target;
-    unsigned short swap_buffer[buf_size];
+    int i;
+    unsigned short *swab_target;
+    unsigned short swab_buffer[GTX_PCM_BUFFER_SIZE];
+    unsigned int SampleCount;
+    sPcmBuffer *pcm_buffer;
 
-    if (buffer_size > buf_size)
-	buffer_size = buf_size;
+    SampleCount = gtx_pcm_calc_sample_count(buffer_size);
 
-    dprintk("gtx_pcm: playing buffer (addr=0x%X, size=%d)\n", (unsigned int)buffer, buffer_size);
-
-    if (!gtx_reg_s(PCMA)->W) {
-    
-	if (block) {
-
-	    dprintk("gtx_pcm: pcm unit busy - blocking\n");
-	    
-    	    if (wait_event_interruptible(gtx_pcm_wait, gtx_reg_s(PCMA)->W))
-	    	return -ERESTARTSYS;
-
-	    dprintk("gtx_pcm: blocking done\n");
-	    
-	} else {
-
-	    dprintk("gtx_pcm: pcm unit busy - returning\n");
+    if (SampleCount > GTX_PCM_MAX_SAMPLES)
+        SampleCount = GTX_PCM_MAX_SAMPLES;
 	
-	    return -EWOULDBLOCK;
-	    
-	}
-	
-    }
-    
-    buf_nr = !buf_last;
+    // If 8-bit mono then sample count has to be even
+    if ((!gtx_reg_s(PCMC)->W) && (!gtx_reg_s(PCMC)->C))
+	SampleCount &= ~1;
 
-    if (buf_busy[buf_nr]) {
+    while (list_empty(&pcm_free_buffer_list)) {
 
 	if (block) {
 
-	    dprintk("gtx_pcm: buffer queue busy - blocking\n");
-	    
-    	    if (wait_event_interruptible(gtx_pcm_wait, !(buf_busy[buf_nr])))
+    	    if (wait_event_interruptible(gtx_pcm_wait, !list_empty(&pcm_busy_buffer_list)))
 	    	return -ERESTARTSYS;
 
-	    dprintk("gtx_pcm: blocking done\n");
-	    
 	} else {
 
-	    dprintk("gtx_pcm: buffer queue busy - returning\n");
-	
 	    return -EWOULDBLOCK;
 	    
 	}
     
     }
-    
-    dprintk("gtx_pcm: play_buffer (buf_busy[0]=%d buf_busy[1]=%d buf_nr=%d buf_playing=%d buf_ptr[buf_nr]=0x%X)\n", buf_busy[0], buf_busy[1], buf_nr, buf_playing, (unsigned int)buf_ptr[buf_nr]);
-    
+
+    pcm_buffer = list_entry(pcm_free_buffer_list.next, sPcmBuffer, List);
+    list_del(&pcm_buffer->List);
+	    
     if ((gtx_reg_s(PCMC)->W) && (swab_samples)) {
 
-	copy_from_user(swap_buffer, buffer, buffer_size);
-	swap_target = (unsigned short *)(gtx_get_mem_addr() + buf_ptr[buf_nr]);
+	copy_from_user(swab_buffer, buffer, gtx_pcm_calc_buffer_size(SampleCount));
+	swab_target = (unsigned short *)(gtx_get_mem_addr() + pcm_buffer->Offset);
 	
-	for (i = 0; i < buffer_size / 2; i++)
-	    swap_target[i] = swab16(swap_buffer[i]);
+	for (i = 0; i < gtx_pcm_calc_buffer_size(SampleCount) / 2; i++)
+	    swab_target[i] = swab16(swab_buffer[i]);
     
     } else {
     
-	copy_from_user(gtx_get_mem_addr() + buf_ptr[buf_nr], buffer, buffer_size);
+	copy_from_user(gtx_get_mem_addr() + pcm_buffer->Offset, buffer, gtx_pcm_calc_buffer_size(SampleCount));
 	
     }
     
-    buf_busy[buf_nr] = 1;
-    buf_last = buf_nr;
+    pcm_buffer->SampleCount = SampleCount;
     
-    if (!buf_playing)
-	buf_playing = buf_nr + 1;
+    list_add_tail(&pcm_buffer->List, &pcm_busy_buffer_list);
+    
+    gtx_pcm_queue_buffer();
 
-    gtx_reg_s(PCMA)->NSAMP = gtx_pcm_calc_sample_count(buffer_size);
-    gtx_reg_s(PCMA)->Addr = buf_ptr[buf_nr] >> 1;
-    gtx_reg_s(PCMA)->W = 0;
-
-    return buffer_size;
+    return gtx_pcm_calc_buffer_size(SampleCount);
 
 }
 
 void gtx_pcm_stop(void)
 {
-
-    printk("gtx_pcm: stopping playmode\n");
 
 //    gtx_reg_s(PCMC)->T = 1;
 
@@ -327,12 +337,19 @@ static sAviaPcmOps gtx_pcm_ops = {
 static int __init gtx_pcm_init(void)
 {
 
-    printk("gtx_pcm: $Id: gtx_pcm.c,v 1.2 2002/04/02 20:13:22 Jolt Exp $\n");
+    unsigned char buf_nr;
 
-    buf_ptr[0] = GTX_PCM_OFFSET;
-    buf_busy[0] = 0;
-    buf_ptr[1] = GTX_PCM_OFFSET + buf_size;
-    buf_busy[1] = 0;
+    printk("gtx_pcm: $Id: gtx_pcm.c,v 1.3 2002/04/05 23:27:16 Jolt Exp $\n");
+
+    for (buf_nr = 0; buf_nr < GTX_PCM_BUFFER_COUNT; buf_nr++) {
+    
+	pcm_buffer_array[buf_nr].Id = buf_nr + 1;
+	pcm_buffer_array[buf_nr].Offset = GTX_PCM_MEM_OFFSET + (GTX_PCM_BUFFER_SIZE * buf_nr);
+	pcm_buffer_array[buf_nr].Queued = 0;
+	
+	list_add_tail(&pcm_buffer_array[buf_nr].List, &pcm_free_buffer_list);
+	
+    }
     
     // Reset PCM module
     //gtx_reg_s(RSTR0)->PCM = 1;
@@ -358,7 +375,7 @@ static int __init gtx_pcm_init(void)
 
     // Get PCM module out of reset state
     //gtx_reg_s(RSTR0)->PCM = 0;
-    gtx_reg_16(RR0) &= ~(1 << 9); 
+    gtx_reg_16(RR0) &= ~(1 << 9);
 
     // Use external clock from AViA 500/600
     gtx_reg_s(PCMC)->I = 0;
@@ -386,8 +403,6 @@ static void __exit gtx_pcm_cleanup(void)
 
     gtx_free_irq(GTX_IRQ_PCM_AD);
     gtx_free_irq(GTX_IRQ_PCM_PF);
-    
-    gtx_pcm_stop();
     
     //gtx_reg_s(RSTR0)->PCM = 1;
     gtx_reg_16(RR0) |= (1 << 9); 
