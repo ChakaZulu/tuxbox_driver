@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.22  2002/08/04 17:33:30  happydude
+ *   fix double unmute
+ *
  *   Revision 1.21  2002/08/03 13:18:12  happydude
  *   mix Philips AV-Switch mute
  *
@@ -84,7 +87,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -244,11 +247,14 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 	}
 	else /* unmute with old values */
 	{
-		stv6412_data.tc_asc = tc_asc;
-		stv6412_data.v_asc  = v_asc;
+		if (tc_asc != 0xff)
+		{
+			stv6412_data.tc_asc = tc_asc;
+			stv6412_data.v_asc  = v_asc;
 
-		tc_asc = 0xff;
-		v_asc  = 0xff;
+			tc_asc = 0xff;
+			v_asc  = 0xff;
+		}
 	}
 
 	return stv6412_set(client);
