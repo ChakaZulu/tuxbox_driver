@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.43 2003/03/03 20:52:45 zwen Exp $
+ * $Id: avia_gt_fb_core.c,v 1.44 2003/03/05 03:38:45 obi Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -62,7 +62,7 @@
 #define RES_X	   720
 #define RES_Y	   576
 
-static sAviaGtInfo *gt_info	= (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = NULL;
 
 #ifdef MODULE
 MODULE_PARM(console_transparent, "i");
@@ -168,18 +168,22 @@ static int avia_gt_fb_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_p
 
 	fix->line_length = par->stride;
 	fix->smem_start = (unsigned long)fb_info.pvideobase;
-	fix->smem_len = 1024 * 1024;			    // fix->line_length*par->yres;
-	fix->mmio_start = (unsigned long)fb_info.pvideobase + 0x400000;
-	fix->mmio_len = 0x10000;
+	fix->smem_len = 1024 * 1024;	/* FIXME: AVIA_GT_MEM_GV_SIZE? */
 
 	fix->xpanstep = 0;
 	fix->ypanstep = 0;
 	fix->ywrapstep = 0;
 
-	if (avia_gt_chip(GTX))
+	if (avia_gt_chip(GTX)) {
 		fix->accel = FB_ACCEL_CCUBE_AVIA_GTX;
-	else if (avia_gt_chip(ENX))
+		fix->mmio_start = (unsigned long)GTX_REG_BASE;
+		fix->mmio_len = 0x10000; /* FIXME: GTX_REG_SIZE? */
+	}
+	else if (avia_gt_chip(ENX)) {
 		fix->accel = FB_ACCEL_CCUBE_AVIA_ENX;
+		fix->mmio_start = (unsigned long)ENX_REG_BASE;
+		fix->mmio_len = 0x10000; /* FIXME: ENX_REG_SIZE? */
+	}
 
 	return 0;
 
@@ -546,7 +550,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.43 2003/03/03 20:52:45 zwen Exp $\n");
+	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.44 2003/03/05 03:38:45 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
