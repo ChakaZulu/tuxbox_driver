@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.36 2002/10/29 21:39:45 Jolt Exp $
+ * $Id: at76c651.c,v 1.37 2002/10/30 11:16:32 Jolt Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -345,19 +345,19 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 				*status = 0;
 
-				if (sync & 0x08)	/* AGC2 */
+				if (sync & (0x04 | 0x10))	/* AGC1 || TIM */
 					*status |= FE_HAS_SIGNAL;
 
 				if (sync & 0x10)	/* TIM */
-					*status |= FE_HAS_VITERBI;	// ?
-
-				if (sync & 0x20)	/* EQU */
-					*status |= FE_HAS_SYNC;
-
-				if (sync & 0x40)	/* CAR */
 					*status |= FE_HAS_CARRIER;
 
 				if (sync & 0x80)	/* FEC */
+					*status |= FE_HAS_VITERBI;
+
+				if (sync & 0x40)	/* CAR */
+					*status |= FE_HAS_SYNC;
+
+				if ((sync & (0xF0 | 0x04)) == 0xF0)	/* TIM && EQU && CAR && FEC && !AGC1 */
 					*status |= FE_HAS_LOCK;
 
 				break;
@@ -468,7 +468,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.36 2002/10/29 21:39:45 Jolt Exp $\n");
+	printk("$Id: at76c651.c,v 1.37 2002/10/30 11:16:32 Jolt Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
