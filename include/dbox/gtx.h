@@ -140,6 +140,7 @@
 #define GTX_REG_PCMN	0x0E4
 #define GTX_REG_PCMC	0x0E8
 #define GTX_REG_PCMD	0x0EC
+#define GTX_REG_VLC	0x0F6
 #define GTX_REG_VLI1	0x0F8
 #define GTX_REG_RR0	0x100
 #define GTX_REG_RR1	0x102
@@ -263,6 +264,14 @@ typedef struct {
     unsigned char Reserved3: 1;
 
 } sGTX_REG_VCSP;
+
+typedef struct {
+
+  unsigned char Reserved1: 6;
+  unsigned short LINE: 9;
+  unsigned char F: 1;
+  
+} sGTX_REG_VLC;
 
 typedef struct {
 

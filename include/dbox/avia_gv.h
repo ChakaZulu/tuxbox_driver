@@ -21,11 +21,14 @@
  *
  *
  *   $Log: avia_gv.h,v $
+ *   Revision 1.2  2002/04/17 21:50:57  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.1  2001/11/01 18:19:09  Jolt
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 

@@ -691,6 +691,14 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char Reserved1: 6;
+  unsigned short LINE: 9;
+  unsigned char F: 1;
+      
+} sENX_REG_VLC;
+
+typedef struct {
+
   unsigned char E: 1;
   unsigned char Reserved1: 5;
   unsigned short LINE: 9;

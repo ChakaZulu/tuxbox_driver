@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.4  2002/04/17 21:50:57  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.3  2002/04/15 10:40:50  Jolt
  *   eNX/GTX
  *
@@ -31,7 +34,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.13  2002/04/17 21:50:57  Jolt
+ *   Capture driver fixes
+ *
  *   Revision 1.12  2002/04/17 18:01:37  Jolt
  *   Fixed GTX support
  *
@@ -47,7 +50,7 @@
  *
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -83,6 +86,8 @@ unsigned char capture_chip_type;
 static int capt_buf_addr = AVIA_GT_MEM_CAPTURE_OFFS;
 
 static unsigned char capture_busy = 0;
+static unsigned short capture_irq;
+static unsigned int captured_frames = 0;
 static unsigned short input_height = 576;
 static unsigned short input_width = 720;
 static unsigned short input_x = 0;
@@ -90,8 +95,6 @@ static unsigned short input_y = 0;
 static unsigned short line_stride = 360;
 static unsigned short output_height = 288;
 static unsigned short output_width = 360;
-
-static int state = 0, frames;		 // 0: idle, 1: frame is capturing, 2: frame is done
 
 DECLARE_WAIT_QUEUE_HEAD(capture_wait);
 
@@ -108,24 +111,16 @@ static struct file_operations capture_fops = {
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
 
-    if (capture_busy)
+    if (!capture_busy)
 	avia_gt_capture_start(NULL, NULL, NULL);
 
-    while (state != 2) {
-    
-	if (file->f_flags & O_NONBLOCK) {
-	    
-	    return -EWOULDBLOCK;
-	    
-	} else {
-	    
-	    if (wait_event_interruptible(capture_wait, state == 2))
-        	return -ERESTARTSYS;
-					
-        }
+    if (file->f_flags & O_NONBLOCK)
+	return -EWOULDBLOCK;
 	
-    }
-									
+    captured_frames = 0;
+	    
+    wait_event_interruptible(capture_wait, captured_frames);
+					
     //printk("avia_gt_capture: ok (writing %d bytes)\n", count);
 				
     if (copy_to_user(buf, avia_gt_get_mem_addr() + capt_buf_addr, count))
@@ -138,11 +133,19 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
+    unsigned short stride;
+    int result;
+
     switch(cmd) {
     
 	case AVIA_GT_CAPTURE_START:
 	
-	    avia_gt_capture_start(NULL, NULL, NULL);
+	    result = avia_gt_capture_start(NULL, &stride, NULL);
+	    
+	    if (result < 0)
+		return result;
+	    else
+		return stride;
 
 	break;
     
@@ -179,16 +182,22 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 void avia_gt_capture_interrupt(unsigned short irq)
 {
 
-    //if (state != 2)    
-//	printk("avia_gt_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
+    unsigned char field;
+
+//	printk("avia_gt_capture: irq\n");
+//	printk("L%dF%d ", enx_reg_s(VLC)->LINE, enx_reg_s(VLC)->F);
+    
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	field = enx_reg_s(VLC)->F;
+    else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	field = gtx_reg_s(VLC)->F;
 	
-    if (frames++ > 1) {
-	
-        state = 2;
-	    
-        wake_up_interruptible(&capture_wait);
-	
-    }
+    captured_frames++;
+    
+    if (!field)
+	printk("E");
+
+    wake_up_interruptible(&capture_wait);
     
 }
 
@@ -283,6 +292,9 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
     
 //    }
 
+    if (avia_gt_alloc_irq(capture_irq, avia_gt_capture_interrupt) < 0)
+	return -EIO;
+
     if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
         enx_reg_s(VCSZ)->VSIZE = input_height / 2;
@@ -314,9 +326,8 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
     }
     
-    state = 1;
-    frames = 0;
     capture_busy = 1;
+    captured_frames = 0;
     
     if (capture_buffer)
 	*capture_buffer = (unsigned char *)(capt_buf_addr);
@@ -342,8 +353,9 @@ void avia_gt_capture_stop(void)
 	    enx_reg_s(VCSA1)->E = 0;
 	else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
 	    gtx_reg_s(VCSA)->E = 0;
+
+	avia_gt_free_irq(capture_irq);
     
-	state = 0;
 	capture_busy = 0;
 	
     }	
@@ -389,13 +401,40 @@ int avia_gt_capture_set_input_size(unsigned short width, unsigned short height)
     
 }
 
+void avia_gt_capture_reset(unsigned char reenable)
+{
+
+    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(RSTR0)->VIDC = 1;		
+    else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(RR0)->VCAP = 1;
+
+    if (reenable) {
+
+	if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	    enx_reg_s(RSTR0)->VIDC = 0;		
+	else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	    gtx_reg_s(RR0)->VCAP = 0;
+
+    }
+    
+}
+
 int __init avia_gt_capture_init(void)
 {
 
-    unsigned short capture_irq;
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.13 2002/04/17 21:50:57 Jolt Exp $\n");
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.12 2002/04/17 18:01:37 Jolt Exp $\n");
+    capture_chip_type = avia_gt_get_chip_type();
 
+    if ((capture_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (capture_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+    
+        printk("avia_gt_pcm: Unsupported chip type\n");
+
+        return -EIO;
+		    
+    }
+    
     devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 				    &capture_fops, NULL);
@@ -408,50 +447,25 @@ int __init avia_gt_capture_init(void)
     else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
 	capture_irq = GTX_IRQ_VL1;
 
-    if (avia_gt_alloc_irq(capture_irq, avia_gt_capture_interrupt) < 0) {
-    
-	printk("avia_gt_capture: unable to get interrupt\n");
-	
-	devfs_unregister(devfs_handle);
-
-	return -EIO;
-	
-    }
-
-    capture_chip_type = avia_gt_get_chip_type();
-
-    if ((capture_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (capture_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
-    
-        printk("avia_gt_pcm: Unsupported chip type\n");
-
-	avia_gt_free_irq(capture_irq);
-	devfs_unregister(devfs_handle);
-	    
-        return -EIO;
-		    
-    }
+    avia_gt_capture_reset(1);
 
     if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
-    
-	enx_reg_s(RSTR0)->VIDC = 1;		
-	enx_reg_s(RSTR0)->VIDC = 0;		
 	
 	enx_reg_s(VCP)->U = 0;					// Using squashed mode
 	enx_reg_s(VCSTR)->B = 0;				// Hardware double buffering
 	enx_reg_s(VCSZ)->F = 1;   				// Filter
 
-	enx_reg_s(VLI1)->E = 0;	
+	enx_reg_s(VLI1)->F = 1;	
+	enx_reg_s(VLI1)->E = 1;	
 	enx_reg_s(VLI1)->LINE = 0;	
     
     } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
     
-	gtx_reg_s(RR0)->VCAP = 1;
-	gtx_reg_s(RR0)->VCAP = 0;
-    
 	gtx_reg_s(VCS)->B = 0;                              	// Hardware double buffering
         gtx_reg_s(VCS)->F = 1;                              	// Filter
 
-	gtx_reg_s(VLI1)->E = 0;	
+	gtx_reg_s(VLI1)->F = 1;	
+	gtx_reg_s(VLI1)->E = 1;	
 	gtx_reg_s(VLI1)->LINE = 0;
 
     }
@@ -466,22 +480,7 @@ void __exit avia_gt_capture_exit(void)
     devfs_unregister(devfs_handle);
 
     avia_gt_capture_stop();
-
-    if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
-
-	avia_gt_free_irq(ENX_IRQ_VL1);
-    
-	// Reset video capture
-	enx_reg_s(RSTR0)->VIDC = 1;		
-    
-    } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
-
-	avia_gt_free_irq(GTX_IRQ_VL1);
-
-	// Reset video capture
-	gtx_reg_s(RR0)->VCAP = 1;                      
-
-    }
+    avia_gt_capture_reset(0);
         
 }
 
