@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.117  2002/09/08 13:02:49  Jolt
+ *   DMX fixes
+ *
  *   Revision 1.116  2002/09/05 18:16:13  Jolt
  *   Fixes
  *
@@ -155,7 +158,7 @@
  *
  *
  *
- *   $Revision: 1.116 $
+ *   $Revision: 1.117 $
  *
  */
 
@@ -247,21 +250,6 @@ static void avia_gt_dmx_dump(void) {
 }
 #endif
 
-sAviaGtDmxQueue *get_queue(u8 queue_nr)
-{
-
-	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
-		printk("avia_gt_dmx: get_queue: queue %d out of bounce\n", queue_nr);
-
-		return NULL;
-
-	}
-
-	return &queue_list[queue_nr];
-
-}
-
 s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
@@ -281,10 +269,12 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *cb_proc, void *cb_d
 
 	}
 
+#if 0
 	if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
 		gtx_set_queue_pointer(queue_system_map[queue_nr], queue_list[queue_nr].mem_addr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr], 0);
 	else
 		avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);    
+#endif
 
 	queue_list[queue_nr].busy = 1;
 	queue_list[queue_nr].cb_proc = cb_proc;
@@ -358,11 +348,11 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 		return -EFAULT;
     
 	}
-	
+    
 	queue_list[queue_nr].busy = 0;
 	queue_list[queue_nr].cb_data = NULL;
 	queue_list[queue_nr].cb_proc = NULL;
-	queue_list[queue_nr].info.irq_count = 0;
+	queue_list[queue_nr].irq_count = 0;
     
 	return 0;
 
@@ -453,8 +443,8 @@ int avia_gt_dmx_compress_filter_parameter_table(gtx_demux_t *gtx)
 		if ( (e.type == 4) && (f.VALID == 0) ) {
 			valid[i] = 0;
 			avia_gt_dmx_start_stop_feed(i,1);
-			queue_list[i].read_pos = queue_list[i].write_pos;
-			avia_gt_dmx_set_queue_write_pointer(i, queue_list[i].read_pos);	// Mhhhhpppfff????
+			queue_list[i].read_pos = avia_gt_dmx_get_queue_write_pointer(gtx->feed[i].index);
+			avia_gt_dmx_set_queue_write_pointer(gtx->feed[i].index, queue_list[i].read_pos);
 			gtx->feed[i].sec_len = 0;
 			gtx->feed[i].sec_recv = 0;
 		}
@@ -899,6 +889,21 @@ void avia_gt_dmx_force_discontinuity(void)
 
 }
 
+sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: get_queue_info: queue %d out of bounce\n", queue_nr);
+
+		return NULL;
+
+	}
+	
+	return &queue_list[queue_nr];
+	
+}
+
 u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
 {
 
@@ -1064,8 +1069,9 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 
 	}
 
-	queue_list[queue_nr].info.irq_count++;
-	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+	queue_list[queue_nr].irq_count++;
+	
+	schedule_task(&avia_gt_dmx_queue_tasklet);
 	
 }
 
@@ -1184,8 +1190,7 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 
 	}
 
-	queue_list[queue_nr].info.irq_count++;
-//	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+	queue_list[queue_nr].irq_count++;
 	
 	schedule_task(&avia_gt_dmx_queue_tasklet);
 
@@ -1243,10 +1248,10 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 		}
 
 		if (queue_list[queue_nr].cb_proc)
-			queue_list[queue_nr].cb_proc(queue_nr, &queue_list[queue_nr].info, queue_list[queue_nr].cb_data, &queue_list[queue_nr]);
+			queue_list[queue_nr].cb_proc(queue_nr, queue_list[queue_nr].cb_data);
 
 		queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
-		queue_list[queue_nr].info.irq_count = 0;
+		queue_list[queue_nr].irq_count = 0;
 
 	}
 
@@ -1636,7 +1641,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.116 2002/09/05 18:16:13 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.117 2002/09/08 13:02:49 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1771,21 +1776,23 @@ EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_user);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_video);
 EXPORT_SYMBOL(avia_gt_dmx_fake_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_free_queue);
+EXPORT_SYMBOL(avia_gt_dmx_get_queue_info);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
+EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue);
+EXPORT_SYMBOL(avia_gt_dmx_set_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
 EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
 EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);
 EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
 EXPORT_SYMBOL(gtx_set_queue_pointer);
-EXPORT_SYMBOL(get_queue);
 #endif
 
 #if defined(MODULE) && defined(STANDALONE)
