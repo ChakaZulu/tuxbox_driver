@@ -1,9 +1,9 @@
 /*
- *   enx_capture.h - capture driver for enx (dbox-II-project)
+ *   avia_gt_capture.h - capture driver for eNX/GTX (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Florian Schirmer <jolt@tuxbox.org>
+ *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,10 @@
  *
  */
 
-extern int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
-extern int enx_capture_set_output(unsigned short width, unsigned short height);
-extern int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);
-extern void enx_capture_stop(void);
+extern int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
+extern int avia_gt_capture_set_output(unsigned short width, unsigned short height);
+extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);
+extern void avia_gt_capture_stop(void);
+
+extern int avia_gt_capture_init(void);
+extern void avia_gt_capture_exit(void);

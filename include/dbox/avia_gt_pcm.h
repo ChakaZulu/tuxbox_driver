@@ -34,6 +34,9 @@ int avia_gt_pcm_set_signed(unsigned char signed_samples);
 int avia_gt_pcm_set_endian(unsigned char be);
 int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block);
 void avia_gt_pcm_stop(void);
+
+extern int avia_gt_pcm_init(void);
+extern void avia_gt_pcm_exit(void);
 	    
 #endif
 	    

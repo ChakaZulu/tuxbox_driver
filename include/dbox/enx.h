@@ -15,7 +15,8 @@
 #define ENX_PCM_MAX_BPS		4
 #define ENX_PCM_BUFFER_SIZE	(ENX_PCM_MAX_SAMPLES * ENX_PCM_MAX_BPS)
 #define ENX_PCM_MEM_SIZE	(ENX_PCM_BUFFER_COUNT * ENX_PCM_BUFFER_SIZE)
-#define ENX_PCM_MEM_OFFSET	(ENX_MEM_SIZE - ENX_PCM_MEM_SIZE)
+//#define ENX_PCM_MEM_OFFSET	(ENX_MEM_SIZE - ENX_PCM_MEM_SIZE)
+#define ENX_PCM_MEM_OFFSET	((1024 * 1024) - ENX_PCM_MEM_SIZE)
 
 #define ENX_IR_MEM_SIZE		512
 #define ENX_IR_MEM_OFFSET	(ENX_PCM_MEM_OFFSET - ENX_IR_MEM_SIZE)
@@ -354,7 +355,7 @@ typedef struct {
 
 } sENX_REG_CPCCMD;
 
-typedef struct {
+/*typedef struct {
 
   union {
     
@@ -373,7 +374,7 @@ typedef struct {
     
   };
 
-} sENX_REG_CPCCRCSRC2;
+} sENX_REG_CPCCRCSRC2;*/
 
 typedef struct {
 
@@ -726,16 +727,19 @@ typedef struct {
   
 } sENX_REG_VPSZ1;
 
-extern unsigned char* enx_get_mem_addr(void);
-extern unsigned char* enx_get_reg_addr(void);
-extern void enx_free_irq(int reg, int bit);
-extern int enx_allocate_irq(int reg, int bit, void (*isr)(int, int));
+extern void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg);
+extern unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg);
+extern void avia_gt_enx_mask_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern void avia_gt_enx_init(void);
+extern void avia_gt_enx_exit(void);
 
-#define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(enx_get_reg_addr() + ENX_REG_ ## register))))
-#define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(enx_get_reg_addr() + offset))))
-#define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(enx_get_reg_addr() + ENX_REG_ ## register))))
-#define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(enx_get_reg_addr() + offset))))
-#define enx_reg_o(offset) (enx_get_reg_addr() + offset)
+#define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + ENX_REG_ ## register))))
+#define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + offset))))
+#define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + ENX_REG_ ## register))))
+#define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + offset))))
+#define enx_reg_o(offset) (avia_gt_get_reg_addr() + offset)
 #define enx_reg_s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
 #define enx_reg_32s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
 #define enx_reg_16s(register) ((sENX_REG_##register *)(&enx_reg_16(register)))

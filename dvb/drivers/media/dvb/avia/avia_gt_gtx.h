@@ -280,17 +280,11 @@ extern int gtx_allocate_dram(int size, int align);
 extern int gtx_allocate_irq(int reg, int bit, void (*isr)(int, int));
 extern void gtx_free_irq(int reg, int bit);
 
-extern unsigned char* gtx_get_mem(void);
-extern unsigned char* gtx_get_reg(void);
-
-#define gtx_get_mem_addr gtx_get_mem
-#define gtx_get_reg_addr gtx_get_reg
-
-#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(gtx_get_reg_addr() + GTX_REG_ ## register))))
-#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gtx_get_reg_addr() + offset))))
-#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(gtx_get_reg_addr() + GTX_REG_ ## register))))
-#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gtx_get_reg_addr() + offset))))
-#define gtx_reg_o(offset) (gtx_get_reg_addr() + offset)
+#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + GTX_REG_ ## register))))
+#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + offset))))
+#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + GTX_REG_ ## register))))
+#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + offset))))
+#define gtx_reg_o(offset) (avia_gt_get_reg_addr() + offset)
 #define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
