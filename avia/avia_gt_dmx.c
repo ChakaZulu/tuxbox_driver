@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.95  2002/08/25 10:19:33  Jolt
+ *   HW sections can be disabled
+ *
  *   Revision 1.94  2002/08/25 09:38:26  wjoost
  *   Hardware Section Filtering
  *
@@ -86,7 +89,7 @@
  *
  *
  *
- *   $Revision: 1.94 $
+ *   $Revision: 1.95 $
  *
  */
 
@@ -126,17 +129,14 @@
 
 //#define dprintk printk
 
-static int						 errno							= (int)0;
-static sAviaGtInfo		*gt_info						= (sAviaGtInfo *)NULL;
-static sRISC_MEM_MAP	*risc_mem_map				= (sRISC_MEM_MAP *)NULL;
-static char						*ucode							= (char *)NULL;
-u8 force_stc_reload = 0;
+static int errno							= (int)0;
+static sAviaGtInfo *gt_info						= (sAviaGtInfo *)NULL;
+static sRISC_MEM_MAP *risc_mem_map				= (sRISC_MEM_MAP *)NULL;
+static char *ucode							= (char *)NULL;
+static u8 hw_sections = 1;
+static u8 force_stc_reload = 0;
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
-
-#ifdef MODULE
-MODULE_PARM(ucode, "s");
-#endif
 
 #if 0
 static void avia_gt_dmx_dump(void) {
@@ -158,13 +158,12 @@ static void avia_gt_dmx_dump(void) {
 
 int avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
-	if ( (risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14) ) {
+
+	if (hw_sections && (risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14))
 		return 1;
-	}
 	else
-	{
 		return 0;
-	}
+		
 }
 
 void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry)
@@ -648,6 +647,7 @@ int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_f
 
 unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 {
+
 	if (avia_gt_chip(ENX)) {
 
 		if (queue_nr >= 16)
@@ -957,7 +957,8 @@ void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsign
 
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 {
-	int	base = (int)0;
+
+	int	base = 0;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -1055,26 +1056,31 @@ void enx_tdp_stop(void)
 
 u64 avia_gt_dmx_get_transport_pcr(void)
 {
+
 	if (avia_gt_chip(ENX))
 		return MAKE_PCR(enx_reg_s(TP_PCR_2)->PCR_Base, enx_reg_s(TP_PCR_1)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Extension);
 	else if (avia_gt_chip(GTX))
 		return MAKE_PCR(gtx_reg_s(PCR2)->PCR_Base, gtx_reg_s(PCR1)->PCR_Base, gtx_reg_s(PCR0)->PCR_Base, gtx_reg_s(PCR0)->PCR_Extension);
 
 	return 0;
+	
 }
 
 u64 avia_gt_dmx_get_latched_stc(void)
 {
+
 	if (avia_gt_chip(ENX))
 		return MAKE_PCR(enx_reg_s(LC_STC_2)->Latched_STC_Base, enx_reg_s(LC_STC_1)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Extension);
 	else if (avia_gt_chip(GTX))
 		return MAKE_PCR(gtx_reg_s(LSTC2)->Latched_STC_Base, gtx_reg_s(LSTC1)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Extension);
 
 	return 0;
+	
 }
 
 u64 avia_gt_dmx_get_stc(void)
 {
+
 	if (avia_gt_chip(ENX))
 		return MAKE_PCR(enx_reg_s(STC_COUNTER_2)->STC_Count, enx_reg_s(STC_COUNTER_1)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Extension);
 	else if (avia_gt_chip(GTX))
@@ -1087,6 +1093,7 @@ u64 avia_gt_dmx_get_stc(void)
 
 static void gtx_pcr_interrupt(unsigned short irq)
 {
+
 	u64 tp_pcr;
 	u64 l_stc;
 	u64 stc;
@@ -1144,7 +1151,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.94 2002/08/25 09:38:26 wjoost Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.95 2002/08/25 10:19:33 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1233,6 +1240,8 @@ void __exit avia_gt_dmx_exit(void)
 }
 
 #ifdef MODULE
+MODULE_PARM(ucode, "s");
+MODULE_PARM(hw_sections, "i");
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
