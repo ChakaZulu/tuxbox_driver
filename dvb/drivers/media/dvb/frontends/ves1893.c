@@ -293,9 +293,10 @@ static int attach_adapter(struct i2c_adapter *adap)
         struct i2c_client *client;
         
         client_template.adapter=adap;
-        
-        if (i2c_master_send(&client_template,NULL,0))
-                return -1;
+
+// siehe ves1820.c ... TODO: check ...
+//        if (i2c_master_send(&client_template,NULL,0))
+//                return -1;
         
         client_template.adapter=adap;
         
