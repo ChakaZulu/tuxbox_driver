@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.155 $
+ *   $Revision: 1.156 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.156  2002/11/04 09:09:16  Jolt
+ *   Cleanups / First soft section parts
+ *
  *   Revision 1.155  2002/11/04 08:06:54  Jolt
  *   Queue handling changes part4
  *
@@ -512,8 +515,8 @@ static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 static struct dvb_demux demux;
 static int hw_dmx_ts = 0;
 static int hw_dmx_pes = 0;
-static int hw_dmx_sec = 0;
-gtx_demux_filter_t pid2filter[0x2000];
+static int hw_dmx_sec = 1;
+static int hw_sections = 0;
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -523,17 +526,33 @@ MODULE_LICENSE("GPL");
 #endif
 #endif
 
-static void dmx_set_filter(gtx_demux_filter_t *filter)
+void avia_gt_dmx_queue_stop(struct avia_gt_dmx_queue *queue)
 {
 
-	if (filter->invalid)
-		avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
+	if (!queue)
+		return;
 
-	avia_gt_dmx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, 0, 0);
+	avia_gt_dmx_queue_irq_disable(queue->index);
+	avia_gt_dmx_set_pid_table(queue->index, 0, 1, 0);
 
-	if (!filter->invalid)
-		avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
-		
+}
+
+#define AVIA_GT_DMX_QUEUE_MODE_TS		0
+#define AVIA_GT_DMX_QUEUE_MODE_PES		3
+#define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
+#define AVIA_GT_DMX_QUEUE_MODE_SEC16	5
+
+void avia_gt_dmx_queue_start(struct avia_gt_dmx_queue *queue, u8 mode, u16 pid, u8 wait_pusi)
+{
+
+	if (!queue)
+		return;
+
+	avia_gt_dmx_queue_stop(queue);
+	avia_gt_dmx_queue_reset(queue->index);
+	avia_gt_dmx_set_pid_control_table(queue->index, mode, queue->index, 0, 0, 0, 1, 0, 0, 0);
+	avia_gt_dmx_set_pid_table(queue->index, wait_pusi, 0, pid);
+
 }
 
 static struct avia_gt_dmx_queue *avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(struct avia_gt_dmx_queue *, void *))
@@ -636,42 +655,75 @@ static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue,
 
 }
 
+static void avia_gt_napi_queue_callback_section_sw(struct avia_gt_dmx_queue *queue, void *data)
+{
+
+	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
+	u32 bytes_avail;
+	u32 chunk1;
+	u8 ts_buf[188];
+	
+	if ((bytes_avail = queue->bytes_avail(queue)) < 188)
+		return;
+		
+	if (queue->get_data8(queue, 1) != 0x47) {
+	
+		printk("avia_gt_napi: lost sync on queue %d\n", queue->index);
+	
+		queue->get_data(queue, NULL, bytes_avail, 0);
+		
+		return;
+		
+	}
+
+	// Align size on ts paket size
+	bytes_avail -= bytes_avail % 188;
+	
+	// Does the buffer wrap around?
+	if (bytes_avail > queue->get_buf1_size(queue)) {
+	
+		chunk1 = queue->get_buf1_size(queue);
+		chunk1 -= chunk1 % 188;
+		
+		// Do we have at least one complete packet before buffer wraps?
+		if (chunk1) {
+
+			dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->get_buf1_ptr(queue), chunk1 / 188);
+			queue->get_data(queue, NULL, chunk1, 0);
+			bytes_avail -= chunk1;
+			
+		}
+
+		// Handle the wrapped packet				
+		queue->get_data(queue, ts_buf, 188, 0);
+		dvb_dmx_swfilter_packet(dvbdmxfeed->demux, ts_buf);
+		bytes_avail -= 188;
+					
+	}
+	
+	// Remaining packets after the buffer has wrapped
+	if (bytes_avail) {
+
+		dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->get_buf1_ptr(queue), bytes_avail / 188);
+		queue->get_data(queue, NULL, bytes_avail, 0);
+				
+	}
+		
+	return;				
+
+}
+
 static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	gtx_demux_filter_t *filter = &pid2filter[dvbdmxfeed->pid];
 	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_generic);
 	
 	if (!queue)
 		return -EBUSY;
 
-	printk("avia_gt_napi: got queue %d for pid 0x%X\n", queue->index, dvbdmxfeed->pid);
+	dvbdmxfeed->priv = queue;
 		
-	filter->output = 0;
-	filter->pid = dvbdmxfeed->pid;
-	filter->wait_pusi = 0;
-	filter->index = queue->index;
-	filter->queue = queue->index;
-	filter->invalid = 1;
-	filter->fork = 0;
-	filter->cw_offset = 0;
-	filter->cc = 0;
-	filter->start_up = 0;
-	filter->pec = 0;
-
-	dmx_set_filter(filter);
-
-	avia_gt_dmx_queue_reset(filter->queue);
-
-	filter->start_up = 1;
-	filter->invalid = 0;
-
-	dmx_set_filter(filter);
-
-	if ((dvbdmxfeed->ts_type & TS_PACKET) || (dvbdmxfeed->type == DMX_TYPE_SEC))
-		avia_gt_dmx_queue_irq_enable(filter->queue);
-	else
-		avia_gt_dmx_queue_irq_disable(filter->queue);
+	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0);
 
 	return 0;
 
@@ -697,13 +749,42 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 
 }
 
-static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
+static int avia_gt_napi_start_feed_section_hw(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	if (!hw_dmx_sec)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
 	return -EINVAL;
+
+}
+
+static int avia_gt_napi_start_feed_section_sw(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_section_sw);
+	
+	if (!queue)
+		return -EBUSY;
+
+	dvbdmxfeed->priv = queue;
+		
+	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 1);
+
+	return 0;
+
+}
+
+static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	if (!hw_dmx_sec)
+		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
+
+	if (hw_sections)
+		return avia_gt_napi_start_feed_section_hw(dvbdmxfeed);
+	else
+		return avia_gt_napi_start_feed_section_sw(dvbdmxfeed);
 
 }
 
@@ -720,32 +801,37 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-
+	int result;
+	
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
-		
+
+	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR)) {
+
+		avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
+
+		if (!(dvbdmxfeed->type & TS_PACKET))
+			return 0;
+
+	}
+
 	switch(dvbdmxfeed->type) {
 	
 		case DMX_TYPE_TS:
 		case DMX_TYPE_PES:
 		
-			if (dvbdmxfeed->pes_type == DMX_TS_PES_PCR) {
-			
-				avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
-
-				if (!(dvbdmxfeed->type & TS_PACKET))
-					return 0;
-			
-			}
-
 			if (!(dvbdmxfeed->type & TS_PAYLOAD_ONLY))
-				return avia_gt_napi_start_feed_ts(dvbdmxfeed);
+				result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
 			else		
-				return avia_gt_napi_start_feed_pes(dvbdmxfeed);
+				result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
+
+			break;
 
 		case DMX_TYPE_SEC:
 
-			return avia_gt_napi_start_feed_section(dvbdmxfeed);
+			result = avia_gt_napi_start_feed_section(dvbdmxfeed);
+			
+			break;
 			
 		default:
 		
@@ -755,30 +841,38 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	
 	}
 
+	if (!result) {
+	
+		if ((dvbdmxfeed->type == DMX_TYPE_SEC) || (dvbdmxfeed->ts_type & TS_PACKET))
+			avia_gt_dmx_queue_irq_enable(((struct avia_gt_dmx_queue *)(dvbdmxfeed->priv))->index);
+
+	}
+	
+	return result;
+
 }
 
 static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	gtx_demux_filter_t *filter = &pid2filter[dvbdmxfeed->pid];
+	struct avia_gt_dmx_queue *queue = (struct avia_gt_dmx_queue *)dvbdmxfeed->priv;
 
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (!(dvbdmxfeed->type & TS_PACKET)))
-		return 0;
+	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->pes_type == DMX_TS_PES_PCR)) {
 
-//	printk("avia_gt_napi: closing queue %d for pid 0x%X\n", filter->index, dvbdmxfeed->pid);
+		//FIXME: disable pcr_pid
+		//avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
 	
-	avia_gt_dmx_queue_irq_disable(filter->queue);
+		if (!(dvbdmxfeed->type & TS_PACKET))
+			return 0;
+			
+	}
 
-	filter->invalid = 1;
-
-	dmx_set_filter(filter);
-
-	avia_gt_dmx_queue_reset(filter->queue);
-	avia_gt_dmx_free_queue(filter->index);
+	avia_gt_dmx_queue_stop(queue);
+	avia_gt_dmx_free_queue(queue->index);
 
 	return 0;
 
@@ -794,7 +888,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.155 2002/11/04 08:06:54 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.156 2002/11/04 09:09:16 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
