@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.92 2004/05/31 15:34:34 carjay Exp $
+ * $Id: avia_av_core.c,v 1.93 2004/06/26 16:12:43 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1462,34 +1462,35 @@ int avia_av_wdt_thread(void)
 	int LAST_SUM_AUD_DECODED = 0;
 	int counter = 0;  
                         
-        dvb_kernel_thread_setup ("avia_av_wdt");
-        dprintk ("avia_av_core: Starting avia_av_wdt thread.\n");
-        for(;;)
-        {
+	dvb_kernel_thread_setup ("avia_av_wdt");
+	printk ("avia_av_core: Starting avia_av_wdt thread.\n");
+	for(;;){
 		/* sleep till we got a wakeup signal */        
-                interruptible_sleep_on(&avia_av_wdt_sleep);
-		
-	 	if (counter >= 100) {		
+		interruptible_sleep_on(&avia_av_wdt_sleep);
+
+		if (counter >= 100) {		
 			if (avia_av_dram_read(PROC_STATE) == 0x04) {
-				SUM_DECODED = avia_av_dram_read(N_DECODED);
-				if ((SUM_DECODED == 0x00) | (SUM_DECODED == LAST_SUM_DECODED)) {
-	        	        	dprintk("avia_av_wdt_thread: audio decoding, video not ==> start video again\n");
-                			avia_av_cmd(SelectStream, 0x00, pid_video);
+				if (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) {
+					SUM_DECODED = avia_av_dram_read(N_DECODED);
+					if ((SUM_DECODED == 0x00) | (SUM_DECODED == LAST_SUM_DECODED)) {
+						printk("avia_av_wdt_thread: video decoding stopped ==> restart\n");
+						avia_av_cmd(SelectStream, 0x00, pid_video);
+					}
+					LAST_SUM_DECODED = SUM_DECODED;
 				}
-				else {
+				if (play_state_audio == AVIA_AV_PLAY_STATE_PLAYING) {
 					SUM_AUD_DECODED = avia_av_dram_read(N_AUD_DECODED);
-					if ((SUM_AUD_DECODED == 0x00) | (LAST_SUM_AUD_DECODED == SUM_AUD_DECODED)) {
-                        			dprintk("avia_av_wdt_thread: video decoding, audio not ==> start audio again\n");
+					if ((SUM_AUD_DECODED == 0x00) | (SUM_AUD_DECODED == LAST_SUM_AUD_DECODED)) {
+						printk("avia_av_wdt_thread: audio decoding stopped ==> restart\n");
 						avia_av_cmd(SelectStream, 0x03 - bypass_mode, pid_audio);
 					}
 					LAST_SUM_AUD_DECODED = SUM_AUD_DECODED;
 				}
-				LAST_SUM_DECODED = SUM_DECODED;
 			}
-		counter=0;
-	 	}
-	counter++;
-        }
+			counter=0;
+		}
+		counter++;
+	}
 	return 0;
 }       
 
@@ -1499,7 +1500,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.92 2004/05/31 15:34:34 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.93 2004/06/26 16:12:43 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
