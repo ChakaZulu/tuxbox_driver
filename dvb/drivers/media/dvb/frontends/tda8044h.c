@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.21 2003/01/02 05:23:57 obi Exp $
+ * $Id: tda8044h.c,v 1.22 2003/01/15 21:42:56 obi Exp $
  *   
  * Philips TDA8044H QPSK Demodulator DVB API driver
  *
@@ -429,29 +429,20 @@ int tda8044_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	{
 		fe_status_t *status = (fe_status_t *) arg;
 		u8 sync;
-		u8 fber;
 
 		*status = 0;
-
 		sync = tda8044_readreg(fe->i2c, 0x02);
-		fber = (tda8044_readreg(fe->i2c, 0x0B) >> 5) & 0x07;
 
 		if (sync & 0x01) /* demodulator lock */
 			*status |= FE_HAS_SIGNAL;
-		
 		if (sync & 0x02) /* clock recovery lock */
 			*status |= FE_HAS_CARRIER;
-		
 		if (sync & 0x04) /* viterbi lock */
 			*status |= FE_HAS_VITERBI;
-		
 		if (sync & 0x08) /* deinterleaver lock (packet sync) */
 			*status |= FE_HAS_SYNC;
-		
 		if (sync & 0x10) /* derandomizer lock (frame sync) */
 			*status |= FE_HAS_LOCK;
-
-		printk("FE_READ_STATUS: status == %02x, sync == %02x, fber == %02x\n", *status, sync, fber);
 		break;
 	}
 
