@@ -1,7 +1,7 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.4 2003/01/19 19:26:32 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.5 2003/02/09 19:52:07 obi Exp $
  *
- * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
+ * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		break;
 
 	case FE_ENABLE_HIGH_LNB_VOLTAGE:
-		dbox2_fp_sec_enable_high_voltage(((int) arg) ? 1 : 0);
+		dbox2_fp_sec_set_high_voltage(((int) arg) ? 1 : 0);
 		break;
 
 	case FE_SET_FRONTEND:
@@ -170,7 +170,11 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		return -EOPNOTSUPP;
 
 	case FE_SLEEP:
-		/* TODO: enable lnb loop through */
+		dbox2_fp_sec_set_power(0);
+		return -EOPNOTSUPP;
+
+	case FE_INIT:
+		dbox2_fp_sec_set_power(1);
 		return -EOPNOTSUPP;
 
 	default:

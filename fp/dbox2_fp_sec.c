@@ -1,7 +1,7 @@
 /*
- * $Id: dbox2_fp_sec.c,v 1.1 2002/10/21 11:38:58 obi Exp $
+ * $Id: dbox2_fp_sec.c,v 1.2 2003/02/09 19:52:07 obi Exp $
  *
- * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
+ * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 
 
 static u8 manufacturer_id;
+static u8 sec_power;
 static u8 sec_voltage;
 static u8 sec_high_voltage;
 static u8 sec_tone;
@@ -42,6 +43,7 @@ void
 dbox2_fp_sec_init (void)
 {
 	manufacturer_id = fp_get_info()->mID;
+	sec_power = 0;
 	sec_voltage = 0;
 	sec_high_voltage = 0;
 	sec_tone = 0;
@@ -137,7 +139,11 @@ dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len)
 }
 
 
-/* 
+/*
+ * power
+ *  0: off
+ * !0: on
+ *
  * volt
  *  0: 13V
  * !0: 18V
@@ -153,9 +159,14 @@ dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len)
  */
 
 int
-dbox2_fp_sec_set (u8 volt, u8 high, u8 tone)
+dbox2_fp_sec_set (u8 power, u8 voltage, u8 high_voltage, u8 tone)
 {
 	u8 msg[2];
+
+	sec_power = power;
+	sec_voltage = voltage;
+	sec_high_voltage = high_voltage;
+	sec_tone = tone;
 
 	if (sec_bus_status < 0)
 		return -1;
@@ -172,7 +183,7 @@ dbox2_fp_sec_set (u8 volt, u8 high, u8 tone)
 		 */
 
 		msg[0] = 0x21;
-		msg[1] = 0x40 | (((!volt) & 0x01) << 5) | (((!high) & 0x01) << 4) | (tone & 0x01);
+		msg[1] = ((!!power) << 6) | ((!voltage) << 5) | ((!!high_voltage) << 4) | (!!tone);
 		break;
 
 	case DBOX_MID_SAGEM:
@@ -187,7 +198,7 @@ dbox2_fp_sec_set (u8 volt, u8 high, u8 tone)
 		 */
 
 		msg[0] = 0x04;
-		msg[1] = 0x40 | ((volt & 0x01) << 5) | ((high & 0x01) << 4) | (tone & 0x01);
+		msg[1] = ((!!power) << 6) | ((!!voltage) << 5) | ((!!high_voltage) << 4) | (!!tone);
 		break;
 
 	default:
@@ -199,10 +210,6 @@ dbox2_fp_sec_set (u8 volt, u8 high, u8 tone)
 	if (i2c_master_send(fp_i2c_client, msg, sizeof(msg)) != sizeof(msg))
 		return -1;
 
-	sec_voltage = volt;
-	sec_high_voltage = high;
-	sec_tone = tone;
-
 	sec_bus_status = 0;
 
 	return 0;
@@ -210,31 +217,37 @@ dbox2_fp_sec_set (u8 volt, u8 high, u8 tone)
 
 
 int
-dbox2_fp_sec_set_voltage (u8 volt)
+dbox2_fp_sec_set_power (u8 power)
 {
-	return dbox2_fp_sec_set(volt, sec_high_voltage, sec_tone);
+	return dbox2_fp_sec_set(power, sec_voltage, sec_high_voltage, sec_tone);
+}
+
+
+int
+dbox2_fp_sec_set_voltage (u8 voltage)
+{
+	return dbox2_fp_sec_set(sec_power, voltage, sec_high_voltage, sec_tone);
 }
 
 
 int
 dbox2_fp_sec_set_tone (u8 tone)
 {
-	return dbox2_fp_sec_set(sec_voltage, sec_high_voltage, tone);
+	return dbox2_fp_sec_set(sec_power, sec_voltage, sec_high_voltage, tone);
 }
 
 
 int
-dbox2_fp_sec_enable_high_voltage (u8 high)
+dbox2_fp_sec_enable_high_voltage (u8 high_voltage)
 {
-	return dbox2_fp_sec_set(sec_voltage, high, sec_tone);
+	return dbox2_fp_sec_set(sec_power, sec_voltage, high_voltage, sec_tone);
 }
 
 
-#ifdef MODULE
 EXPORT_SYMBOL(dbox2_fp_sec_diseqc_cmd);
-EXPORT_SYMBOL(dbox2_fp_sec_enable_high_voltage);
 EXPORT_SYMBOL(dbox2_fp_sec_get_status);
-EXPORT_SYMBOL(dbox2_fp_sec_set);
+EXPORT_SYMBOL(dbox2_fp_sec_set_high_voltage);
+EXPORT_SYMBOL(dbox2_fp_sec_set_power);
 EXPORT_SYMBOL(dbox2_fp_sec_set_tone);
 EXPORT_SYMBOL(dbox2_fp_sec_set_voltage);
-#endif
+
