@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.40  2002/01/10 16:47:06  Hunz
+ *   possible SEC_VOLTAGE_LT fix maybe... (untested)
+ *
  *   Revision 1.39  2002/01/04 00:59:13  Hunz
  *   added FP_IOCTL_REBOOT
  *
@@ -123,7 +126,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.39 $
+ *   $Revision: 1.40 $
  *
  */
 
@@ -1192,8 +1195,8 @@ int fp_set_sec(int power,int tone)
     if(tone >0)
       msg[1]|=0x01;
   }
-  else if (power == -2)
-    msg[1]|=0x50; // activate loop-through // CHECK WHETHER THAT's THE RIGHT BIT !!
+  else if (power < 0)
+    msg[1]|=0x50; // activate loop-through - untested
   
   dprintk("fp.o: fp_set_sec: %02X\n", msg[1]);
   sec_bus_status=-1;
