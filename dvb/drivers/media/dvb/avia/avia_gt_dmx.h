@@ -208,7 +208,7 @@ struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_
 void avia_gt_dmx_fake_queue_irq(u8 queue_nr);
 s32 avia_gt_dmx_free_queue(u8 queue_nr);
 void avia_gt_dmx_force_discontinuity(void);
-void avia_gt_dmx_set_pcr_pid(u8 enanble, u16 pid);
+void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid);
 int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh);
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
