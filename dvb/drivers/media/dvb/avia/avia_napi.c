@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.16 2003/07/24 01:59:22 homar Exp $
+ * $Id: avia_napi.c,v 1.17 2003/11/14 21:20:27 carjay Exp $
  *
  * AViA GTX/eNX dvb api driver
  *
@@ -42,7 +42,7 @@ int __init avia_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "$Id: avia_napi.c,v 1.16 2003/07/24 01:59:22 homar Exp $\n");
+	printk(KERN_INFO "$Id: avia_napi.c,v 1.17 2003/11/14 21:20:27 carjay Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 		printk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
@@ -50,7 +50,7 @@ int __init avia_napi_init(void)
 	}
 
 	if ((result = dvb_i2c_bridge_register(adap)) < 0) {
-		printk(KERN_ERR "avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
+		printk(KERN_ERR "avia_napi: dvb_i2c_bridge_register failed (errno = %d)\n", result);
 		dvb_unregister_adapter(adap);
 		return result;
 	}
