@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.44 2001/07/18 19:40:35 TripleDES Exp $
+ * $Id: dvb.c,v 1.45 2001/07/23 21:16:48 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -458,6 +458,7 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 		}
 		case DVB_DEVICE_VIDEO:
 		{
+			
 			break;
 		}
 		case DVB_DEVICE_AUDIO:
@@ -897,15 +898,17 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
 					printk("CHCH [DECODER] ABORT\n");
-					avia_command(Abort, 0);
+					//avia_command(Abort, 0);
 					break;
 				}
 				case VIDEO_PLAY:
 				{
 					printk("CHCH [DECODER] PLAY\n");
-					avia_command(Play, 50, 0, 0);
+					avia_command(NewChannel, 0, 0, 0);
+					//avia_command(Play, 50, 0, 0);
 					udelay(100*1000);
 					avia_flush_pcr();
+					
 					if (dvb->dmxdev.demux)
 						dvb->dmxdev.demux->flush_pcr();
 					dvb->videostate.playState=VIDEO_PLAYING;
@@ -938,6 +941,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						avia_command(SelectStream, 0, 0);
 						avia_command(SelectStream, 2, 0);
 						avia_command(SelectStream, 3, 0);
+						
+						//udelay(1000*10);
 						//avia_command(NewChannel,0,0,0);
 						wDR(0x468, 0xFFFF);	// new audio config
 					} else
