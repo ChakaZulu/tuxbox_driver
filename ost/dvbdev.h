@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.h,v 1.6 2001/05/25 23:18:11 gillem Exp $
+ * $Id: dvbdev.h,v 1.7 2001/06/24 08:34:53 gillem Exp $
  */
 
 #ifndef _DVBDEV_H_
@@ -34,9 +34,11 @@
 #include <linux/poll.h>
 #include <linux/devfs_fs_kernel.h>
 
+#include <mtdriver/ostDevices.h>
+
 #define DVB_DEVICES_NUM         1
 
-#define DVB_SUBDEVICES_NUM      8
+#define DVB_SUBDEVICES_NUM      9
 
 #define DVB_DEVICE_VIDEO        0
 #define DVB_DEVICE_AUDIO        1
@@ -52,7 +54,7 @@
 #define DVB_DEVFSDIR_DVB        0
 #define DVB_DEVFSDIR_OST        1
 
-const char * subdevice_names[] = { "video", "audio", "sec", "qpskfe", "demux", "dvr", "ca", "scart" };
+const char * subdevice_names[] = { VIDEO_DEVICE_NAME, AUDIO_DEVICE_NAME, SEC_DEVICE_NAME, "qpskfe", DMX_DEVICE_NAME, "dvr", "ca", SCART_DEVICE_NAME, OSTKBD_DEVICE_NAME };
 
 struct dvbdev_devfsinfo
 {
