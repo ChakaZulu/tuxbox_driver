@@ -121,7 +121,7 @@ static void mpc8xx_wdt_handler_disable(void)
 
 	imap->im_sit.sit_piscr &= ~(PISCR_PIE | PISCR_PTE);
 
-	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler deactivated");
+	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler deactivated\n");
 }
 
 static void mpc8xx_wdt_handler_enable(void)
@@ -130,7 +130,7 @@ static void mpc8xx_wdt_handler_enable(void)
 
 	imap->im_sit.sit_piscr |= PISCR_PIE | PISCR_PTE;
 
-	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler activated");
+	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler activated\n");
 }
 
 static int mpc8xx_wdt_open(struct inode *inode, struct file *file)
