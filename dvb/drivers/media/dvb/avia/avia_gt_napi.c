@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.143 $
+ *   $Revision: 1.144 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.144  2002/10/30 19:46:54  Jolt
+ *   Cleanups / Porting
+ *
  *   Revision 1.143  2002/10/30 18:58:24  Jolt
  *   First skeleton of the new API
  *
@@ -563,11 +566,6 @@ void gtx_dmx_close(void)
 
 	for (queue_nr = 0; queue_nr < 32; queue_nr++)
 		avia_gt_free_irq(avia_gt_dmx_get_queue_irq(queue_nr));
-
-	if (avia_gt_chip(ENX))
-		avia_gt_free_irq(ENX_IRQ_PCR);
-	else if (avia_gt_chip(GTX))
-		avia_gt_free_irq(GTX_IRQ_PCR);					
 
 	unregister_demux(&gtx.dmx);
 	GtxDmxCleanup(&gtx);
@@ -1435,65 +1433,6 @@ static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 	
 }
 
-static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
-{
-
-	s32 queue_nr = -EINVAL;
-
-	switch (type) {
-
-		case DMX_TS_PES_VIDEO:
-
-			queue_nr = avia_gt_dmx_alloc_queue_video(NULL, avia_gt_napi_queue_callback, gtx);
-
-		break;
-
-		case DMX_TS_PES_AUDIO:
-
-			queue_nr = avia_gt_dmx_alloc_queue_audio(NULL, avia_gt_napi_queue_callback, gtx);
-
-		break;
-
-		case DMX_TS_PES_TELETEXT:
-
-			queue_nr = avia_gt_dmx_alloc_queue_teletext(NULL, avia_gt_napi_queue_callback, gtx);
-
-		break;
-
-		case DMX_TS_PES_PCR:
-		case DMX_TS_PES_SUBTITLE:
-
-			return NULL;
-
-		break;
-
-		case DMX_TS_PES_OTHER:
-
-			queue_nr = avia_gt_dmx_alloc_queue_user(NULL, avia_gt_napi_queue_callback, gtx);
-
-		break;
-
-	}
-
-	if (queue_nr < 0) {
-
-		printk("avia_gt_napi: failed to allocate queue (error=%d)\n", queue_nr);
-
-		return NULL;
-
-	}
-
-	if (gtx->feed[queue_nr].state != DMX_STATE_FREE)
-		return NULL;
-
-	gtx->feed[queue_nr].state = DMX_STATE_ALLOCATED;
-
-	dprintk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", queue_nr, type);
-
-	return &gtx->feed[queue_nr];
-
-}
-
 static int dmx_open(struct dmx_demux_s *demux)
 {
 
@@ -1683,15 +1622,6 @@ static int dmx_allocate_ts_feed(struct dmx_demux_s* demux, dmx_ts_feed_t** feed,
 
 	gtx_demux_t *gtx = (gtx_demux_t *)demux;
 	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)NULL;
-
-//FIXME	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, pes_type))) {
-	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, 0))) {
-
-		dprintk(KERN_ERR "gtx_dmx: couldn't get gtx feed\n");
-
-		return -EBUSY;
-
-	}
 
 //FIXME	if (type & TS_PAYLOAD_ONLY)
 //FIXME		gtxfeed->type = DMX_TYPE_PES;
@@ -1892,12 +1822,6 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 
 	dprintk("gtx_dmx: dmx_allocate_section_feed.\n");
 
-	if (!(gtxfeed=GtxDmxFeedAlloc(gtx, DMX_TS_PES_OTHER)))
-	{
-		dprintk("gtx_dmx: couldn't get gtx feed (for section_feed)\n");
-		return -EBUSY;
-	}
-
 	gtxfeed->cb.sec=callback;
 	gtxfeed->demux=gtx;
 	gtxfeed->pid=0xFFFF;
@@ -1970,68 +1894,6 @@ static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed
 	
 }
 
-static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)
-{
-	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	struct list_head *pos = (struct list_head *)NULL, *head=&gtx->frontend_list;
-	if (!(frontend->id && frontend->vendor && frontend->model))
-		return -EINVAL;
-	list_for_each(pos, head)
-	{
-		if (!strcmp(DMX_FE_ENTRY(pos)->id, frontend->id))
-			return -EEXIST;
-	}
-	list_add(&(frontend->connectivity_list), head);
-	return 0;
-}
-
-static int dmx_remove_frontend (struct dmx_demux_s* demux,	dmx_frontend_t* frontend)
-{
-	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	struct list_head *pos = (struct list_head *)NULL, *head=&gtx->frontend_list;
-	list_for_each(pos, head)
-	{
-		if (DMX_FE_ENTRY(pos)==frontend)
-		{
-			list_del(pos);
-			return 0;
-		}
-	}
-	return -ENODEV;
-}
-
-static struct list_head* dmx_get_frontends (struct dmx_demux_s* demux)
-{
-	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	if (list_empty(&gtx->frontend_list))
-		return 0;
-	return &gtx->frontend_list;
-}
-
-static int dmx_connect_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)
-{
-	if (demux->frontend)
-		return -EINVAL;
-	demux->frontend=frontend;
-	return -EINVAL;			 // was soll das denn? :)
-}
-
-static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
-{
-	demux->frontend=0;
-	return -EINVAL;
-}
-
-//FIXME
-#if 0
-static void gtx_dmx_set_pcr_pid(int pid)
-{
-
-	avia_gt_dmx_set_pcr_pid((u16)pid);
-
-}
-#endif
-
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
 //	dmx_demux_t *dmx=&gtxdemux->dmx;
@@ -2083,12 +1945,6 @@ return 0;
 		
 	}
 
-	dmx->id = "demux0";
-	dmx->vendor = "C-Cube";
-	dmx->model = "AViA eNX/GTX";
-	dmx->frontend = 0;
-	dmx->reg_list.next = dmx->reg_list.prev = &dmx->reg_list;
-	dmx->priv = (void *)gtxdemux;
 	dmx->open = dmx_open;
 	dmx->close = dmx_close;
 	dmx->write = dmx_write;
@@ -2097,22 +1953,7 @@ return 0;
 	dmx->allocate_section_feed = dmx_allocate_section_feed;
 	dmx->release_section_feed = dmx_release_section_feed;
 
-	dmx->descramble_mac_address = 0;
-	dmx->descramble_section_payload = 0;
-
-	dmx->add_frontend = dmx_add_frontend;
-	dmx->remove_frontend = dmx_remove_frontend;
-	dmx->get_frontends = dmx_get_frontends;
-	dmx->connect_frontend = dmx_connect_frontend;
-	dmx->disconnect_frontend = dmx_disconnect_frontend;
 //FIXME	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
-//FIXME	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
-
-	if (dmx_register_demux(dmx) < 0)
-		return -1;
-
-	if (dmx->open(dmx) < 0)
-		return -1;
 
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
@@ -2154,6 +1995,54 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 	
 }
 
+static int avia_gt_napi_feed_alloc(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	int queue_nr;
+	
+	if (dvbdmxfeed->ts_type & TS_DECODER) {
+
+		switch (dvbdmxfeed->pes_type) {
+
+			case DMX_TS_PES_VIDEO:
+
+				queue_nr = avia_gt_dmx_alloc_queue_video(NULL, avia_gt_napi_queue_callback, dvbdmxfeed);
+
+				break;
+
+			case DMX_TS_PES_AUDIO:
+
+				queue_nr = avia_gt_dmx_alloc_queue_audio(NULL, avia_gt_napi_queue_callback, dvbdmxfeed);
+	
+				break;
+
+			case DMX_TS_PES_TELETEXT:
+
+				queue_nr = avia_gt_dmx_alloc_queue_teletext(NULL, avia_gt_napi_queue_callback, dvbdmxfeed);
+
+				break;
+			
+			default:
+			
+				return -EINVAL;				
+
+		}
+		
+	} else {
+
+		if ((dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO) ||
+			(dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) ||
+			(dvbdmxfeed->pes_type == DMX_TS_PES_OTHER))
+			queue_nr = avia_gt_dmx_alloc_queue_user(NULL, avia_gt_napi_queue_callback, dvbdmxfeed);
+		else
+			return -EINVAL;
+
+	}
+
+	return queue_nr;
+
+}
+
 static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, u8 *buf, size_t count)
 {
 
@@ -2167,6 +2056,7 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
+	int queue_nr;
 
 	printk("avia_gt_napi: start_feed\n");
 	
@@ -2232,6 +2122,19 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	}
 	
+	if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (dvbdmxfeed->ts_type & TS_DECODER)) {
+	
+		avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
+	
+		return 0;
+	
+	}
+	
+	if ((queue_nr = avia_gt_napi_feed_alloc(dvbdmxfeed)) < 0)
+		return queue_nr;
+	
+	// TODO
+	
 	return 0;
 
 }
@@ -2255,7 +2158,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.143 2002/10/30 18:58:24 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.144 2002/10/30 19:46:54 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -2269,8 +2172,8 @@ int __init avia_gt_napi_init(void)
 	
 	memset(&demux, 0, sizeof(demux));
 
-	demux.dmx.vendor = "AViA";
-	demux.dmx.model = "GTX/eNX";
+	demux.dmx.vendor = "C-Cube";
+	demux.dmx.model = "AViA GTX/eNX";
 	demux.dmx.id = "demux0_0";
 	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING;
 
@@ -2290,7 +2193,6 @@ int __init avia_gt_napi_init(void)
 	}
 
 	GtxDmxInit(&gtx);
-//	register_demux(&gtx.dmx);
 
 	return 0;
 
