@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.23 2002/05/08 00:54:39 derget Exp $
+  $Id: ves1993.c,v 1.24 2002/05/12 21:22:59 derget Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.24  2002/05/12 21:22:59  derget
+  diseq solte nun gehen (untested)
+
   Revision 1.23  2002/05/08 00:54:39  derget
   minidiseq eingebaut (untestet)
 
@@ -167,7 +170,7 @@ static int tuner_attach_adapter(struct i2c_adapter *adapter)
 static int tuner_init(void)
 {
 	int res;
-        char tsa5059init[4]= {0x06,0x5c,0x83,0xa0};
+        char tsa5059init[4]= {0x06,0x5c,0x83,0x60}; // byte 4 oder 0xa0
 	char sp5659init[4]= {0x25,0x70,0x92,0x40};  
 	
 	writereg(dclient, 0x00,0x11);	//enable tuner access on ves1993
@@ -724,11 +727,11 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[0]=0xE0;
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
+			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
 			if (mid==1) {
-				    	printk("diseq geht nicht\n");
+				    	return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
 				    } 
 				else { 
-					memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
 					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
 			     	     }
 		}
@@ -739,11 +742,11 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[0]=command->u.diseqc.cmdtype;
 			msg[1]=command->u.diseqc.addr;
 			msg[2]=command->u.diseqc.cmd;
+			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
                         if (mid==1) {
-                                        printk("diseq geht nicht\n");
+                                        return fp_send_diseqc(1, msg, command->u.diseqc.numParams+3);
                                     }
                                 else {
-					memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
 					return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
 				     }
 		}
@@ -791,8 +794,6 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 	case FE_SETFREQ:
-		//mitel_set_freq(*(u32*)arg);
-		//tsa5059_set_freq(*(u32*)arg);
 		tuner_set_freq(*(u32*)arg);
 		break;
 	default:
