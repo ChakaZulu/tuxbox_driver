@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.7  2001/01/20 15:44:57  gillem
+ *   - fix volume set
+ *   - fix ioctl get functions
+ *
  *   Revision 1.6  2001/01/16 19:39:15  gillem
  *   some new ioctls
  *
@@ -34,7 +38,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -151,13 +155,10 @@ int avs_set_volume( int vol )
 {
 	int c=0,f=0;
 
-	if ( vol && (vol<=56))
-	{
+	if ( vol && (vol<=63)) {
 		c = vol/8;
 		f = vol-c;
-	}
-	else
-	{
+	} else {
 		return -EINVAL;
 	}
 
@@ -315,52 +316,50 @@ static int avs_getstatus(struct i2c_client *c)
 static int avs_attach(struct i2c_adapter *adap, int addr,
 			unsigned short flags, int kind)
 {
-	struct avs *t;
-	struct i2c_client *client;
+ struct avs *t;
+ struct i2c_client *client;
 
-	dprintk("[AVS]: attach\n");
+ dprintk("[AVS]: attach\n");
 
-	if (this_adap > 0)
-		return -1;
+ if (this_adap > 0)
+        return -1;
 
-	this_adap++;
+ this_adap++;
 	
-  client_template.adapter = adap;
-  client_template.addr = addr;
+ client_template.adapter = adap;
+ client_template.addr = addr;
 
-  dprintk("[AVS]: chip found @ 0x%x\n",addr);
+ dprintk("[AVS]: chip found @ 0x%x\n",addr);
 
-  if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
-		return -ENOMEM;
+ if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+        return -ENOMEM;
 
-  memcpy(client,&client_template,sizeof(struct i2c_client));
-  client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
+ memcpy(client,&client_template,sizeof(struct i2c_client));
+ client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
 
-  if (NULL == t) {
-		kfree(client);
-    return -ENOMEM;
-	}
+ if (NULL == t) {
+        kfree(client);
+        return -ENOMEM;
+ }
 
-  memset(t,0,sizeof(struct avs));
+ memset(t,0,sizeof(struct avs));
 
-	if (type >= 0 && type < AVS_COUNT) {
-		t->type = type;
-		strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
-	} else {
-		t->type = -1;
-	}
+ if (type >= 0 && type < AVS_COUNT) {
+	t->type = type;
+	strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
+ } else {
+	t->type = -1;
+ }
 
-	i2c_attach_client(client);
-	//MOD_INC_USE_COUNT;
+ i2c_attach_client(client);
+ //MOD_INC_USE_COUNT;
 
-	return 0;
+ return 0;
 }
 
 static int avs_probe(struct i2c_adapter *adap)
 {
-	int ret;
-
-	ret = 0;
+	int ret=0;
 
 	dprintk("[AVS]: probe\n");
 
@@ -442,50 +441,50 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	{
 		switch (cmd)
 		{
-			/* set video */
-			case AVSIOSVSW1:
+			/* get video */
+			case AVSIOGVSW1:
                                 val = avs_get_vsw(0);
                                 break;
-			case AVSIOSVSW2:
+			case AVSIOGVSW2:
                                 val = avs_get_vsw(1);
                                 break;
-			case AVSIOSVSW3:
+			case AVSIOGVSW3:
                                 val = avs_get_vsw(2);
                                 break;
-			/* set audio */
-			case AVSIOSASW1:
+			/* get audio */
+			case AVSIOGASW1:
                                 val = avs_get_asw(0);
                                 break;
-			case AVSIOSASW2:
+			case AVSIOGASW2:
                                 val = avs_get_asw(1);
                                 break;
-			case AVSIOSASW3:
+			case AVSIOGASW3:
                                 val = avs_get_asw(2);
                                 break;
-			/* set vol & mute */
-			case AVSIOSVOL:
+			/* get vol & mute */
+			case AVSIOGVOL:
                                 val = avs_get_volume();
                                 break;
-			case AVSIOSMUTE:
+			case AVSIOGMUTE:
                                 val = avs_get_mute();
                                 break;
-			/* set video fast blanking */
+			/* get video fast blanking */
 			case AVSIOGFBLK:
                                 val = avs_get_fblk();
                                 break;
-			/* set video function switch control */
+			/* get video function switch control */
 			case AVSIOGFNC:
                                 val = avs_get_fnc();
                                 break;
-			/* set output throgh vout 8 */
+			/* get output throgh vout 8 */
 			case AVSIOGYCM:
                                 val = avs_get_ycm();
                                 break;
-			/* set zero cross detector */
+			/* get zero cross detector */
 			case AVSIOGZCD:
                                 val = avs_get_zcd();
                                 break;
-			/* set logic outputs */
+			/* get logic outputs */
 			case AVSIOGLOG1:
                                 val = avs_get_logic(1);
                                 break;
@@ -584,7 +583,7 @@ void cleanup_module(void)
 	i2c_del_driver(&driver);
 
 	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
-			printk("cxa2092.o: unable to release major %d\n", AVS_MAJOR);
+		printk("cxa2092.o: unable to release major %d\n", AVS_MAJOR);
 	}
 }
 #endif
