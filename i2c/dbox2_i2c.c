@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.24  2002/11/21 15:51:11  obi
+ *   LinuxTV sync
+ *
  *   Revision 1.23  2002/11/11 06:26:35  Jolt
  *   Moved I2C stuff into proper interface
  *
@@ -56,7 +59,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -478,10 +481,10 @@ static int parse_recv_msg( unsigned char address, unsigned short size,
 /* ------------------------------------------------------------------------- */
 
 int dbox2_i2c_xfer(struct i2c_adapter *i2c_adap,
-		    struct i2c_msg msgs[], int num)
+		    const struct i2c_msg msgs[], int num)
 {
 	unsigned long flags;
-	struct i2c_msg *pmsg;
+	const struct i2c_msg *pmsg;
 	int i,last,ret;
 
 	/* HACK HACK HACK */

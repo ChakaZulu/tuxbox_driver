@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_i2c_napi.c,v 1.1 2002/11/11 06:26:35 Jolt Exp $
+ * $Id: dbox2_i2c_napi.c,v 1.2 2002/11/21 15:51:11 obi Exp $
  *
  * MPC8xx DVB I2C interface
  *
@@ -36,7 +36,7 @@
 
 static struct dvb_i2c_bus *i2c_bus;
 
-static int dbox2_i2c_napi_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msgs[], int num)
+static int dbox2_i2c_napi_master_xfer(struct dvb_i2c_bus *i2c, const struct i2c_msg msgs[], int num)
 {
 
 	return dbox2_i2c_xfer(NULL, msgs, num);
@@ -46,7 +46,7 @@ static int dbox2_i2c_napi_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg ms
 static int __init dbox2_i2c_napi_init(void)
 {
 
-	printk("$Id: dbox2_i2c_napi.c,v 1.1 2002/11/11 06:26:35 Jolt Exp $\n");
+	printk("$Id: dbox2_i2c_napi.c,v 1.2 2002/11/21 15:51:11 obi Exp $\n");
 	
 	if (!(i2c_bus = dvb_register_i2c_bus(dbox2_i2c_napi_master_xfer, NULL, avia_napi_get_adapter(), 0))) {
 

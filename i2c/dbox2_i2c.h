@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.h,v $
+ *   Revision 1.6  2002/11/21 15:51:11  obi
+ *   LinuxTV sync
+ *
  *   Revision 1.5  2002/11/11 06:26:35  Jolt
  *   Moved I2C stuff into proper interface
  *
@@ -28,7 +31,7 @@
  *   Revision 1.3  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -47,6 +50,6 @@ void i2c_receive(unsigned char address,
 				int enable_secondary,
                 unsigned short size_to_expect, unsigned char datain[] );
 
-int dbox2_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num);
+int dbox2_i2c_xfer(struct i2c_adapter *i2c_adap, const struct i2c_msg msgs[], int num);
 
 #endif
