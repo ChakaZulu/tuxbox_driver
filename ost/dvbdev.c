@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.4 2001/03/09 17:42:46 waldi Exp $
+ * $Id: dvbdev.c,v 1.5 2001/03/11 18:26:35 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -42,6 +42,8 @@
 #include "dvbdev.h"
 
 static struct dvb_device * dvb_device[DVB_DEVICES_NUM];
+
+static devfs_handle_t devfs_dir_handle[DVB_DEVFSDIRS_NUM];
 
 static int dvbdev_open ( struct inode * inode, struct file * file )
 {
@@ -122,29 +124,54 @@ static struct file_operations dvbdev_fops =
   poll:         dvbdev_poll
 };
 
-void dvbdev_register_devfs ( dvb_device_t * dev, int number )
+void dvbdev_devfs_init ()
+{
+  devfs_dir_handle[DVB_DEVFSDIR_DVB] = devfs_mk_dir ( NULL, "dvb", NULL );
+  devfs_dir_handle[DVB_DEVFSDIR_OST] = devfs_mk_dir ( NULL, "ost", NULL );
+}
+
+void dvbdev_devfs_cleanup ()
+{
+  devfs_unregister ( devfs_dir_handle[DVB_DEVFSDIR_DVB] );
+  devfs_unregister ( devfs_dir_handle[DVB_DEVFSDIR_OST] );
+}
+
+void dvbdev_devfs_register_dev ( dvb_device_t * dev, int number )
 {
   int i;
-  char device[20];
+  char string1[20];
+  char string2[20];
 
   for ( i = 0; i < DVB_SUBDEVICES_NUM; i++ )
   {
     dev -> devfs_info[i].device = dev;
     dev -> devfs_info[i].type = i;
-    sprintf ( device, "ost/%s%d", subdevice_names[i], 0 );
-    dev -> devfs_handle[i] = 
-      devfs_register ( NULL, device, DEVFS_FL_DEFAULT, 0, 0,
+    sprintf ( string1, "card%d", number );
+    dev -> devfs_handle_dvb_dir =
+      devfs_mk_dir ( devfs_dir_handle[DVB_DEVFSDIR_DVB], string1, NULL );
+
+    dev -> devfs_handle_dvb[i] = 
+      devfs_register ( dev -> devfs_handle_dvb_dir, subdevice_names[i], DEVFS_FL_DEFAULT, 0, 0,
                        S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                        &dvbdev_fops, &dev -> devfs_info[i] );
+
+    sprintf ( string1, "%s%d", subdevice_names[i], number );
+    sprintf ( string2, "../dvb/card%d/%s", number, subdevice_names[i] );
+    devfs_mk_symlink ( devfs_dir_handle[DVB_DEVFSDIR_OST], string1, DEVFS_FL_DEFAULT, string2,
+                       &dev -> devfs_handle_ost[i], NULL );
   }
 }
 
-void dvbdev_unregister_devfs ( dvb_device_t * dev )
+void dvbdev_devfs_unregister_dev ( dvb_device_t * dev )
 {
   int i;
 
   for ( i = 0; i < DVB_SUBDEVICES_NUM; i++ )
-    devfs_unregister ( dev -> devfs_handle[i] );
+  {
+    devfs_unregister ( dev -> devfs_handle_ost[i] );
+    devfs_unregister ( dev -> devfs_handle_dvb[i] );
+  }
+  devfs_unregister ( dev -> devfs_handle_dvb_dir );
 }
 
 int dvb_register_device ( dvb_device_t * dev )
@@ -156,7 +183,7 @@ int dvb_register_device ( dvb_device_t * dev )
     if ( dvb_device[i] == NULL )
     {
       dvb_device[i] = dev;
-      dvbdev_register_devfs ( dev, i );
+      dvbdev_devfs_register_dev ( dev, i );
       MOD_INC_USE_COUNT;
       return 0;
     }
@@ -173,7 +200,7 @@ void dvb_unregister_device ( dvb_device_t * dev )
   {
     if ( dvb_device[i] == dev )
     {
-      dvbdev_unregister_devfs ( dev );
+      dvbdev_devfs_unregister_dev ( dev );
       dvb_device[i] = NULL;
     }
   }
@@ -188,10 +215,18 @@ int __init dvbdev_init_module ()
   for ( i = 0; i < DVB_DEVICES_NUM; i++ )
     dvb_device[i] = NULL;
 
+  dvbdev_devfs_init ();
+
   return 0;
 }
 
+void __exit dvbdev_cleanup_module ()
+{
+  dvbdev_devfs_cleanup ();
+}
+
 module_init ( dvbdev_init_module );
+module_exit ( dvbdev_cleanup_module );
 
 EXPORT_SYMBOL(dvb_register_device);
 EXPORT_SYMBOL(dvb_unregister_device);
