@@ -1,5 +1,5 @@
 /*
- * $Id: dvb_frontend.c,v 1.5 2002/04/24 13:56:11 field Exp $
+ * $Id: dvb_frontend.c,v 1.6 2002/04/24 16:07:49 field Exp $
  *
  * dvb_frontend.c: DVB frontend driver module
  *
@@ -22,6 +22,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  * $Log: dvb_frontend.c,v $
+ * Revision 1.6  2002/04/24 16:07:49  field
+ * Hoeheres dvb_s timeout
+ *
  * Revision 1.5  2002/04/24 13:56:11  field
  * Timeout bei dvb_s an ves1993 angepasst
  *
@@ -268,7 +271,7 @@ fe_tune(dvb_front_t *fe)
 		demod_command(fe, FE_RESET, 0);
 
 	if (fe->type == DVB_S) {
-		mdelay(20);
+		mdelay(30);
 		fe->zz_state = 1;
 	}
 	else if (fe->type == DVB_C || fe->type == DVB_T) {
@@ -320,6 +323,7 @@ fe_thread(void *data)
 		case FE_STATE_ZIGZAG:
 			fe_zigzag(fe);
 			break;
+
 		case FE_STATE_AFC:
 			fe_afc(fe);
 			break;
