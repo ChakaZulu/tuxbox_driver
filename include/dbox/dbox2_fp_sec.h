@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_sec.h,v 1.1 2002/10/21 11:38:59 obi Exp $
+ * $Id: dbox2_fp_sec.h,v 1.2 2003/02/09 19:53:34 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -30,11 +30,11 @@ void dbox2_fp_sec_init (void);
 
 /* public kernel api */
 int dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len);
-int dbox2_fp_sec_enable_high_voltage (u8 high);
 int dbox2_fp_sec_get_status (void);
-int dbox2_fp_sec_set (u8 volt, u8 high, u8 tone);
+int dbox2_fp_sec_set_high_voltage (u8 high_voltage);
+int dbox2_fp_sec_set_power (u8 power);
 int dbox2_fp_sec_set_tone (u8 tone);
-int dbox2_fp_sec_set_voltage (u8 volt);
+int dbox2_fp_sec_set_voltage (u8 voltage);
 
 #endif /* __dbox2_fp_sec_h__ */
 #endif /* __KERNEL__ */
