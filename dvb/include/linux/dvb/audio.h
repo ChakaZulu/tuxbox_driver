@@ -120,6 +120,7 @@ typedef uint16_t audio_attributes_t;
 #define AUDIO_SET_EXT_ID           _IO('o', 16)
 #define AUDIO_SET_ATTRIBUTES       _IOW('o', 17, audio_attributes_t)
 #define AUDIO_SET_KARAOKE          _IOW('o', 18, audio_karaoke_t)
+#define AUDIO_SET_DA_IEC_DISABLE   _IO('o', 19)
 
 #endif /* _DVBAUDIO_H_ */
 
