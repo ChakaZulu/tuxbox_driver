@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.141  2002/11/01 22:36:35  Jolt
+ *   Basic Soft DMX support
+ *
  *   Revision 1.140  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -230,7 +233,7 @@
  *
  *
  *
- *   $Revision: 1.140 $
+ *   $Revision: 1.141 $
  *
  */
 
@@ -456,7 +459,7 @@ u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 	return 0;
 
 }
-
+#if 0
 void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry)
 {
 	gtx_demux_t *gtx = v_gtx;
@@ -940,6 +943,7 @@ int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_f
 
 	return 0;
 }
+#endif
 
 unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 {
@@ -2000,7 +2004,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.140 2002/10/20 20:38:26 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.141 2002/11/01 22:36:35 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2159,9 +2163,9 @@ EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
 EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
-EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
-EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);
-EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
+//EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
+//EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);
+//EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
 #endif
 
 #if defined(MODULE) && defined(STANDALONE)
