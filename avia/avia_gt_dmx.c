@@ -21,6 +21,12 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.123  2002/09/13 17:07:44  Jolt
+ *   Fixed section mode selection:
+ *   0 - disabled
+ *   1 - autodetect
+ *   2 - force
+ *
  *   Revision 1.122  2002/09/10 17:18:31  Jolt
  *   Grrrrr
  *
@@ -173,7 +179,7 @@
  *
  *
  *
- *   $Revision: 1.122 $
+ *   $Revision: 1.123 $
  *
  */
 
@@ -226,7 +232,7 @@ static int errno							= (int)0;
 static sAviaGtInfo *gt_info						= (sAviaGtInfo *)NULL;
 static sRISC_MEM_MAP *risc_mem_map				= (sRISC_MEM_MAP *)NULL;
 static char *ucode							= (char *)NULL;
-static u8 hw_sections = 1;
+static s32 hw_sections = 1;
 static u8 force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 extern void avia_set_pcr(u32 hi, u32 lo);
@@ -369,10 +375,14 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
 
-	if (hw_sections && (risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14))
+	printk("avia_gt_dmx: hw_sections=%d\n", hw_sections);
+
+	if (hw_sections == 1)
+		return ((risc_mem_map->Version_no[0] == 0x00) && (risc_mem_map->Version_no[1] == 0x14));
+	else if (hw_sections == 2)
 		return 1;
-	else
-		return 0;
+		
+	return 0;
 
 }
 
@@ -929,7 +939,6 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 
 		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
 
-//		return -EINVAL;
 		return 0;
 
 	}
@@ -1120,7 +1129,7 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count, u8 peek)
 
 	}
 
-	if (dest)
+	if ((dest) && (count - done))
 		memcpy(((u8 *)dest) + done, gt_info->mem_addr + read_pos, count - done);
 
 	if (!peek)
@@ -1250,7 +1259,6 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 		queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 
-		// can happen if a queue has been reset but an interrupt is pending
 		if (queue_list[queue_nr].write_pos == queue_list[queue_nr].read_pos)
 			continue;
 
@@ -1672,7 +1680,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.122 2002/09/10 17:18:31 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.123 2002/09/13 17:07:44 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
