@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.29 2003/12/22 05:31:39 obi Exp $
+ * $Id: avia_av_napi.c,v 1.30 2004/02/26 23:58:18 carjay Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -286,24 +286,27 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 	{
 		video_displayformat_t format = (video_displayformat_t) arg;
 
-		u16 val = 0;
+		u16 aval = 0;
+		u16 dval = 0;
 
 		switch (format) {
 		case VIDEO_PAN_SCAN:
-			val = 1;
+			aval = 1;
 			break;
 		case VIDEO_LETTER_BOX:
-			val = 2;
+			aval = 2;
 			break;
 		case VIDEO_CENTER_CUT_OUT:
-			val = 0;
+			aval = 2;
+			dval = 1;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		videostate.display_format = format;
-		avia_av_dram_write(ASPECT_RATIO_MODE, val);
+		avia_av_dram_write(ASPECT_RATIO_MODE, aval);
+		avia_av_dram_write(DISPLAY_ASPECT_RATIO, dval);
 		break;
 	}
 
@@ -744,7 +747,7 @@ static int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.29 2003/12/22 05:31:39 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.30 2004/02/26 23:58:18 carjay Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
