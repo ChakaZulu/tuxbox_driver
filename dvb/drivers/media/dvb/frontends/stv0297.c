@@ -1,7 +1,7 @@
 /*
     Driver for STV0297/TSA5512 based DVB QAM frontends
 
-    Copyright (C) 2003 Dennis Nörmann <dennis.noermann@noernet.de>
+    Copyright (C) 2003 Dennis Noermann <dennis.noermann@noernet.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "dvb_frontend.h"
 #include "dvb_functions.h"
 
-#if 1
+#if 0
 #define dprintk(x...) printk(x)
 #else
 #define dprintk(x...)
@@ -208,7 +208,7 @@ static int tsa5512_set_tv_freq	(struct dvb_i2c_bus *i2c, u32 freq)
 		buf[3] = 0xA2; // 41 Mhz bis 166 Mhz 
 	else
 		buf[3] = 0x92; // 166 Mhz bis 451 Mhz 
-
+			       // > 451 fix me   
 
 	dprintk("%s:  div = %d 0 == 0x%02x, 1 == 0x%02x 3 == 0x%02x \n",__FUNCTION__,div,buf[0],buf[1],buf[3]);
 
@@ -309,7 +309,7 @@ static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 		if (sync & 0x80)
 			*status |= FE_HAS_SYNC;
-		if (tuner & 50) 
+		if (tuner & 0x50) 
 			*status |= FE_HAS_SIGNAL;
 
 		if (sync & 0x80)
@@ -366,73 +366,63 @@ static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         case FE_SET_FRONTEND: 
         {
 		struct dvb_frontend_parameters *p = arg;
-		u8 buf[] = { 0x30, 0x97, 0x4C, 0xFF, 0x55, 0x00, 0x65, 0x80 };
 		u8 buf2[] = { 0x83, 0x10, 0x25, 0x00, 0x78, 0x73 };
 		u8 buf3[] = { 0xC0, 0x4B, 0x01, 0x00 };
 		u8 buf4[] = { 0x66, 0xB9, 0x1E, 0x85, 0x0F };
 		u8 pll[] = { 0x8E };		
+		int i = 0;
 
-		stv0297_writereg (i2c, 0x80, 0x01);
-		stv0297_writereg (i2c, 0x80, 0x00);
-                stv0297_writereg (i2c, 0x87, 0x73);
 		tsa5512_set_tv_freq (i2c, p->frequency);
 
-		/*  wait till tuner has tuned ?? */
+		/*  wait till tuner has tuned ! */
 
-		stv0297_writereg (i2c, 0x87, 0x73);
+		while ( (tsa5512_read_status(i2c) >> 6 == 0) ){
+			dprintk ("%s wait for tuner... %x\n", __FUNCTION__,tsa5512_read_status(i2c));
+			i++;
+			if (i == 3) { dprintk ("%s break\n", __FUNCTION__); break; }
+		}
+
 		pll_write (i2c, pll, sizeof(pll));
 
-                stv0297_writereg (i2c, 0x80, 0x01); //udelay(1000);
-                stv0297_writereg (i2c, 0x80, 0x00); //udelay(1000);
-                stv0297_writereg (i2c, 0x25, 0x88); //udelay(1000);
+		stv0297_writeregs (i2c, buf2, sizeof(buf2)); 
+		stv0297_writereg (i2c, 0x84, 0x24); 
+		stv0297_writeregs (i2c, buf3, sizeof(buf3)); 
+		stv0297_writereg (i2c, 0x88, 0x08); 
+		stv0297_writereg (i2c, 0x90, 0x01); 
+		stv0297_writereg (i2c, 0x37, 0x20); 		
+		stv0297_writereg (i2c, 0x40, 0x19); 		
+		stv0297_writereg (i2c, 0x43, 0x40); 
+		stv0297_writereg (i2c, 0x41, 0xE4); 
+		stv0297_writereg (i2c, 0x42, 0x3C); 
+		stv0297_writereg (i2c, 0x44, 0xFF); 
+		stv0297_writereg (i2c, 0x49, 0x04); 
+		stv0297_writereg (i2c, 0x4A, 0xFF); 
+		stv0297_writereg (i2c, 0x4B, 0xFF); 
+		stv0297_writereg (i2c, 0x71, 0x04); 
+		stv0297_writereg (i2c, 0x53, 0x08); 
+		stv0297_writereg (i2c, 0x5A, 0x3E);  //3E forces the direct path to be immediately 
+		stv0297_writereg (i2c, 0x5B, 0x07); 
+		stv0297_writereg (i2c, 0x5B, 0x05); 
+                stv0297_set_symbolrate (i2c, p->u.qam.symbol_rate); 
+		stv0297_writereg (i2c, 0x59, 0x08); 
+		stv0297_writereg (i2c, 0x61, 0x49); 
+		stv0297_writereg (i2c, 0x62, 0x0E); 
+		stv0297_writereg (i2c, 0x6A, 0x02); 
+		stv0297_writereg (i2c, 0x00, 0x48);  // set qam-64
+		//stv0297_writereg (i2c, 0x89, 0xFE);  // qam auto 
+		stv0297_writereg (i2c, 0x01, 0x58); 
+		stv0297_writereg (i2c, 0x82, 0x00); 
+		stv0297_writereg (i2c, 0x83, 0x08); 
+		stv0297_writereg (i2c, 0x60, 0x2D); 
+		stv0297_writereg (i2c, 0x20, 0x00); 
+		stv0297_writereg (i2c, 0x21, 0x40); 
+		stv0297_writeregs (i2c, buf4, sizeof(buf4)); 
+		stv0297_writereg (i2c, 0x82, 0x00); 
+		stv0297_writereg (i2c, 0x85, 0x04); 
+		stv0297_writereg (i2c, 0x43, 0x10); 
+		stv0297_writereg (i2c, 0x5A, 0x5E); 
 
-		stv0297_writeregs (i2c, buf, sizeof(buf)); //udelay(1000);
-                stv0297_writereg (i2c, 0x43, 0x00); //udelay(1000);
-                stv0297_writereg (i2c, 0x70, 0xFF); //udelay(1000);
-                stv0297_writereg (i2c, 0x71, 0x84); //udelay(1000);
-		stv0297_writereg (i2c, 0x81, 0x01); //udelay(3000);
-
-		stv0297_writereg (i2c, 0x85, 0x04); //udelay(3000);
-		stv0297_writereg (i2c, 0x81, 0x00); //udelay(1000);
-		stv0297_writeregs (i2c, buf2, sizeof(buf2)); //udelay(1000);
-		stv0297_writereg (i2c, 0x84, 0x24); //udelay(1000);
-		stv0297_writeregs (i2c, buf3, sizeof(buf3)); //udelay(1000);
-		stv0297_writereg (i2c, 0x88, 0x08); //udelay(1000);
-		stv0297_writereg (i2c, 0x90, 0x01); //udelay(1000);
-		stv0297_writereg (i2c, 0x37, 0x20); //udelay(1000);		
-		stv0297_writereg (i2c, 0x40, 0x19); //udelay(1000);		
-		stv0297_writereg (i2c, 0x43, 0x40); //udelay(1000);
-		stv0297_writereg (i2c, 0x41, 0xE4); //udelay(1000);
-		stv0297_writereg (i2c, 0x42, 0x3C); //udelay(1000);
-		stv0297_writereg (i2c, 0x44, 0xFF); //udelay(1000);
-		stv0297_writereg (i2c, 0x49, 0x04); //udelay(1000);
-		stv0297_writereg (i2c, 0x4A, 0xFF); //udelay(1000);
-		stv0297_writereg (i2c, 0x4B, 0xFF); //udelay(1000);
-		stv0297_writereg (i2c, 0x71, 0x04); //udelay(1000);
-		stv0297_writereg (i2c, 0x53, 0x08); //udelay(1000);
-		stv0297_writereg (i2c, 0x5A, 0x3E); //udelay(1000); //3E forces the direct path to be immediately 
-		stv0297_writereg (i2c, 0x5B, 0x07); //udelay(1000);
-		stv0297_writereg (i2c, 0x5B, 0x05); //udelay(1000);
-                stv0297_set_symbolrate (i2c, p->u.qam.symbol_rate); //udelay(10000);
-		stv0297_writereg (i2c, 0x59, 0x08); //udelay(1000);
-		stv0297_writereg (i2c, 0x61, 0x49); //udelay(1000);
-		stv0297_writereg (i2c, 0x62, 0x0E); //udelay(1000);
-		stv0297_writereg (i2c, 0x6A, 0x02); //udelay(1000);
-		stv0297_writereg (i2c, 0x00, 0x48); //udelay(1000); // set qam-64
-		//stv0297_writereg (i2c, 0x89, 0xFE); udelay(100000); // qam auto 
-		stv0297_writereg (i2c, 0x01, 0x58); //udelay(1000);
-		stv0297_writereg (i2c, 0x82, 0x00); //udelay(1000);
-		stv0297_writereg (i2c, 0x83, 0x08); //udelay(1000);
-		stv0297_writereg (i2c, 0x60, 0x2D); //udelay(1000);
-		stv0297_writereg (i2c, 0x20, 0x00); //udelay(1000);
-		stv0297_writereg (i2c, 0x21, 0x40); //udelay(1000);
-		stv0297_writeregs (i2c, buf4, sizeof(buf4)); //udelay(1000);
-		stv0297_writereg (i2c, 0x82, 0x00); //udelay(5000);
-		stv0297_writereg (i2c, 0x85, 0x04); //udelay(5000);
-		stv0297_writereg (i2c, 0x43, 0x10); //udelay(5000);
-		stv0297_writereg (i2c, 0x5A, 0x5E); //udelay(80000);
-
-		stv0297_writereg (i2c, 0x6A, 0x03); //udelay(80000);
+		stv0297_writereg (i2c, 0x6A, 0x03); 
 		
 		stv0297_writereg (i2c, 0x85, 0x04); 
 		stv0297_writereg (i2c, 0x6B, 0x00); 
@@ -499,7 +489,7 @@ static void __exit exit_stv0297 (void)
 module_init (init_stv0297);
 module_exit (exit_stv0297);
 
-MODULE_DESCRIPTION("STV0299/TSA5512 DVB-C Frontend driver");
-MODULE_AUTHOR("Dennis Nörmann");
+MODULE_DESCRIPTION("STV0297/TSA5512 DVB-C Frontend driver");
+MODULE_AUTHOR("Dennis Noermann");
 MODULE_LICENSE("GPL");
 
