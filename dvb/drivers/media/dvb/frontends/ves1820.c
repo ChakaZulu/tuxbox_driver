@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.27 2002/06/29 21:47:17 Homar Exp $
+   $Id: ves1820.c,v 1.28 2002/07/05 12:39:30 Homar Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,9 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.28  2002/07/05 12:39:30  Homar
+    Bugfix: INV/nonINV mixed im Kabel
+
     Revision 1.27  2002/06/29 21:47:17  Homar
     VHF-L-Scan gefixt
 
@@ -77,17 +80,6 @@ static struct i2c_client client_template;
 
 u8 Init1820PTab[] =
 {
-/*  // changed by tmbinc, according to sniffed i2c-stuff. not validated at all.
-  // does NO spectral inversion.
-  0x49, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,
-  0x43, 0x6A, 0x1A, 0x61, 0x19, 0xA1, 0x63, 0x00,
-  0xB8, 0x00, 0xE1, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x32, 0xc8, 0x00, 0x00
-};
-*/
   0x49, //0  noStdBy / internADC / noInversion / 64-QAM / outputs active / CLB-Softreset default
   0x6A, //1  AGC-Reference set to 64-QAM
   0x13, //2  Frontend Lock-Indicator /  internADC / AGC in PWM ?? (def=1) / AGC nonInverted / AGC Time constant is minimum (def=00)
@@ -473,7 +465,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.27 2002/06/29 21:47:17 Homar Exp $\n");
+        printk("$Id: ves1820.c,v 1.28 2002/07/05 12:39:30 Homar Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -611,7 +603,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 #define FE_HAS_SYNC         64
 #define FE_TUNER_HAS_LOCK  128
 */
-			if (sync == 3)
+			if ((sync & 15) == 3)
 			{
 				printk("inv autom.\n");
 				SetInversion	(client,ves->inversion==INVERSION_ON?INVERSION_AUTO:INVERSION_ON);
