@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.3  2001/02/17 11:12:42  gillem
+ *   - fix init
+ *
  *   Revision 1.2  2001/02/16 20:48:29  gillem
  *   - some avia600 tests
  *
@@ -50,7 +53,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -325,6 +328,9 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 		}
 		else
 		{
+			dprintk("CMD UNKN %08X %08X %08X %08X %08X %08X %08X %08X\n",\
+				rDR(0x40),rDR(0x44),rDR(0x48),rDR(0x4c),rDR(0x50),rDR(0x54),rDR(0x58),rDR(0x5c));
+			dprintk("PROC %08X %08X %08X\n",rDR(0x2a0),rDR(0x2a4),rDR(0x2a8));
 		}
 	}
 
@@ -671,6 +677,11 @@ void avia_set_default(void)
 	/* */
     wDR(INTERPRET_USER_DATA,0);
 
+	/* osd */
+	wDR(DISABLE_OSD, 0 );
+	wDR(OSD_BUFFER_START, 0 );
+	wDR(OSD_BUFFER_END, 0xFFFF );
+
 	wDR(0x64, 0);
 	wDR(DRAM_INFO, 0);
 	wDR(UCODE_MEMORY, 0);
@@ -778,6 +789,7 @@ static int do_firmread(const char *fn, char **fp)
 static int init_avia(void)
 {
 	u32 *microcode;
+	u32 val;
 	int tries;
    	mm_segment_t fs;
 
@@ -839,6 +851,8 @@ static int init_avia(void)
 	/* cpu reset */
 	wGB(0x39, 0xF00000);
 
+	wGB(0, 0x1000);
+
 	aviarev=(rGB(0)>>16)&3;
 
 	switch (aviarev)
@@ -849,13 +863,15 @@ static int init_avia(void)
 		case 1:
     			dprintk("AVIA 500 LB3 found. (no microcode)\n");
 				break;
-		case 3:
-				dprintk("AVIA 600L found. (no support yet)\n");
-				break;
+//		case 3:
+//				dprintk("AVIA 600L found. (no support yet)\n");
+//				break;
   		default:
     			dprintk("AVIA 500 LB4 found. (nice)\n");
     			break;
 	}
+
+	dprintk("SILICON REVISION: %02X\n",((rGB(0x22)>>8)&0xFF));
 
 	/* TODO: AVIA 600 INIT !!! */
 
@@ -863,15 +879,24 @@ static int init_avia(void)
 	switch (aviarev)
 	{
 		case 0:
-		case 3:
+//		case 3:
 			wGB(0x22, 0x10000);
 			wGB(0x23, 0x5FBE);
 			wGB(0x22, 0x12);
 			wGB(0x23, 0x3a1800);
 			break;
-		defualt:
+		default:
 		    wGB(0x22, 0xF);
-		    wGB(0x23, 0x14EC);
+			val = rGB(0x23) | 0x14EC;
+		    wGB(0x22, 0xF);
+		    wGB(0x23, val);
+			rGB(0x23);
+
+		    wGB(0x22, 0x11);
+			val = (rGB(0x23) & 0x00FFFFFF) | 1;
+		    wGB(0x22, 0x11);
+		    wGB(0x23, val);
+			rGB(0x23);
 			break;
 	}
 
