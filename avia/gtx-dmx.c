@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.18  2001/03/09 22:10:20  tmbinc
+ *   Completed first table support (untested)
+ *
  *   Revision 1.17  2001/03/09 20:48:31  gillem
  *   - add debug option
  *
@@ -51,7 +54,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -483,87 +486,64 @@ static void gtx_task(void *data)
             b2l=wptr-gtx->feed[queue].base;
           }
           
-/*          if ((b1l+b2l) % 188)
-          { 
-            printk("wantirq: %d\n", wantirq);
-            printk("%p %d %p %d w %x r %x lw %x lr %x\n", b1, b1l, b2, b2l, wptr, rptr, lastw, lastr);
-          } */
-        
           switch (gtx->feed[queue].type)
           {
           case DMX_TYPE_TS:
             gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0); break;
-#if 0
           case DMX_TYPE_SEC:
-#error das ist noch UNSCHÖN und UNFERTIG
-          { 
+          {
+            static __u8 tsbuf[188];
+
             if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
             {
               printk("gtx_dmx: there's a BIG out of sync problem\n");
               break;
             }
-            
-            while (b1l)                                 // arg der code hier spackt.
+
+            while (b1l || b2l)
             {
-              __u8 tspacket[188], *c=tspacket;
-              int t, r=188;
+              int tr=b1l, r=0;
+              if (tr>188)
+                tr=188;
+              memcpy(tsbuf, b1, tr);
+              r+=tr;
+              b1l-=tr;
               
-              t=b1l;
-              if (t>188)
-                t=188;
-                
-              r-=t;
-              
-              memcpy(c, b1, t);
-              
-              b1l-=t;
-              b1+=t;
-              c+=t;
-              
-              if (!b1l)
+              tr=b2l;
+              if (tr>(188-r))
+                tr=(188-r);
+              memcpy(tsbuf+r, b2, tr);
+              b2l-=tr;
+
+              if (tsbuf[0]&0x40)
               {
-                b1=b2;
-                b1l=b2l;
-                b2l=0;
-                t=b1l;
-                if (t>r)
-                  t=r;
-                memcpy(c+t, b1, t);
-                b2l-=t;
-                b2+=t;
-                c+=t;
+                if (gtxfeed->sec_recv<gtxfeed->sec_len)
+                  dprintk("hmm, only got %d of %d bytes\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+
+                gtxfeed->sec_len=(((tsbuf[4+1]&0xF)<<8)|(tsbuf[4+2])) + 3;
+                gtxfeed->sec_recv=0;
               }
               
-              if (c != (tspacket+188))
-                dprintk("gtx_dmx: TMB KANN NICHT CODEN.\n");
-                
-              c=tspacket;
-              
-              dprintk("gtx_dmx: processing incoming packet.\n");
-              if (*c++!=0x47)
+              if (gtxfeed->sec_recv<gtxfeed->sec_len)
+                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+4, 184);
+              gtxfeed->sec_recv+=184;
+
+              if (gtxfeed->sec_recv>=gtxfeed->sec_len)
               {
-                dprintk("gtx_dmx: NO SYNC.\n");
-                break;
-              }
-              if (*c++&0x40)
-              {
-                dprintk("gtx_dmx: PUSI.\n");
-                // read section length
-              }
-              
-              memcpy(gtxqueue->sec_buffer+gtxqueue->sec_recv, tspacket+188-c);
-              gtxqueue->sec_recv+=tspacket+188-c;
-              
-              if (gtxqueue->sec_recv>=gtxqueue->sec_len)
-              {
-                dprintk("gtx_dmx: section DONE %d bytes.\n", gtxqueue->sec_len);
-                 // filter and callback
+                gtx_demux_secfilter_t *secfilter;
+                for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
+                {
+                  int ok=1, i;
+                  for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
+                    if ((gtxfeed->sec_buffer[i]&secfilter->filter.filter_mask[i])!=secfilter->filter.filter_value[i])
+                      ok=0;
+                  if (ok)
+                    gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len+3, 0, 0, &secfilter->filter, 0);
+                }
               }
             }
-//            gtxfeed->cb.sec(b1, b1l, b2, b2l, &gtxfeed->secfilter->filter, 0); break;
             break;
           }
-#endif
           case DMX_TYPE_PES:
   //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0); break;
           }
