@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.21  2003/02/19 21:37:54  obi
+ *   tiny cleanup
+ *
  *   Revision 1.20  2002/08/07 13:28:49  obi
  *   checked wrong byte for avia detection?
  *
@@ -80,7 +83,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -502,13 +505,9 @@ int info_proc_cleanup(void)
 }
 #endif /* def CONFIG_PROC_FS */
 
-#ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("d-Box info");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-//MODULE_PARM(fe, "i");
 EXPORT_SYMBOL(dbox_get_info);
 EXPORT_SYMBOL(dbox_get_info_ptr);
 
@@ -523,6 +522,3 @@ void cleanup_module(void)
 	return;
 }
 
-EXPORT_SYMBOL(cleanup_module);
-
-#endif
