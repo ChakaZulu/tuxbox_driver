@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.8  2002/11/11 03:16:08  obi
+ *   module licenses
+ *
  *   Revision 1.7  2002/11/10 01:27:54  obi
  *   fix audio
  *
@@ -47,7 +50,7 @@
  *
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -802,7 +805,7 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.7 2002/11/10 01:27:54 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.8 2002/11/11 03:16:08 obi Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -836,4 +839,9 @@ EXPORT_SYMBOL(avia_av_napi_unregister);
 #if defined(MODULE)
 module_init(avia_av_napi_init);
 module_exit(avia_av_napi_exit);
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>, Andreas Oberritter <obi@tuxbox.org>");
+MODULE_DESCRIPTION("AViA 500/600 dvb api driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #endif
