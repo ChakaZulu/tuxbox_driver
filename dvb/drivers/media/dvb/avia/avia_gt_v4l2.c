@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_v4l2.c,v $
+ *   Revision 1.5  2002/12/23 11:25:33  Jolt
+ *   Follow v4l2 api changes
+ *
  *   Revision 1.4  2002/12/21 15:20:06  Jolt
  *   Fix stack order
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -59,31 +62,33 @@
 #include "avia_gt.h"
 #include "avia_gt_pig.h"
 
-static struct v4l2_device device_info;
+#define AVIA_GT_V4L2_DRIVER		"avia"
+#define AVIA_GT_V4L2_CARD		"AViA eNX/GTX"
+#define AVIA_GT_V4L2_BUS_INFO	"AViA core"
+#define AVIA_GT_V4L2_VERSION	KERNEL_VERSION(0,1,14)
 
-static int avia_gt_v4l2_open(struct v4l2_device	*device, int flags, void **idptr)
+static int avia_gt_v4l2_open(struct inode *inode, struct file *file)
+
 {
 
 	dprintk("avia_gt_v4l2: open\n");
-	
-	*idptr = device;
 	
 	return 0;
 
 }
 
-static void avia_gt_v4l2_close(void *id)
+static int avia_gt_v4l2_release(struct inode *inode, struct file *file)
 {
 
 	dprintk("avia_gt_v4l2: close\n");
 	
 	avia_gt_pig_hide(0);
 
-	return;
+	return 0;
 	
 }
 
-static long avia_gt_v4l2_read(void *id, char *buf, unsigned long count, int noblock)
+static ssize_t avia_gt_v4l2_read(struct file *file, char *data, size_t count, loff_t *ppos)
 {
 
 	dprintk("avia_gt_v4l2: read\n");
@@ -92,17 +97,17 @@ static long avia_gt_v4l2_read(void *id, char *buf, unsigned long count, int nobl
 	
 }
 
-static long	avia_gt_v4l2_write(void *id, const char *buf, unsigned long count, int noblock)
+/*static long	avia_gt_v4l2_write(void *id, const char *buf, unsigned long count, int noblock)
 {
 
 	dprintk("avia_gt_v4l2: write\n");
 
 	return -EINVAL;
 
-}
+}*/
 
 /*  The arguments are already copied into kernel memory, so don't use copy_from_user() or copy_to_user() on arg.  */
-static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
+static int avia_gt_v4l2_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg)
 {
 
 	dprintk("avia_gt_v4l2: ioctl\n");
@@ -111,14 +116,17 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 
 		case VIDIOC_ENUMINPUT:
 		{
-			struct v4l2_input *input = arg;
+			struct v4l2_input *input = (struct v4l2_input *)arg;
 			
 			if (input->index != 0)
 				return -EINVAL;
 				
 			strcpy(input->name, "AViA eNX/GTX digital tv picture");
 			input->type = V4L2_INPUT_TYPE_TUNER;
-			input->capability = 0;
+			input->audioset = 0;
+			input->tuner = 0;
+			input->std = V4L2_STD_PAL_BG | V4L2_STD_NTSC_M;
+			input->status = 0;
 			
 			return 0;
 			
@@ -128,7 +136,7 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 		
 			(*((int *)arg)) = 0;
 					
-		case VIDIOC_PREVIEW:
+		case VIDIOC_OVERLAY:
 		
 			if ((*((int *)arg))) {
 			
@@ -144,20 +152,13 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 
 		case VIDIOC_QUERYCAP:
 		{
-			struct v4l2_capability *capability = arg;
+			struct v4l2_capability *capability = (struct v4l2_capability *)arg;
 
-			strcpy(capability->name, device_info.name);
-			capability->type = V4L2_TYPE_CAPTURE;
-//			capability->flags = V4L2_FLAG_READ | V4L2_FLAG_WRITE | V4L2_FLAG_STREAMING | V4L2_FLAG_PREVIEW;
-			capability->flags = V4L2_FLAG_PREVIEW;
-			capability->inputs = 1;
-			capability->outputs = 1;
-			capability->audios = 0;
-			capability->maxwidth = 720;	//CHECKME
-			capability->maxheight = 576;	//CHECKME
-			capability->minwidth = 32;	//CHECKME
-			capability->minheight = 32;	//CHECKME
-			capability->maxframerate = 25;
+			strcpy(capability->driver, AVIA_GT_V4L2_DRIVER);
+			strcpy(capability->card, AVIA_GT_V4L2_CARD);
+			strcpy(capability->bus_info, AVIA_GT_V4L2_BUS_INFO);
+			capability->version = AVIA_GT_V4L2_VERSION;
+			capability->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 			
 			return 0;
 			
@@ -170,15 +171,12 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 			else
 				return 0;
 
-		case VIDIOC_S_WIN:
+		case VIDIOC_S_FMT:
 		{
-			struct v4l2_window* window = (struct v4l2_window *)arg; 
+			struct v4l2_format *format = (struct v4l2_format *)arg; 
 	 
-			if ((window->clips != NULL) || (window->clipcount != 0))
-				return -EINVAL;
-
-			avia_gt_pig_set_pos(0, window->x, window->y);
-			avia_gt_pig_set_size(0, window->width, window->height, 0);
+			avia_gt_pig_set_pos(0, format->fmt.win.w.left, format->fmt.win.w.top);
+			avia_gt_pig_set_size(0, format->fmt.win.w.width, format->fmt.win.w.height, 0);
 			
 			return 0;
 		
@@ -192,7 +190,14 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 	
 }
 
-static int avia_gt_v4l2_mmap(void *id, struct vm_area_struct *vma)
+static int avia_gt_v4l2_ioctl_prepare(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	
+	return video_usercopy(inode, file, cmd, arg, avia_gt_v4l2_ioctl);
+	
+}
+
+static int avia_gt_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 
 	dprintk("avia_gt_v4l2: mmap\n");
@@ -201,7 +206,7 @@ static int avia_gt_v4l2_mmap(void *id, struct vm_area_struct *vma)
 	
 }
 
-static int avia_gt_v4l2_poll(void *id, struct file *file, poll_table *table)
+static unsigned int avia_gt_v4l2_poll(struct file *file, struct poll_table_struct *wait)
 {
 
 	dprintk("avia_gt_v4l2: poll\n");
@@ -210,49 +215,45 @@ static int avia_gt_v4l2_poll(void *id, struct file *file, poll_table *table)
 
 }
 
-static int avia_gt_v4l2_initialize(struct v4l2_device *v)
-{
+static struct file_operations device_fops = {
 
-	dprintk("avia_gt_v4l2: initialize\n");
-
-	return 0;
-
-}
-
-static struct v4l2_device device_info = {
-
-	.name = "AViA eNX/GTX v4l2",
-	.type = V4L2_TYPE_CAPTURE,
+	.owner = THIS_MODULE,
 	.open = avia_gt_v4l2_open,
-	.close = avia_gt_v4l2_close,
+	.release = avia_gt_v4l2_release,
 	.read = avia_gt_v4l2_read,
-	.write = avia_gt_v4l2_write,
-	.ioctl = avia_gt_v4l2_ioctl,
-	.mmap = avia_gt_v4l2_mmap,
 	.poll = avia_gt_v4l2_poll,
-	.initialize = avia_gt_v4l2_initialize,
-	.priv = NULL,
-	.busy = 0,
-	
+	.mmap = avia_gt_v4l2_mmap,
+	.ioctl = avia_gt_v4l2_ioctl_prepare,
+	.llseek = no_llseek,
+
 };
 
-static int unit_video = 0; 
+static struct video_device device_info = {
+
+//	.owner =
+	.name = AVIA_GT_V4L2_CARD,
+//	.type = 
+//	.type2 =
+//	.hardware = 
+	.minor = -1,
+	.fops = &device_fops,
+	.priv = NULL,
+	
+};
 
 static int __init avia_gt_v4l2_init(void)
 {
 
-    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.4 2002/12/21 15:20:06 Jolt Exp $\n");
+    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.5 2002/12/23 11:25:33 Jolt Exp $\n");
 	
-	device_info.minor = unit_video;
-
-	return v4l2_register_device(&device_info);
+	return video_register_device(&device_info, VFL_TYPE_GRABBER, -1);
 
 }
 
 static void __exit avia_gt_v4l2_exit(void)
 {
 
-	v4l2_unregister_device(&device_info);
+	video_unregister_device(&device_info);
 
 }
 
@@ -260,7 +261,6 @@ module_init(avia_gt_v4l2_init);
 module_exit(avia_gt_v4l2_exit);
 
 #ifdef MODULE
-MODULE_PARM(unit_video, "i"); 
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
