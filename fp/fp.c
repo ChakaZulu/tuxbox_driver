@@ -21,10 +21,26 @@
  *
  *
  *   $Log: fp.c,v $
- *   Revision 1.61  2002/02/24 15:32:06  woglinde
- *   new tuner-api now in HEAD, not only in branch,
- *   to check out the old tuner-api should be easy using
- *   -r and date
+ *   Revision 1.62  2002/02/24 19:11:22  obi
+ *   revert to current fp.c - is not related to tuning api
+ *
+ *   Revision 1.60  2002/02/11 16:11:19  Hunz
+ *   keyboard-debug-msgs only when module loaded with debug=1 now
+ *
+ *   Revision 1.59  2002/02/08 20:52:30  Hunz
+ *   keyboard/mouse now work with SAGEM (and Phillips??) too :-)
+ *
+ *   Revision 1.58  2002/02/08 00:28:59  Hunz
+ *   mousepad-inputdev support / keyboard still raw (keyboard-inputdev support still sux :()
+ *
+ *   Revision 1.57  2002/02/06 23:54:57  Hunz
+ *   IR-Keyboard Mousepad test - Inputdev not yet working
+ *
+ *   Revision 1.56  2002/01/23 19:54:11  Hunz
+ *   experimental input support
+ *
+ *   Revision 1.55  2002/01/23 15:49:32  Hunz
+ *   lala
  *
  *   Revision 1.54  2002/01/21 15:18:46  Hunz
  *   maybe keyboard fix
@@ -181,7 +197,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.61 $
+ *   $Revision: 1.62 $
  *
  */
 
@@ -215,6 +231,10 @@
 #include <linux/devfs_fs_kernel.h>
 
 #include <ost/sec.h>
+
+#ifdef CONFIG_INPUT_MODULE
+#include <linux/input.h>
+#endif
 
 #include <linux/kbd_ll.h>
 #include <linux/kbd_kern.h>
@@ -328,58 +348,52 @@ static int irkbd_translate(unsigned char scancode, unsigned char *keycode, char 
 static char irkbd_unexpected_up(unsigned char keycode);
 static void irkbd_leds(unsigned char leds);
 static void __init irkbd_init_hw(void);
-static void irkbd_mousebutton(unsigned char scancode);
+#ifdef CONFIG_INPUT_MODULE
+static int irkbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+struct input_dev input_irkbd;
+static char irkbd_name[]="dBox2 IR-Keyboard";
+#endif
 
-unsigned char keymap[128]={
-  0,   1,  59,  60,  61,  62,  63,  64,
-  65,  66,  67,  68,   0,   0,   0,   0,
-  0,   0,   0,   0,  41,   2,   3,   4,
-  5,   6,   7,   8,   9,  10,  11,  12,
-  13,  14,  15,  16,  17,  18,  19,  20,
-  21,  22,  23,  24,  25,  26,  27,  43,
-  58,  30,  31,  32,  33,  34,  35,  36,
-  37,  38,  39,  40,  28,  42,  44,  45,
-  46,  47,  48,  49,  50,  51,  52,  53,
-  /* die erste 0 der naechsten zeile ist Fn 0x49 */
-  54,   0,  29, 125,  56,  57, 100,   0,
-  127,   0,  99,  70, 119, 110,   0,   0,
-  111,   0,   0,   0,   0,   0,   0, 103,
-  86, 105, 108, 106,  69,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  /*
-   * die letzten beiden sind mausbutton
-   * rechts 0x7e und links 0x7f
-   */
-  0,   0,   0,   0,   0,   0,   0,   0
-};
-
-unsigned char fn_keymap[128] = {
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0, 104,
-  0, 102, 109, 107,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0
+unsigned char keymap[256]={
+  0,   1,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,   0,   0,   0,   0,
+  0,   0,   0,   0,  41,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,
+ 13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  43,
+ 58,  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  28,  42,  44,  45,
+ 46,  47,  48,  49,  50,  51,  52,  53,  54,   0,  29, 125,  56,  57, 100,   0,
+127,   0,  99,  70, 119, 110,   0,   0, 111,   0,   0,   0,   0,   0,   0, 103,
+ 86, 105, 108, 106,  69,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  /* Fn Keymap starts here */
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 104,
+  0, 102, 109, 107,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
 unsigned char fn_flags[128];
 
 unsigned char irkbd_flags=0;
 
-#define IRKBD_FN 1
+#define IRKBD_FN 0x80
 #define IRKBD_MOUSER 2
 #define IRKBD_MOUSEL 4
+
+#ifdef CONFIG_INPUT_MODULE
+unsigned char mouse_directions=0;
+
+#define DIR_RIGHT_UP   0x01
+#define DIR_UP_RIGHT   0x02
+#define DIR_UP_LEFT    0x04
+#define DIR_LEFT_UP    0x08
+#define DIR_LEFT_DOWN  0x10
+#define DIR_DOWN_LEFT  0x20
+#define DIR_DOWN_RIGHT 0x40
+#define DIR_RIGHT_DOWN 0x80
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -899,19 +913,13 @@ int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
 
   if(scancode>255||keycode>127)
     return -EINVAL;
-  if(scancode&0x80)
-    fn_keymap[scancode&0x7f]=keycode;
-  else
-    keymap[scancode&0x7f]=keycode;
+  keymap[scancode&0xFF]=keycode;
   return 0;
 }
 
 int irkbd_getkeycode(unsigned int scancode) {
-
-  if(scancode&0x80)
-    return fn_keymap[scancode&0x7f];
-  else
-    return keymap[scancode&0x7f];
+  
+  return keymap[scancode&0xFF];
 }
 
 int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
@@ -924,13 +932,11 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
     return 0;
   }
   /* mouse button changed */
-  else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f)) {
-    irkbd_mousebutton(scancode&0xff);
+  else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
     return 0;
-  }
   
   if(irkbd_flags&IRKBD_FN) {
-    *keycode=fn_keymap[scancode&0x7f];
+    *keycode=keymap[(scancode&0x7f)|IRKBD_FN];
     if(scancode&0x80)                   /* Fn pressed, other key released */
       if(!fn_flags[scancode&0x7f])       /* fn pressed, other key released which got pressed before fn */
 	*keycode=keymap[scancode&0x7f];
@@ -941,7 +947,7 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
   }
   /* key got pressed during fn and gets now released after fn has been released*/
   else if((!(irkbd_flags&IRKBD_FN)) && (fn_flags[scancode&0x7f])) {
-    *keycode=fn_keymap[scancode&0x7f];
+    *keycode=keymap[(scancode&0x7f)|IRKBD_FN];
     fn_flags[scancode&0x7f]=0;
   }
   /* no Fn - other key pressed/released */
@@ -950,35 +956,43 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
 
   if(*keycode==0) {
     if (!raw_mode)
-      printk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+      dprintk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
     return 0;
   }
   return 1;
 }
 
 char irkbd_unexpected_up(unsigned char keycode) {
-  printk("fp.o: irkbd_unexpected_up 0x%02X (flags 0x%02X)\n",keycode,irkbd_flags);
+  dprintk("fp.o: irkbd_unexpected_up 0x%02X (flags 0x%02X)\n",keycode,irkbd_flags);
   return 0200;
 }
 
 void irkbd_leds(unsigned char leds) {
-  printk("fp.o: irkbd_leds 0x%02X\n",leds);
+  dprintk("fp.o: irkbd_leds 0x%02X\n",leds);
 }
 
 void __init irkbd_init_hw(void) {
-  printk("fp.o: IR-Keyboard initialized\n");
+  dprintk("fp.o: IR-Keyboard initialized\n");
 }
 
-void irkbd_mousebutton(unsigned char scancode) {
-   if(scancode==0x7e)
-     irkbd_flags|=IRKBD_MOUSER;
-   else if(scancode==0x7f)
-     irkbd_flags|=IRKBD_MOUSEL;
-   else if(scancode==0xfe)
-     irkbd_flags&=~IRKBD_MOUSER;
-   else if(scancode==0xff)
-     irkbd_flags&=~IRKBD_MOUSEL;
+#ifdef CONFIG_INPUT_MODULE
+int irkbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int value) {
+
+  /*
+  if((type==EV_SND)&&(code==EV_BELL)) {
+    printk("BEEP!\n");
+    return 0;
+  }
+  else 
+  */
+  if (type==EV_LED) {
+    dprintk("IR-Keyboard LEDs: [%s|%s|%s]\n",(test_bit(LED_NUML,dev->led)?" NUM ":"     "),(test_bit(LED_CAPSL,dev->led)?"CAPS ":"     "),(test_bit(LED_SCROLLL,dev->led)?"SCROLL":"     "));
+    return 0;
+  }
+  else
+    return -1;
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -1006,7 +1020,8 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs * regs)
 
 static int fp_init(void)
 {
-	int res;
+        int res;
+	//	int i;
 
 	dbox_get_info(&info);
 	init_waitqueue_head(&rcwait);
@@ -1053,7 +1068,7 @@ static int fp_init(void)
     i2c_del_driver ( &fp_driver );
     return -EIO;
   }
-
+  
 	ppc_md.restart=fp_restart;
 	ppc_md.power_off=fp_power_off;
 	ppc_md.halt=fp_halt;
@@ -1070,7 +1085,20 @@ static int fp_init(void)
         ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
 	//	irkbd_init_hw();
-        kbd_ledfunc = irkbd_leds;
+//        kbd_ledfunc = irkbd_leds;
+#ifdef CONFIG_INPUT_MODULE
+	memset(&input_irkbd,0,sizeof(input_irkbd));
+	input_irkbd.evbit[0]=BIT(EV_KEY) | BIT(EV_REL); // BIT(EV_LED) | BIT(EV_REP)
+	//input_irkbd.ledbit[0]=BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+	/*	for(i=0;i<=255;i++)
+		set_bit(keymap[i],input_irkbd.keybit); */
+	input_irkbd.keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
+	input_irkbd.relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	input_irkbd.event=irkbd_event;
+	input_irkbd.name=irkbd_name;
+	input_irkbd.idbus=BUS_I2C;
+	input_register_device(&input_irkbd);
+#endif
 	return 0;
 }
 
@@ -1125,6 +1153,9 @@ static int fp_close(void)
 	if(ppc_md.kbd_sysrq_xlate==irkbd_sysrq_xlate)
 	  ppc_md.kbd_sysrq_xlate=NULL;
 #endif
+#ifdef CONFIG_INPUT_MODULE
+	input_unregister_device(&input_irkbd);
+#endif
         
 	return 0;
 }
@@ -1175,14 +1206,219 @@ int fp_do_reset(int type)
 	return 0;
 }
 
+/* 
+mouse codes:
+
+1st halfbyte: acceleration
+
+2nd halfbyte: direction:
+            4
+         5     3
+      6           2
+   7                 1
+8                       0
+   9                 F
+      A           E
+         B     D
+            C
+
+*/
+static void fp_handle_mouse(struct fp_data *dev) {
+  u16 mousecode=-1;
+
+if (info.fpREV>=0x80)
+  fp_cmd(dev->client, 5, (u8*)&mousecode, 2);
+else
+  fp_cmd(dev->client, 0x2A, (u8*)&mousecode, 2);
+
+#ifdef CONFIG_INPUT_MODULE
+  switch(mousecode&0x0F) {
+  case 0: { /* right */
+    input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+    mouse_directions=0;
+    break;
+  }
+  case 1: { /* right up */
+    input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+    if(mouse_directions==DIR_RIGHT_UP) {
+      input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_RIGHT_UP;
+    break;
+  }
+  case 2: { /* right+up */
+    input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+    input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+    mouse_directions=0;
+    break;
+  }
+  case 3: { /* up right */
+    input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+    if(mouse_directions==DIR_UP_RIGHT) {
+      input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_UP_RIGHT;
+    break;
+  }
+  case 4: { /* up */
+    input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+    mouse_directions=0;
+    break;
+  }
+  case 5: { /* up left */
+    input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+    if(mouse_directions==DIR_UP_LEFT) {
+      input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_UP_LEFT;
+    break;
+  }
+  case 6: { /* up+left */
+    input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+    input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+    mouse_directions=0;
+    break;
+  }
+  case 7: { /* left up */
+    input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+    if(mouse_directions==DIR_LEFT_UP) {
+      input_report_rel(&input_irkbd, REL_Y, -((mousecode&0xFF)>>4)-1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_LEFT_UP;
+    break;
+  }
+  case 8: { /* left */
+    input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+    mouse_directions=0;
+    break;
+  }
+  case 9: { /* left down */
+    input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+    if(mouse_directions==DIR_LEFT_DOWN) {
+      input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_LEFT_DOWN;
+    break;
+  }
+  case 0x0A: { /* left+down */
+    input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+    input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+    mouse_directions=0;
+    break;
+  }
+  case 0x0B: { /* down left */
+    input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+    if(mouse_directions==DIR_DOWN_LEFT) {
+      input_report_rel(&input_irkbd, REL_X, -((mousecode&0xFF)>>4)-1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_DOWN_LEFT;
+    break;
+  }
+  case 0x0C: { /* down */
+    input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+    mouse_directions=0;
+    break;
+  }
+  case 0x0D: { /* down right */
+    input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+    if(mouse_directions==DIR_DOWN_RIGHT) {
+      input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_DOWN_RIGHT;
+    break;
+  }
+  case 0x0E: { /* down+right */
+    input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+    input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+    mouse_directions=0;
+    break;
+  }
+  case 0x0F: { /* right down */
+    input_report_rel(&input_irkbd, REL_X,  ((mousecode&0xFF)>>4)+1);
+    if(mouse_directions==DIR_RIGHT_DOWN) {
+      input_report_rel(&input_irkbd, REL_Y,  ((mousecode&0xFF)>>4)+1);
+      mouse_directions=0;
+    }
+    else
+      mouse_directions=DIR_RIGHT_DOWN;
+    break;
+  }
+  }
+#endif
+}
+
 static void fp_handle_keyboard(struct fp_data *dev)
 {
 	u16 scancode=-1;
+	unsigned char keycode=0;
 
-	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+        if (info.fpREV>=0x80)
+         fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+        else
+         fp_cmd(dev->client, 0x28, (u8*)&scancode, 2);
 	//	printk("keyboard scancode: %02x\n", scancode);
-        handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
-        tasklet_schedule(&keyboard_tasklet);
+
+#ifdef CONFIG_INPUT_MODULE
+	/* mouse buttons */
+	if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f)) {
+	  if((scancode&0x7f)==0x7e)
+	    input_report_key(&input_irkbd,BTN_RIGHT,!(scancode&0x80));
+	  else
+	    input_report_key(&input_irkbd,BTN_LEFT,!(scancode&0x80));
+	  return;
+	}
+#endif
+	handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
+	/* no inputdev yet */
+	return;
+
+	if((scancode&0x7f)==0x49) {  /* Fn toggled */
+	  if(scancode==0x49)
+	    irkbd_flags|=IRKBD_FN;
+	  else 
+	    irkbd_flags&=~IRKBD_FN;
+	  return;
+	}
+	if(irkbd_flags&IRKBD_FN) {
+	  keycode=keymap[(scancode&0x7f)|IRKBD_FN];
+	  if(scancode&0x80)                   /* Fn pressed, other key released */
+	    if(!fn_flags[scancode&0x7f])       /* fn pressed, other key released which got pressed before fn */
+	      keycode=keymap[scancode&0x7f];
+	    else                              /* fn pressed, other key released which got pressed during fn */
+	      fn_flags[scancode&0x7f]=0;
+	  else                                /* Fn + other key pressed */
+	    fn_flags[scancode&0x7f]=1;
+	}
+	/* key got pressed during fn and gets now released after fn has been released*/
+	else if((!(irkbd_flags&IRKBD_FN)) && (fn_flags[scancode&0x7f])) {
+	  keycode=keymap[(scancode&0x7f)|IRKBD_FN];
+	  fn_flags[scancode&0x7f]=0;
+	}
+	/* no Fn - other key pressed/released */
+	else
+	  keycode=keymap[scancode&0x7f];
+	
+	if(keycode==0) {
+	  dprintk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+        }
+#ifdef CONFIG_INPUT_MODULE
+	else
+	  input_report_key(&input_irkbd,keycode,!(scancode&0x80));
+#endif
 }
 
 
@@ -1245,6 +1481,9 @@ fp status:
 			fp_handle_keyboard(defdata);
 		}
 
+		if(status&0x4)
+		  fp_handle_mouse(defdata);
+
 		/* ??? */
 		if (status&0x40)		// LNB alarm
 		{
@@ -1261,7 +1500,7 @@ fp status:
 			break;
 		}
 
-	} while (status & (0x59|2));            // only the ones we can handle
+	} while (status & 0x5F);            // only the ones we can handle
 
 	if (status)
 		dprintk("fp.o: unhandled interrupt source %x\n", status);
@@ -1340,7 +1579,7 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 {
 	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0};
 	unsigned char status_cmd;
-	unsigned char sagem_send[1]={0x22};
+//	unsigned char sagem_send[1]={0x22};
 	int c,sleep_perbyte,sleeptime;
 
 	if (sec_bus_status == -1)
