@@ -51,9 +51,11 @@ int main(int argc, char **argv)
     return 1;
   }
   
+  printf("%d bytes.\n", r);
+  
   printf("TSID: %04x\n", (buffer[3]<<8)|buffer[4]);
-  for (i=0; buffer[i*4+9]!=0xFF; i++)
-    printf("%04x PMT: %04x\n", (buffer[i*4+9]<<8)|(buffer[i*4+10]), ((buffer[i*4+11]&~0xE0)<<8)|(buffer[i*4+12]));
+  for (i=0; i<(r-8-4)/4; i++)
+    printf("%04x PMT: %04x\n", (buffer[i*4+8]<<8)|(buffer[i*4+9]), ((buffer[i*4+10]&~0xE0)<<8)|(buffer[i*4+11]));
   
   close(fd);
   return 0;

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.19  2001/03/10 00:41:21  tmbinc
+ *   Fixed section handling.
+ *
  *   Revision 1.18  2001/03/09 22:10:20  tmbinc
  *   Completed first table support (untested)
  *
@@ -54,7 +57,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -502,7 +505,7 @@ static void gtx_task(void *data)
 
             while (b1l || b2l)
             {
-              int tr=b1l, r=0;
+              int tr=b1l, r=0, pointer=0;
               if (tr>188)
                 tr=188;
               memcpy(tsbuf, b1, tr);
@@ -514,19 +517,24 @@ static void gtx_task(void *data)
                 tr=(188-r);
               memcpy(tsbuf+r, b2, tr);
               b2l-=tr;
-
+              
               if (tsbuf[0]&0x40)
               {
                 if (gtxfeed->sec_recv<gtxfeed->sec_len)
                   dprintk("hmm, only got %d of %d bytes\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+                  
+                pointer=tsbuf[4];
+                if (pointer)
+                  dprintk("schau an, schau an, der pointer ist NICHT 0!\n");
 
-                gtxfeed->sec_len=(((tsbuf[4+1]&0xF)<<8)|(tsbuf[4+2])) + 3;
+                gtxfeed->sec_len=(((tsbuf[4+2]&0xF)<<8)|(tsbuf[4+3])) + 3;
                 gtxfeed->sec_recv=0;
+                pointer++;      // 1 byte "pointer"
               }
-              
+
               if (gtxfeed->sec_recv<gtxfeed->sec_len)
-                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+4, 184);
-              gtxfeed->sec_recv+=184;
+                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+4+pointer, 184-pointer);
+              gtxfeed->sec_recv+=184-pointer;
 
               if (gtxfeed->sec_recv>=gtxfeed->sec_len)
               {
