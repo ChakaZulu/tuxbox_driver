@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.32  2001/10/30 13:40:55  derget
+ *   sagem restart
+ *
  *   Revision 1.31  2001/07/31 03:01:39  Hunz
  *   DiSEqC fix (sagem still untested)
  *
@@ -97,7 +100,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.31 $
+ *   $Revision: 1.32 $
  *
  */
 
@@ -248,8 +251,8 @@ static struct file_operations fp_fops = {
         write:          fp_write,
         ioctl:          fp_ioctl,
         open:           fp_open,
-				release:				fp_release,
-				poll:						fp_poll,
+	release:	fp_release,
+	poll:		fp_poll,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -1120,7 +1123,8 @@ EXPORT_SYMBOL(fp_sagem_set_SECpower);
 
 static void fp_restart(char *cmd)
 {
-	fp_sendcmd(defdata->client, 0, 20);
+	fp_sendcmd(defdata->client, 0, 20); // nokia 	
+	fp_sendcmd(defdata->client, 0, 9);  // sagem/philips
 	for (;;);
 }
 
