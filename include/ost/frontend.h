@@ -24,28 +24,82 @@
 #ifndef _OST_FRONTEND_H_
 #define _OST_FRONTEND_H_
 
+#define ENOSIGNAL 768
+#ifndef EBUFFEROVERFLOW
+#define EBUFFEROVERFLOW 769
+#endif
+
+
 typedef uint32_t feStatus;
 
-#define ENOSIGNAL 768
-//#define EBUFFEROVERFLOW 769
+/* bit definitions for feStatus */
+#define FE_HAS_POWER         1
+#define FE_HAS_SIGNAL        2
+#define QPSK_SPECTRUM_INV    4
+#define FE_HAS_LOCK          8
+#define TUNER_HAS_LOCK     128
 
-#define FE_HAS_POWER       1
-#define FE_HAS_SIGNAL      2
-#define QPSK_SPECTRUM_INV  4
-
-struct qpskParameters {
-	uint32_t iFrequency;
-	uint32_t SymbolRate;
-	uint8_t FEC_inner;
+/* possible values for FEC_inner */ 
+enum {
+        FEC_AUTO, 
+	FEC_1_2,
+	FEC_2_3,
+	FEC_3_4,
+	FEC_5_6,
+	FEC_7_8,
+	FEC_NONE
 };
 
+typedef enum
+{	QAM_16,
+	QAM_32,
+	QAM_64,
+	QAM_128,
+	QAM_256
+} QAM_TYPE;
+
+struct qpskParameters {
+	uint32_t iFrequency;  /* intermediate frequency in KHz */
+	uint32_t SymbolRate;  /* symbol rate in Hz */
+	uint8_t FEC_inner;    /* error correction (see above) */ 
+};
+
+struct qamParameters {
+	uint32_t Frequency;   /* (absolute) frequency in KHz */
+	uint32_t SymbolRate;  /* symbol rate in Hz */
+	uint8_t FEC_inner;    /* error correction (see above) */ 
+        uint8_t QAM;          /* modulation type (see above) */
+};
+
+/* use of QPSK_* is deprecated, use the generic FE_* instead */
+
 enum {
-        QPSK_UNEXPECTED_EV, 
+        QPSK_UNEXPECTED_EV,  
 	QPSK_COMPLETION_EV,
 	QPSK_FAILURE_EV
 };
 
+enum {
+        FE_UNEXPECTED_EV, /* unexpected event (e.g. loss of lock) */ 
+	FE_COMPLETION_EV, /* completion event, tuning succeeded */ 
+        FE_FAILURE_EV     /* failure event, we couldn't tune */
+};
+
 struct qpskEvent {
+	int32_t type;      /* type of event, FE_UNEXPECTED_EV, ... */
+	time_t timestamp;  /* time of event as returned by time() */  
+	union {
+		struct {
+			feStatus previousStatus; /* status before event */
+			feStatus currentStatus;  /* status during event */
+		} unexpectedEvent;
+		struct qpskParameters completionEvent; /* parameters for which the 
+							  tuning succeeded */
+		feStatus failureEvent;  /* status at failure (e.g. no lock) */
+	} u;
+};
+
+struct qamEvent {
 	int32_t type;
 	time_t timestamp;
 	union {
@@ -53,11 +107,10 @@ struct qpskEvent {
 			feStatus previousStatus;
 			feStatus currentStatus;
 		} unexpectedEvent;
-		struct qpskParameters completionEvent;
+		struct qamParameters completionEvent;
 		feStatus failureEvent;
 	} u;
 };
-
 
 struct qpskRegister {
 	uint8_t chipId;
@@ -65,8 +118,22 @@ struct qpskRegister {
 	uint8_t value;
 };
 
+struct qamRegister {
+	uint8_t chipId;
+	uint8_t address;
+	uint8_t value;
+};
 
 struct qpskFrontendInfo {
+	uint32_t minFrequency;
+	uint32_t maxFrequency;
+	uint32_t maxSymbolRate;
+	uint32_t minSymbolRate;
+	uint32_t hwType;
+	uint32_t hwVersion;
+};
+
+struct qamFrontendInfo {
 	uint32_t minFrequency;
 	uint32_t maxFrequency;
 	uint32_t maxSymbolRate;
@@ -83,7 +150,7 @@ typedef enum {
 } powerState_t;
 
 
-#define OST_SELFTEST                   _IOWR('o',61,void)
+#define OST_SELFTEST                   _IO('o',61)
 #define OST_SET_POWER_STATE            _IOW('o',62,uint32_t)
 #define OST_GET_POWER_STATE            _IOR('o',63,uint32_t *)
 #define FE_READ_STATUS                 _IOR('o',64,feStatus *)
@@ -99,6 +166,14 @@ typedef enum {
 #define QPSK_FE_INFO                   _IOR('o',73,struct qpskFrontendInfo *)
 #define QPSK_WRITE_REGISTER            _IOW('o',74,struct qpskRegister *)
 #define QPSK_READ_REGISTER             _IOR('o',75,struct qpskRegister *)
+#define QPSK_GET_STATUS                _IOR('o',76,struct qpskParameters *)
+
+#define QAM_TUNE                       _IOW('o',81,struct qamParameters *)
+#define QAM_GET_EVENT                  _IOR('o',82,struct qamEvent *)
+#define QAM_FE_INFO                    _IOR('o',83,struct qamFrontendInfo *)
+#define QAM_WRITE_REGISTER             _IOW('o',84,struct qamRegister *)
+#define QAM_READ_REGISTER              _IOR('o',85,struct qamRegister *)
+#define QAM_GET_STATUS                 _IOR('o',86,struct qamParameters *)
 
 #endif /*_OST_FRONTEND_H_*/
 
