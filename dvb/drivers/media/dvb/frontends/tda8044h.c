@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.16 2002/10/29 18:43:56 obi Exp $
+ * $Id: tda8044h.c,v 1.17 2002/10/29 19:27:05 obi Exp $
  *   
  * tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -541,7 +541,7 @@ int tda8044_attach (struct dvb_i2c_bus *i2c)
 	if (tda8044_readreg(i2c, 0x00) != 0x04)
 		return -ENODEV;
 
-	dvb_register_frontend (tda8044_ioctl, i2c->adapter, NULL, &tda8044_info);
+	dvb_register_frontend (tda8044_ioctl, i2c->adapter, i2c, &tda8044_info);
 
 	return 0;
 }

@@ -140,7 +140,7 @@ u8 init_1993_wtab[] =
 
 
 static
-int ves1x93_writereg (struct dvb_i2c_bus *i2c, int reg, int data)
+int ves1x93_writereg (struct dvb_i2c_bus *i2c, u8 reg, u8 data)
 {
         u8 buf [] = { 0x00, reg, data };
 	struct i2c_msg msg = { addr: 0x08, flags: 0, buf: buf, len: 3 };
@@ -606,7 +606,7 @@ int ves1x93_attach (struct dvb_i2c_bus *i2c)
 	if ((ves1x93_readreg (i2c, 0x1e) & 0xf0) != 0xd0)
 		return -ENODEV;
 
-	dvb_register_frontend (ves1x93_ioctl, i2c->adapter, NULL, &ves1x93_info);
+	dvb_register_frontend (ves1x93_ioctl, i2c->adapter, i2c, &ves1x93_info);
 
 	return 0;
 }
