@@ -94,6 +94,7 @@ typedef struct gtx_demux_feed_s
   char sec_ccn;
 
   int index;
+  u8 irq_is_active;
 
 } gtx_demux_feed_t;
 

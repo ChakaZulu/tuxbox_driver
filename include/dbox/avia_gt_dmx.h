@@ -64,6 +64,7 @@ typedef struct {
 	u32 read_pos;
 	u32 size;
 	u32 write_pos;
+	u8 is_qim;
 
 } sAviaGtDmxQueue;
 
@@ -212,7 +213,7 @@ void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 s32 avia_gt_dmx_queue_reset(u8 queue_nr);
 void avia_gt_dmx_queue_set_write_pos(unsigned char queue_nr, unsigned int write_pointer);
-void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr);
+void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, s32 write_pos);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt);
 int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what);

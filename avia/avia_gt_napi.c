@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.142 $
+ *   $Revision: 1.143 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.143  2002/11/04 20:43:36  wjoost
+ *   IRQ-Handling fuers streamen geaendert
+ *
  *   Revision 1.142  2002/10/26 16:46:18  wjoost
  *   bug--;
  *
@@ -769,7 +772,7 @@ static s16 avia_gt_napi_strip_header_ts(gtx_demux_feed_t *gtxfeed, u8 queue_nr, 
 	while (queue_info->get_data8(queue_nr, 1) != 0x47) {
 
 		if (queue_info->bytes_avail(queue_nr) > 188) {
-		
+
 			queue_info->get_data(queue_nr, NULL, 1, 0);
 		
 		} else {
@@ -787,11 +790,11 @@ static s16 avia_gt_napi_strip_header_ts(gtx_demux_feed_t *gtxfeed, u8 queue_nr, 
 	if (!ts_header->payload) {		
 
 		printk("avia_gt_napi: no payload\n");
-		
+
 		queue_info->get_data(queue_nr, NULL, 188 - sizeof(ts_header), 0);
 		
 		return 0;
-		
+
 	}
 
 	if (ts_header->continuity_counter == gtxfeed->sec_ccn) {
@@ -875,7 +878,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 					printk("avia_gt_napi: short CC-error-message received.\n");
 										
 					avia_gt_dmx_queue_reset(queue_nr);
-										
+
 					return;
 										
 				}
@@ -897,7 +900,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 						gtx->feed[i].sec_len = 0;
 						gtx->feed[i].sec_recv = 0;
 						blocked |= 1 << i;
-						
+
 						dmx_set_filter(gtx->feed[i].filter);
 						
 						return;
@@ -943,14 +946,14 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 				queue_info->get_data8(queue_nr, 0);
 #if 0
 				if (!sync_lost) {
-									
+
 					sync_lost = 1;
 					printk("avia_gt_napi: lost sync\n");
 
 					for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 					
 						if ((gtx->feed[i].state == DMX_STATE_GO) &&	(gtx->feed[i].type == DMX_TYPE_HW_SEC))	{
-						
+
 							gtx->feed[i].filter->invalid = 1;
 							dmx_set_filter(gtx->feed[i].filter);
 							gtx->feed[i].filter->invalid = 0;
@@ -1030,15 +1033,15 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	sDVBTsHeader ts_header;
 
 	if (gtxfeed->state != DMX_STATE_GO) {
-	
+
 		dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed, queue %d\n!", queue_nr);
-		
+
 	} else {
 
 		switch (gtxfeed->type) {
 
 			case DMX_TYPE_TS:
-			
+
 				if ( (buf_len = queue_info->bytes_avail(queue_nr)) < 188)
 					return;
 
@@ -1099,7 +1102,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						} else if (gtx->feed[i].output & TS_PAYLOAD_ONLY) {
 						
 							need_payload++;
-							
+
 						}
 						
 					}
@@ -1109,7 +1112,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				// Emuliere Payload only für feeds die mit TS-Header laufen
 
 				if (need_payload > 0) {
-				
+
 					while (buf_len >= 188) {
 					
 						payload_len = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &ts_header);
@@ -1140,13 +1143,13 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								}
 										
 							}
-									
+
 						}
-								
+
 						queue_info->get_data(queue_nr, NULL, payload_len, 0);
 							
 						buf_len -= 188;
-						
+
 					}
 					
 				} else {
@@ -1194,7 +1197,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						dprintk(KERN_ERR "avia_gt_napi: incomplete section: want %d have %d!\n", gtxfeed->sec_len, queue_info->bytes_avail(queue_nr));
 						
 						return;
-						
+
 					}
 
 					if ((gtxfeed->check_crc) && (queue_info->crc32(queue_nr, gtxfeed->sec_len, 0))) {
@@ -1299,7 +1302,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							} else {
 							
 								queue_info->get_data(queue_nr, NULL, next_sec_offs, 0);
-								
+
 							}
 							
 							payload_len -= next_sec_offs + 1;
@@ -1374,7 +1377,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 										avia_gt_napi_handle_section(gtxfeed,queue_nr,r);
 										
 									} else {
-									
+
 										queue_info->get_data(queue_nr, NULL, r, 0);
 										
 										dprintk("avia_gt_napi: section CRC invalid\n");
@@ -1418,14 +1421,14 @@ static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 {
 
 	gtx_demux_t *gtx = gtxfeed->demux;
-	
+
 	if (gtx->filter[gtxfeed->index].state != DMX_STATE_FREE)
 		printk("ASSERTION FAILED: feed is not free but should be\n");
-		
+
 	gtx->filter[gtxfeed->index].state = DMX_STATE_ALLOCATED;
-	
+
 	return &gtx->filter[gtxfeed->index];
-	
+
 }
 
 static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
@@ -1491,7 +1494,7 @@ static int dmx_open(struct dmx_demux_s *demux)
 {
 
 	gtx_demux_t *gtx = (gtx_demux_t *)demux;
-	
+
 	gtx->users++;
 	
 	return 0;
@@ -1558,7 +1561,7 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 
 #ifndef AVIA_SPTS
 	if ((gtxfeed->output & TS_DECODER) && (gtxfeed->pes_type != DMX_TS_PES_TELETEXT)) {
-	
+
 		gtxfeed->output |= TS_PAYLOAD_ONLY;	 // weil: wir haben dual-pes
 		gtxfeed->type = DMX_TYPE_PES;
 		
@@ -1608,15 +1611,31 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 
 		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid)) {
 
-			if (used)
-				avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
+			if ( used )
+			{
+				if (gtx->feed[i].irq_is_active == 0)
+				{
+					if ( (gtx->feed[i].type != DMX_TYPE_HW_SEC) &&
+						 (gtx->feed[i].type != DMX_TYPE_SEC) )
+					{
+						printk(KERN_INFO "enabling irq mode 2 for pid 0x%04X\n",gtx->feed[i].pid);
+						avia_gt_dmx_set_queue_irq(gtx->feed[i].index,1,-1);
+					}
+					else
+					{
+						avia_gt_dmx_set_queue_irq(gtx->feed[i].index,0,-1);
+					}
+					avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
+					gtx->feed[i].irq_is_active = 1;
+				}
+			}
 			else
+			{
 				avia_gt_dmx_queue_irq_disable(gtx->feed[i].index);
-
+				gtx->feed[i].irq_is_active = 0;
+			}
 		}
-
 	}
-
 }
 
 static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
@@ -1671,6 +1690,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
 
 	avia_gt_dmx_queue_irq_disable(gtxfeed->index);
+	gtxfeed->irq_is_active = 0;
 
 	avia_gt_dmx_queue_reset(gtxfeed->index);
 
@@ -1696,7 +1716,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 		gtxfeed->type = DMX_TYPE_PES;
 	else
 		gtxfeed->type = DMX_TYPE_TS;
-		
+
 	gtxfeed->cb.ts = callback;
 	gtxfeed->demux = gtx;
 	gtxfeed->pid = 0xFFFF;
@@ -1704,6 +1724,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 	gtxfeed->sec_len = 0;
 	gtxfeed->pes_type = pes_type;
 	gtxfeed->output = type;
+	gtxfeed->irq_is_active = 0;
 
 	*feed = &gtxfeed->feed.ts;
 	
@@ -1849,7 +1870,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 		filter->output=GTX_OUTPUT_8BYTE;
 		filter->pec=1;
 		filter->wait_pusi=1;
-		
+
 	} else {
 
 		filter->output=GTX_OUTPUT_TS;
@@ -2161,7 +2182,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.142 2002/10/26 16:46:18 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.143 2002/11/04 20:43:36 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
