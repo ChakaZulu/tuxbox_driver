@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.13  2002/04/28 20:16:09  Jolt
+ *   GTX fbworkaround
+ *
  *   Revision 1.12  2002/04/25 22:10:38  Jolt
  *   FB cleanup
  *
@@ -58,7 +61,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -428,7 +431,8 @@ int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
     } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(GVP)->SPP = (((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) % input_div;
-	gtx_reg_s(GVP)->XPOS = ((((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY;
+//	gtx_reg_s(GVP)->XPOS = ((((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY;
+	gtx_reg_s(GVP)->XPOS = ((((BLANK_TIME - GTX_VID_PIPEDELAY - 55) + x) * 8) / input_div) - GFX_PIPEDELAY;    //FIXME
 	gtx_reg_s(GVP)->YPOS = 42 + y;
 
     }
@@ -553,7 +557,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.12 2002/04/25 22:10:38 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.13 2002/04/28 20:16:09 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
