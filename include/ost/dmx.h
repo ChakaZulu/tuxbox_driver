@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #else
 #include <stdint.h>
+#include <sys/time.h>
 #endif
 
 #ifndef EBUFFEROVERFLOW
