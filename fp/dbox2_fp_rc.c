@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.12 2003/01/03 17:35:02 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.13 2003/01/04 01:09:39 McClean Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -58,7 +58,7 @@ static struct {
 	{KEY_7,				0x07, 0x07},
 	{KEY_8,				0x08, 0x08},
 	{KEY_9,				0x09, 0x09},
-	{KEY_RIGHT, 		0x0A, 0x2E},
+	{KEY_RIGHT, 			0x0A, 0x2E},
 	{KEY_LEFT,			0x0B, 0x2F},
 	{KEY_UP,			0x0C, 0x0E},
 	{KEY_DOWN,			0x0D, 0x0F},
@@ -66,20 +66,20 @@ static struct {
 	{KEY_MUTE,			0x0F, 0x28},
 	{KEY_POWER,			0x10, 0x0C},
 	{KEY_GREEN,			0x11, 0x55},
-	{KEY_YELLOW,		0x12, 0x52},
-	{KEY_RED,			0x13, 0x00},
-	{KEY_BLUE,			0x14, 0x00},
-	{KEY_VOLUMEUP,		0x15, 0x16},
-	{KEY_VOLUMEDOWN,	0x16, 0x17},
-	{KEY_HELP,			0x17, 0x00},
-	{KEY_SETUP,			0x18, 0x00},
-	{KEY_TOPLEFT,		0x1B, 0x00},
-	{KEY_TOPRIGHT,		0x1C, 0x00},
-	{KEY_BOTTOMLEFT,	0x1D, 0x00},
-	{KEY_BOTTOMRIGHT,	0x1E, 0x00},
-	{KEY_HOME,			0x1F, 0x00},
-	{KEY_PAGEDOWN,		0x53, 0x53},
-	{KEY_PAGEUP,		0x54, 0x54},
+	{KEY_YELLOW,			0x12, 0x52},
+	{KEY_RED,			0x13, 0x2d},
+	{KEY_BLUE,			0x14, 0x3b},
+	{KEY_VOLUMEUP,			0x15, 0x16},
+	{KEY_VOLUMEDOWN,		0x16, 0x17},
+	{KEY_HELP,			0x17, 0x82},
+	{KEY_SETUP,			0x18, 0x27},
+	{KEY_TOPLEFT,			0x1B, 0xff},
+	{KEY_TOPRIGHT,			0x1C, 0xff},
+	{KEY_BOTTOMLEFT,		0x1D, 0xff},
+	{KEY_BOTTOMRIGHT,		0x1E, 0xff},
+	{KEY_HOME,			0x1F, 0x20},
+	{KEY_PAGEDOWN,			0x53, 0x53},
+	{KEY_PAGEUP,			0x54, 0x54},
 	
 };
 
@@ -133,7 +133,7 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 
 	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++) {
 	
-		if (((queue_nr == 0) && (rc_key_map[rc_key_nr].value_old == (rc_code & 0x1F))) ||
+		if (((queue_nr == 0) && (rc_key_map[rc_key_nr].value_old == (rc_code & 0xFF))) ||
 			((queue_nr == 3) && (rc_key_map[rc_key_nr].value_new == (rc_code & 0x1F)))) {
 		
 			if (timer_pending(&keyup_timer)) {
@@ -182,7 +182,7 @@ int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 		
 	// Enable break codes	
 	//fp_sendcmd(fp_get_i2c(), 0x01, 0x80);
-	fp_sendcmd(fp_get_i2c(), 0x26, 0x00); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
+	fp_sendcmd(fp_get_i2c(), 0x26, 0x80); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
 
 	return 0;
 
