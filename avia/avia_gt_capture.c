@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.17  2002/04/25 21:09:02  Jolt
+ *   Fixes/Cleanups
+ *
  *   Revision 1.16  2002/04/23 00:11:10  Jolt
  *   Capture/PIG fixes
  *
@@ -59,7 +62,7 @@
  *
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -130,7 +133,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 	    
     wait_event_interruptible(capture_wait, captured_frames);
 					
-    //printk("avia_gt_capture: ok (writing %d bytes)\n", count);
+    dprintk("avia_gt_capture: ok (writing %d bytes)\n", count);
 				
     if (copy_to_user(buf, gt_info->mem_addr + capt_buf_addr, count))
 	return -EFAULT;
@@ -408,7 +411,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.16 2002/04/23 00:11:10 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.17 2002/04/25 21:09:02 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 

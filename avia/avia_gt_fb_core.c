@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.28  2002/04/25 21:09:02  Jolt
+ *   Fixes/Cleanups
+ *
  *   Revision 1.27  2002/04/24 21:38:13  Jolt
  *   Framebuffer cleanups
  *
@@ -126,7 +129,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.27 $
+ *   $Revision: 1.28 $
  *
  */
 
@@ -203,7 +206,6 @@ struct gtxfb_info
 struct gtxfb_par
 {
 
-  int pal;              // 1 - PAL, 0 - NTSC
   int bpp;              // 4, 8, 16
   int lowres;           // 0: 720 or 640 pixels per line 1: 360 or 320 pixels per line
   int interlaced;       // 0: 480 or 576 lines interlaced 1: 240 or 288 lines non-interlaced
@@ -317,19 +319,6 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
   } else
     par->interlaced=0;
   
-  /*  // ntsc is heavy brocken on enx , who needs ntsc , 640x480 leuft auch mit  pal :)
-  if (yres==240)
-    par->pal=0;
-  else if (yres==288)
-    par->pal=1;
-  else
-  {
-    printk("invalid yres: %x\n", var->yres);
-    return -EINVAL;
-  }
-  */
-   par->pal=1;
-  
   par->xres=var->xres;
   par->yres=var->yres;
 
@@ -347,53 +336,53 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, str
 static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, struct fb_info_gen *info)
 {
 
-  struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
+    struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
 
-  var->xres=par->xres;
-  var->yres=par->yres;
-  var->bits_per_pixel=par->bpp;
-  if (par->pal==0)              // ob man sich auf diese timing values sooo verlassen sollte ;)
-  {
-    var->left_margin=116;
-    var->right_margin=21;
-    var->upper_margin=18;
-    var->lower_margin=5;
-  } else
-  {
-    var->left_margin=126;
-    var->right_margin=18;
-    var->upper_margin=21;
-    var->lower_margin=5;
-  }
-  var->hsync_len=var->vsync_len=0;              // TODO
-  var->sync=0;
+    var->xres = par->xres;
+    var->yres = par->yres;
+    var->bits_per_pixel = par->bpp;
+    var->left_margin = 126;
+    var->right_margin = 18;
+    var->upper_margin = 21;
+    var->lower_margin = 5;
+    var->hsync_len = 0;
+    var->vsync_len = 0;              // TODO
+    var->sync = 0;
 
-  var->xres_virtual=var->xres;
-  var->yres_virtual=var->yres;
-  var->xoffset=var->yoffset=0;
+    var->xres_virtual = var->xres;
+    var->yres_virtual = var->yres;
+    var->xoffset = 0;
+    var->yoffset = 0;
 
-  var->red.offset=10;
-  var->green.offset=5;
-  var->blue.offset=0;
-  var->transp.offset=15;
-  var->grayscale=0;
-  var->red.length=var->green.length=var->blue.length=5;
-  var->transp.length=1;
-  var->red.msb_right=var->green.msb_right=var->blue.msb_right=var->transp.msb_right=0;
+    var->red.offset = 10;
+    var->green.offset = 5;
+    var->blue.offset = 0;
+    var->transp.offset = 15;
+    var->grayscale = 0;
+    var->red.length = 5;
+    var->green.length = 5;
+    var->blue.length = 5;
+    var->transp.length = 1;
+    var->red.msb_right = 0;
+    var->green.msb_right = 0;
+    var->blue.msb_right = 0;
+    var->transp.msb_right = 0;
 
-  var->xoffset=var->yoffset=0;
-  var->pixclock=0;
-  var->nonstd=0;
-  var->activate=0;
-  var->height=var->width-1;
-  var->accel_flags=0;
-  return 0;
+    var->xoffset=var->yoffset = 0;
+    var->pixclock = 0;
+    var->nonstd = 0;
+    var->activate = 0;
+    var->height = var->width - 1;
+    var->accel_flags=0;
+  
+    return 0;
+    
 }
 
 static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 {
 
-    struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+    struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
     
     if (current_par_valid)
 	*par = current_par;
@@ -404,47 +393,20 @@ static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-  int val;
-	int div,rem;
-/*	printk("	   pal : %d",par->pal);
-	printk("	   bpp : %d",par->bpp);
-	printk("	   lowres : %d",par->lowres);
-	printk("	   interlaced : %d\n",par->interlaced);
-	printk("	   xres : %d",par->xres);
-	printk("	   yres : %d",par->yres);
-	printk("	   stride : %x\n",par->stride); */
+
+    struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
+    int val;
 
     if (avia_gt_chip(GTX)) {
     
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
-  rh(VHT)=par->pal?858:852;
-  rh(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+  rh(VHT)=858;
+  rh(VLT)=(623|(21<<11));
 
-  switch (par->bpp)
-  {
-  case 4:
-    val=1<<30; break;
-  case 8:
-    val=2<<30; break;
-  case 16:
-    val=3<<30; break;
-  }
-
-  if (par->lowres)
-    val|=1<<29;
-
-  if (!par->pal)
-      val|=1<<28;                         // NTSC square filter. TODO: do we need this?
-
-                // TODO: cursor
-  if (!par->interlaced)
-    val|=1<<26;
-
+  val=0;
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
   val|=0<<20;                           // BLEV1 = 8/8
   val|=2<<16;                           // BLEV2 = 2/8	-> BLEVEL
-  val|=par->stride;
 
   rw(GMR)=val;
   
@@ -454,30 +416,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   VCR_SET_HP(2);
   VCR_SET_FP(0);
-  val=par->pal?127:117;
-  val*=8;
-
-  if (par->lowres)
-	{
-		if (rw(GMR)&(1<<28))
-			div=18;
-		else
-			div=16;
-	}
-	else
-	{
-		if (rw(GMR)&(1<<28))
-			div=9;
-		else
-			div=8;
-	}
-
-	rem = val-((val/div)*div);
-	val/=div;
-
-	// ???
-  //val-=(3+20);						//PFUSCHING BY MCCLEAN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  val -= 55;
 
   rh(GFUNC)=0x10;			// enable dynamic clut
   rh(TCR)=TCR_COLOR;                       // ekelhaftes rosa als transparent
@@ -486,59 +424,21 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
     } else if (avia_gt_chip(ENX)) {
 
-#define ENX_VCR_SET_HP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<10))) | ((X&3)<<10))
-#define ENX_VCR_SET_FP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
-
   enx_reg_32(VBR)=0;
 
   enx_reg_16(VCR)=0x040|(1<<13);
   enx_reg_16(BALP)=0;
-  enx_reg_16(VHT)=(par->pal?857:851)|0x5000;
-  enx_reg_16(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+  enx_reg_16(VHT)=857|0x5000;
+  enx_reg_16(VLT)=(623|(21<<11));
 
-//  Field: auskommentiert, behebt FB-Positions-Bug!
-//  enx_reg_16(VAS)=par->pal?63:58;
-
-	val=0;
-	if (par->lowres)
-		val|=1<<31;
-
-	if (!par->pal)
-		val|=1<<30;                         // NTSC square filter. TODO: do we need this?
-
-	if (!par->interlaced)
-		val|=1<<29;
-
-  val|=1<<26;                           // chroma filter. evtl. average oder decimate, bei text
-
-  switch (par->bpp)
-  {
-	case 4:
-		val|=2<<20; break;
-	case 8:
-		val|=6<<20; break;
-	case 16:
-		val|=3<<20; break;
-	case 32:
-		val|=7<<20; break;
-  }
-
-  val|=par->stride;
     enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
   //enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
   enx_reg_32(TCR2)=0x0FF007F;	 // disabled - we don't need since we have 7bit true alpha
 
-//	enx_reg_16(P1VPSA)=0;
-//	enx_reg_16(P2VPSA)=0;
-//	enx_reg_16(P1VPSO)=0;
-//	enx_reg_16(P2VPSO)=0;
-	
 	enx_reg_16(VMCR)=0;
 	enx_reg_16(G1CFR)=1;
 	enx_reg_16(G2CFR)=1;
 
-	enx_reg_32(GMR1)=val;
-	enx_reg_32(GMR2)=0;
   enx_reg_16(GBLEV1)=BLEVEL;
   enx_reg_16(GBLEV2)=0;
         //enx_reg_16(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
@@ -546,9 +446,37 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_16(GVP1)=0;
 
     }
+
+    switch (par->bpp) {
+    
+	case 4:
+	
+	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB4);
+	    
+	break;
+	
+	case 8:
+	
+	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB8);
+	    
+	break;
+	case 16:
+	
+	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB16);
+	    
+	break;
+	case 32:
+	
+	    avia_gt_gv_set_input_mode(AVIA_GT_GV_INPUT_MODE_RGB32);
+	    
+	break;
+	
+    }
     
     avia_gt_gv_set_pos(0, 0);
+    avia_gt_gv_set_input_size(720, 576);
     avia_gt_gv_set_size(par->xres, par->yres);
+    avia_gt_gv_show();
 
     current_par = *par;
     current_par_valid = 1;
@@ -598,7 +526,8 @@ static int gtx_blank(int blank, struct fb_info_gen *info)
 static void gtx_set_disp(const void *fb_par, struct display *disp,
                          struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+
+    struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
    
   disp->screen_base=(char*)fb_info.videobase;
   switch (par->bpp)
@@ -630,6 +559,7 @@ static void gtx_set_disp(const void *fb_par, struct display *disp,
 }
 
 struct fbgen_hwswitch gtx_switch = {
+
     gtx_detect, 
     gtx_encode_fix,
     gtx_decode_var,
@@ -641,6 +571,7 @@ struct fbgen_hwswitch gtx_switch = {
     0,
     gtx_blank,
     gtx_set_disp,
+    
 };
 
 static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
@@ -778,7 +709,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.27 2002/04/24 21:38:13 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.28 2002/04/25 21:09:02 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
 	

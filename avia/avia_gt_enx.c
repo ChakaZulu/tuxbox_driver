@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.9  2002/04/25 21:09:02  Jolt
+ *   Fixes/Cleanups
+ *
  *   Revision 1.8  2002/04/22 17:40:01  Jolt
  *   Major cleanup
  *
@@ -103,7 +106,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -187,6 +190,14 @@ void enx_dac_init(void)
 	
 }
 
+void enx_video_init(void)
+{
+
+    enx_reg_16(VHT) = 857 | 0x5000;
+    enx_reg_16(VLT) = (623 | (21 << 11));
+
+}
+
 void enx_irq_enable(void)
 {
 
@@ -247,7 +258,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.8 2002/04/22 17:40:01 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.9 2002/04/25 21:09:02 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
     
@@ -262,6 +273,7 @@ void avia_gt_enx_init(void)
     enx_reset();
     enx_sdram_ctrl_init();
     enx_dac_init();
+    enx_video_init();
     enx_irq_enable();
   
     memset(gt_info->mem_addr, 0xF, 1024 * 1024 /*ENX_MEM_SIZE*/);
