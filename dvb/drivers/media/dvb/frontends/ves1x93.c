@@ -23,8 +23,12 @@
 
 */    
 
+#include <asm/errno.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 
@@ -400,9 +404,9 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 	BDRI = ( ((FIN << 8) / ((srate << (FNR >> 1)) >> 2)) + 1) >> 1;
 
         dprintk("FNR= %d\n", FNR);
-        dprintk("ratio= %08x\n", ratio);
-        dprintk("BDR= %08x\n", BDR);
-        dprintk("BDRI= %02x\n", BDRI);
+        dprintk("ratio= %08x\n", (unsigned int) ratio);
+        dprintk("BDR= %08x\n", (unsigned int) BDR);
+        dprintk("BDRI= %02x\n", (unsigned int) BDRI);
 
 	if (BDRI > 0xff)
 		BDRI = 0xff;
@@ -532,13 +536,12 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	case FE_GET_FRONTEND:
 	{
 		struct dvb_frontend_parameters *p = arg;
-		s32 afc;
+		int afc;
 
 		afc = ((int)((char)(ves1x93_readreg (i2c, 0x0a) << 1)))/2;
-		afc = (afc * (int)(p->u.qpsk.symbol_rate/8))/16;
+		afc = (afc * (int)(p->u.qpsk.symbol_rate/1000/8))/16;
 
-		/* FIXME: p->frequency += afc;*/
-		dprintk("%s: afc=%d\n", __FILE__, afc);
+		p->frequency -= afc;
 		p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
 					INVERSION_ON : INVERSION_OFF;
 		p->u.qpsk.fec_inner = ves1x93_get_fec (i2c);
