@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.28  2001/03/19 16:24:32  tmbinc
+ *   fixed section parsing bugs.
+ *
  *   Revision 1.27  2001/03/16 19:50:28  gillem
  *   - fix section parser
  *
@@ -82,7 +85,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.27 $
+ *   $Revision: 1.28 $
  *
  */
 
@@ -595,7 +598,6 @@ static void gtx_task(void *data)
 
               	r+=tr;
               	b1l-=tr;
-								ccn=b1[3]&0x0f;
 								b1+=tr;
 
 								// TODO: handle CC
@@ -610,17 +612,23 @@ static void gtx_task(void *data)
              		b2l-=tr;
                 b2+=tr;
 
-              	tr=184;
+              	tr+=r;
+
+								ccn=tsbuf[3]&0x0f;
+								
+								tr-=4;
               
 			  				// no payload
               	if (!(tsbuf[3]&0x10))
 			  				{
+			  					dprintk("a packet with no payload. sachen gibt's.\n");
                 	continue;
 			  				}
 
 			  				// af + pl
               	if (tsbuf[3]&0x20)                // adaption field
               	{
+              		dprintk("nen adaption field! HIER! (%d bytes aber immerhin) (report to tmb plz)\n", tsbuf[4]);
 									// go home paket !
 									if ( tsbuf[4] > 182 )
 									{
@@ -630,13 +638,6 @@ static void gtx_task(void *data)
 
                 	tr-=tsbuf[4]+1;
                 	p+=tsbuf[4]+1;
-								} else
-								{
-  			  				if ( tsbuf[4] > 183 )
-						  		{
-										dprintk("gtx_dmx: warning plle=%d (ignore)\n",tsbuf[4]);
-                		continue;
-						  		}
 								}
 
               	if (tsbuf[1]&0x40)                // PUSI
@@ -644,10 +645,13 @@ static void gtx_task(void *data)
 									int op;
 
 	               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
+	               	if (tsbuf[p])
+	               		dprintk("sowas gibts echt, wo der ptr != 0 ist. (report to tmb plz)\n");
 
                 	// rest kopieren
                 	if (r>tsbuf[p])
 									{
+										dprintk("aber das suckt eh.\n");
 										if (tsbuf[3]&0x20)
 										{
 											r = 188-4-tsbuf[4]-1;
@@ -659,17 +663,19 @@ static void gtx_task(void *data)
 									}
 
                 	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
-//                	gtxfeed->sec_recv+=r;
+                	gtxfeed->sec_recv+=r;
 
 									op = p;
 
-									dprintk("gtx_dmx: ! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
+									//	dprintk("gtx_dmx: ! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
 
+#if 0
 									if (tsbuf[3]&0x20)
 									{
-                    p+=tsbuf[4]+1+r;
+                    p+=tsbuf[4]+1+r;		// das wird doch schon gecheckt, oben?
                   }
 									else
+#endif
 									{
 	                	p+=tsbuf[p]+1;
 									}
@@ -678,13 +684,12 @@ static void gtx_task(void *data)
 
 									if (p>188)
 									{
-/*										dprintk("HEXDUMP START:\n");
+										dprintk("HEXDUMP START:\n");
 										for(op=0;op<188;op++)
 										{
 												dprintk("%02X ",tsbuf[op]);
 										}
 										dprintk("\nHEXDUMP END\n");
-*/
 										break;
 									}
 
