@@ -4,9 +4,14 @@
 #define GTX_PHYSBASE    0x8000000
 #define GTX_FB_OFFSET	0x0100000
 
-#define GTX_PCM_SIZE            (2 * 2048)
-//#define GTX_PCM_OFFSET                (GTX_MEM_SIZE - GTX_PCM_SIZE)
-#define GTX_PCM_OFFSET          ((1024*1024) - GTX_PCM_SIZE)
+#define GTX_PCM_BUFFER_COUNT	25
+#define GTX_PCM_MAX_SAMPLES	1023
+#define GTX_PCM_MAX_BPS		4
+#define GTX_PCM_BUFFER_SIZE	(GTX_PCM_MAX_SAMPLES * GTX_PCM_MAX_BPS)
+#define GTX_PCM_MEM_SIZE	(GTX_PCM_BUFFER_COUNT * GTX_PCM_BUFFER_SIZE)
+#define GTX_PCM_MEM_OFFSET	((1024 * 1024) - GTX_PCM_MEM_SIZE)
+
+
                     
 #undef CR0
 #define gRR0            0x100
