@@ -21,12 +21,8 @@
  *
  *
  *   $Log: saa7126_core.c,v $
- *   Revision 1.5  2001/02/11 12:31:29  gillem
- *   - add ioctl SAAIOGREG,SAAIOSINP,SAAIOSENC
- *   - change i2c stuff
- *   - change device to pal
- *   - change major to 240
- *   - add load option board (0=nokia,1=philips,2=sagem,3=no config)
+ *   Revision 1.6  2001/02/11 21:29:12  gillem
+ *   - add ioctl SAAIOSOUT (output control)
  *
  *   Revision 1.4  2001/02/08 18:53:53  gillem
  *   *** empty log message ***
@@ -37,7 +33,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -370,21 +366,22 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 	dprintk("[saa7126]: command\n");
 
-	switch (cmd)	
-	{
+	switch (cmd) {
+
 		case ENCODER_GET_CAPABILITIES:
-			{
+		{
 			struct video_encoder_capability *cap = arg;
 
 			cap->flags
 			    = VIDEO_ENCODER_PAL
 			    | VIDEO_ENCODER_NTSC;
-			cap->inputs = 1;
+
+			cap->inputs  = 1;
 			cap->outputs = 1;
 		}
 		break;
 
-	case ENCODER_SET_NORM:
+		case ENCODER_SET_NORM:
 		{
 			int *iarg = arg;
 
@@ -398,7 +395,6 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 //				saa7185_write_block(encoder, init_pal, sizeof(init_pal));
 				break;
 
-			case VIDEO_MODE_SECAM:
 			default:
 				return -EINVAL;
 
@@ -407,7 +403,7 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 		}
 		break;
 
-	case ENCODER_SET_INPUT:
+		case ENCODER_SET_INPUT:
 		{
 			int *iarg = arg;
 
@@ -440,7 +436,7 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 		}
 		break;
 
-	case ENCODER_SET_OUTPUT:
+		case ENCODER_SET_OUTPUT:
 		{
 			int *iarg = arg;
 
@@ -451,7 +447,7 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *ar
 		}
 		break;
 
-	case ENCODER_ENABLE_OUTPUT:
+		case ENCODER_ENABLE_OUTPUT:
 		{
 			int *iarg = arg;
 
@@ -525,6 +521,15 @@ static int saa7126_input_control( int inp )
 
 /* ------------------------------------------------------------------------- */
 
+static int saa7126_output_control( int inp )
+{
+	saa7126_sendcmd( &client_template, 0x2d, inp&0xff );
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static int saa7126_encoder( int inp )
 {
 	u8 b;
@@ -549,7 +554,7 @@ static int saa7126_encoder( int inp )
 static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
-	char saa_data[0x80];
+	char saa_data[SAA_DATA_SIZE];
     int val;
 
 	dprintk("[SAA7126]: IOCTL\n");
@@ -557,7 +562,6 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 	switch (cmd)
 	{
    		case SAAIOGREG:
-				memset(saa_data,0xAA,0x80);
 				if ( saa7126_read_register(saa_data) ) {
 					return -EINVAL;
 				}
@@ -570,6 +574,15 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 				}
 
 				saa7126_input_control(val);
+
+				break;
+
+		case SAAIOSOUT:
+				if ( copy_from_user( &val, (void*)arg, sizeof(val) ) ) {
+					return -EFAULT;
+				}
+
+				saa7126_output_control(val);
 
 				break;
 
@@ -627,10 +640,10 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-				"i2c saa7126 chip",          /* name       */
-        I2C_DRIVERID_SAA7126,           /* ID         */
+		"i2c saa7126 chip",		/* name       				*/
+        I2C_DRIVERID_SAA7126,   /* ID         				*/
         0,
-				0, /* interpret as 7Bit-Adr */
+		0, 						/* interpret as 7Bit-Adr 	*/
         NULL,
         &driver
 };
