@@ -10,6 +10,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <sys/poll.h>
+#include <asm/types.h>
 
 #define FRONT "/dev/dvb/adapter0/frontend0"
 
@@ -31,6 +32,26 @@ int FEGetInfo(int fd, struct dvb_frontend_info *info)
 
 	return 0;
 
+}
+
+int FEDumpBER(int fd)
+{ 
+
+	unsigned int ber;
+	int result; 
+	
+	if ((result = ioctl(fd, FE_READ_BER, &ber) < 0)) { 
+
+		perror("FE READ BER: ");
+		
+		return result;
+		
+	} 
+	
+	printf("FE BER: %d\n", ber);
+
+	return 0;
+		
 }
 
 int FEDumpInfo(struct dvb_frontend_info *info)
@@ -69,6 +90,46 @@ int FEDumpInfo(struct dvb_frontend_info *info)
 
 	return 0;
 
+}
+
+int FEDumpSignalStrength(int fd)
+{ 
+
+	signed int sig_str;
+	int result; 
+	
+	if ((result = ioctl(fd, FE_READ_SIGNAL_STRENGTH, &sig_str) < 0)) { 
+
+		perror("FE READ SIGNAL STRENGTH: ");
+		
+		return result;
+		
+	} 
+	
+	printf("FE SIGNAL STRENGTH: %d\n", sig_str);
+
+	return 0;
+		
+}
+
+int FEDumpSNR(int fd)
+{ 
+
+	signed int snr;
+	int result; 
+	
+	if ((result = ioctl(fd, FE_READ_BER, &snr) < 0)) { 
+
+		perror("FE READ SNR: ");
+		
+		return result;
+		
+	} 
+	
+	printf("FE SNR: %d\n", snr);
+
+	return 0;
+		
 }
 
 int FEDumpStatus(int fd)
@@ -165,6 +226,9 @@ int main(void)
 	}
 	
 	FESetFrontend(fe_fd, &fe_param);
+	FEDumpBER(fe_fd);
+	FEDumpSNR(fe_fd);
+	FEDumpSignalStrength(fe_fd);
 
 	close(fe_fd);
 
