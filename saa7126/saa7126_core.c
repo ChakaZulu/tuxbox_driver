@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.16  2001/11/22 20:19:32  gillem
+ *   - simple bugfix
+ *
  *   Revision 1.15  2001/11/22 17:26:12  gillem
  *   - add power save mode (experimental)
  *   - start vps
@@ -63,7 +66,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -793,12 +796,12 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 					return -EFAULT;
 				}
 
-				saa_7126_vps_set_data(saa_data);
+				saa7126_vps_set_data(saa_data);
 
 				break;
 
 		case SAAIOGVPSDATA:
-				saa_7126_vps_get_data(saa_data);
+				saa7126_vps_get_data(saa_data);
 
 				return copy_to_user( (void*)arg, saa_data, 6 );
 
