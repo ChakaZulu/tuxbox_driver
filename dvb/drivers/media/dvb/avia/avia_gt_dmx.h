@@ -37,10 +37,10 @@
 typedef struct {
 
 	u32	(*bytes_avail)(u8 queue_nr);
-	u8 (*get_data8)(u8 queue_nr);
-	u16 (*get_data16)(u8 queue_nr);
-	u32 (*get_data32)(u8 queue_nr);
-	u32	(*move_data)(u8 queue_nr, void *dest, u32 count);
+	u8 (*get_data8)(u8 queue_nr, u8 peek);
+	u16 (*get_data16)(u8 queue_nr, u8 peek);
+	u32 (*get_data32)(u8 queue_nr, u8 peek);
+	u32	(*move_data)(u8 queue_nr, void *dest, u32 count, u8 peek);
 
 } sAviaGtDmxQueueInfo;
 

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.113 $
+ *   $Revision: 1.114 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.114  2002/09/10 13:44:44  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.113  2002/09/09 21:59:01  Jolt
  *   HW sections fix
  *
@@ -601,16 +604,15 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 
 	while (queue_info->bytes_avail(queue_nr) > 0) {
 							
-		type = queue_info->get_data8(queue_nr);
+		type = queue_info->get_data8(queue_nr, 1);
 							
 		switch(type) {
 		
 			case DMX_MESSAGE_CC_ERROR:
 								
 				sync_lost = 0;
-				msg.type = type;
 
-				if (queue_info->bytes_avail(queue_nr) < (sizeof(msg) - 1)) {
+				if (queue_info->bytes_avail(queue_nr) < sizeof(msg)) {
 									
 					printk("avia_gt_napi: short CC-error-message received.\n");
 										
@@ -620,7 +622,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 									
-				queue_info->move_data(queue_nr, ((u8 *)&msg) + 1, sizeof(msg) - 1);
+				queue_info->move_data(queue_nr, &msg, sizeof(msg), 0);
 									
 				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 				
@@ -649,9 +651,8 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 			case DMX_MESSAGE_ADAPTION:
 								
 				sync_lost = 0;
-				adaption.type = type;
 									
-				if (queue_info->bytes_avail(queue_nr) < (sizeof(adaption) - 1))	{
+				if (queue_info->bytes_avail(queue_nr) < sizeof(adaption))	{
 									
 					printk("avia_gt_napi: short private adaption field message.\n");
 										
@@ -661,7 +662,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 								
 				}
 
-				queue_info->move_data(queue_nr, ((u8 *)&adaption) + 1, sizeof(adaption) - 1);
+				queue_info->move_data(queue_nr, &adaption, sizeof(adaption), 0);
 									
 				if (queue_info->bytes_avail(queue_nr) < adaption.length) {
 									
@@ -673,7 +674,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 
-				queue_info->move_data(queue_nr, NULL, adaption.length);
+				queue_info->move_data(queue_nr, NULL, adaption.length, 0);
 
 			break;
 #if 0	
@@ -709,9 +710,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 #endif
 			case DMX_MESSAGE_SECTION_COMPLETED:
 								
-				comp_msg.type = type;
-									
-				if (queue_info->bytes_avail(queue_nr) < (sizeof(comp_msg) - 1))	{
+				if (queue_info->bytes_avail(queue_nr) < sizeof(comp_msg))	{
 									
 					printk("avia_gt_napi: short section completed message.\n");
 										
@@ -719,7 +718,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 				}
 									
-				queue_info->move_data(queue_nr, ((u8 *)&comp_msg) + 1, sizeof(comp_msg) - 1);
+				queue_info->move_data(queue_nr, &comp_msg, sizeof(comp_msg), 0);
 									
 				if (!(blocked & (1 << comp_msg.filter_index))) {
 									
@@ -1847,7 +1846,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.113 2002/09/09 21:59:01 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.114 2002/09/10 13:44:44 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
