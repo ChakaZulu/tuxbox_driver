@@ -1,4 +1,4 @@
-#define a500v093        _binary_500v090_bin_start  
+//#define a500v093        _binary_500v090_bin_start  
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -17,6 +17,7 @@
 #include <asm/uaccess.h>
 
 #include "../fp/fp.h"
+#include "avia.h"
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -27,10 +28,6 @@ u32 *microcode;
 int aviarev;
 
 static int dev;
-
-#define TM_DRAM  0x00
-#define TM_GBUS  0x80
-#define TM_SRAM  0xC0
 
 #define AVIA_INTERRUPT         SIU_IRQ4
 
@@ -78,6 +75,9 @@ void avia_wr(int mode, u32 address, u32 data)
   aviamem[0]=data&0xFF;
 }
         
+EXPORT_SYMBOL(avia_wr);
+EXPORT_SYMBOL(avia_rd);
+
 #define wGB(a, d) avia_wr(TM_GBUS, a, d)
 #define rGB(a) avia_rd(TM_GBUS, a)
 #define wSR(a, d) avia_wr(TM_SRAM, a, d)
@@ -312,13 +312,18 @@ int init_module(void)
 
   wDR(0x1A8, 0xA);              // TM_MODE              (nokia) (br: evtl. 0x18, aber das wäre seriell.. eNX?)
   wDR(0x7C, 0);                 // walter says 3, tries say 1, nokia says 0, br too  ... HSYNC/VSYNC master, BT.656 output
-  wDR(0xEC, 3);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
-  wDR(0xE8, 0);                 // AUDIO_DAC_MODE 
+
+  wDR(0xEC, 6);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
+
+  wDR(0xE8, 2);                 // AUDIO_DAC_MODE
   wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
-  wDR(0xF4, 76);                // AUDIO_ATTENUATION (br: 0)
+//  wDR(0xE0, 0x70F);
+  wDR(0xF4, 0);                // AUDIO_ATTENUATION (br: 0)
+
   wDR(0x250, 1);                //´DISABLE_OSD: yes (br)
   wDR(0x1B0, 0);                // AV_SYNC_MODE: NO_SYNC
   wDR(0x468, 1);                // NEW_AUDIO_CONFIG
+
   wDR(0x1C4, 0x1004);           // AUDIO_PTS_SKIP_THRESHOLD_1
   wDR(0x1C8, 0x1004);
   wDR(0x1C0, 0xE10);
