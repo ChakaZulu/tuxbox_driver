@@ -717,6 +717,22 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char PCR_Base: 1;
+  unsigned char Reserved1: 6;
+  unsigned short PCR_Extension: 9;
+
+} sENX_REG_TP_PCR_0;
+
+typedef struct {
+
+  unsigned short PCR_Base: 16;
+
+} sENX_REG_TP_PCR_1;
+
+#define sENX_REG_TP_PCR_2 sENX_REG_TP_PCR_1
+
+typedef struct {
+
   unsigned char PTS: 1;
   unsigned char R: 1;
   unsigned char E: 1;

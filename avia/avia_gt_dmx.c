@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.93  2002/08/24 00:14:19  Jolt
+ *   PCR stuff (currently no sync logic)
+ *
  *   Revision 1.92  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -80,7 +83,7 @@
  *
  *
  *
- *   $Revision: 1.92 $
+ *   $Revision: 1.93 $
  *
  */
 
@@ -110,7 +113,9 @@
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
+#include <asm/div64.h>
 
+#define DEBUG
 #include <ost/demux.h>
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
@@ -120,12 +125,7 @@ static int						 errno							= (int)0;
 static sAviaGtInfo		*gt_info						= (sAviaGtInfo *)NULL;
 static sRISC_MEM_MAP	*risc_mem_map				= (sRISC_MEM_MAP *)NULL;
 static char						*ucode							= (char *)NULL;
-static int						 discont						= (int)1;
-static int						 large_delta_count	= (int)0;
-static int						 deltaClk_max				= (int)0;
-static int						 deltaClk_min				= (int)0;
-static int						 deltaPCR_AVERAGE		= (int)0;
-static Pcr_t					 oldClk;
+u8 force_stc_reload = 0;
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
 
@@ -161,10 +161,10 @@ unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 void avia_gt_dmx_force_discontinuity(void)
 {
 
-	discont = 1;
+	force_stc_reload = 1;
 
 	if (avia_gt_chip(ENX))
-		enx_reg_16(FC) |= 0x100;
+		enx_reg_set(FC, FD, 1);
 	else if (avia_gt_chip(GTX))
 		gtx_reg_16(FCR) |= 0x100;
 
@@ -231,7 +231,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	if ((fd = open(ucode, 0, 0)) < 0) {
 
-		printk (KERN_ERR "avia_gt_dmx: Unable to load firmware file '%s'\n", ucode);
+		printk(KERN_ERR "avia_gt_dmx: Unable to load firmware file '%s'\n", ucode);
 
 		set_fs(fs);
 
@@ -243,7 +243,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	if (file_size <= 0) {
 
-		printk (KERN_ERR "avia_gt_dmx: Firmware wrong size '%s'\n", ucode);
+		printk(KERN_ERR "avia_gt_dmx: Firmware wrong size '%s'\n", ucode);
 
 		sys_close(fd);
 		set_fs(fs);
@@ -256,7 +256,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	if (read(fd, (void *)risc_mem_map, file_size) != file_size) {
 
-		printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
+		printk(KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
 
 		sys_close(fd);
 		set_fs(fs);
@@ -298,6 +298,7 @@ int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_
 
 int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[8], u8 param[8], u8 not_flag, u8 not_flag_ver_id_byte)
 {
+
 	sFilter_Parameter_Entry1 e1;
 	sFilter_Parameter_Entry2 e2;
 	sFilter_Parameter_Entry3 e3;
@@ -598,238 +599,109 @@ void enx_tdp_stop(void)
 
 }
 
-static Pcr_t gtx_read_transport_pcr(void)
+// Ugly as hell - but who cares? :-)
+#define MAKE_PCR(base2, base1, base0, extension) ((((u64)(extension)) << 50) | (((u64)(base2)) << 17) | (((u64)(base1)) << 1) | ((u64)(base0)))
+#define PCR_BASE(pcr) ((pcr) & 0x1FFFFFFFF)
+#define PCR_EXTENSION(pcr) ((pcr) >> 50)
+#define PCR_VALUE(pcr) (PCR_BASE(pcr) * 300 + PCR_EXTENSION(pcr))
+
+u64 avia_gt_dmx_get_transport_pcr(void)
 {
 
-	Pcr_t pcr;
-
-	pcr.lo = 0;
-	pcr.hi = 0;
-
-	if (avia_gt_chip(ENX)) {
-
-		pcr.hi = (enx_reg_16(TP_PCR_2) << 16) | enx_reg_16(TP_PCR_1);
-		pcr.lo = enx_reg_16(TP_PCR_0) & 0x8000;
-
-	} else if (avia_gt_chip(GTX)) {
-
-		pcr.hi = (gtx_reg_16(PCR2) << 16) | gtx_reg_16(PCR1);
-		pcr.lo = gtx_reg_16(PCR0) & 0x81FF;
-
-	}
-
-	return pcr;
+	if (avia_gt_chip(ENX))
+		return MAKE_PCR(enx_reg_s(TP_PCR_2)->PCR_Base, enx_reg_s(TP_PCR_1)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Extension);
+	else if (avia_gt_chip(GTX))
+		return MAKE_PCR(gtx_reg_s(PCR2)->PCR_Base, gtx_reg_s(PCR1)->PCR_Base, gtx_reg_s(PCR0)->PCR_Base, gtx_reg_s(PCR0)->PCR_Extension);
+		
+	return 0;
 
 }
 
-static Pcr_t avia_gt_dmx_get_latched_stc(void)
+u64 avia_gt_dmx_get_latched_stc(void)
 {
 
-	Pcr_t pcr;
+	if (avia_gt_chip(ENX))
+		return MAKE_PCR(enx_reg_s(LC_STC_2)->Latched_STC_Base, enx_reg_s(LC_STC_1)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Extension);
+	else if (avia_gt_chip(GTX))
+		return MAKE_PCR(gtx_reg_s(LSTC2)->Latched_STC_Base, gtx_reg_s(LSTC1)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Extension);
 
-	pcr.lo = 0;
-	pcr.hi = 0;
-
-	if (avia_gt_chip(ENX)) {
-
-		pcr.hi = (enx_reg_s(LC_STC_2)->Latched_STC_Base << 16) | enx_reg_s(LC_STC_1)->Latched_STC_Base;
-		pcr.lo = enx_reg_s(LC_STC_0)->Latched_STC_Base << 15;
-
-	} else if (avia_gt_chip(GTX)) {
-
-		pcr.hi = (gtx_reg_16(LSTC2) << 16) | gtx_reg_16(LSTC1);
-		pcr.lo = gtx_reg_16(LSTC0) & 0x81FF;
-
-	}
-
-	return pcr;
+	return 0;
 
 }
 
-Pcr_t avia_gt_dmx_get_stc(void)
+u64 avia_gt_dmx_get_stc(void)
 {
 
-	Pcr_t pcr;
+	if (avia_gt_chip(ENX))
+		return MAKE_PCR(enx_reg_s(STC_COUNTER_2)->STC_Count, enx_reg_s(STC_COUNTER_1)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Extension);
+	else if (avia_gt_chip(GTX))
+		return MAKE_PCR(gtx_reg_s(STCC2)->STC_Count, gtx_reg_s(STCC1)->STC_Count, gtx_reg_s(STCC0)->STC_Count, gtx_reg_s(STCC0)->STC_Extension);
 
-	pcr.lo = 0;
-	pcr.hi = 0;
-
-	if (avia_gt_chip(ENX)) {
-
-		pcr.hi = (enx_reg_s(STC_COUNTER_2)->STC_Count << 16) | enx_reg_s(STC_COUNTER_1)->STC_Count;
-		pcr.lo = enx_reg_s(STC_COUNTER_0)->STC_Count << 15;
-
-	} else if (avia_gt_chip(GTX)) {
-
-		pcr.hi = (gtx_reg_16(STCC2) << 16) | gtx_reg_16(STCC1);
-		pcr.lo = gtx_reg_16(STCC0) & 0x81FF;
-
-	}
-
-	return pcr;
-
-}
-
-static void gtx_set_pcr(Pcr_t pcr)
-{
-
-	if (avia_gt_chip(ENX)) {
-
-		enx_reg_set(STC_COUNTER_2, STC_Count, (pcr.hi >> 16));
-		enx_reg_set(STC_COUNTER_1, STC_Count, (pcr.hi & 0xFFFF));
-		enx_reg_16(STC_COUNTER_0) = pcr.lo & 0x81FF;
-
-	} else if (avia_gt_chip(GTX)) {
-
-		gtx_reg_16(STCC2) = pcr.hi >> 16;
-		gtx_reg_16(STCC1) = pcr.hi & 0xFFFF;
-		gtx_reg_16(STCC0) = pcr.lo & 0x81FF;
-
-	}
-
-}
-
-static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
-{
-
-	s32 delta;
-
-	delta = (s32) clk1.hi;
-	delta -= (s32) clk2.hi;
-	delta *= (s32) 2;
-	delta += (s32) ((clk1.lo>>15)&1);
-	delta -= (s32) ((clk2.lo>>15)&1);
-	delta *= (s32) 300;
-	delta += (s32) (clk1.lo & 0x1FF);
-	delta -= (s32) (clk2.lo & 0x1FF);
-
-	return delta;
-
-}
-
-static s32 gtx_bound_delta(s32 bound, s32 delta)
-{
-
-	if (delta > bound)
-		delta = bound;
-
-	if (delta < -bound)
-		delta = -bound;
-
-	return delta;
-
+	return 0;
+	
 }
 
 static void gtx_pcr_interrupt(unsigned short irq)
 {
-	Pcr_t TPpcr;
-	Pcr_t latchedClk;
-	Pcr_t currentClk;
-	s32 delta_PCR_AV;
 
-	s32 deltaClk, elapsedTime;
+	u64 tp_pcr;
+	u64 l_stc;
+	u64 stc;
+	
+	s64 local_diff;
+	s64 remote_diff;
+	
+	tp_pcr = avia_gt_dmx_get_transport_pcr();
+	l_stc = avia_gt_dmx_get_latched_stc();
+	stc = avia_gt_dmx_get_stc();
 
-	TPpcr=gtx_read_transport_pcr();
-	latchedClk = avia_gt_dmx_get_latched_stc();
-	currentClk = avia_gt_dmx_get_stc();
+	if (force_stc_reload) {
 
-	if (discont) {
+		printk("avia_gt_dmx: reloading stc\n");	
 
-		oldClk = currentClk;
-		large_delta_count = 0;
-		dprintk(/* KERN_DEBUG*/	"gtx_dmx: we have a discont:\n");
-		dprintk(KERN_DEBUG "gtx_dmx: new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
-		deltaPCR_AVERAGE = 0;
+		avia_set_pcr(PCR_BASE(tp_pcr) >> 1, (PCR_BASE(tp_pcr) & 0x01) << 15);
+		
+		force_stc_reload = 0;
 
+	}
+
+	local_diff = (s64)PCR_VALUE(stc) - (s64)PCR_VALUE(l_stc);
+	remote_diff = (s64)PCR_VALUE(tp_pcr) - (s64)PCR_VALUE(stc);
+	
+#if 0	
+
+	if (PCR_VALUE(tp_pcr) > PCR_VALUE(stc)) {
+
+//#define GAIN 0x7FFF
+#define GAIN 0x2000
+		
+		gtx_reg_32(DPCR) = (-GAIN << 16) | 9;
+			
+	} else if (PCR_VALUE(stc) > PCR_VALUE(tp_pcr)) {
+
+		gtx_reg_32(DPCR) = (GAIN << 16) | 9;
+	
+	}
+
+	printk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
+	
+#endif
+
+/*	if ((remote_diff > TIME_THRESHOLD) || (remote_diff < -TIME_THRESHOLD)) {
+	
+		printk("avia_gt_dmx: stc out of sync!\n");
 		avia_gt_dmx_force_discontinuity();
-		discont = 0;
+	
+	}*/
 
-		gtx_set_pcr(TPpcr);
-		avia_set_pcr(TPpcr.hi, TPpcr.lo);
-
-		return;
-
-	}
-
-	elapsedTime = latchedClk.hi - oldClk.hi;
-
-	if (elapsedTime > TIME_HI_THRESHOLD)
-	{
-		dprintk("gtx_dmx: elapsed time disc.\n");
-		goto WE_HAVE_DISCONTINUITY;
-	}
-
-	deltaClk=TPpcr.hi-latchedClk.hi;
-
-	if ((deltaClk < -MAX_HI_DELTA) || (deltaClk > MAX_HI_DELTA))
-	{
-		dprintk("gtx_dmx: large_delta disc.\n");
-		if (large_delta_count++>MAX_DELTA_COUNT)
-			goto WE_HAVE_DISCONTINUITY;
-		return;
-	} else
-		large_delta_count=0;
-
-	deltaClk=gtx_calc_diff(TPpcr, latchedClk);
-	deltaPCR_AVERAGE*=99;
-	deltaPCR_AVERAGE+=deltaClk*10;
-	deltaPCR_AVERAGE/=100;
-
-	if ((deltaPCR_AVERAGE < -0x20000) || (deltaPCR_AVERAGE > 0x20000))
-	{
-		dprintk("gtx_dmx: tmb pcr\n");
-		goto WE_HAVE_DISCONTINUITY;
-	}
-
-	delta_PCR_AV=deltaClk-deltaPCR_AVERAGE/10;
-	if (delta_PCR_AV > deltaClk_max)
-		deltaClk_max=delta_PCR_AV;
-	if (delta_PCR_AV < deltaClk_min)
-		deltaClk_min=delta_PCR_AV;
-
-	elapsedTime=gtx_calc_diff(latchedClk, oldClk);
-
-	if (elapsedTime > TIME_THRESHOLD)
-		goto WE_HAVE_DISCONTINUITY;
-
-//	printk("elapsed %08x, delta %c%08x\n", elapsedTime, deltaClk<0?'-':'+', deltaClk<0?-deltaClk:deltaClk);
-//	printk("%x (%x)\n", deltaClk, gtx_bound_delta(MAX_DAC, deltaClk));
-/*	deltaClk=gtx_bound_delta(MAX_DAC, deltaClk);
-
-	rw(DPCR)=((-deltaClk)<<16)|0x0009; */
-
-    if (avia_gt_chip(ENX)) {
-
-	// Fix gegen Horizontales "Zucken" (von chkdesign):
-	//	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
-
-	enx_reg_16(DAC_PC)=deltaClk;
-	enx_reg_16(DAC_CP)=9;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
-
-	gtx_reg_16(DPCR) = (deltaClk<<16)|9;
-
-    }
-
-	oldClk=latchedClk;
-	return;
-WE_HAVE_DISCONTINUITY:
-	dprintk("gtx_dmx: WE_HAVE_DISCONTINUITY\n");
-	discont=1;
 }
-
-
 
 int __init avia_gt_dmx_init(void)
 {
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.92 2002/08/22 13:39:33 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.93 2002/08/24 00:14:19 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

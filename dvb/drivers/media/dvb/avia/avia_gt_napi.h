@@ -14,29 +14,6 @@
 
 #define NUM_PID_FILTER  32
 
-typedef struct Pcr_s
-{
-  u32 hi, lo;
-} Pcr_t;
-
-// timing stuff
-/* PCR Processing for DAC output */
-#define TICK_RATE (27000000)                  /* 27MHz tick rate */
-#define TICK_QUEUE_MAX  010000	 								/* max video rate before changing queue */
-#define TICK_HI_RATE ((TICK_RATE)/600)        /* 45KHz tick rate ; for hi portion of Pcr */
-#define MAX_HI_DELTA ((TICK_HI_RATE)/5)       /* now 200 mse before 100 msec */
-#define TIME_THRESHOLD ((TICK_RATE)/4)        /* 250 msec @ 27 MHz */
-#if 1
-#define TIME_HI_THRESHOLD ((TICK_HI_RATE)/2)  /* 250 msec @ 45 KHz */
-#else
-#define TIME_HI_THRESHOLD ((TICK_HI_RATE)/2)  /* 500 msec @ 45 KHz */
-#endif
-#define queeue pid==TICK_QUEUE_MAX						/* video queue update rate */
-#define MAX_DELTA_COUNT 3               /* max # of large deltas detected before declaring discontinuity */
-#define MAX_DAC 0x7FFF                  /*#define MAX_DAC 0x1FFF*/  /* maximum DAC range (+/-) */
-#define LARGE_POSITIVE_NUMBER 32760
-#define AV_SYNC_DELAY 1000
-
                         // nokia api stuff
 #define GTX_OUTPUT_TS           0
 #define GTX_OUTPUT_TSPAYLOAD    2
