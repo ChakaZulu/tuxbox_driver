@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.146  2002/11/10 21:25:24  Jolt
+ *   Fixes
+ *
  *   Revision 1.145  2002/11/04 18:41:55  Jolt
  *   HW TS and PES support
  *
@@ -245,7 +248,7 @@
  *
  *
  *
- *   $Revision: 1.145 $
+ *   $Revision: 1.146 $
  *
  */
 
@@ -295,10 +298,10 @@ struct tq_struct avia_gt_dmx_queue_tasklet = {
 	
 };
 
-static int errno							= (int)0;
-static sAviaGtInfo *gt_info						= (sAviaGtInfo *)NULL;
-static sRISC_MEM_MAP *risc_mem_map				= (sRISC_MEM_MAP *)NULL;
-static char *ucode							= (char *)NULL;
+static int errno = 0;
+static sAviaGtInfo *gt_info	= NULL;
+static sRISC_MEM_MAP *risc_mem_map = NULL;
+static char *ucode = NULL;
 static s32 hw_sections = 1;
 static u8 force_stc_reload = 0;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
@@ -319,24 +322,6 @@ static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*
 };
 
 static const u8 queue_system_map[] = {2, 0, 1};
-
-#if 0
-static void avia_gt_dmx_dump(void) {
-	int i;
-	unsigned char *ptr;
-
-	ptr = (unsigned char *) risc_mem_map;
-	ptr += 1024;
-
-	for (i = 0; i < 1024; i++) {
-		if ( (i & 0x0F) == 0) {
-			printk("\n" KERN_INFO "%04X ",i + 0x400);
-		}
-		printk("%02X ",*(ptr++));
-	}
-	printk("\n");
-}
-#endif
 
 static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
@@ -359,9 +344,9 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 
 	queue_list[queue_nr].busy = 1;
 	queue_list[queue_nr].cb_proc = cb_proc;
-//	queue_list[queue_nr].hw_read_pos = 0;
-//	queue_list[queue_nr].hw_write_pos = 0;
-//	queue_list[queue_nr].irq_count = 0;
+	queue_list[queue_nr].hw_read_pos = 0;
+	queue_list[queue_nr].hw_write_pos = 0;
+	queue_list[queue_nr].irq_count = 0;
 	queue_list[queue_nr].irq_proc = irq_proc;
 	queue_list[queue_nr].priv_data = priv_data;
 	queue_list[queue_nr].read_pos = 0;
@@ -1045,6 +1030,7 @@ int avia_gt_dmx_load_ucode(void)
 	int fd = (int)0;
 	loff_t file_size;
 	mm_segment_t fs;
+	u8 ucode_buf[2048];
 
 	fs = get_fs();
 	set_fs(get_ds());
@@ -1074,7 +1060,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	lseek(fd, 0L, 0);
 
-	if (read(fd, (void *)risc_mem_map, file_size) != file_size) {
+	if (read(fd, ucode_buf, file_size) != file_size) {
 
 		printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
 
@@ -1087,6 +1073,8 @@ int avia_gt_dmx_load_ucode(void)
 
 	close(fd);
 	set_fs(fs);
+	
+	avia_gt_dmx_risc_write(ucode_buf, risc_mem_map, file_size);
 
 	printk("avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
 
@@ -1481,10 +1469,10 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 
 	if (((queue_list[queue_nr].read_pos < old_hw_write_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) && (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))) ||
 		((old_hw_write_pos < queue_list[queue_nr].read_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) || (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))))
-		queue_list[queue_nr].overflow_count++;	// We can't recovery here or we will break queue handling (get_data*, bytes_avail, ...)
+		queue_list[queue_nr].overflow_count++;	// We can't recover here or we will break queue handling (get_data*, bytes_avail, ...)
 
 #endif
-	
+
 	if (queue_list[queue_nr].irq_proc)
 		queue_list[queue_nr].irq_proc(&queue_list[queue_nr].info, queue_list[queue_nr].priv_data);
 	else	
@@ -1517,10 +1505,12 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr)
 
 	}
 
-	queue_list[queue_nr].write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
-	queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
+	queue_list[queue_nr].hw_read_pos = 0;
+	queue_list[queue_nr].hw_write_pos = 0;
+	queue_list[queue_nr].read_pos = 0;
+	queue_list[queue_nr].write_pos = 0;
 	
-	avia_gt_dmx_queue_set_write_pos(queue_nr, queue_list[queue_nr].read_pos);
+	avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
 
 	return 0;
 
@@ -1616,7 +1606,8 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 
 int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh)
 {
-	sPID_Parsing_Control_Entry e;
+
+	sPID_Parsing_Control_Entry ppc_entry;
 
 	if (entry > 31) {
 
@@ -1637,22 +1628,20 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 
 	if (risc_mem_map->Version_no[0] < 0xA0)
 		queue++;
-		
-	*((u32 *) &e ) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]);
 
-	e.type = type;
-	e.QID = queue;
-	e.fork = !!fork;
-	e.CW_offset = cw_offset;
-	e.CC = cc;
-	e._PSH = _psh;
-	e.start_up = !!start_up;
-	e.PEC = !!pec;
-	e.filt_tab_idx = filt_tab_idx;
-//	e.State = 0;
-	e.State = 7;
+	ppc_entry.type = type;
+	ppc_entry.QID = queue;
+	ppc_entry.fork = !!fork;
+	ppc_entry.CW_offset = cw_offset;
+	ppc_entry.CC = cc;
+	ppc_entry._PSH = _psh;
+	ppc_entry.start_up = !!start_up;
+	ppc_entry.PEC = !!pec;
+	ppc_entry.filt_tab_idx = filt_tab_idx;
+	ppc_entry.State = 0;
+//FIXME	ppc_entry.State = 7;
 
-	*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]) = *((u32 *) &e);
+	avia_gt_dmx_risc_write(&ppc_entry, &risc_mem_map->PID_Parsing_Control_Table[entry], sizeof(ppc_entry));
 
 	return 0;
 
@@ -1660,7 +1649,8 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 {
-	sPID_Entry e;
+
+	sPID_Entry pid_entry;
 
 	if (entry > 31) {
 
@@ -1670,17 +1660,14 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 
 	}
 
-	dprintk("avia_gt_dmx_set_pid_table, entry %d, wait_pusi %d, valid %d, pid 0x%04X\n",
-		entry,wait_pusi,valid,pid);
+	dprintk("avia_gt_dmx_set_pid_table, entry %d, wait_pusi %d, valid %d, pid 0x%04X\n", entry, wait_pusi, valid, pid);
 
-	e.wait_pusi = wait_pusi;
-	e.VALID = !!valid;			// 0 = VALID, 1 = INVALID
-	e.Reserved1 = 0;
-	e.PID = pid;
-	*((u16 *) &risc_mem_map->PID_Search_Table[entry]) = *((u16 *) &e);
+	pid_entry.wait_pusi = wait_pusi;
+	pid_entry.VALID = !!valid;			// 0 = VALID, 1 = INVALID
+	pid_entry.Reserved1 = 0;
+	pid_entry.PID = pid;
 
-//	if (valid == 0)
-//		avia_gt_dmx_dump();
+	avia_gt_dmx_risc_write(&pid_entry, &risc_mem_map->PID_Search_Table[entry], sizeof(pid_entry));
 
 	return 0;
 
@@ -1903,8 +1890,6 @@ int avia_gt_dmx_risc_init(void)
 	if (avia_gt_chip(ENX)) {
 
 		avia_gt_dmx_reset(1);
-		enx_reg_32(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
-		//enx_tdp_trace();
 		enx_reg_16(EC) = 0;
 
 	} else if (avia_gt_chip(GTX)) {
@@ -1914,6 +1899,87 @@ int avia_gt_dmx_risc_init(void)
 	}
 
 	return 0;
+
+}
+
+void avia_gt_dmx_risc_write(void *src, void *dst, u16 count)
+{
+
+	if ((((u32)dst) < ((u32)risc_mem_map)) || (((u32)dst) > (((u32)risc_mem_map) + sizeof(sRISC_MEM_MAP)))) {
+	
+		printk("avia_gt_dmx: invalid risc write destination\n");
+		
+		return;
+	
+	}
+
+	avia_gt_dmx_risc_write_offs(src, ((u32)dst) - ((u32)risc_mem_map), count);
+
+}
+
+void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
+{
+
+	u32 pos;
+
+	if (count & 1) {
+	
+		printk("avia_gt_dmx: odd size risc write transfer detected\n");
+		
+		return;
+	
+	}
+	
+	if ((offset + count) > sizeof(sRISC_MEM_MAP)) {
+	
+		printk("avia_gt_dmx: invalid risc write length detected\n");
+		
+		return;
+	
+	}
+	
+//	if (count & 2) {
+	
+		for (pos = 0; pos < count; pos += 2) {
+
+			if (avia_gt_chip(ENX)) {
+			
+				if ((enx_reg_16n(TDP_INSTR_RAM + offset + pos)) != (((u16 *)src)[pos / 2])) {
+				
+					enx_reg_16n(TDP_INSTR_RAM + offset + pos) = ((u16 *)src)[pos / 2];
+
+					mb();
+				
+				}
+		
+			} else if (avia_gt_chip(GTX)) {
+			
+				if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) = (((u16 *)src)[pos / 2])) {
+
+					gtx_reg_16n(GTX_REG_RISC + offset + pos) = ((u16 *)src)[pos / 2];
+					
+					mb();
+					
+				}
+				
+			}
+				
+		}
+		
+/*	} else {
+
+		for (pos = 0; pos < count; pos += 4) {
+
+			if (avia_gt_chip(ENX))
+				enx_reg_32n(TDP_INSTR_RAM + offset + pos) = ((u32 *)src)[pos / 4];
+			else if (avia_gt_chip(GTX))
+				gtx_reg_32n(GTX_REG_RISC + offset + pos) = ((u32 *)src)[pos / 4];
+
+			mb();
+		
+		}
+	
+	}*/
 
 }
 
@@ -2057,7 +2123,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.145 2002/11/04 18:41:55 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.146 2002/11/10 21:25:24 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2110,11 +2176,6 @@ int __init avia_gt_dmx_init(void)
 		enx_reg_16(AVI_1) = 0xA;
 
 		enx_reg_32(CFGR0) &= ~3;				// disable clip mode
-
-		printk("ENX-INITed -> %x\n", enx_reg_16(FIFO_PDCT));
-
-		if (!enx_reg_16(FIFO_PDCT))
-			printk("there MIGHT be no TS :(\n");
 
 	} else if (avia_gt_chip(GTX)) {
 

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.4 2002/11/08 01:26:55 obi Exp $
+ * $Id: avia_napi.c,v 1.5 2002/11/10 21:25:24 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -39,13 +39,8 @@
 #include "avia_gt_napi.h"
 
 static struct dvb_adapter *adap;
-static struct dvb_demux *demux;
-static dmxdev_t dmxdev;
-static dmx_frontend_t fe_hw;
-static dmx_frontend_t fe_mem;
 static struct dvb_i2c_bus *i2c_bus;
 
-int cam_napi_register(struct dvb_adapter *adapter, void *priv);
 int i2c_dbox2_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num);
 
 static int avia_napi_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msgs[], int num)
@@ -54,13 +49,6 @@ static int avia_napi_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msg
 //	printk("avia_napi: i2c_master_xfer\n");
 	
 	return i2c_dbox2_xfer(NULL, msgs, num);
-
-}
-
-static void avia_napi_before_after_tune(fe_status_t fe_status, void *data)
-{
-
-//	printk("avia_napi: before_after_tune\n");
 
 }
 
@@ -83,18 +71,20 @@ static int avia_napi_before_ioctl(struct dvb_frontend *fe, unsigned int cmd, voi
 
 }
 
+struct dvb_adapter *avia_napi_get_adapter(void)
+{
+
+	return adap;
+	
+}
+
 static int __init avia_napi_init(void)
 {
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.4 2002/11/08 01:26:55 obi Exp $\n");
+	printk("$Id: avia_napi.c,v 1.5 2002/11/10 21:25:24 Jolt Exp $\n");
 	
-	demux = avia_gt_napi_get_demux();
-	
-	if (!demux)
-		return -EFAULT;
-
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
 		printk("avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
@@ -113,95 +103,10 @@ static int __init avia_napi_init(void)
 	
 	}
 
-//FIXME dmxdev
-	dmxdev.filternum = 32;
-	dmxdev.demux = &demux->dmx;
-	dmxdev.capabilities = 0;
-	
-	if ((result = dvb_dmxdev_init(&dmxdev, adap)) < 0) {
-	
-		printk("avia_napi: dvb_dmxdev_init failed (errno = %d)\n", result);
-
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-	
-	}
-
-	fe_hw.id = "hw_frontend";
-	fe_hw.vendor = "Dummy Vendor";
-	fe_hw.model = "hw";
-	fe_hw.source = DMX_FRONTEND_0;
-
-	if ((result = demux->dmx.add_frontend(&demux->dmx, &fe_hw)) < 0) {
-	
-		printk("avia_napi: add_frontend (hw) failed (errno = %d)\n", result);
-
-		dvb_dmxdev_release(&dmxdev);
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-	
-	fe_mem.id = "mem_frontend";
-	fe_mem.vendor = "memory";
-	fe_mem.model = "sw";
-	fe_mem.source = DMX_MEMORY_FE;
-
-	if ((result = demux->dmx.add_frontend(&demux->dmx, &fe_mem)) < 0) {
-	
-		printk("avia_napi: add_frontend (mem) failed (errno = %d)\n", result);
-
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-
-	if ((result = demux->dmx.connect_frontend(&demux->dmx, &fe_hw)) < 0) {
-	
-		printk("avia_napi: connect_frontend failed (errno = %d)\n", result);
-
-		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-
-	if ((result = dvb_add_frontend_notifier(adap, avia_napi_before_after_tune, NULL)) < 0) {
-	
-		printk("avia_napi: dvb_add_frontend_notifier failed (errno = %d)\n", result);
-
-		demux->dmx.close(&demux->dmx);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-
 	if ((result = dvb_add_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl, NULL)) < 0) {
 	
 		printk("avia_napi: dvb_add_frontend_ioctls failed (errno = %d)\n", result);
 
-		dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
-		demux->dmx.close(&demux->dmx);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
 		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
@@ -214,38 +119,12 @@ static int __init avia_napi_init(void)
 		printk("avia_napi: avia_av_napi_register failed (errno = %d)\n", result);
 
 		dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
-		dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
-		demux->dmx.close(&demux->dmx);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
 		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
 		return result;
 		
 	}
-
-	if ((result = cam_napi_register(adap, NULL)) < 0) {
-
-		printk("avia_napi: cam_napi_register failed (errno = %d)\n", result);
-
-		avia_av_napi_unregister();
-		dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
-		dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
-		demux->dmx.close(&demux->dmx);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-		dvb_dmxdev_release(&dmxdev);
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-
-
-
 
 //FIXME	dvb_net_register();
 
@@ -260,11 +139,6 @@ static void __exit avia_napi_exit(void)
 
 	avia_av_napi_unregister();
 	dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
-	dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
-	demux->dmx.close(&demux->dmx);
-	demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
-	demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
-	dvb_dmxdev_release(&dmxdev);
 	dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 	dvb_unregister_adapter(adap);
 
