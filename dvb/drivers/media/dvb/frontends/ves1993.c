@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.24 2002/05/12 21:22:59 derget Exp $
+  $Id: ves1993.c,v 1.25 2002/06/01 11:11:10 happydude Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.25  2002/06/01 11:11:10  happydude
+  add module license
+
   Revision 1.24  2002/05/12 21:22:59  derget
   diseq solte nun gehen (untested)
 
@@ -73,6 +76,9 @@
 #include <dbox/fp.h>
 #include <ost/sec.h>
 
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #ifdef MODULE
 MODULE_PARM(debug,"i");
 #endif
