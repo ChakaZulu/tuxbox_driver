@@ -200,7 +200,7 @@ int set_tuner_dword(u32 tw)
 	{
 		return -1;
 	}
-//	ves_write_reg(0x00,0x01);
+	ves_write_reg(0x00,0x01);
 	return -1;
 
 }
@@ -305,7 +305,13 @@ static int dump(struct i2c_client *client)
         return 0;
 }
 
+static int ves_set_sec(int power, int tone){
+     
+     dprintk("VES1993: Set SEC\n"); 
 
+
+     return 0;
+}
 static int init(struct i2c_client *client)
 {
         struct ves1993 *ves=(struct ves1993 *) client->data;
@@ -355,8 +361,8 @@ static void ClrBit1893(struct i2c_client *client)
 {
         printk("VES_clrbit1893\n");
         ddelay(2);
-        writereg(client, 0, Init1993Tab[0] & 0xfe);
-        writereg(client, 0, Init1993Tab[0]);
+//        writereg(client, 0, Init1993Tab[0] & 0xfe);
+//        writereg(client, 0, Init1993Tab[0]);
 }
 
 static int SetFEC(struct i2c_client *client, u8 fec)
@@ -387,7 +393,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
         }
         printk("VES_setsymbolrate %d\n", srate);
 
-#define XIN (91000000UL) // dbox Crystal iss 91 MHz !!
+#define XIN (92160000UL) // 3des sagem dbox Crystal ist 92,16 MHz !!
 
 	if (srate>XIN/2)
                 srate=XIN/2;
@@ -542,8 +548,8 @@ void ves_set_frontend(struct frontend *front)
     writereg(dclient, 0x0c, Init1993Tab[0x0c] ^ (ves->inv ? 0x40 : 0x00));
     ClrBit1893(dclient);
   }
-//  SetFEC(dclient, front->fec);               //3des dont work up to now..
-//  SetSymbolrate(dclient, front->srate, 1);
+  SetFEC(dclient, front->fec);              
+  SetSymbolrate(dclient, front->srate, 1);
   printk("sync: %x\n", readreg(dclient, 0x0E));
 }
 
@@ -607,9 +613,7 @@ static struct i2c_client client_template = {
 #ifdef MODULE
 int init_module(void) {
         int res;
-        int sync;
-	int i;
-	
+        	
         if ((res = i2c_add_driver(&dvbt_driver))) 
         {
                 printk("ves1993: Driver registration failed, module not inserted.\n");
@@ -640,7 +644,13 @@ int init_module(void) {
 	ves_write_reg(0x00,0x00);
 	ves_write_reg(0x00,0x01);
 
-	tuner_init();	
+	tuner_init();
+
+        mitel_set_freq(1198000000);
+		
+        SetSymbolrate(dclient, 27500000 , 1);
+	SetFEC(dclient,2);
+
 	
         return 0;
 }
