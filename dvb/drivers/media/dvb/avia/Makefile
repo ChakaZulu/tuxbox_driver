@@ -11,6 +11,8 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 #LD =  $(CROSS_COMPILE)ld
 MODULE_DEST= /LinuxPPC/lib/modules/2.4.0-test12/misc/
 
+BUILD_DATE=$(shell date)
+
 #################################################
 # some magic for using linux kernel settings
 # when compiling module(s)
@@ -19,6 +21,8 @@ M_OBJS   = gtx.o aviam.o
 
 AVIA_OBJS = 500v093.o 600vb017.o avia.o
 GTX_OBJS  = gtx-core.o gtx-dmx.o gtx-fb.o ucode.o fbgen.o 
+
+EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
