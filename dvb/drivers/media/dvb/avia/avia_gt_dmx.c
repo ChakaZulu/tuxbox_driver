@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.175 2003/05/27 04:45:52 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.176 2003/06/19 19:24:02 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1775,7 +1775,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 	if (gain_changed)
 	{
-		printk(KERN_INFO "Diff: %d, Last-Diff: %d Direction: %d, Gain: %d\n",pcr_lstc_diff,last_pcr_lstc_diff,direction,gain);
+		dprintk(KERN_INFO "Diff: %d, Last-Diff: %d Direction: %d, Gain: %d\n",pcr_lstc_diff,last_pcr_lstc_diff,direction,gain);
 		avia_gt_dmx_set_dac(gain);
 	}
 }
@@ -2373,7 +2373,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.175 2003/05/27 04:45:52 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.176 2003/06/19 19:24:02 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
