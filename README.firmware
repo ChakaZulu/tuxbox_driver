@@ -1,0 +1,112 @@
+#
+# README.firmware
+#
+
+Some drivers need to load binary firmware for the chips to operate.
+
+Those are:
+- avia_av (mpeg decoder, C-Cube AViA500/AViA600, "avia500.ux, avia600.ux")
+- avia_gt (transport demux, C-Cube AViA-GTX/AViA-eNX, "ucode.bin")
+- cam     (conditional access module, BetaResearch SEC, "cam-alpha.bin")
+
+There are lots og different firmware versions available, but not every
+difference is known. In fact, almost only the version numbers are known to be
+different. See below for more about firmware versions.
+
+Unfortunately, there is no official download location for them and - due to
+unknown license terms - we can not provide these binaries next to the driver
+sources.
+
+However, there are several ways to get the firmware.
+
+
+ucodex:
+-------
+You can use the microcode extraction utility "ucodex" to recursively scan
+directories for firmware. You can get it from CVS and build it by using the
+commands listed below. You must have openssl development headers installed on
+your system to succeed. "ucodex" has been tested on Linux and FreeBSD, but it
+should work on any platform which has a c-compiler and openssl.
+
+   cvs -d:pserver:anonymous@cvs.berlios.de:/cvsroot/tuxbox -z3 co hostapps
+   cd hostapps
+   ./autogen.sh
+   ./configure
+   cd ucodex
+   make
+   make install
+
+Syntax for execution is one of:
+ucodex <filename>
+ucodex <directory>
+
+
+Extraction:
+-----------
+
+1. If you own a dbox2 which still has its original operating system or if you
+   own a backup of it, then you can extract alle three files from it. See
+   http://www.dietmar-h.net for details. This is the only way to get the cam
+   firmware. Ensure that you have the latest and greatest version by doing a
+   software update via cable or satellite before extracting. The current
+   software version (2.01) contains the following firmware versions:
+   avia500v110, avia600v022, cam_01_02_05[DEF], ucode_B107
+
+
+2. Some other dvb receivers are equipped with the same mpeg chipset as the
+   various version of the dbox2. Some of them offer the possibility to perform
+   software updates using a serial interface. For those, manufacturers provide
+   updates to be downloaded via internet. Examples are:
+   
+   http://www.media-com.com/downloads/vortec/downloadfiles/VS96PL500.exe
+   (avia500v093, ucode_0014)
+   
+   http://www.media-com.com/downloads/vortec/downloadfiles/VS96PL600.exe
+   (avia600vb017, ucode_0014)
+
+   http://www.micronik.de/software/MK12133.zip
+   http://www.micronik.de/software/MK13133.zip
+   (avia500v093, avia600vb028, ucode_001A)
+
+   http://www.micronik.de/software/v12-111.zip
+   http://www.micronik.de/software/v13-111.zip
+   (avia500v093, avia600vb022, ucode_001A)
+   
+   http://www.freesat.co.kr/service/service.html#direct
+   (There are some receivers which also use the AViA mpeg chipset. I do not
+    remember which of them use it and my extraction utility fails. Detailed
+    information and bugfixes are welcome.)
+
+   You can extract the zip or exe archives using "unzip". Usually they
+   contain files with the extesion bin or hex. Just run "ucodex" to extract
+   the firmware from them.
+
+
+
+Supported firmware status:
+--------------------------
+avia_av:
+   All versions are known to work, but some show strange effects when using
+   AC-3 audio output. Using the latest versions (avia500v110, avia600vb028)
+   is recommended.
+
+avia_gt:
+   ucode_0013, ucode_0014:
+   Known to work and hardware section filtering is supported.
+
+   ucode_B102, ucode_B107, ucode_B121:
+   Known to work but hardware section filtering is not supported by the driver.
+
+   All other ucode versions are currently not supported vy the driver. Bugfixes
+   and documentation are always welcome.
+
+cam:
+   All known firmware versions are supported by the driver. However, command
+   handling is done in userspace, thus userspace applications might need to
+   change some bits depending on the used firmware version.
+   Version strings usually have one of three suffixes: D, E or F.
+   Each suffix matches one series of smart cards:
+   cam_xx_yy_zzD: S/N D .... .... ... Z
+   cam_xx_yy_zzE: S/N C .... .... ... Z
+   cam_xx_yy_zzF: S/N F .... .... ... Z
+
