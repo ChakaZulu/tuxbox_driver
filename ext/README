@@ -20,4 +20,12 @@ aviaEXT:
 			received value reflects the settings above (0= turned off, 1 = turned on)
 			(this is an Avia600-only(!) feature)
 
+		AVIA_EXT_AVIA_PLAYBACK_MODE_SET	(int)
+			1 = spts mode
+			0 = dual pes mode
+			(this will only take effect after channel switch!)
+			
+		AVIA_EXT_AVIA_PLAYBACK_MODE_GET	(*int)
+			received value reflects the settings above (0= dual pes mode, 1 = spts mode)
+
 	for testing there is a tool in "/apps/tuxbox/tools/misc" called - surprise - aviaext ;)
