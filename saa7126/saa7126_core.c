@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.27 2002/11/18 00:53:36 obi Exp $
+ * $Id: saa7126_core.c,v 1.28 2002/11/25 18:24:14 obi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -40,7 +40,7 @@
 #error device filesystem required
 #endif
 
-#define dprintk if (1) printk
+#define dprintk if (0) printk
 
 
 
