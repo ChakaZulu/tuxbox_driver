@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.23 2002/01/10 20:41:35 derget Exp $
+    $Id: at76c651.c,v 1.24 2002/01/10 23:32:22 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.24  2002/01/10 23:32:22  fnbrd
+    Better debug output.
+
     Revision 1.23  2002/01/10 20:41:35  derget
     angepasst an neue sagem
     mit at76c651b
@@ -666,15 +669,21 @@ static int attach_adapter(struct i2c_adapter *adap)
         client_template.adapter=adap;
 
         if (readreg(&client_template, 0x0e)!=0x65) {
-          printk("no AT76C651\n");
+          printk("no AT76C651(B) found\n");
           return -1;
 	}
         
 	if (readreg(&client_template, 0x0f)!=0x10)
         {
           if (readreg(&client_template, 0x0f)==0x11)
-            printk("no AT76C651 found, but a AT76C651B\n");
+            dprintk("AT76C651B found\n");
+	  else {
+            printk("no AT76C651(B) found\n");
+            return -1;
+	  }
         }
+        else
+          dprintk("AT76C651B found\n");
 	
 
         if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
@@ -835,7 +844,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.23 2002/01/10 20:41:35 derget Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.24 2002/01/10 23:32:22 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
