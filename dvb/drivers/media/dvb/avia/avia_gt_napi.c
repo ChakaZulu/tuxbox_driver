@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.165 $
+ *   $Revision: 1.166 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.166  2002/11/21 21:44:29  Jolt
+ *   Cleanups
+ *
  *   Revision 1.165  2002/11/20 12:03:46  Jolt
  *   SPTS mode support (which is now default)
  *
@@ -563,35 +566,6 @@ MODULE_LICENSE("GPL");
 #endif
 #endif
 
-void avia_gt_dmx_queue_stop(struct avia_gt_dmx_queue *queue)
-{
-
-	if (!queue)
-		return;
-
-	avia_gt_dmx_queue_irq_disable(queue->index);
-	avia_gt_dmx_set_pid_table(queue->index, 0, 1, 0);
-
-}
-
-#define AVIA_GT_DMX_QUEUE_MODE_TS		0
-#define AVIA_GT_DMX_QUEUE_MODE_PES		3
-#define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
-#define AVIA_GT_DMX_QUEUE_MODE_SEC16	5
-
-void avia_gt_dmx_queue_start(struct avia_gt_dmx_queue *queue, u8 mode, u16 pid, u8 wait_pusi, u8 target_queue)
-{
-
-	if (!queue)
-		return;
-
-	avia_gt_dmx_queue_stop(queue);
-	avia_gt_dmx_queue_reset(queue->index);
-	avia_gt_dmx_set_pid_control_table(queue->index, mode, target_queue, 0, 0, 0, 1, 0, 0, 0);
-	avia_gt_dmx_set_pid_table(queue->index, wait_pusi, 0, pid);
-
-}
-
 static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
 
@@ -743,16 +717,10 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 	dvbdmxfeed->priv = queue;
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) &&
-		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO))) {
-		
+		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 		avia_av_napi_decoder_start(dvbdmxfeed);
-		avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0);
 		
-	} else {
-
-		avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, queue->index);
-	
-	}
+	avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0);
 
 	return 0;
 
@@ -772,16 +740,10 @@ static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 	dvbdmxfeed->priv = queue;
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) &&
-		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO))) {
-		
+		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 		avia_av_napi_decoder_start(dvbdmxfeed);
-		avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0);
 		
-	} else {
-
-		avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, queue->index);
-	
-	}
+	avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0);
 
 	return 0;
 
@@ -804,7 +766,7 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 		avia_av_napi_decoder_start(dvbdmxfeed);
 		
-	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0, queue->index);
+	avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0);
 	
 	return 0;
 
@@ -906,7 +868,7 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 		avia_av_napi_decoder_stop(dvbdmxfeed);
 
-	avia_gt_dmx_queue_stop(queue);
+	avia_gt_dmx_queue_stop(queue->index);
 	avia_gt_dmx_free_queue(queue->index);
 
 	return 0;
@@ -950,7 +912,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.165 2002/11/20 12:03:46 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.166 2002/11/21 21:44:29 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.152  2002/11/21 21:44:29  Jolt
+ *   Cleanups
+ *
  *   Revision 1.151  2002/11/20 18:35:13  Jolt
  *   IRQ rate fixes
  *
@@ -263,7 +266,7 @@
  *
  *
  *
- *   $Revision: 1.151 $
+ *   $Revision: 1.152 $
  *
  */
 
@@ -1617,6 +1620,43 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 
 }
 
+int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: queue_start queue (%d) out of bounce\n", queue_nr);
+
+		return -EINVAL;
+
+	}
+	
+	avia_gt_dmx_queue_reset(queue_nr);
+	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, 0, 0);
+	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
+
+	return 0;
+
+}
+
+int avia_gt_dmx_queue_stop(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: queue_stop queue (%d) out of bounce\n", queue_nr);
+
+		return -EINVAL;
+
+	}
+	
+	avia_gt_dmx_queue_irq_disable(queue_nr);
+	avia_gt_dmx_set_pid_table(queue_nr, 0, 1, 0);
+
+	return 0;
+
+}
+
 static void avia_gt_dmx_queue_task(void *tl_data)
 {
 
@@ -1673,27 +1713,34 @@ void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid)
 
 }
 
-int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh)
+int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh)
 {
 
 	sPID_Parsing_Control_Entry ppc_entry;
+	u8 target_queue_nr;
 
-	if (entry > 31) {
+	if (queue_nr > AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: pid control table entry out of bounce (entry=%d)!\n", entry);
+		printk("avia_gt_dmx: pid control table entry out of bounce (entry=%d)!\n", queue_nr);
 
 		return -EINVAL;
 
 	}
 
 	dprintk("avia_gt_dmx_set_pid_control_table, entry %d, type %d, queue %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
-		entry,type,queue,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
+		queue_nr,type,queue,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
+		
+	// Special case for SPTS audio queue
+	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == AVIA_GT_DMX_QUEUE_MODE_TS))
+		target_queue_nr = AVIA_GT_DMX_QUEUE_AUDIO;
+	else
+		target_queue_nr = queue_nr;
 
 	if (risc_mem_map->Version_no[0] < 0xA0)
-		queue++;
+		target_queue_nr++;
 
 	ppc_entry.type = type;
-	ppc_entry.QID = queue;
+	ppc_entry.QID = target_queue_nr;
 	ppc_entry.fork = !!fork;
 	ppc_entry.CW_offset = cw_offset;
 	ppc_entry.CC = cc;
@@ -1704,7 +1751,7 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 	ppc_entry.State = 0;
 //FIXME	ppc_entry.State = 7;
 
-	avia_gt_dmx_risc_write(&ppc_entry, &risc_mem_map->PID_Parsing_Control_Table[entry], sizeof(ppc_entry));
+	avia_gt_dmx_risc_write(&ppc_entry, &risc_mem_map->PID_Parsing_Control_Table[queue_nr], sizeof(ppc_entry));
 
 	return 0;
 
@@ -2186,7 +2233,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.151 2002/11/20 18:35:13 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.152 2002/11/21 21:44:29 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2336,6 +2383,8 @@ EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_reset);
 EXPORT_SYMBOL(avia_gt_dmx_queue_set_write_pos);
+EXPORT_SYMBOL(avia_gt_dmx_queue_start);
+EXPORT_SYMBOL(avia_gt_dmx_queue_stop);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_read_pos);
 EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_write_pos);

@@ -34,6 +34,11 @@
 #define AVIA_GT_DMX_QUEUE_MESSAGE		31
 #define AVIA_GT_DMX_QUEUE_HIGH_SPEED	32
 
+#define AVIA_GT_DMX_QUEUE_MODE_TS		0
+#define AVIA_GT_DMX_QUEUE_MODE_PES		3
+#define AVIA_GT_DMX_QUEUE_MODE_SEC8		4
+#define AVIA_GT_DMX_QUEUE_MODE_SEC16	5
+
 struct avia_gt_dmx_queue {
 
 	u8 index;
@@ -212,7 +217,7 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr);
 s32 avia_gt_dmx_free_queue(u8 queue_nr);
 void avia_gt_dmx_force_discontinuity(void);
 void avia_gt_dmx_set_pcr_pid(u8 enable, u16 pid);
-int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh);
+int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh);
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
@@ -220,6 +225,8 @@ u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 s32 avia_gt_dmx_queue_reset(u8 queue_nr);
+int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi);
+int avia_gt_dmx_queue_stop(u8 queue_nr);
 void avia_gt_dmx_queue_set_write_pos(unsigned char queue_nr, unsigned int write_pointer);
 void avia_gt_dmx_risc_write(void *src, void *dst, u16 count);
 void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count);
