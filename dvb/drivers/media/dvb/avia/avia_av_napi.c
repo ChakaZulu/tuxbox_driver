@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.7  2002/11/10 01:27:54  obi
+ *   fix audio
+ *
  *   Revision 1.6  2002/11/06 05:26:08  obi
  *   some fixes
  *
@@ -44,7 +47,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -76,8 +79,8 @@ static struct dvb_device *video_dev;
 static struct audio_status audiostate;
 static struct video_status videostate;
 
-static u16 audio_pid;
-static u16 video_pid;
+static u16 audio_pid = 0;
+static u16 video_pid = 0;
 
 static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
@@ -140,7 +143,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 
 #endif
-						avia_command(SetStreamType, 0x0B, 0x0000);
+						//avia_command(SetStreamType, 0x0B, 0x0000);
 
 
 						avia_command(SelectStream, 0x00, video_pid);
@@ -438,11 +441,13 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_PLAY:
-#if 0
-			if ((audiostate.play_state != AUDIO_PLAYING) || (audio_stream_type == STREAM_TYPE_SPTS_ES)) {
+
+//FIXME			if ((audiostate.play_state != AUDIO_PLAYING) || (audio_stream_type == STREAM_TYPE_SPTS_ES)) {
+			if (audiostate.play_state != AUDIO_PLAYING) {
 				switch (audiostate.stream_source) {
 					case AUDIO_SOURCE_DEMUX:
 						printk("avia: playing apid: 0x%X\n", audio_pid);
+#if 0
 #ifdef AVIA_SPTS
 						if (audio_stream_type != STREAM_TYPE_SPTS_ES) {
 							if (!aviarev) {
@@ -464,6 +469,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 							audio_stream_type = STREAM_TYPE_DPES_PES;
 						}
 #endif
+#endif
 						avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
 						if (audiostate.play_state != AUDIO_PLAYING) {
 							if (videostate.play_state == VIDEO_PLAYING) {
@@ -483,7 +489,6 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 						return -EINVAL;
 				}
 			}
-#endif
 			audiostate.play_state = AUDIO_PLAYING;
 			break;
 
@@ -797,14 +802,14 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.6 2002/11/06 05:26:08 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.7 2002/11/10 01:27:54 obi Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
 	audiostate.play_state = AUDIO_STOPPED;
 	audiostate.stream_source = AUDIO_SOURCE_DEMUX;
 	audiostate.channel_select = AUDIO_STEREO;
-	audiostate.bypass_mode = 0;
+	audiostate.bypass_mode = 1;
 	audiostate.mixer_state.volume_left = 0;
 	audiostate.mixer_state.volume_right = 0;
 
