@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.4  2002/09/13 21:37:30  Jolt
+ *   Fixed GTX HW-CRC
+ *
  *   Revision 1.3  2002/08/27 20:18:45  Jolt
  *   Engine is working now for GTX and eNX (except for section data :-( )
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -55,9 +58,6 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 	u32 transaction_size;
 	u8 odd_end_padding = 0;
 	u8 odd_start_padding = 0;
-//	u32 swcrc;
-
-//	swcrc = crc32_seed((char *)&gt_info->mem_addr[buffer], buffer_size, seed);
 
 	if (avia_gt_chip(ENX)) {
 	
@@ -78,10 +78,18 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 		
 	} else if (avia_gt_chip(GTX)) {
 	
-		if (seed)
-			gtx_reg_set(RCRC, CRC, seed);
-		else
+		if (seed) {
+		
+			gtx_reg_set(RCRC, CRC, seed ^ 0xFFFFFFFF);
+			
+		} else {
+		
 			gtx_reg_set(RCRC, CRC, *((u32*)&gt_info->mem_addr[buffer]));
+			
+			buffer += 4;
+			buffer_size -= 4;
+			
+		}
 
 		if ((buffer & 1) || (!buffer_size))
 			odd_start_padding = 1;
@@ -126,23 +134,11 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 	
     }
 
-/*	if (swcrc != gtx_reg_32(RCRC)) {
-
-		printk("avia_gt_crc: CRC-NACK 0x%08X/0x%08X/0x%08X\n", swcrc, gtx_reg_32(RCRC), gtx_reg_32(RCRC) ^ 0xFFFFFFFF);
-
-		return swcrc;
-	
-	} else {
-		
-		printk("avia_gt_crc: CRC-ACK!!!!\n");
-		
-	}*/
-
 	if (avia_gt_chip(ENX))
 	    //return enx_reg_s(CPCCRCSRC2)->CRC.CRC;
     	return (enx_reg_32(CPCCRCSRC2) ^ 0xFFFFFFFF);
 	else if (avia_gt_chip(GTX))
-		return gtx_reg_32(RCRC);
+		return (gtx_reg_32(RCRC) ^ 0xFFFFFFFF);
 		
 	return 0;	
 
@@ -151,7 +147,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 static int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.3 2002/08/27 20:18:45 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.4 2002/09/13 21:37:30 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
@@ -177,8 +173,6 @@ static int __init avia_gt_accel_init(void)
 		
 	}
 	
-//	avia_gt_accel_crc32(0, 2 * 1024 * 1024 - 100, 0);
-							    
     return 0;
     
 }
