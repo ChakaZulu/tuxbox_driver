@@ -748,18 +748,13 @@ extern void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 extern void avia_gt_enx_init(void);
 extern void avia_gt_enx_exit(void);
 
-#define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + ENX_REG_ ## register))))
-#define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + offset))))
-#define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + ENX_REG_ ## register))))
-#define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + offset))))
-#define enx_reg_o(offset) (avia_gt_get_reg_addr() + offset)
+#define enx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + ENX_REG_ ## register))))
+#define enx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
+#define enx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + ENX_REG_ ## register))))
+#define enx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
+#define enx_reg_o(offset) (gt_info->reg_addr + offset)
 #define enx_reg_s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
 #define enx_reg_32s(register) ((sENX_REG_##register *)(&enx_reg_32(register)))
 #define enx_reg_16s(register) ((sENX_REG_##register *)(&enx_reg_16(register)))
-
-#define enx_reg_wn(register) enx_reg_32n(register)
-#define enx_reg_hn(register) enx_reg_16n(register)
-#define enx_reg_w(register) enx_reg_32(register)
-#define enx_reg_h(register) enx_reg_16(register)
 
 #endif

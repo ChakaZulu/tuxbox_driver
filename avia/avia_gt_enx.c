@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.8  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.7  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -100,7 +103,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -128,6 +131,8 @@
 #include <asm/uaccess.h>
 
 #include "dbox/avia_gt.h"
+
+static sAviaGtInfo *gt_info;
 
 static int isr[] = {0x0100, 0x0102, 0x0104, 0x0106, 0x0108, 0x010A};
 static int imr[] = {0x0110, 0x0112, 0x0114, 0x0116, 0x0118, 0x011A};
@@ -176,65 +181,65 @@ void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 void enx_dac_init(void)
 {
 
-    enx_reg_w(RSTR0) &= ~(1 << 20);	// Get dac out of reset state
-    enx_reg_h(DAC_PC) = 0x0000;
-    enx_reg_h(DAC_CP) = 0x0009;
+    enx_reg_s(RSTR0)->DAC = 0;	// Get dac out of reset state
+    enx_reg_16(DAC_PC) = 0x0000;
+    enx_reg_16(DAC_CP) = 0x0009;
 	
 }
 
 void enx_irq_enable(void)
 {
 
-  enx_reg_w(EHIDR) = 0;					// IRQs an Hostprozessor weiterreichen
-  enx_reg_w(IPR4) = 0x55555555; // alles auf HIRQ0
-  enx_reg_w(IPR5) = 0x55555555; // das auch noch
+  enx_reg_32(EHIDR) = 0;	 // IRQs an Hostprozessor weiterreichen
+  enx_reg_32(IPR4) = 0x55555555; // alles auf HIRQ0
+  enx_reg_32(IPR5) = 0x55555555; // das auch noch
 
-  enx_reg_h(ISR0) = 0xFFFE;		// Clear all irq states
-  enx_reg_h(ISR1) = 0xFFFE;		// Clear all irq states
-  enx_reg_h(ISR2) = 0xFFFE;		// Clear all irq states
-  enx_reg_h(ISR3) = 0xFFFE;		// Clear all irq states
-  enx_reg_h(ISR4) = 0xFFFE;		// Clear all irq states
-  enx_reg_h(ISR5) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR0) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR1) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR2) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR3) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR4) = 0xFFFE;		// Clear all irq states
+  enx_reg_16(ISR5) = 0xFFFE;		// Clear all irq states
 
-  enx_reg_h(IMR0) = 0x0001;		// mask all IRQ's (=disable them)
-  enx_reg_h(IMR1) = 0x0001;
-  enx_reg_h(IMR2) = 0x0001;
-  enx_reg_h(IMR3) = 0x0001;
-  enx_reg_h(IMR4) = 0x0001;
-  enx_reg_h(IMR5) = 0x0001;
-  enx_reg_w(IDR) = 0;
+  enx_reg_16(IMR0) = 0x0001;		// mask all IRQ's (=disable them)
+  enx_reg_16(IMR1) = 0x0001;
+  enx_reg_16(IMR2) = 0x0001;
+  enx_reg_16(IMR3) = 0x0001;
+  enx_reg_16(IMR4) = 0x0001;
+  enx_reg_16(IMR5) = 0x0001;
+  enx_reg_32(IDR) = 0;
 
 }
 
 void enx_irq_disable(void) {
 
-  enx_reg_h(IMR0) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_h(IMR1) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_h(IMR2) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_h(IMR3) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_h(IMR4) = 0xFFFE;		// Mask all IRQ's
-  enx_reg_h(IMR5) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR0) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR1) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR2) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR3) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR4) = 0xFFFE;		// Mask all IRQ's
+  enx_reg_16(IMR5) = 0xFFFE;		// Mask all IRQ's
 
-  enx_reg_h(IMR0) = 0x0001;		// Mask all IRQ's
-  enx_reg_h(IMR1) = 0x0001;		// Mask all IRQ's
-  enx_reg_h(IMR2) = 0x0001;		// Mask all IRQ's
-  enx_reg_h(IMR3) = 0x0001;		// Mask all IRQ's
-  enx_reg_h(IMR4) = 0x0001;		// Mask all IRQ's
-  enx_reg_h(IMR5) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR0) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR1) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR2) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR3) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR4) = 0x0001;		// Mask all IRQ's
+  enx_reg_16(IMR5) = 0x0001;		// Mask all IRQ's
 
 }
 
 void enx_reset(void) {
 
-  enx_reg_w(RSTR0) = 0xFCF6BEFF;	// Reset all modules
+  enx_reg_32(RSTR0) = 0xFCF6BEFF;	// Reset all modules
   
 }
 
 void enx_sdram_ctrl_init(void) {
 
-  enx_reg_w(SCSC) = 0x00000000;		// Set sd-ram start address
-  enx_reg_w(RSTR0) &= ~(1 << 12);	// Get sd-ram controller out of reset state
-  enx_reg_w(MC) = 0x00001011;		// Write memory configuration
+  enx_reg_32(SCSC) = 0x00000000;	// Set sd-ram start address
+  enx_reg_s(RSTR0)->SDCT = 0;		// Get sd-ram controller out of reset state
+  enx_reg_32(MC) = 0x00001011;		// Write memory configuration
   enx_reg_32n(0x88) |= 0x3E << 4;
   
 }
@@ -242,28 +247,34 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.8 2002/04/22 17:40:01 Jolt Exp $\n");
+    
+    gt_info = avia_gt_get_info();
+    
+    if (!avia_gt_chip(ENX)) {
+    
+	printk("avia_gt_enx: Unsupported chip type\n");
+	
+	return;
+    
+    }
 
     enx_reset();
     enx_sdram_ctrl_init();
     enx_dac_init();
-
     enx_irq_enable();
   
-    memset(avia_gt_get_mem_addr(), 0xF, 1024*1024 /*ENX_MEM_SIZE*/);
+    memset(gt_info->mem_addr, 0xF, 1024 * 1024 /*ENX_MEM_SIZE*/);
 
     //bring out of reset state
-    enx_reg_w(RSTR0) &= ~(1 << 27);  // AV - Decoder
-    enx_reg_w(RSTR0) &= ~(1 << 21);  // Teletext engine
-    enx_reg_w(RSTR0) &= ~(1 << 13);  // Queue Manager
-    enx_reg_w(RSTR0) &= ~(1 << 11);  // Graphics
-    enx_reg_w(RSTR0) &= ~(1 << 10);  // Video Capture
-    enx_reg_w(RSTR0) &= ~(1 << 9);   // Video Module
-    enx_reg_w(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
+    enx_reg_32(RSTR0) &= ~(1 << 27);  // AV - Decoder
+    enx_reg_32(RSTR0) &= ~(1 << 13);  // Queue Manager
+    enx_reg_32(RSTR0) &= ~(1 << 11);  // Graphics
+    enx_reg_32(RSTR0) &= ~(1 << 9);   // Video Module
+    enx_reg_32(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
 
-    enx_reg_w(CFGR0) &= ~(1 << 3);   // disable clip mode teletext
-    enx_reg_w(CFGR0) &= ~(1 << 1);   // disable clip mode audio
-    enx_reg_w(CFGR0) &= ~(1 << 0);   // disable clip mode video
+    enx_reg_32(CFGR0) &= ~(1 << 1);   // disable clip mode audio
+    enx_reg_32(CFGR0) &= ~(1 << 0);   // disable clip mode video
     
 }
 
@@ -271,6 +282,7 @@ void avia_gt_enx_exit(void)
 {
 
     enx_irq_disable();
+    enx_reset();
     
 }
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.14  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.13  2002/04/17 05:56:17  Jolt
  *   Capture driver fixes
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 	
@@ -80,9 +83,9 @@
 #define PIG_HEIGHT (72*3)
 
 static devfs_handle_t devfs_handle[MAX_PIG_COUNT];
+static sAviaGtInfo *gt_info;
 static unsigned char pig_busy[MAX_PIG_COUNT] = {0, 0};
 static unsigned char *pig_buffer[MAX_PIG_COUNT] = {NULL, NULL};
-static unsigned char pig_chip_type;
 static unsigned char pig_count;
 static unsigned short pig_stride[MAX_PIG_COUNT] = {0, 0};
 static unsigned int pig_offset[MAX_PIG_COUNT] = {0, 0};
@@ -179,7 +182,7 @@ static ssize_t avia_gt_pig_write(struct file *file, const char *buf, size_t coun
 	
     }
     
-    kbuf = avia_gt_get_mem_addr();
+    kbuf = gt_info->mem_addr;
     kbuf = (unsigned char *)(((unsigned int)kbuf) + ((unsigned int)(pig_buffer[pig_nr])) + (pig_offset[pig_nr]));
     
     if (copy_from_user(kbuf, buf, count)) {
@@ -194,7 +197,7 @@ static ssize_t avia_gt_pig_write(struct file *file, const char *buf, size_t coun
         pig_offset[pig_nr] = 0;
 	count = todo;
 	
-        kbuf = avia_gt_get_mem_addr();
+        kbuf = gt_info->mem_addr;
 	kbuf = (unsigned char *)(((unsigned int)kbuf) + ((unsigned int)(pig_buffer[pig_nr])) + (pig_offset[pig_nr]));
     
 	if (copy_from_user(kbuf, buf, count)) {
@@ -231,9 +234,9 @@ int avia_gt_pig_hide(unsigned char pig_nr)
 
     if (pig_busy[pig_nr]) {
 
-	if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX)
-	    enx_reg_w(VPSA1) |= 1;
-	else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	if (avia_gt_chip(ENX))
+	    enx_reg_32(VPSA1) |= 1;
+	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(VPSA)->E = 0;
 
 	avia_gt_capture_stop();
@@ -252,12 +255,12 @@ int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y
     if (pig_nr >= pig_count)
 	return -ENODEV;
 
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	enx_reg_s(VPP1)->HPOS = 63 + (x / 2);
         enx_reg_s(VPP1)->VPOS = 21 + y;
 	
-    } else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
     
 	//FIXME check for S
         gtx_reg_s(VPP)->HPOS = 63 + (x / 2);
@@ -275,9 +278,9 @@ int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order)
     if (pig_nr >= pig_count)
 	return -ENODEV;
 	
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX)
-	enx_reg_h(VPSO1) = stack_order;							
-    else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    if (avia_gt_chip(ENX))
+	enx_reg_16(VPSO1) = stack_order;							
+    else if (avia_gt_chip(GTX))
 	gtx_reg_s(VPS)->P = stack_order;
 	
     return 0;
@@ -300,13 +303,13 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
     if (result < 0)
 	return result;
 
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 
 	enx_reg_s(VPSZ1)->WIDTH = width / 2;
 	enx_reg_s(VPSZ1)->S = stretch;
 	enx_reg_s(VPSZ1)->HEIGHT = height / 2;
 	
-    } else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(VPS)->WIDTH = width / 2;
         gtx_reg_s(VPS)->S = stretch;
@@ -337,16 +340,16 @@ int avia_gt_pig_show(unsigned char pig_nr)
 
     printk("avia_gt_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 
-	enx_reg_h(VPSTR1) = 0;				
-        enx_reg_h(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 4) & 0x7FF) << 2);
-	enx_reg_h(VPSTR1) |= 1;				// Enable hardware double buffering
+	enx_reg_16(VPSTR1) = 0;				
+        enx_reg_16(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 4) & 0x7FF) << 2);
+	enx_reg_16(VPSTR1) |= 1;				// Enable hardware double buffering
     
         enx_reg_s(VPSZ1)->P = 0;
     
-	enx_reg_w(VPSA1) = 0;
-        enx_reg_w(VPSA1) |= ((unsigned int)pig_buffer[pig_nr] & 0xFFFFFC);			// Set buffer address (for non d-buffer mode)
+	enx_reg_32(VPSA1) = 0;
+        enx_reg_32(VPSA1) |= ((unsigned int)pig_buffer[pig_nr] & 0xFFFFFC);			// Set buffer address (for non d-buffer mode)
     
 //    	enx_reg_s(VPOFFS1)->OFFSET = odd_offset >> 2;
         enx_reg_s(VPOFFS1)->OFFSET = 0;
@@ -354,9 +357,9 @@ int avia_gt_pig_show(unsigned char pig_nr)
 	enx_reg_s(VPP1)->U = 0;
         enx_reg_s(VPP1)->F = 0;
         
-	enx_reg_w(VPSA1) |= 1;
+	enx_reg_32(VPSA1) |= 1;
 	
-    } else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 //	gtx_reg_s(VPO)->OFFSET = ((unsigned int)(pig_stride[pig_nr])) >> 2;
 	gtx_reg_s(VPO)->OFFSET = 0;
@@ -384,11 +387,11 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.13 2002/04/17 05:56:17 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.14 2002/04/22 17:40:01 Jolt Exp $\n");
 
-    pig_chip_type = avia_gt_get_chip_type();
+    gt_info = avia_gt_get_info();
     
-    if ((pig_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (pig_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 	
         printk("avia_gt_pig: Unsupported chip type\n");
 		
@@ -396,9 +399,9 @@ int __init avia_gt_pig_init(void)
 			
     }
 			        
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	pig_count = 2;
-    else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	pig_count = 1;
 
     for (pig_nr = 0; pig_nr < pig_count; pig_nr++) {
@@ -412,14 +415,14 @@ int __init avia_gt_pig_init(void)
 	    
     }
 
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	enx_reg_s(RSTR0)->PIG1 = 1;
 	enx_reg_s(RSTR0)->PIG2 = 1;
 	enx_reg_s(RSTR0)->PIG1 = 0;
 	enx_reg_s(RSTR0)->PIG2 = 0;
 
-    } else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(RR0)->PIG = 1;
 	gtx_reg_s(RR0)->PIG = 0;
@@ -450,12 +453,12 @@ void __exit avia_gt_pig_exit(void)
 
     avia_gt_pig_hide(0);
 
-    if (pig_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 
 	enx_reg_s(RSTR0)->PIG1 = 1;
 	enx_reg_s(RSTR0)->PIG2 = 1;
     
-    } else if (pig_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(RR0)->PIG = 1;
 

@@ -361,20 +361,20 @@ extern void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 extern void avia_gt_gtx_init(void);
 extern void avia_gt_gtx_exit(void);
 
-#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + GTX_REG_ ## register))))
-#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + offset))))
-#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + GTX_REG_ ## register))))
-#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(avia_gt_get_reg_addr() + offset))))
-#define gtx_reg_o(offset) (avia_gt_get_reg_addr() + offset)
+#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gt_info->reg_addr + offset))))
+#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + GTX_REG_ ## register))))
+#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gt_info->reg_addr + offset))))
+#define gtx_reg_o(offset) (gt_info->reg_addr + offset)
 #define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
 
-#define rw(a) (*((volatile unsigned long*)(avia_gt_get_reg_addr()+g ## a)))
-#define rh(a) (*((volatile unsigned short*)(avia_gt_get_reg_addr()+g ## a)))
+#define rw(a) (*((volatile unsigned long*)(gt_info->reg_addr+g ## a)))
+#define rh(a) (*((volatile unsigned short*)(gt_info->reg_addr+g ## a)))
 
-#define rwn(a) (*((volatile unsigned long*)(avia_gt_get_reg_addr()+a))) 
-#define rhn(a) (*((volatile unsigned short*)(avia_gt_get_reg_addr()+a))) 
+#define rwn(a) (*((volatile unsigned long*)(gt_info->reg_addr+a))) 
+#define rhn(a) (*((volatile unsigned short*)(gt_info->reg_addr+a))) 
 
 
 #endif

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.11  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.10  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -54,7 +57,7 @@
  *
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -93,7 +96,7 @@ LIST_HEAD(pcm_free_buffer_list);
 spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
 spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 		
-unsigned char pcm_chip_type;
+static sAviaGtInfo *gt_info;
 unsigned char swab_samples;
 sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
 unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE];
@@ -102,7 +105,7 @@ unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE];
 unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 
         if (enx_reg_s(PCMC)->W)
 	    buffer_size /= 2;
@@ -110,7 +113,7 @@ unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
 	if (enx_reg_s(PCMC)->C)
 	    buffer_size /= 2;
 	    
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
     
         if (gtx_reg_s(PCMC)->W)
 	    buffer_size /= 2;
@@ -128,7 +131,7 @@ unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
 unsigned int avia_gt_pcm_calc_buffer_size(unsigned int sample_count)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 	
         if (enx_reg_s(PCMC)->W)
 	    sample_count *= 2;
@@ -136,7 +139,7 @@ unsigned int avia_gt_pcm_calc_buffer_size(unsigned int sample_count)
 	if (enx_reg_s(PCMC)->C)
     	    sample_count *= 2;
 
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
         if (gtx_reg_s(PCMC)->W)
 	    sample_count *= 2;
@@ -157,12 +160,12 @@ void avia_gt_pcm_queue_buffer(void)
     sPcmBuffer *pcm_buffer;
     struct list_head *ptr;
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 	
 	if (!enx_reg_s(PCMA)->W)
     	    return;
 	    
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	if (!gtx_reg_s(PCMA)->W)
     	    return;
@@ -177,13 +180,13 @@ void avia_gt_pcm_queue_buffer(void)
 	    
 	if (!pcm_buffer->queued) {
 
-	    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+	    if (avia_gt_chip(ENX)) {
 	
     		enx_reg_s(PCMS)->NSAMP = pcm_buffer->sample_count;
 		enx_reg_s(PCMA)->Addr = pcm_buffer->offset >> 1;
 		enx_reg_s(PCMA)->W = 0;
 	    
-	    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+	    } else if (avia_gt_chip(GTX)) {
 
     		gtx_reg_s(PCMA)->NSAMP = pcm_buffer->sample_count;
 		gtx_reg_s(PCMA)->Addr = pcm_buffer->offset >> 1;
@@ -254,7 +257,7 @@ unsigned int avia_gt_pcm_get_block_size(void)
 void avia_gt_pcm_reset(void)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	// Reset PCM module
         enx_reg_s(RSTR0)->PCMA = 1;
@@ -264,7 +267,7 @@ void avia_gt_pcm_reset(void)
 	enx_reg_s(RSTR0)->PCM = 0;
         enx_reg_s(RSTR0)->PCMA = 0;
 	
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	// Reset PCM module
         gtx_reg_s(RR0)->ACLK = 1;
@@ -281,12 +284,12 @@ void avia_gt_pcm_reset(void)
 void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 	
 	enx_reg_s(PCMN)->MPEGAL = left >> 1;
 	enx_reg_s(PCMN)->MPEGAR = right >> 1;
     
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
     
 	gtx_reg_s(PCMN)->MPEGAL = left >> 1;
 	gtx_reg_s(PCMN)->MPEGAR = right >> 1;
@@ -298,12 +301,12 @@ void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
 void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	enx_reg_s(PCMN)->PCMAL = left >> 1;
 	enx_reg_s(PCMN)->PCMAR = right >> 1;
     
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(PCMN)->PCMAL = left >> 1;
 	gtx_reg_s(PCMN)->PCMAR = right >> 1;
@@ -346,9 +349,9 @@ int avia_gt_pcm_set_rate(unsigned short rate)
 	
     }
     
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
         enx_reg_s(PCMC)->R = divider_mode;
-    else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
         gtx_reg_s(PCMC)->R = divider_mode;
     
     return 0;
@@ -360,9 +363,9 @@ int avia_gt_pcm_set_width(unsigned char width)
 
     if ((width == 8) || (width == 16)) {
     
-	if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	if (avia_gt_chip(ENX))
 	    enx_reg_s(PCMC)->W = (width == 16);
-	else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(PCMC)->W = (width == 16);
 	
     } else {
@@ -380,9 +383,9 @@ int avia_gt_pcm_set_channels(unsigned char channels)
 
     if ((channels == 1) || (channels == 2)) {
     
-	if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	if (avia_gt_chip(ENX))
     	    enx_reg_s(PCMC)->C = (channels == 2);
-	else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	else if (avia_gt_chip(GTX))
     	    gtx_reg_s(PCMC)->C = (channels == 2);
 	
     } else {
@@ -400,9 +403,9 @@ int avia_gt_pcm_set_signed(unsigned char signed_samples)
 
     if ((signed_samples == 0) || (signed_samples == 1)) {
     
-	if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	if (avia_gt_chip(ENX))
 	    enx_reg_s(PCMC)->S = (signed_samples == 1);
-	else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	else if (avia_gt_chip(GTX))
 	    gtx_reg_s(PCMC)->S = (signed_samples == 1);
 	
     } else {
@@ -443,12 +446,12 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
     if (sample_count > AVIA_GT_PCM_MAX_SAMPLES)
         sample_count = AVIA_GT_PCM_MAX_SAMPLES;
 	
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	bps_16 = enx_reg_s(PCMC)->W;
 	stereo = enx_reg_s(PCMC)->C;
 	
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	bps_16 = gtx_reg_s(PCMC)->W;
 	stereo = gtx_reg_s(PCMC)->C;
@@ -485,7 +488,7 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
 
 	copy_from_user(swab_buffer, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
 
-	swab_dest = (unsigned short *)(avia_gt_get_mem_addr() + pcm_buffer->offset);
+	swab_dest = (unsigned short *)(gt_info->mem_addr + pcm_buffer->offset);
 	swab_src = (unsigned short *)swab_buffer;
 	
 	for (sample_nr = 0; sample_nr < avia_gt_pcm_calc_buffer_size(sample_count) / 2; sample_nr++)
@@ -493,7 +496,7 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
     
     } else {
     
-	copy_from_user(avia_gt_get_mem_addr() + pcm_buffer->offset, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
+	copy_from_user(gt_info->mem_addr + pcm_buffer->offset, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
 	
     }
     
@@ -514,9 +517,9 @@ int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned cha
 void avia_gt_pcm_stop(void)
 {
 /*
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	enx_reg_s(PCMC)->T = 1;
-    else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	gtx_reg_s(PCMC)->T = 1;
 */
 }
@@ -528,11 +531,11 @@ int avia_gt_pcm_init(void)
     unsigned short irq_ad; 
     unsigned short irq_pf;
 
-    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.10 2002/04/14 18:06:19 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.11 2002/04/22 17:40:01 Jolt Exp $\n");
 
-    pcm_chip_type = avia_gt_get_chip_type();
+    gt_info = avia_gt_get_info();
     
-    if ((pcm_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (pcm_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
     
 	printk("avia_gt_pcm: Unsupported chip type\n");
 	
@@ -540,12 +543,12 @@ int avia_gt_pcm_init(void)
 	
     }
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	irq_ad = ENX_IRQ_PCM_AD;
 	irq_pf = ENX_IRQ_PCM_PF;
 	
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	irq_ad = GTX_IRQ_PCM_AD;
 	irq_pf = GTX_IRQ_PCM_PF;
@@ -582,9 +585,9 @@ int avia_gt_pcm_init(void)
     }
     
     // Use external clock from AViA 500/600
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	enx_reg_s(PCMC)->I = 0;
-    else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	gtx_reg_s(PCMC)->I = 0;
 
     // Pass through mpeg samples
@@ -604,7 +607,7 @@ int avia_gt_pcm_init(void)
 void avia_gt_pcm_exit(void)
 {
 
-    if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
     
 	avia_gt_free_irq(ENX_IRQ_PCM_AD);
         avia_gt_free_irq(ENX_IRQ_PCM_PF);
@@ -612,7 +615,7 @@ void avia_gt_pcm_exit(void)
 	enx_reg_s(RSTR0)->PCMA = 1;
 	enx_reg_s(RSTR0)->PCM = 1;
 	
-    } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	avia_gt_free_irq(GTX_IRQ_PCM_AD);
         avia_gt_free_irq(GTX_IRQ_PCM_PF);

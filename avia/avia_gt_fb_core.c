@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.25  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.24  2002/04/21 14:36:07  Jolt
  *   Merged GTX fb support
  *
@@ -117,7 +120,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -162,7 +165,7 @@
 #define RES_X           720
 #define RES_Y           576
 
-static unsigned char fb_chip_type;
+static sAviaGtInfo *gt_info;
 
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
@@ -407,7 +410,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	printk("	   yres : %d",par->yres);
 	printk("	   stride : %x\n",par->stride); */
 
-    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    if (avia_gt_chip(GTX)) {
     
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
   rh(VHT)=par->pal?858:852;
@@ -496,27 +499,27 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   rw(VBR)=0;                       // disable background..
 
-    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    } else if (avia_gt_chip(ENX)) {
 
-#define ENX_VCR_SET_HP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<10))) | ((X&3)<<10))
-#define ENX_VCR_SET_FP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
-#define ENX_GVP_SET_SPP(X)   enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
-#define ENX_GVP_SET_X(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define ENX_GVP_SET_Y(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~0x3FF))|(X&0x3FF))
+#define ENX_VCR_SET_HP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<10))) | ((X&3)<<10))
+#define ENX_VCR_SET_FP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
+#define ENX_GVP_SET_SPP(X)   enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
+#define ENX_GVP_SET_X(X)     enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define ENX_GVP_SET_Y(X)     enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~0x3FF))|(X&0x3FF))
 #define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
-#define ENX_GVS_SET_IPS(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&0xFC000000) | ((X&0x3f)<<27))
-#define ENX_GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define ENX_GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
+#define ENX_GVS_SET_IPS(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&0xFC000000) | ((X&0x3f)<<27))
+#define ENX_GVS_SET_XSZ(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define ENX_GVS_SET_YSZ(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
-  enx_reg_w(VBR)=0;
+  enx_reg_32(VBR)=0;
 
-  enx_reg_h(VCR)=0x040|(1<<13);
-  enx_reg_h(BALP)=0;
-  enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
-  enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+  enx_reg_16(VCR)=0x040|(1<<13);
+  enx_reg_16(BALP)=0;
+  enx_reg_16(VHT)=(par->pal?857:851)|0x5000;
+  enx_reg_16(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
 
 //  Field: auskommentiert, behebt FB-Positions-Bug!
-//  enx_reg_h(VAS)=par->pal?63:58;
+//  enx_reg_16(VAS)=par->pal?63:58;
 
 	val=0;
 	if (par->lowres)
@@ -543,26 +546,26 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   }
 
   val|=par->stride;
-    enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
-  //enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
-  enx_reg_w(TCR2)=0x0FF007F;	 // disabled - we don't need since we have 7bit true alpha
+    enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
+  //enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+  enx_reg_32(TCR2)=0x0FF007F;	 // disabled - we don't need since we have 7bit true alpha
 
-//	enx_reg_h(P1VPSA)=0;
-//	enx_reg_h(P2VPSA)=0;
-//	enx_reg_h(P1VPSO)=0;
-//	enx_reg_h(P2VPSO)=0;
+//	enx_reg_16(P1VPSA)=0;
+//	enx_reg_16(P2VPSA)=0;
+//	enx_reg_16(P1VPSO)=0;
+//	enx_reg_16(P2VPSO)=0;
 	
-	enx_reg_h(VMCR)=0;
-	enx_reg_h(G1CFR)=1;
-	enx_reg_h(G2CFR)=1;
+	enx_reg_16(VMCR)=0;
+	enx_reg_16(G1CFR)=1;
+	enx_reg_16(G2CFR)=1;
 
-	enx_reg_w(GMR1)=val;
-	enx_reg_w(GMR2)=0;
-  enx_reg_h(GBLEV1)=BLEVEL;
-  enx_reg_h(GBLEV2)=0;
-        //enx_reg_h(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
-	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
-	enx_reg_h(GVP1)=0;
+	enx_reg_32(GMR1)=val;
+	enx_reg_32(GMR2)=0;
+  enx_reg_16(GBLEV1)=BLEVEL;
+  enx_reg_16(GBLEV2)=0;
+        //enx_reg_16(CCR)=0x7FFF;                  // white cursor für den gibts keine farbe beim enx ?!?!
+	enx_reg_32(GVSA1)=fb_info.offset; 	// dram start address
+	enx_reg_16(GVP1)=0;
 
 //  dprintk("Framebuffer: val: 0x%08x\n", val);
 
@@ -599,7 +602,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   if (regno>255)
     return 1;
 
-    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    if (avia_gt_chip(GTX)) {
 
   rh(CLTA)=regno;
   mb();
@@ -622,12 +625,12 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
 	}
 
 
-    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    } else if (avia_gt_chip(ENX)) {
 
 
-  enx_reg_h(CLUTA)=regno;
+  enx_reg_16(CLUTA)=regno;
   mb();
-  val=enx_reg_h(CLUTD);
+  val=enx_reg_16(CLUTD);
 
   if (transp)
     *transp = ((val & 0xFF000000) >> 24);
@@ -654,7 +657,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
     return 0;
   
 
-    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    if (avia_gt_chip(GTX)) {
 
   red>>=11;
   green>>=11;
@@ -676,16 +679,16 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	}
   
 
-    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    } else if (avia_gt_chip(ENX)) {
 
   red>>=8;
   green>>=8;
   blue>>=8;
   transp>>=8;
   
-  enx_reg_h(CLUTA) = regno;
+  enx_reg_16(CLUTA) = regno;
   mb();
-  enx_reg_w(CLUTD) = ((transp << 24) | (blue << 16) | (green << 8) | (red));
+  enx_reg_32(CLUTD) = ((transp << 24) | (blue << 16) | (green << 8) | (red));
 
   red>>=3;
   green>>=3;
@@ -757,7 +760,7 @@ struct fbgen_hwswitch gtx_switch = {
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    if (avia_gt_chip(GTX)) {
     
 	switch (cmd)
 	{
@@ -784,7 +787,7 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 	}
 
 
-    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    } else if (avia_gt_chip(ENX)) {
 
 	switch (cmd)
 	{
@@ -792,31 +795,31 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 		switch (arg)
 		{
 		case 0:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0));
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0));
 			break;
 		case 1:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<4);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<4);
 			break;
 		case 2:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<5);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<5);
 			break;
 		case 3:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<4);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(3<<4);
 			break;
 		case 4:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<6);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<6);
 			break;
 		case 5:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(5<<4);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(5<<4);
 			break;
 		case 6:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<5);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(3<<5);
 			break;
 		case 7:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(7<<4);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(7<<4);
 			break;
 		case 8:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<7);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<0))|(1<<7);
 			break;
 		}
 		break;
@@ -824,31 +827,31 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 		switch (arg)
 		{
 		case 0:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8));
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8));
 			break;
 		case 1:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<12);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<12);
 			break;
 		case 2:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<13);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<13);
 			break;
 		case 3:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<12);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(3<<12);
 			break;
 		case 4:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<14);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<14);
 			break;
 		case 5:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(5<<12);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(5<<12);
 			break;
 		case 6:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<13);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(3<<13);
 			break;
 		case 7:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(7<<12);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(7<<12);
 			break;
 		case 8:
-			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<15);
+			enx_reg_16(GBLEV1)=(enx_reg_16(GBLEV1)&~(255<<8))|(1<<15);
 			break;
                 }
 		break;
@@ -860,9 +863,9 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 		break;
 	case CCBUBEFB_FBCON_BLACK:
 		if(!arg)
-			enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
+			enx_reg_32(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
 		else
-			enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+			enx_reg_32(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
 		break;
 	default:
 		return -EINVAL;
@@ -893,11 +896,11 @@ int __init avia_gt_fb_init(void)
     unsigned char *gv_mem_phys;
     unsigned int gv_mem_size;
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.24 2002/04/21 14:36:07 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.25 2002/04/22 17:40:01 Jolt Exp $\n");
     
-    fb_chip_type = avia_gt_get_chip_type();
+    gt_info = avia_gt_get_info();
 	
-    if ((fb_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (fb_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 	    
 	printk("avia_gt_fb: Unsupported chip type\n");
 		    

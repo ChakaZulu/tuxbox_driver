@@ -50,7 +50,7 @@
 
 static devfs_handle_t devfs_handle;
 static int active_vtxt_pid = -1;
-static unsigned char vbi_chip_type;
+static sAviaGtInfo *gt_info;
 
 #ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
@@ -63,9 +63,9 @@ static dmx_demux_t *dmx_demux;
 static int avia_gt_vbi_stop_vtxt(void)
 {
 
-    if (vbi_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	enx_reg_s(TCNTL)->GO = 0;
-    else if (vbi_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	rh(TTCR) &= ~(1 << 9);
 
     if (active_vtxt_pid >= 0) {
@@ -92,9 +92,9 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
     avia_gt_vbi_stop_vtxt();
 
-    if (vbi_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	enx_reg_s(TCNTL)->GO = 1;
-    else if (vbi_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	rh(TTCR) |= (1 << 9);
 
     if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
@@ -169,11 +169,11 @@ static int __init avia_gt_vbi_init(void)
 
     struct list_head *dmx_list;
 
-    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.5 2002/04/19 08:54:48 Jolt Exp $\n");
+    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.6 2002/04/22 17:40:01 Jolt Exp $\n");
 
-    vbi_chip_type = avia_gt_get_chip_type();
+    gt_info = avia_gt_get_info();
     
-    if ((vbi_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (vbi_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 	
 	printk("avia_gt_vbi: Unsupported chip type\n");
 		
@@ -181,14 +181,14 @@ static int __init avia_gt_vbi_init(void)
 			
     }
 
-    if (vbi_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    if (avia_gt_chip(ENX)) {
 
 	enx_reg_s(RSTR0)->TTX = 1;
 	enx_reg_s(RSTR0)->TTX = 0;
 	enx_reg_s(CFGR0)->TCP = 0;
 	enx_reg_s(TCNTL)->PE = 1;
 
-    } else if (vbi_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    } else if (avia_gt_chip(GTX)) {
 
 	gtx_reg_s(RR1)->TTX = 1;
 	gtx_reg_s(RR1)->TTX = 0;
@@ -240,9 +240,9 @@ static void __exit avia_gt_vbi_exit(void)
 
     devfs_unregister (devfs_handle);
 
-    if (vbi_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	enx_reg_s(RSTR0)->TTX = 1;
-    else if (vbi_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	gtx_reg_s(RR1)->TTX = 1;
 
 }

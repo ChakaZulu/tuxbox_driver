@@ -33,6 +33,16 @@
 #define dprintk(...)
 #endif
 
+typedef struct {
+
+    unsigned char chip_type;
+    unsigned char *mem_addr;
+    unsigned char *reg_addr;
+
+} sAviaGtInfo;
+
+#define avia_gt_chip(CHIP) (gt_info->chip_type == AVIA_GT_CHIP_TYPE_## CHIP)
+
 #define AVIA_GT_CHIP_TYPE_ENX 0
 #define AVIA_GT_CHIP_TYPE_GTX 1
 
@@ -60,9 +70,7 @@
 #endif
 
 extern int avia_gt_alloc_irq(unsigned short irq, void (*isr_proc)(unsigned short irg));
-extern unsigned char avia_gt_get_chip_type(void);
-extern unsigned char* avia_gt_get_mem_addr(void);
-extern unsigned char* avia_gt_get_reg_addr(void);
+extern sAviaGtInfo *avia_gt_get_info(void);
 extern void avia_gt_free_irq(unsigned short irq);
 
 extern int avia_gt_init(void);

@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.10  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.9  2002/04/16 15:57:23  Jolt
  *   GTX bugfix
  *
@@ -108,7 +111,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -160,6 +163,8 @@ static int gtx_proc_initialized;
 #define gtx_proc_cleanup() 0
 
 #endif /* CONFIG_PROC_FS */
+
+static sAviaGtInfo *gt_info;
 
 static int isr[] = {gISR0, gISR1, gISR2, gISR3};
 static int imr[] = {gIMR0, gIMR1, gIMR2, gIMR3};
@@ -264,7 +269,7 @@ void avia_gt_gtx_init(void)
 
     int cr;
 
-    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.9 2002/04/16 15:57:23 Jolt Exp $\n");
+    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.10 2002/04/22 17:40:01 Jolt Exp $\n");
 	
     avia_gt_gtx_reset();
 
@@ -274,7 +279,7 @@ void avia_gt_gtx_init(void)
 
     udelay (500);
 
-    memset (avia_gt_get_mem_addr(), 0xFF, 2 * 1024 * 1024);          // clear ram
+    memset (gt_info->mem_addr, 0xFF, 2 * 1024 * 1024);          // clear ram
 	
     gtx_proc_init ();
 
@@ -394,7 +399,7 @@ int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof, void 
     if (offset + len > 2048)
 	len = 2048 - offset;
 	
-    memcpy (buf, avia_gt_get_reg_addr() + 0x1000 + offset, len);
+    memcpy(buf, gt_info->reg_addr + 0x1000 + offset, len);
 
     return len;
 	

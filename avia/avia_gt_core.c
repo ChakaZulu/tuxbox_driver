@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.11  2002/04/22 17:40:01  Jolt
+ *   Major cleanup
+ *
  *   Revision 1.10  2002/04/19 08:54:48  Jolt
  *   Merged vbi driver
  *
@@ -52,7 +55,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -86,40 +89,38 @@
 #include "dbox/avia_gt_pig.h"
 
 #ifdef MODULE
-int chip_type = -1;
-unsigned char init_state = 0;
-
 MODULE_PARM(chip_type, "i");
 #endif
 
-unsigned char *gt_mem_addr = NULL;
-unsigned char *gt_reg_addr = NULL;
+int chip_type = -1;
+unsigned char init_state = 0;
+static sAviaGtInfo *gt_info = NULL;
 
 void (*gt_isr_proc_list[128])(unsigned short irq);
 
 void avia_gt_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	avia_gt_enx_clear_irq(irq_reg, irq_bit);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	avia_gt_gtx_clear_irq(irq_reg, irq_bit);
     
 }
 
-unsigned char avia_gt_get_chip_type(void)
+sAviaGtInfo *avia_gt_get_info(void)
 {
 
-    return chip_type;
-    
+    return gt_info;
+
 }
 
 unsigned short avia_gt_get_irq_mask(unsigned char irq_reg)
 {
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	return avia_gt_enx_get_irq_mask(irq_reg);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	return avia_gt_gtx_get_irq_mask(irq_reg);
 
     return 0;
@@ -129,35 +130,21 @@ unsigned short avia_gt_get_irq_mask(unsigned char irq_reg)
 unsigned short avia_gt_get_irq_status(unsigned char irq_reg)
 {
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	return avia_gt_enx_get_irq_status(irq_reg);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	return avia_gt_gtx_get_irq_status(irq_reg);
 
     return 0;
 
 }
 
-unsigned char *avia_gt_get_mem_addr(void)
-{
-
-    return gt_mem_addr;
-	
-}
-
-unsigned char *avia_gt_get_reg_addr(void)
-{
-
-    return gt_reg_addr;
-	
-}
-
 void avia_gt_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
     
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	avia_gt_enx_mask_irq(irq_reg, irq_bit);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	avia_gt_gtx_mask_irq(irq_reg, irq_bit);
 	
 }
@@ -165,9 +152,9 @@ void avia_gt_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 void avia_gt_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	avia_gt_enx_unmask_irq(irq_reg, irq_bit);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	avia_gt_gtx_unmask_irq(irq_reg, irq_bit);
 
 }
@@ -255,11 +242,11 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.10 2002/04/19 08:54:48 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.11 2002/04/22 17:40:01 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
-        printk("avia_gt_core: Unsupported chip type (chip_type = %d)\n", chip_type);
+        printk("avia_gt_core: Unsupported chip type (gt_info->chip_type = %d)\n", gt_info->chip_type);
 	    
         return -EIO;
 		    
@@ -267,12 +254,28 @@ int __init avia_gt_init(void)
 			    
     memset(gt_isr_proc_list, 0, sizeof(gt_isr_proc_list));
      
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
-	gt_reg_addr = (unsigned char*)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-	gt_reg_addr = (unsigned char*)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+    gt_info = kmalloc(sizeof(gt_info), GFP_KERNEL);
+    
+    if (!gt_info) {
+    
+        printk(KERN_ERR "avia_gt_core: Could not allocate info memory!\n");
 
-    if (!gt_reg_addr) {
+	avia_gt_exit();
+      
+	return -1;
+	
+    }
+    
+    gt_info->chip_type = chip_type;
+
+    init_state = 1;
+
+    if (avia_gt_chip(ENX))
+	gt_info->reg_addr = (unsigned char *)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
+    else if (avia_gt_chip(GTX))
+	gt_info->reg_addr = (unsigned char *)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+
+    if (!gt_info->reg_addr) {
   
 	printk(KERN_ERR "avia_gt_core: Failed to remap register space.\n");
     
@@ -280,14 +283,14 @@ int __init avia_gt_init(void)
     
     }
     
-    init_state = 1;
+    init_state = 2;
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
-	gt_mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-	gt_mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
+    if (avia_gt_chip(ENX))
+	gt_info->mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
+    else if (avia_gt_chip(GTX))
+	gt_info->mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
 
-    if (!gt_mem_addr) {
+    if (!gt_info->mem_addr) {
   
 	printk(KERN_ERR "avia_gt_core: Failed to remap memory space.\n");
 	
@@ -297,11 +300,11 @@ int __init avia_gt_init(void)
     
     }
 
-    init_state = 2;
+    init_state = 3;
 
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    if (avia_gt_chip(ENX))
 	result = request_8xxirq(ENX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	result = request_8xxirq(GTX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
 
     if (result) {
@@ -314,14 +317,14 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 3;
-
-    if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    init_state = 4;
+    
+    if (avia_gt_chip(ENX))
 	avia_gt_enx_init();
-    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    else if (avia_gt_chip(GTX))
 	avia_gt_gtx_init();
 
-    init_state = 4;
+    init_state = 5;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
     if (avia_gt_gv_init()) {
@@ -332,7 +335,7 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 5;
+    init_state = 6;
     
     if (avia_gt_pcm_init()) {
 
@@ -342,7 +345,7 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 6;
+    init_state = 7;
     
     if (avia_gt_capture_init()) {
 
@@ -352,7 +355,7 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 7;
+    init_state = 8;
     
 /*    if (avia_gt_pig_init()) {
 
@@ -362,7 +365,7 @@ int __init avia_gt_init(void)
 	
     }
 */
-    init_state = 8;
+    init_state = 9;
     
 #endif
 	    
@@ -376,43 +379,46 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-/*    if (init_state >= 8)
+/*    if (init_state >= 9)
         avia_gt_pig_exit();
 */	
-    if (init_state >= 7)
+    if (init_state >= 8)
         avia_gt_capture_exit();
 	
-    if (init_state >= 6)
+    if (init_state >= 7)
 	avia_gt_pcm_exit();
 	
-    if (init_state >= 5)
+    if (init_state >= 6)
 	avia_gt_gv_exit();
 #endif
 
-    if (init_state >= 4) {
+    if (init_state >= 5) {
     
-	if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	if (avia_gt_chip(ENX))
     	    avia_gt_enx_exit();
-   	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+   	else if (avia_gt_chip(GTX))
 		avia_gt_gtx_exit();
 
     }
 
-    if (init_state >= 3) {
+    if (init_state >= 4) {
     
-        if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
+        if (avia_gt_chip(ENX))
 	    free_irq(ENX_INTERRUPT, 0);
-    	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+    	else if (avia_gt_chip(GTX))
 	    free_irq(GTX_INTERRUPT, 0);
 
     }
 
-    if (init_state >= 2)
-	iounmap(gt_mem_addr);
+    if (init_state >= 3)
+	iounmap(gt_info->mem_addr);
 	
-    if (init_state >= 1)
-	iounmap(gt_reg_addr);
+    if (init_state >= 2)
+	iounmap(gt_info->reg_addr);
     
+    if (init_state >= 1)
+	kfree(gt_info);
+
 }
 
 #ifdef MODULE
@@ -421,9 +427,7 @@ MODULE_DESCRIPTION("Avia eNX/GTX driver");
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
-EXPORT_SYMBOL(avia_gt_get_chip_type);
-EXPORT_SYMBOL(avia_gt_get_mem_addr);
-EXPORT_SYMBOL(avia_gt_get_reg_addr);
+EXPORT_SYMBOL(avia_gt_get_info);
 
 module_init(avia_gt_init);
 module_exit(avia_gt_exit);
