@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.17  2002/05/09 22:23:30  obi
+ *   fixed avia_gt_set_blevel()
+ *
  *   Revision 1.16  2002/05/08 03:47:49  obi
  *   use slab.h instead of malloc.h
  *
@@ -71,7 +74,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -239,15 +242,28 @@ void avia_gt_gv_hide(void)
 void avia_gt_gv_set_blevel(unsigned char class0, unsigned char class1)
 {
 
+	if ((class0 > 0x08) && (class0 != 0x0F))
+		return;
+
+	if ((class1 > 0x08) && (class1 != 0x0F))
+		return;
+
 	if (avia_gt_chip(ENX)) {
 
-		enx_reg_s(GBLEV1)->BLEV10 = class0 * 0x80 / 0xFF;
-		enx_reg_s(GBLEV1)->BLEV11 = class1 * 0x80 / 0xFF;
+		if (class0 == 0x0F)
+			enx_reg_s(GBLEV1)->BLEV10 = 0xFF;
+		else
+			enx_reg_s(GBLEV1)->BLEV10 = class0 << 4;
+
+		if (class1 == 0x0F)
+			enx_reg_s(GBLEV1)->BLEV11 = 0xFF;
+		else
+			enx_reg_s(GBLEV1)->BLEV11 = class1 << 4;
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(GMR)->BLEV0 = class0 * 0x08 / 0xFF;
-		gtx_reg_s(GMR)->BLEV1 = class1 * 0x08 / 0xFF;
+		gtx_reg_s(GMR)->BLEV0 = class0;
+		gtx_reg_s(GMR)->BLEV1 = class1;
 
 	}
 
@@ -568,7 +584,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.16 2002/05/08 03:47:49 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.17 2002/05/09 22:23:30 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
