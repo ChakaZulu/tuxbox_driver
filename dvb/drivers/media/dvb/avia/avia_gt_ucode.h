@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.h,v 1.3 2004/05/19 20:15:00 derget Exp $
+ * $Id: avia_gt_ucode.h,v 1.4 2004/05/21 12:23:55 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -261,6 +261,7 @@ typedef struct {
 #define DMX_MESSAGE_SYNC_LOSS			0xFD
 #define DMX_MESSAGE_ADAPTATION			0xFC
 #define DMX_MESSAGE_SECTION_COMPLETED		0xCE
+#define DMX_MESSAGE_INIT			0xDD
 
 struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void);
 void avia_gt_dmx_risc_reset(int reenable);

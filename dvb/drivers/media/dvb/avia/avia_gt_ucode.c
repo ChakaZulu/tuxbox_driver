@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.9 2004/05/19 23:56:24 carjay Exp $
+ * $Id: avia_gt_ucode.c,v 1.10 2004/05/21 12:23:55 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -867,6 +867,11 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 	
 	queue->get_data(queue,&cmd,1,1);
 	switch (cmd){
+	case 0xdd: /* init */
+		queue->get_data(queue,NULL,1,0);
+		queue->flush(queue);
+		printk (KERN_INFO "avia_gt_ucode: risc init/reset\n");
+		return;
 	case 0xfc: /* private data */
 		{sPRIVATE_ADAPTATION_MESSAGE priv;
 		if (bytes_avail<5) return;
