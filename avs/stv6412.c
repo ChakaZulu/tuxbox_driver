@@ -141,9 +141,7 @@ int stv6412_set_volume( struct i2c_client *client, int vol )
 	if (c > 63 || c < 0)
 		return -EINVAL;
 
-	// Valid Range for Volume: 31 - 63 ?
 	c /= 2;
-	c += 32;
 
 	stv6412_data.t_vol_c = c;
 
