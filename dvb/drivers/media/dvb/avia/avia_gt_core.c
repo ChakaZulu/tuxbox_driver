@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.47 2004/05/23 10:52:31 derget Exp $
+ * $Id: avia_gt_core.c,v 1.48 2004/12/20 01:01:22 carjay Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -48,6 +48,7 @@
 TUXBOX_INFO(dbox2_gt);
 
 static int chip_type = -1;
+static int no_watchdog;
 static int init_state;
 static sAviaGtInfo *gt_info;
 static wait_queue_head_t avia_gt_wdt_sleep;
@@ -122,7 +123,7 @@ void avia_gt_irq(int irq, void *dev, struct pt_regs *regs)
 int avia_gt_wdt_thread(void)
 {
 	dvb_kernel_thread_setup ("avia_gt_wdt");
-	dprintk ("avia_av_core: Starting avia_gt_wdt thread.\n");
+	printk ("avia_av_core: Starting avia_gt_wdt thread.\n");
 	for(;;)
 	{
 
@@ -146,7 +147,7 @@ int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.47 2004/05/23 10:52:31 derget Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.48 2004/12/20 01:01:22 carjay Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
@@ -359,13 +360,13 @@ int __init avia_gt_init(void)
 
 #endif /* !STANDALONE */
 
-        /* init avia_av_wdt_sleep queue */
-        init_waitqueue_head(&avia_gt_wdt_sleep);
-
-	if (avia_gt_chip(ENX)) {
-	        /* start avia_av_wdt_sleep  kernel_thread */
-        	kernel_thread ((int (*)(void *)) avia_gt_wdt_thread, NULL, 0);
-	}	
+	/* if not disabled and it's an eNX start watchdog thread */
+	if (!no_watchdog){
+		init_waitqueue_head(&avia_gt_wdt_sleep);
+		if (avia_gt_chip(ENX))
+	        	/* start avia_av_wdt_sleep  kernel_thread */
+        		kernel_thread ((int (*)(void *)) avia_gt_wdt_thread, NULL, 0);
+	}
 	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
 
 	return 0;
@@ -445,7 +446,9 @@ MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("AViA eNX/GTX driver");
 MODULE_LICENSE("GPL");
 MODULE_PARM(chip_type, "i");
+MODULE_PARM(no_watchdog, "i");
 MODULE_PARM_DESC(chip_type, "-1: autodetect, 0: eNX, 1: GTX");
+MODULE_PARM_DESC(no_watchdog, "0: wd enabled, 1: wd disabled");
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
