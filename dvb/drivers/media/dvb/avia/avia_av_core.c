@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.74 2003/09/12 03:01:51 obi Exp $
+ * $Id: avia_av_core.c,v 1.75 2003/09/12 04:46:54 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1071,7 +1071,7 @@ void avia_av_bypass_mode_set(const u8 enable)
 	else
 		avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) | 1);
 
-	avia_av_dram_write(NEW_AUDIO_CONFIG, 1);
+	avia_av_dram_write(NEW_AUDIO_CONFIG, 0xFFFF);
 
 	bypass_mode = !!enable;
 	bypass_mode_changed = 1;
@@ -1374,7 +1374,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.74 2003/09/12 03:01:51 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.75 2003/09/12 04:46:54 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
