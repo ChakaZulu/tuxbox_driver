@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.3  2001/01/31 18:06:12  gillem
+ *   - patch from JeyCol
+ *
  *   Revision 1.2  2001/01/28 09:06:30  gillem
  *   some fixes
  *
@@ -28,7 +31,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -89,7 +92,7 @@ typedef struct s_avs_data {
  /* Data 5 */
  unsigned char res4 : 2;
  unsigned char fblk : 3;
- unsigned char fnc  : 3;
+ unsigned char fnc  : 2;
  unsigned char log  : 1;
  /* Data 6 */
  unsigned char res5 : 2;
@@ -108,7 +111,7 @@ typedef struct s_avs_data {
  unsigned char res7 : 3;
 } s_avs_data;
 
-#define AVS_DATA_SIZE 7
+#define AVS_DATA_SIZE sizeof(s_avs_data)
 
 ///////////////////////////////////////////////////////////////////////////////
 
