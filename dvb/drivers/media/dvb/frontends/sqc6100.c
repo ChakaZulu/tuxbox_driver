@@ -1,5 +1,5 @@
 /*
- * $Id: sqc6100.c,v 1.7 2003/12/25 15:35:01 wjoost Exp $
+ * $Id: sqc6100.c,v 1.8 2003/12/25 15:36:52 wjoost Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
@@ -606,6 +606,7 @@ static int sqc6100_reset(struct dvb_i2c_bus *i2c)
 		return ret;
 
 	sqc6100_status = 0;
+	sqc6100_channel_change_ok = 0;
 	return sqc6100_init(i2c);
 }
 
