@@ -260,7 +260,7 @@ DmxDevFilterStateSet(dmxdev_filter_t *dmxdevfilter, int state)
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 }
 
-static int
+int
 DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 {
 	if (dmxdevfilter->state<DMXDEV_STATE_GO)
@@ -1155,6 +1155,7 @@ EXPORT_SYMBOL(DmxDevDVRWrite);
 
 EXPORT_SYMBOL(DmxDevFilterAlloc);
 EXPORT_SYMBOL(DmxDevFilterFree);
+EXPORT_SYMBOL(DmxDevFilterStop);
 EXPORT_SYMBOL(DmxDevRead);
 EXPORT_SYMBOL(DmxDevIoctl);
 EXPORT_SYMBOL(DmxDevPoll);

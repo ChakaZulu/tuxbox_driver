@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.74 2002/08/17 14:48:41 obi Exp $
+ * $Id: dvb.c,v 1.75 2002/09/01 19:52:37 obi Exp $
  */
 
 #include <linux/config.h>
@@ -167,13 +167,23 @@ void tuning_complete_cb (void * priv)
 	// struct dvb_struct * dvb = (struct dvb_struct *) priv;
 }
 
+void tuning_start_cb (void * priv)
+{
+	int i;
+	struct dvb_struct * dvb = (struct dvb_struct *) priv;
+
+	for (i=0; i<dvb->dmxdev.filternum; i++)
+		if (dvb->dmxdev.filter[i].state>=DMXDEV_STATE_GO)
+			DmxDevFilterStop(&dvb->dmxdev.filter[i]);
+}
+
 static int frontend_init (dvb_struct_t * dvb)
 {
 	FrontendParameters para;
 
 	dvb->frontend->priv=(void *)dvb;
-	dvb->frontend->complete_cb = tuning_complete_cb;
-	dvb->frontend->start_cb=0;
+	dvb->frontend->complete_cb=tuning_complete_cb;
+	dvb->frontend->start_cb=tuning_start_cb;
 	dvb_frontend_init(dvb->frontend);
 
 	dvb->powerstate = FE_POWER_ON;

@@ -157,4 +157,5 @@ int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 		   unsigned int cmd, unsigned long arg);
 unsigned int DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait);
 
+int DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter);
 #endif /* _DMXDEV_H_ */
