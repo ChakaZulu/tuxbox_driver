@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.54  2002/01/21 15:18:46  Hunz
+ *   maybe keyboard fix
+ *
  *   Revision 1.53  2002/01/20 06:21:49  Hunz
  *   keyboard change
  *
@@ -173,7 +176,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.53 $
+ *   $Revision: 1.54 $
  *
  */
 
@@ -1062,6 +1065,7 @@ static int fp_init(void)
         ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
 	//	irkbd_init_hw();
+        kbd_ledfunc = irkbd_leds;
 	return 0;
 }
 
@@ -1173,6 +1177,7 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	//	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
+        tasklet_schedule(&keyboard_tasklet);
 }
 
 
