@@ -39,11 +39,11 @@
 #define capture_start(fd)				ioctl(fd, AVIA_GT_CAPTURE_START, 0)
 #define capture_stop(fd)				ioctl(fd, AVIA_GT_CAPTURE_STOP, 0)
 
-extern int avia_gt_capture_set_input_pos(unsigned short x, unsigned short y);
-extern int avia_gt_capture_set_input_size(unsigned short width, unsigned short height);
-extern int avia_gt_capture_set_output_size(unsigned short width, unsigned short height);
-extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride);
-extern void avia_gt_capture_stop(void);
+extern int avia_gt_capture_set_input_pos(unsigned short x, unsigned short y, unsigned char pig);
+extern int avia_gt_capture_set_input_size(unsigned short width, unsigned short height, unsigned char pig);
+extern int avia_gt_capture_set_output_size(unsigned short width, unsigned short height, unsigned char pig);
+extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned char pig);
+extern void avia_gt_capture_stop(unsigned char pig);
 
 extern int avia_gt_capture_init(void);
 extern void avia_gt_capture_exit(void);

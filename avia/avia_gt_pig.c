@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.27  2002/08/06 13:06:30  wjoost
+ *   Es kann nur einen (Nutzer des Capture-Moduls) geben.
+ *   Entweder *ein* Programm oder avia_gt_pig
+ *
  *   Revision 1.26  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -81,7 +85,7 @@
  *
  *
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 	
@@ -191,7 +195,7 @@ int avia_gt_pig_hide(unsigned char pig_nr)
 	else if (avia_gt_chip(GTX))
 	    gtx_reg_set(VPSA, E, 0);
 
-	avia_gt_capture_stop();
+	avia_gt_capture_stop(1);
     
 	pig_busy[pig_nr] = 0;
 	
@@ -256,7 +260,7 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
     if (pig_busy[pig_nr])
 	return -EBUSY;
 	
-    result = avia_gt_capture_set_output_size(width, height);
+    result = avia_gt_capture_set_output_size(width, height, 1);
     
     if (result < 0)
 	return result;
@@ -294,9 +298,12 @@ int avia_gt_pig_show(unsigned char pig_nr)
     if (pig_busy[pig_nr])
 		return -EBUSY;
 
-    avia_gt_capture_set_input_pos(0, 0);
-    avia_gt_capture_set_input_size(CAPTURE_WIDTH, CAPTURE_HEIGHT);
-    avia_gt_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr]);
+    if (avia_gt_capture_set_input_pos(0, 0, 1) < 0)
+	return -EBUSY;
+    if (avia_gt_capture_set_input_size(CAPTURE_WIDTH, CAPTURE_HEIGHT, 1) < 0)
+	return -EBUSY;
+    if (avia_gt_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], 1) < 0)
+	return -EBUSY;
 
     dprintk("avia_gt_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
@@ -348,7 +355,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.26 2002/06/07 18:06:03 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.27 2002/08/06 13:06:30 wjoost Exp $\n");
 
     gt_info = avia_gt_get_info();
     
