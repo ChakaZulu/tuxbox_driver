@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.94 2004/07/03 01:18:36 carjay Exp $
+ * $Id: avia_av_core.c,v 1.95 2004/11/16 14:15:39 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -367,12 +367,13 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 	}
 
 	/* Completed audio frame decoding */ 
-	if (status & IRQ_INIT_AUDD) 
-		wake_up_interruptible(&avia_av_wdt_sleep);
-
+	if (!avia_av_is500()){
+		if (status & IRQ_INIT_AUDD) 
+			wake_up_interruptible(&avia_av_wdt_sleep);
 	/* Completed picture decoded */
-	if (status & IRQ_PIC_D) 
-		wake_up_interruptible(&avia_av_wdt_sleep);
+		if (status & IRQ_PIC_D) 
+			wake_up_interruptible(&avia_av_wdt_sleep);
+	}
 
 	if (status & IRQ_SEQ_V) {
 		dprintk(KERN_DEBUG "avia_av: IRQ_SEQ_V\n");
@@ -974,8 +975,9 @@ static int avia_av_init(void)
 	/* init queue */
 	init_waitqueue_head(&avia_cmd_wait);
 
-	/* start avia_av_wdt_sleep  kernel_thread if it's not already running */
-	if (!kernel_thread_pid){
+	/* 	start avia_av_wdt_sleep kernel_thread if it's not already running,
+		but don't start watchdog for Avia 500 */
+	if (!kernel_thread_pid&&!avia_av_is500()){
 		/* init avia_av_wdt_sleep queue */
 		init_waitqueue_head(&avia_av_wdt_sleep);
 		kernel_thread_pid = kernel_thread ((int (*)(void *)) avia_av_wdt_thread, NULL, 0);
@@ -1505,7 +1507,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.94 2004/07/03 01:18:36 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.95 2004/11/16 14:15:39 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
