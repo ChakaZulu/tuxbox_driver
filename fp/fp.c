@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.65  2002/03/02 19:00:49  tmbinc
+ *   ups, small typo
+ *
  *   Revision 1.64  2002/03/02 18:33:14  tmbinc
  *   changed VCR_ON/OFF to _CHANGED, added IOCTL to get status
  *
@@ -206,7 +209,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.64 $
+ *   $Revision: 1.65 $
  *
  */
 
@@ -486,7 +489,7 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 						return -EFAULT;
 					return fp_set_wakeup_timer(val);
 				case FP_IOCTL_GET_VCR:
-					if (copy_to_user((void*)arg, defdata->fpVCR, sizeof(defdata->fpVCR)))
+					if (copy_to_user((void*)arg, &defdata->fpVCR, sizeof(defdata->fpVCR)))
 						return -EFAULT;
 					return 0;
 				default:
