@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.11 2003/01/03 17:18:59 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.12 2003/01/03 17:35:02 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -30,11 +30,12 @@
 
 #include <dbox/dbox2_fp_core.h>
 
-#define UP_TIMEOUT (HZ/3)
+#define UP_TIMEOUT (HZ / 4)
 
 static struct input_dev *rc_input_dev;
 static int old_rc = 1;
 static int new_rc = 1;
+static u8 old_repead_id = 0xFF;
 
 //#define dprintk printk
 #define dprintk if (0) printk
@@ -139,7 +140,7 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 	
 				del_timer(&keyup_timer);
 	
-				if (keyup_timer.data != rc_key_map[rc_key_nr].code)
+				if ((keyup_timer.data != rc_key_map[rc_key_nr].code) || (old_repead_id != ((rc_code >> 6) & 0x03)))
 					input_event(rc_input_dev, EV_KEY, keyup_timer.data, !!0);
 					
 			}
@@ -152,6 +153,8 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 			keyup_timer.data = rc_key_map[rc_key_nr].code;
 
 			add_timer(&keyup_timer);
+			
+			old_repead_id = (rc_code >> 6) & 0x03;
 
 		}
 
