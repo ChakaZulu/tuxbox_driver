@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.16  2001/03/07 22:25:14  tmbinc
+ *   Tried to fix PCR.
+ *
  *   Revision 1.15  2001/03/04 14:15:42  tmbinc
  *   fixed ucode-version autodetection.
  *
@@ -45,7 +48,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -118,7 +121,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 {
   u8 w[4];
   w[0]=type<<5;
-  if ((rh(RISC+0x7FE)&0xFF00)==0xB100)
+  if ((rh(RISC+0x7FE)&0xFF00)>=0xA000)
     w[0]|=(queue)&31;
   else
     w[0]|=(queue+1)&31;
@@ -376,11 +379,12 @@ static void gtx_pcr_interrupt(int b, int r)
 //  printk("elapsed %08x, delta %c%08x\n", elapsedTime, deltaClk<0?'-':'+', deltaClk<0?-deltaClk:deltaClk);
 //  printk("%x (%x)\n", deltaClk, gtx_bound_delta(MAX_DAC, deltaClk));
 /*  deltaClk=gtx_bound_delta(MAX_DAC, deltaClk);
+
   rw(DPCR)=((-deltaClk)<<16)|0x0009; */
-  if (deltaClk<0)                       // TODO: not THAT nice...
-    rw(DPCR)=0x70000009;
-  else
-    rw(DPCR)=0x90000009;
+
+  deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*32);
+
+  rw(DPCR)=(deltaClk<<16)|9;
 
   oldClk=latchedClk;
   return;
