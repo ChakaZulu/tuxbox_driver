@@ -150,8 +150,6 @@ static int dvb2eth_send(unsigned first, unsigned first_len,
 		*((unsigned short *) (udp + 26)) = ip_fast_csum(udp + 16,5);
 		flush_dcache_range(((unsigned long) udp) + 20,((unsigned long) udp) + 27);
 
-//		dvb2eth_dump(udp + 2,sizeof(dvb2eth_udp_header_skel) - 2,"Header");
-
 		if (first_len >= 1316)
 		{
 			scc_enet_multiple_xmit(dvb2eth_dev,2,
