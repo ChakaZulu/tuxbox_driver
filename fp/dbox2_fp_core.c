@@ -621,7 +621,7 @@ i2c_driver fp_driver =
  *   Interrupt Handler Functions
 \*****************************************************************************/
 
-	
+
 static void
 fp_handle_frontpanel_button (struct fp_data * dev)
 {
@@ -631,22 +631,22 @@ fp_handle_frontpanel_button (struct fp_data * dev)
 	fp_add_event(0xFF00 | rc);
 }
 
+
 static void
-fp_handle_ir_rc_dbox1 (struct fp_data * dev)
+fp_handle_ir_rc (struct fp_data * dev)
 {
 	u16 rc;
 
-	fp_cmd(dev->client, 0x01, (u8*)&rc, sizeof(rc));
-	fp_add_event(rc);
-}
+	switch (info.mID) {
+	case DBOX_MID_NOKIA:
+		fp_cmd(dev->client, 0x01, (u8*)&rc, sizeof(rc));
+		break;
+	case DBOX_MID_PHILIPS:
+	case DBOX_MID_SAGEM:
+		fp_cmd(dev->client, 0x26, (u8*)&rc, sizeof(rc));
+		break;
+	}
 
-
-static void
-fp_handle_ir_rc_dbox2 (struct fp_data * dev)
-{
-	u16 rc;
-
-	fp_cmd(dev->client, 0x26, (u8*)&rc, sizeof(rc));
 	fp_add_event(rc);
 }
 
@@ -694,10 +694,10 @@ fp_check_queues (void)
 /*
  * fp status:
  *
- * 0x01	ir remote control (new dbox2)
+ * 0x01	ir remote control (dbox1, old dbox2)
  * 0x02	ir keyboard
  * 0x04	ir mouse
- * 0x08	ir remote control (dbox1, old dbox2)
+ * 0x08	ir remote control (new dbox2)
  *
  * 0x10	frontpanel button
  * 0x20	scart status
@@ -711,7 +711,7 @@ fp_check_queues (void)
 		dprintk("status: %02x\n", status);
 
 		if (status & 0x01)
-			fp_handle_ir_rc_dbox2(defdata);
+			fp_handle_ir_rc(defdata);
 
 		if (status & 0x02)
 			dbox2_fp_handle_ir_keyboard(defdata);
@@ -720,7 +720,7 @@ fp_check_queues (void)
 			dbox2_fp_handle_ir_mouse(defdata);
 
 		if (status & 0x08)
-			fp_handle_ir_rc_dbox1(defdata);
+			fp_handle_ir_rc(defdata);
 
 		if (status & 0x10)
 			fp_handle_frontpanel_button(defdata);
