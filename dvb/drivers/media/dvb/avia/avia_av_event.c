@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_event.c,v $
+ *   Revision 1.4  2002/11/25 18:25:08  obi
+ *   compile-/bugfix
+ *
  *   Revision 1.3  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -33,7 +36,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -81,7 +84,7 @@ static void avia_av_event_timer_function(unsigned long data)
 				reg->hsize = (rDR(H_SIZE) & 0xFFFF);
 				reg->vsize = (rDR(V_SIZE) & 0xFFFF);
 
-				memset(&event, 0, sizeof(event_t));
+				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_VHSIZE_CHANGE;
 				event_write_message(&event, 1);
 				
@@ -91,7 +94,7 @@ static void avia_av_event_timer_function(unsigned long data)
 			
 				reg->aratio = (rDR(ASPECT_RATIO) & 0xFFFF);
 
-				memset(&event, 0, sizeof(event_t));
+				memset(&event, 0, sizeof(struct event_t));
 				event.event = EVENT_ARATIO_CHANGE;
 				event_write_message(&event, 1);
 				
@@ -123,7 +126,7 @@ static void avia_av_event_timer_function(unsigned long data)
 int avia_av_event_init(void)
 {
 
-	printk("avia_av_event: $Id: avia_av_event.c,v 1.3 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_av_event: $Id: avia_av_event.c,v 1.4 2002/11/25 18:25:08 obi Exp $\n");
 
 	event_delay = 0;
 
