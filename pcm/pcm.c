@@ -1,3 +1,32 @@
+/*
+ *   pcm.c - pcm driver for gtx (dbox-II-project)
+ *
+ *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *   $Log: pcm.c,v $
+ *   Revision 1.4  2001/01/06 09:55:09  gillem
+ *   cvs check
+ *
+ *
+ *   $Revision: 1.4 $
+ *
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -23,7 +52,6 @@
 
 #define wDR(a, d) avia_wr(TM_DRAM, a, d)
 #define rDR(a) avia_rd(TM_DRAM, a)
-
 
 #define PCM_INTR_REG				1
 #define PCM1_INTR_BIT       10
@@ -78,9 +106,7 @@ void pcm_reset()
   rh(RR1) |=  (1<<6);
   rh(RR1) &= ~(1<<6);
 
-	rh(RR0) = 0;
-	rh(RR1) = 0;
-
+	/* DAC TEST remove it */
 	printk("DPCR: %08X\n",rw(DPCR));
 	rw(DPCR) = 0xFFFF001F;
 	printk("DPCR: %08X\n",rw(DPCR));
@@ -88,8 +114,8 @@ void pcm_reset()
 	/* buffer disable */
 	rw(PCMA) = 1;
 
-	/* set volume for pcm*/
-	rw(PCMN) = 0x40400000;
+	/* set volume for pcm and mpeg */
+	rw(PCMN) = 0x40408080;
 
 	rh(PCMC) = 0;
 
