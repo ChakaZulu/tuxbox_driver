@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_v4l2.c,v $
+ *   Revision 1.4  2002/12/21 15:20:06  Jolt
+ *   Fix stack order
+ *
  *   Revision 1.3  2002/12/21 13:43:43  Jolt
  *   Fixes
  *
@@ -35,7 +38,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -73,6 +76,8 @@ static void avia_gt_v4l2_close(void *id)
 {
 
 	dprintk("avia_gt_v4l2: close\n");
+	
+	avia_gt_pig_hide(0);
 
 	return;
 	
@@ -125,10 +130,17 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 					
 		case VIDIOC_PREVIEW:
 		
-			if ((*((int *)arg)) != 0)
+			if ((*((int *)arg))) {
+			
+				avia_gt_pig_set_stack(0, 2);
+
 				return avia_gt_pig_show(0);
-			else
+				
+			} else {
+			
 				return avia_gt_pig_hide(0);
+				
+			}
 
 		case VIDIOC_QUERYCAP:
 		{
@@ -229,7 +241,7 @@ static int unit_video = 0;
 static int __init avia_gt_v4l2_init(void)
 {
 
-    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.3 2002/12/21 13:43:43 Jolt Exp $\n");
+    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.4 2002/12/21 15:20:06 Jolt Exp $\n");
 	
 	device_info.minor = unit_video;
 

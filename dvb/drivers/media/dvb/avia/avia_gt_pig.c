@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.32  2002/12/21 15:20:06  Jolt
+ *   Fix stack order
+ *
  *   Revision 1.31  2002/12/20 22:02:41  Jolt
  *   - V4L2 compatible pig interface
  *   - Removed old pig interface
@@ -101,7 +104,7 @@
  *
  *
  *
- *   $Revision: 1.31 $
+ *   $Revision: 1.32 $
  *
  */
 	
@@ -197,11 +200,10 @@ int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order)
     if (pig_nr >= pig_count)
 		return -ENODEV;
 	
-    if (avia_gt_chip(ENX))
-	enx_reg_set(VPSO1, SO, stack_order);
-    else if (avia_gt_chip(GTX))
-//	gtx_reg_set(VPS, P, (stack_order != 0));
-	gtx_reg_set(VPS, P, 1);
+	if (avia_gt_chip(ENX))
+		enx_reg_set(VPSO1, SO, stack_order);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(VPS, P, !!stack_order);
 	
     return 0;
     
@@ -314,7 +316,7 @@ int __init avia_gt_pig_init(void)
 
 	unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.31 2002/12/20 22:02:41 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.32 2002/12/21 15:20:06 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -384,6 +386,7 @@ void __exit avia_gt_pig_exit(void)
 EXPORT_SYMBOL(avia_gt_pig_hide);
 EXPORT_SYMBOL(avia_gt_pig_set_pos);
 EXPORT_SYMBOL(avia_gt_pig_set_size);
+EXPORT_SYMBOL(avia_gt_pig_set_stack);
 EXPORT_SYMBOL(avia_gt_pig_show);
 
 #if defined(MODULE) && defined(STANDALONE)
