@@ -27,9 +27,9 @@
 #include <asm/io.h>
 
 #include <linux/i2c.h>
-#include "dvb.h"
+#include <dbox/dvb.h>
 
-#include "ves.h"
+#include <dbox/ves.h>
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -209,25 +209,25 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
         }
         dprintk("setsymbolrate %d\n", srate);
 
-	if (srate>90100000UL/2)
-                srate=90100000UL/2;
+#define XIN (91000000UL) // dbox Crystal iss 91 MHz !!
+
+	if (srate>XIN/2)
+                srate=XIN/2;
         if (srate<500000)
                 srate=500000;
         ves->srate=srate;
         
 #define MUL (1UL<<25)
-#define FIN (90106000UL>>4)
-       tmp=srate<<6;
+#define FIN (XIN>>4)
+        tmp=srate<<6;
 	ratio=tmp/FIN;
 
-/*
 	tmp=(tmp%FIN)<<8;
 	ratio=(ratio<<8)+tmp/FIN;
-*/
-
+   	
 	tmp=(tmp%FIN)<<8;
-	ratio=(ratio<<8)+tmp/FIN;
-        
+	ratio=(ratio<<8)+tmp/FIN;     
+	
 	FNR = 0xFF;
 	
 	if (ratio < MUL/3)           FNR = 0;
@@ -246,19 +246,14 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 		ADCONF = 0x89;		//bypass Filter
 		FCONF  = 0x80;		//default
 		FNR	= 0;
-	}
-	else
-	{
+	} else	{
 		ADCONF = 0x81;
 		FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5); //default | DFN | AFS
 	}
 
-	//(int)( ((1<<21)<<(FNR>>1)) * (float)(srate) / 90100000.0 + 0.5);
-	//(int)(32 * 90100000.0 / (float)(srate) / (1<<(FNR>>1)) + 0.5);
 
-
-	BDR = ((  (ratio<<(FNR>>1))  >>2)+1)>>1;
-	BDRI = (  ((90100000UL<<4) / ((srate << (FNR>>1))>>2)  ) +1 ) >> 1;
+	BDR = ((  (ratio<<(FNR>>1))  >>4)+1)>>1;
+	BDRI = (  ((FIN<<8) / ((srate << (FNR>>1))>>2)  ) +1 ) >> 1;
 
         dprintk("FNR= %d\n", FNR);
         dprintk("ratio= %08x\n", ratio);
