@@ -1,4 +1,4 @@
-/* modified for kernel */
+#define a500v093        _binary_500v090_bin_start  
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -15,6 +15,8 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
+
+#include "../fp/fp.h"
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -204,16 +206,14 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
   
   wGB(0, rGB(0)&~1);
   wDR(0x2AC, 0); // ACK
-  return;
 }
-
 
 u32 Command(u32 command, u32 a1, u32 a2, u32 a3, u32 a4, u32 a5, u32 a6)
 {
   u32 stataddr, tries;
   printk("waiting for avia ready.\n");
                 // TODO: kernel lock (somewhat DRINGEND wenn wir mal irgendwann .. und so weiter)
-  tries=1000;
+  tries=100;
   while (!rDR(0x5C)) { udelay(1000); if (! (tries--)) { printk("timeout.\n"); return -1; } }
   
   wDR(0x40, command);
@@ -228,14 +228,14 @@ u32 Command(u32 command, u32 a1, u32 a2, u32 a3, u32 a4, u32 a5, u32 a6)
   wDR(0x5C, 0);
     // TODO: host-to-decoder interrupt
    
-  tries=1000;
+  tries=100;
   while (!(stataddr=rDR(0x5C))) { udelay(1000); if (! (tries--)) { printk("timeout.\n"); return -1; } }
   return stataddr;
 }
 
 u32 WaitCommand(u32 sa)
 {
-  int tries=10000;
+  int tries=1000;
   while (1)
   {
     int status;
@@ -246,6 +246,8 @@ u32 WaitCommand(u32 sa)
     }
     status=rDR(sa);
     printk(":%x", status);
+    if (!status)
+      return status;
     if (status>=3)
       return status;
     udelay(1000);
@@ -267,15 +269,14 @@ int init_module(void)
 
   if (request_8xxirq(AVIA_INTERRUPT, avia_interrupt, 0, "avia", &dev) != 0)
     panic("Could not allocate AViA IRQ!");
-  
-  
-//  wGB(0, 3<<22);                // reset decoder
-  wGB(0x39, 0xF00000);
-  udelay(100);
 
+  wGB(0x39, 0xF00000);          // reset the cpu
+  fp_do_reset(0xBF & ~ (2));
+  udelay(1000);
   wGB(0, 0x1000);            // enable host access
-  aviarev=(rGB(0)>>16)&3;
+  wGB(0x39, 0xF00000);          // reset the cpu
   
+  aviarev=(rGB(0)>>16)&3;
   switch (aviarev)
   {
   case 0:
@@ -308,34 +309,40 @@ int init_module(void)
 
   LoaduCode();
   load_imem_image(UX_FIRST_SECTION_START+UX_SECTION_DATA_OFFSET);
-  
-                 // TODO: ADDR_SD_MODE = 0xA ?!?
-  wDR(0x7C, 1);         // HSYNC/VSYNC master, BT.656 output
-  wDR(0x68, 0);
-  if (pal)
-  {
-    wDR(0x6c, 0); /* ucode memory = dram */
-    wDR(0x21C, PAL_16MB_WO_ROM_SRAM);
-    wDR(0x64, 4); /* No SRAM */
-    wDR(0x68, 0x00); /* 16MBit DRAM */
-    wDR(0x6C, 0); /* Microcode in DRAM  -  nochmal?*/
-  } else
-  {
-    wDR(0x6c, 0);
-    wDR(0x21C, NTSC_16MB_WO_ROM_SRAM);
-    wDR(0x64, 0);
-    wDR(0x68, 0);
-    wDR(0x6C,0);
-  }
-  
- // wDR(0x200, -1 &~(1<<6));       // all but vsync
- 
 
+  wDR(0x1A8, 0xA);              // TM_MODE              (nokia) (br: evtl. 0x18, aber das wäre seriell.. eNX?)
+  wDR(0x7C, 0);                 // walter says 3, tries say 1, nokia says 0, br too  ... HSYNC/VSYNC master, BT.656 output
+  wDR(0xEC, 3);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
+  wDR(0xE8, 0);                 // AUDIO_DAC_MODE 
+  wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
+  wDR(0xF4, 76);                // AUDIO_ATTENUATION (br: 0)
+  wDR(0x250, 1);                //´DISABLE_OSD: yes (br)
+  wDR(0x1B0, 0);                // AV_SYNC_MODE: NO_SYNC
+  wDR(0x468, 1);                // NEW_AUDIO_CONFIG
+  wDR(0x1C4, 0x1004);           // AUDIO_PTS_SKIP_THRESHOLD_1
+  wDR(0x1C8, 0x1004);
+  wDR(0x1C0, 0xE10);
+  wDR(0x68, 0);                 // 16Mbit DRAM (nokia) (walter) (br)
+  wDR(0x6C, 0);                 // (nokia) (br)
+  wDR(0x64, 0);
+  if (pal)                      // (br) (walter)
+    wDR(0x21C, PAL_16MB_WO_ROM_SRAM);
+  else
+    wDR(0x21C, NTSC_16MB_WO_ROM_SRAM);
+  wDR(0x1B8, 0xE10);            // VIDEO_PTS_SKIP_THRESHOLD
+  wDR(0x1BC, 0xE10);
+  
+  wDR(0x1D8, 0);                // INTERPRE_USER_DATA (br) disable
   FinalGBus();
+
+                // so, das wars, mehr macht die nokia-fw auch nicht.  
+
+                // mpg_enAViAIntr aus der BN:
+  wDR(0x2AC, 0);
   wGB(0, rGB(0)|0x80);  // enable interrupts
   wGB(0, (rGB(0)&~1)|2);  // enable interrupts
+                // ...
   wDR(0x200, 0xFFFFFF);       // all but vsync
-  wDR(0x2AC, 0);
   
   tries=20;
   
@@ -346,44 +353,38 @@ int init_module(void)
     udelay(100*1000);
   }
 
-  wDR(0x98, 0x3F33AA);          // border color
-  wDR(0x9C, 0x7F2233);          // background color
+  wDR(0x98, 0x3F1234);          // border color
+  wDR(0x9C, 0x322123);          // background color
   
+
   printk("final PROC_STATE: %x\n", rDR(0x2A0));
   if (!tries)
     printk("timeout waiting for deocder init complete.\n");
   
-  printk("current state: %x\n", rDR(0x2a0));
- 
 /*  if (WaitCommand(Command(0x8146, 0xB, 0, 0, 0, 0, 0))==-1)
     return 0;*/
   printk("avia soft-reset: fstatus: %x\n", WaitCommand(Command(0x802d, 0, 0, 0, 0, 0, 0))); 
-  udelay (2000*1000);
+  printk("current state: %x\n", rDR(0x2a0));
 
-  //we want new audio- and videochannels
-  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0x3, 0x0, 0, 0, 0, 0)));
-  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x0, 0x0, 0, 0, 0, 0)));
-  //accept video- and audio-PES streams
-  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0xb, 0x0, 0, 0, 0, 0)));
-
-//  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0x0, 0x65, 0, 0, 0, 0)));
-//  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x3, 0x66, 0, 0, 0, 0)));
-  printk("play: %x\n", Command(0x343, 0, 0x65, 0, 0, 0, 0));
-
-/*  
-  printk("set streamtype: %x\n", WaitCommand(Command(0x8146, 0x10, 0x65, 0, 0, 0, 0)));
-  printk("set streamtype: %x\n", WaitCommand(Command(0x8146, 0x11, 0x66, 0, 0, 0, 0)));
   printk("newplaymode: %x\n", WaitCommand(Command(0x0028, 0, 0, 0, 0, 0, 0)));
-  printk("fill: %x\n", WaitCommand(Command(0x532, -1, 0, 0, 0, 0xE0FFFF, 0)));
-  printk("fill: %x\n", WaitCommand(Command(0x532, 0, 0, 100, 100, 0xE0FF00, 0)));
-  printk("fill: %x\n", WaitCommand(Command(0x532, 75, 75, 120, 120, 0xE000FF, 0)));*/
-/*  printk("select stream (vid): %x\n", WaitCommand(Command(0x231, 0, 0x65, 0, 0, 0, 0)));
-  printk("select stream (aud): %x\n", WaitCommand(Command(0x231, 3, 0x66, 0, 0, 0, 0))); */
+#if 0
+  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0x0, 0xFF, 0, 0, 0, 0)));
+  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x3, 0x100, 0, 0, 0, 0)));
+#endif
+  printk("SetStreamType: %x\n", WaitCommand(Command(0x8146, 0xB, 0, 0, 0, 0, 0)));
+  udelay (2000*1000); 
 
-/*  printk("select stream (pes): %x\n", WaitCommand(Command(0x231, 0xB, 0, 0, 0, 0, 0)));*/
-//  printk("play: %x\n", WaitCommand(Command(0x343, 0, 0x65, 0x66, 0, 0, 0)));
-/*  printk("tone: %x\n", WaitCommand(Command(0x449, 440, 32768, 0, 0, 0, 0))); */
-  
+  printk("Fill: %x\n", WaitCommand(Command(0x532, -1, 0, 0, 0, 0x505050, 0)));
+  printk("Fill: %x\n", WaitCommand(Command(0x532, 110, 110, 150, 150, 0x703060, 0)));
+
+#if 0
+  printk("Digest: %x\n", WaitCommand(Command(0x521, 0, 0, 1, 2, 0x50, 0)));
+  printk("Digest: %x\n", WaitCommand(Command(0x521, 100, 0, 2, 2, 0x50, 0)));
+  printk("Digest: %x\n", WaitCommand(Command(0x521, 200, 0, 3, 2, 0x50, 0)));
+  printk("Digest: %x\n", WaitCommand(Command(0x521, 300, 0, 4, 2, 0x50, 0)));
+  printk("Digest: %x\n", WaitCommand(Command(0x521, 100, 100, 5, 2, 0x50, 0)));
+#endif
+
   return 0;
 }
 
