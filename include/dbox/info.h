@@ -28,7 +28,7 @@
 
 struct dbox_info_struct
 {
-	int mID, feID, fpID, enxID, gtxID, hwREV, fpREV;
+	int mID, feID, fpID, enxID, gtxID, hwREV, fpREV, avia;
 	unsigned char dsID[8];
 	
 	int fe, demod;
