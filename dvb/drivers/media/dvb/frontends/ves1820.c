@@ -187,7 +187,7 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 
 	if (tuner_type == 1) {
 		buf[2] |= (div >> 10) & 0x60;
-		buf[3] = (freq < 174000000 ? 0x88 :
+		Buf[3] = (freq < 174000000 ? 0x88 :
 			  freq < 470000000 ? 0x84 : 0x81);
 	} else {
 		buf[3] = (freq < 174000000 ? 0xa1 :
@@ -214,7 +214,7 @@ int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0)
 		if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
 			reg0 ^= 0x20;
 			ves1820_writereg (fe, 0x00, reg0 & 0xfe);
-        		ves1820_writereg (fe, 0x00, reg0);
+        		ves1820_writereg (fe, 0x00, reg0 | 0x01);
 		}
 	}
 
