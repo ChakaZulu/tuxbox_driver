@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.23  2002/08/04 12:14:21  wjoost
+ *   wide screen signaling
+ *
  *   Revision 1.22  2002/06/12 16:28:51  LazyT
  *   fixed VBI insertion
  *
@@ -84,7 +87,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -211,6 +214,11 @@ static unsigned char PAL_SAA_SAGEM[] =
 0x00, 0x00, 0x00, 0x52, 0x6F, 0x00, 0xA0, 0x31,
 0x7D, 0xBF, 0x60, 0x40, 0x07, 0x00, 0x06, 0x16,
 0x06, 0x16, 0x16, 0x36, 0x60, 0x00, 0x00, 0x00
+};
+
+static const unsigned char wss_data[8] =
+{
+0x08, 0x01, 0x02, 0x0B, 0x04, 0x0D, 0x0E, 0x07
 };
 
 /* ------------------------------------------------------------------------- */
@@ -747,6 +755,50 @@ static int saa7126_vps_get_data( char * buf )
 
 /* ------------------------------------------------------------------------- */
 
+static int saa7126_wss_get(void)
+{
+	u8 b[2];
+	unsigned i;
+
+	saa7126_cmd(&client_template,0x26,b,2);
+	if (b[1] & 0x80)
+	{
+		b[0] &= 0x0F;
+		i = 0;
+		while (i < 8)
+		{
+			if (b[1] == wss_data[i])
+			{
+				return i;
+				i++;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static int saa7126_wss_set(int i)
+{
+	u8 b[3];
+
+	if (i > 7)
+	{
+		return -EINVAL;
+	}
+	b[0] = 0x26;
+	b[1] = wss_data[i];
+	b[2] = 0x80;
+	i2c_master_send(&client_template,b,3);
+
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------- */
+
 static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 		  unsigned long arg)
 {
@@ -835,6 +887,25 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 				saa7126_vps_get_data(saa_data);
 
 				return copy_to_user( (void*)arg, saa_data, 6 );
+
+				break;
+
+		case SAAIOSWSS:
+				if (copy_from_user( &val, (void*)arg,sizeof(val))) {
+					return -EFAULT;
+				}
+				return saa7126_wss_set(val);
+
+				break;
+
+		case SAAIOGWSS:
+				val = saa7126_wss_get();
+				if (val < 0) {
+					return val;
+				}
+				else {
+					return copy_to_user( (void*)arg, &val, sizeof(val));
+				}
 
 				break;
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.10  2002/08/04 12:14:21  wjoost
+ *   wide screen signaling
+ *
  *   Revision 1.9  2001/11/22 17:26:12  gillem
  *   - add power save mode (experimental)
  *   - start vps
@@ -52,7 +55,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -67,6 +70,9 @@
 #define SAAIOSVPSDATA	8	/* set vps data */
 #define SAAIOGVPSDATA	9	/* get vps data */
 
+#define SAAIOSWSS		10	/* set wide screen signaling data */
+#define SAAIOGWSS		11	/* get wide screen signaling data */
+
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1
 #define SAA_MODE_SVIDEO	2
@@ -80,6 +86,15 @@
 #define SAA_INP_DEMOFF	6
 #define SAA_INP_SYMP	8
 #define SAA_INP_CBENB	128
+
+#define SAA_WSS_43F		0	/* full format 4:3 */
+#define SAA_WSS_149C	1	/* box 14:9 center */
+#define SAA_WSS_149T	2	/* box 14:9 top */
+#define SAA_WSS_169C	3	/* box 16:9 center */
+#define SAA_WSS_169T	4	/* box 16:9 top */
+#define SAA_WSS_GT169C	5	/* box > 16:9 center */
+#define SAA_WSS_43_149C	6	/* full format 4:3 with 14:9 center letterbox content */
+#define SAA_WSS_169F	7	/* full format 16:9 (anamorphic) */
 
 // TODO: fix this table
 
