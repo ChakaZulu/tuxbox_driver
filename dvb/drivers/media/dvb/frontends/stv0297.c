@@ -16,7 +16,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */    
 
 #include <linux/init.h>
@@ -35,6 +34,7 @@
 #endif
 
 #define STV0297_CLOCK   28900
+#define TunerZF         36150
 
 static struct dvb_frontend_info stv0297_info = {
 	.name			= "STV0297/TSA5512 based DVB-C frontend",
@@ -151,6 +151,7 @@ static u8 stv0297_readreg (struct dvb_i2c_bus *i2c, u8 reg)
         if (ret != 1)
                 dprintk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
 
+	//dprintk("readreg: reg == 0x%02x, val == 0x%02x\n", reg, b1[0]); 
         return b1[0];
 }
 
@@ -176,7 +177,6 @@ static int stv0297_readregs (struct dvb_i2c_bus *i2c, u8 reg1, u8 *b, u8 len)
 }
 
 
-
 static int pll_write (struct dvb_i2c_bus *i2c, u8 *data, int len)
 {
 	int ret;
@@ -190,33 +190,6 @@ static int pll_write (struct dvb_i2c_bus *i2c, u8 *data, int len)
                 printk("%s: i/o error (ret == %i)\n", __FUNCTION__, ret);
 
 	return (ret != 1) ? -1 : 0;
-}
-
-
-static int tsa5512_set_tv_freq	(struct dvb_i2c_bus *i2c, u32 freq)
-{
-	u8 buf[4];
-	u32 div, ifreq;
-
-        ifreq = 36125000;
- 
-        div = (freq + ifreq + 31250) / 62500;
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = div & 0xff;
-	buf[2] = 0xCE; 
-
-	if (freq < 166000000)
-		buf[3] = 0xA2; // 41 Mhz bis 166 Mhz 
-	else
-		buf[3] = 0x92; // 166 Mhz bis 451 Mhz 
-			       // > 451 fix me   
-
-	dprintk("%s:  div = %d 0 == 0x%02x, 1 == 0x%02x 3 == 0x%02x \n",__FUNCTION__,div,buf[0],buf[1],buf[3]);
-
-	pll_write (i2c, buf, sizeof(buf));
-
-	return 0;
 }
 
 
@@ -238,6 +211,43 @@ static int tsa5512_read_status	(struct dvb_i2c_bus *i2c)
 }
 
 
+static int tsa5512_set_tv_freq	(struct dvb_i2c_bus *i2c, u32 freq)
+{
+	u8 buf[4];
+	u8 pll[] = { 0x8E };
+	u32 div, ifreq;
+	int i = 0;
+
+        ifreq = 36125000;
+ 
+        div = (freq + ifreq + 31250) / 62500;
+
+	buf[0] = (div >> 8) & 0x7f;
+	buf[1] = div & 0xff;
+	buf[2] = 0xCE; 
+
+	if (freq < 166000000)
+		buf[3] = 0xA2; // 41 Mhz bis 166 Mhz 
+	else
+		buf[3] = 0x92; // 166 Mhz bis 451 Mhz 
+			       // > 451 fix me   
+
+	dprintk("%s:  div = %d 0 == 0x%02x, 1 == 0x%02x 3 == 0x%02x \n",__FUNCTION__,div,buf[0],buf[1],buf[3]);
+
+	pll_write (i2c, buf, sizeof(buf));
+
+	while ( (tsa5512_read_status(i2c) >> 6 == 0) ){
+        	dprintk ("%s:  wait for tuner... %x\n", __FUNCTION__,tsa5512_read_status(i2c));
+                i++;
+		if (i == 4) { dprintk ("%s:  break\n", __FUNCTION__); break; }
+	}
+        
+        pll_write (i2c, pll, sizeof(pll));
+
+	return 0;
+}
+
+
 static int stv0297_init (struct dvb_i2c_bus *i2c)
 {
 	int i;
@@ -251,12 +261,6 @@ static int stv0297_init (struct dvb_i2c_bus *i2c)
 	return 0;
 }
 
-/*
-static int stv0297_check_inversion (struct dvb_i2c_bus *i2c)
-{
-	return 0;
-}
-*/
 
 static int stv0297_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate) 
 {
@@ -269,7 +273,6 @@ static int stv0297_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 */
 long tmp, ExtClk;
 
-	srate = srate / 1000;
         ExtClk = (long)(STV0297_CLOCK) / 4;	/* 1/4 = 2^-2 */
 	tmp = 131072L * srate;			/* 131072 = 2^17  */
         tmp = tmp /ExtClk;
@@ -282,6 +285,57 @@ long tmp, ExtClk;
  
 	return 0;
 }
+
+void stv0297_set_sweeprate(struct dvb_i2c_bus *i2c, short _FShift, long _SymbolRate)
+{
+long  long_tmp;
+short FShift ;
+unsigned char carrier;
+int   RegSymbolRate;
+
+        FShift = _FShift;  /* in mS .. +/- 5,100 S von 6975 S */
+        RegSymbolRate = _SymbolRate;     //RegGetSRate() ;  /* in KHz */
+        if(RegSymbolRate <= 0) return ;
+
+        long_tmp = (long)FShift * 262144L ;  // 262144 = 2*18
+        long_tmp /= RegSymbolRate ;
+        long_tmp *= 1024 ;                   // 1024 = 2*10
+
+        if(long_tmp >= 0)
+              long_tmp += 500000 ;
+        else  long_tmp -= 500000 ;
+        long_tmp /= 1000000 ;
+
+        stv0297_writereg (i2c,0x60,(unsigned char)(long_tmp & 0xFF));
+
+        carrier = stv0297_readreg(i2c,0x69) & ~ 0xF0;       
+        carrier |= (unsigned char)((long_tmp>>4) & 0xF0);   
+        stv0297_writereg (i2c,0x69, carrier);               
+
+        return;
+}
+
+
+void stv0297_set_frequencyoffset(struct dvb_i2c_bus *i2c, long _CarrierOffset)
+{
+long long_tmp;
+unsigned char sweep;
+
+        long_tmp = _CarrierOffset * 26844L ; /* (2**28)/10000 */
+        if(long_tmp < 0) long_tmp += 0x10000000 ;
+        long_tmp &= 0x0FFFFFFF ;
+
+        stv0297_writereg (i2c,0x66,(unsigned char)(long_tmp & 0xFF));    // iphase0
+        stv0297_writereg (i2c,0x67,(unsigned char)(long_tmp>>8));        // iphase1
+        stv0297_writereg (i2c,0x68,(unsigned char)(long_tmp>>16));       // iphase2
+
+        sweep = stv0297_readreg(i2c,0x69) & 0xF0;          
+        sweep |= ((unsigned char)(long_tmp>>24) &  0x0F);  
+        stv0297_writereg (i2c,0x69,sweep);                 
+
+        return;
+}
+
 
 static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
@@ -360,22 +414,21 @@ static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		struct dvb_frontend_parameters *p = arg;
 		u8 buf2[] = { 0x83, 0x10, 0x25, 0x00, 0x78, 0x73 };
 		u8 buf3[] = { 0xC0, 0x4B, 0x01, 0x00 };
-		u8 buf4[] = { 0x66, 0xB9, 0x1E, 0x85, 0x0F };
-		u8 pll[] = { 0x8E };		
-		int i = 0;
+		int CarrierOffset = -500;
+		int SweepRate = 1380;
+		int SpectrumInversion = 0;
+        	
+		if (SpectrumInversion) {
+            		SweepRate     = -SweepRate ;
+            		CarrierOffset = -CarrierOffset ;
+        	}
+        	else {
+            		SweepRate     = SweepRate ;
+            		CarrierOffset = CarrierOffset ;
+        	}
 
 		tsa5512_set_tv_freq (i2c, p->frequency);
-
-		/*  wait till tuner has tuned ! */
-
-		while ( (tsa5512_read_status(i2c) >> 6 == 0) ){
-			dprintk ("%s wait for tuner... %x\n", __FUNCTION__,tsa5512_read_status(i2c));
-			i++;
-			if (i == 3) { dprintk ("%s break\n", __FUNCTION__); break; }
-		}
-
-		pll_write (i2c, pll, sizeof(pll));
-
+		
 		stv0297_writeregs (i2c, buf2, sizeof(buf2)); 
 		stv0297_writereg (i2c, 0x84, 0x24); 
 		stv0297_writeregs (i2c, buf3, sizeof(buf3)); 
@@ -395,20 +448,22 @@ static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		stv0297_writereg (i2c, 0x5A, 0x3E);  //3E forces the direct path to be immediately 
 		stv0297_writereg (i2c, 0x5B, 0x07); 
 		stv0297_writereg (i2c, 0x5B, 0x05); 
-                stv0297_set_symbolrate (i2c, p->u.qam.symbol_rate); 
+                
+		stv0297_set_symbolrate (i2c, p->u.qam.symbol_rate/1000); 
 		stv0297_writereg (i2c, 0x59, 0x08); 
 		stv0297_writereg (i2c, 0x61, 0x49); 
 		stv0297_writereg (i2c, 0x62, 0x0E); 
 		stv0297_writereg (i2c, 0x6A, 0x02); 
 		stv0297_writereg (i2c, 0x00, 0x48);  // set qam-64
-		//stv0297_writereg (i2c, 0x89, 0xFE);  // qam auto 
+		 
 		stv0297_writereg (i2c, 0x01, 0x58); 
 		stv0297_writereg (i2c, 0x82, 0x00); 
 		stv0297_writereg (i2c, 0x83, 0x08); 
-		stv0297_writereg (i2c, 0x60, 0x2D); 
+		stv0297_set_sweeprate(i2c,SweepRate,  p->u.qam.symbol_rate/1000);
 		stv0297_writereg (i2c, 0x20, 0x00); 
 		stv0297_writereg (i2c, 0x21, 0x40); 
-		stv0297_writeregs (i2c, buf4, sizeof(buf4)); 
+		stv0297_set_frequencyoffset(i2c,CarrierOffset);
+
 		stv0297_writereg (i2c, 0x82, 0x00); 
 		stv0297_writereg (i2c, 0x85, 0x04); 
 		stv0297_writereg (i2c, 0x43, 0x10); 
@@ -433,9 +488,7 @@ static int stv0297_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         }
 
         case FE_GET_FRONTEND:
-        {
                 break;
-        }
 
         case FE_SLEEP:
 		break;
