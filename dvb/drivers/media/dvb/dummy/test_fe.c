@@ -24,7 +24,7 @@ int FEGetInfo(int fd, struct dvb_frontend_info *info)
 	
 	if ((result = ioctl(fd, FE_GET_INFO, info) < 0)) { 
 
-		perror("FE GET INFO: ");
+		perror("FE_GET_INFO");
 		
 		return result;
 		
@@ -42,7 +42,7 @@ int FEDumpBER(int fd)
 	
 	if ((result = ioctl(fd, FE_READ_BER, &ber) < 0)) { 
 
-		perror("FE READ BER: ");
+		perror("FE_READ_BER");
 		
 		return result;
 		
@@ -100,7 +100,7 @@ int FEDumpSignalStrength(int fd)
 	
 	if ((result = ioctl(fd, FE_READ_SIGNAL_STRENGTH, &sig_str) < 0)) { 
 
-		perror("FE READ SIGNAL STRENGTH: ");
+		perror("FE_READ_SIGNAL_STRENGTH");
 		
 		return result;
 		
@@ -120,7 +120,7 @@ int FEDumpSNR(int fd)
 	
 	if ((result = ioctl(fd, FE_READ_BER, &snr) < 0)) { 
 
-		perror("FE READ SNR: ");
+		perror("FE_READ_SNR");
 		
 		return result;
 		
@@ -140,7 +140,7 @@ int FEDumpStatus(int fd)
 	
 	if ((result = ioctl(fd, FE_READ_STATUS, &stat) < 0)) { 
 
-		perror("FE READ STATUS: ");
+		perror("FE_READ_STATUS");
 		
 		return result;
 		
@@ -179,7 +179,7 @@ int FESetFrontend(int fd, struct dvb_frontend_parameters *parameters)
 
 	if ((result = ioctl(fd, FE_SET_FRONTEND, parameters) < 0)) { 
 
-		perror("FE SET FRONTEND: ");
+		perror("FE_SET_FRONTEND");
 		
 		return result;
 		
@@ -187,6 +187,40 @@ int FESetFrontend(int fd, struct dvb_frontend_parameters *parameters)
 
 	return 0;
 	
+}
+
+int FESetVoltage(int fd, fe_sec_voltage_t v)
+{
+	
+	int result;
+	
+	if ((result = ioctl(fd, FE_SET_VOLTAGE, v) < 0)) {
+
+		perror("FE_SET_VOLTAGE");
+
+		return result;
+
+	}
+	
+	return 0;
+
+}
+
+int FESetTone(int fd, fe_sec_tone_mode_t t)
+{
+	
+	int result;
+	
+	if ((result = ioctl(fd, FE_SET_TONE, t) < 0)) {
+
+		perror("FE_SET_TONE");
+
+		return result;
+
+	}
+
+	return 0;
+
 }
 
 int main (void)
@@ -222,6 +256,9 @@ int main (void)
 		fe_param.inversion = INVERSION_OFF;
 		fe_param.u.qpsk.symbol_rate = 22000000;
 		fe_param.u.qpsk.fec_inner = FEC_AUTO;
+
+		FESetVoltage(fe_fd, SEC_VOLTAGE_13);
+		FESetTone(fe_fd, SEC_TONE_ON);
 	
 	} else if (fe_info.type == FE_OFDM) {
 
@@ -239,6 +276,8 @@ int main (void)
 
 		printf("invalid fe_info.type\n");
 		
+		close(fe_fd);
+
 		return -1;
 
 	}
@@ -250,6 +289,8 @@ int main (void)
 	FEDumpSignalStrength(fe_fd);
 
 	close(fe_fd);
+
+	return 0;
 
 }
 
