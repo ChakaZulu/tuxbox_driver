@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.23  2003/08/13 17:14:20  obi
+ *   added cam_poll()
+ *
  *   Revision 1.22  2003/01/14 10:26:36  jolt
  *   Remove hardcoded CODE_BASE. It's a module param now (mio=0x?????).
  *
@@ -85,7 +88,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -346,6 +349,18 @@ int cam_read_message( char * buf, size_t count )
 	return cb;
 }
 
+unsigned int cam_poll(struct file *file, poll_table *wait)
+{
+	unsigned int mask = 0;
+
+	poll_wait(file, &queuewait, wait);
+
+	if (cam_queuerptr != cam_queuewptr)
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
+}
+
 static void do_firmwrite( u32 *buffer )
 {
 	int size,i;
@@ -446,7 +461,7 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.22 2003/01/14 10:26:36 jolt Exp $\n");
+	printk("$Id: cam.c,v 1.23 2003/08/13 17:14:20 obi Exp $\n");
 	
 	if (!mio) {
 	
@@ -532,9 +547,10 @@ void __exit cam_cleanup(void)
 	
 }
 
+EXPORT_SYMBOL(cam_poll);
+EXPORT_SYMBOL(cam_read_message);
 EXPORT_SYMBOL(cam_reset);
 EXPORT_SYMBOL(cam_write_message);
-EXPORT_SYMBOL(cam_read_message);
 
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 CAM Driver");
