@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.3  2001/12/08 15:20:58  gillem
+ *	- remove debug stuff ;-)
+ *	
  *	Revision 1.2  2001/12/08 15:13:54  gillem
  *	- add more functions
  *	
@@ -27,7 +30,7 @@
  *	- initial release (not ready today)
  *	
  *
- *	$Revision: 1.2 $
+ *	$Revision: 1.3 $
  *
  */
 
@@ -190,9 +193,9 @@ int event_init(void)
 {
 	printk("event: init ...\n");
 
-	event_data.event_ptr = 1;
+	event_data.event_ptr = 0;
 	event_data.event_read_ptr = 0;
-	event_data.event_free = EVENTBUFFERSIZE-1;
+	event_data.event_free = EVENTBUFFERSIZE;
 
 	devfs_handle = devfs_register ( NULL, "dbox/event0", DEVFS_FL_DEFAULT,
 		0, 0,
