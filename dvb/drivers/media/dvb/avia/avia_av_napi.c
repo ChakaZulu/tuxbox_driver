@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.18 2003/06/20 15:00:35 obi Exp $
+ * $Id: avia_av_napi.c,v 1.19 2003/06/24 01:02:21 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -91,7 +91,7 @@ int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
 			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
 		else
-			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_SPTS, AVIA_AV_STREAM_TYPE_SPTS);
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_0, AVIA_AV_STREAM_TYPE_0);
 
 		if (audiostate.play_state == AUDIO_PLAYING)
 			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
@@ -105,7 +105,7 @@ int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
 		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
 			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
 		else
-			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_SPTS, AVIA_AV_STREAM_TYPE_SPTS);
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_0, AVIA_AV_STREAM_TYPE_0);
 
 		if (videostate.play_state == VIDEO_PLAYING)
 			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
@@ -604,7 +604,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.18 2003/06/20 15:00:35 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.19 2003/06/24 01:02:21 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
