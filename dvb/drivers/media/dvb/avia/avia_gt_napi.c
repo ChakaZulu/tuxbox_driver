@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.80 $
+ *   $Revision: 1.81 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.81  2002/05/02 04:56:47  Jolt
+ *   Merge
+ *
  *   Revision 1.80  2002/05/01 21:51:35  Jolt
  *   Merge
  *
@@ -304,7 +307,6 @@ static s32 gtx_bound_delta(s32 bound, s32 delta);
 static void gtx_task(void *);
 static int GtxDmxInit(gtx_demux_t *gtxdemux);
 static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
-static void gtx_flush_pcr(void);
 
 static int wantirq=0;
 
@@ -744,39 +746,24 @@ WE_HAVE_DISCONTINUITY:
 	discont=1;
 }
 
-static void gtx_flush_pcr(void)
-{
-
-    discont = 1;
-
-    if (avia_gt_chip(ENX))
-	enx_reg_16(FC) |= 0x100;
-
-    else if (avia_gt_chip(GTX))
-	rh(FCR) |= 0x100;
-
-}
-
 static void gtx_dmx_set_pcr_source(int pid)
 {
 
     if (avia_gt_chip(ENX)) {
     
-	enx_reg_16(PCR_PID) = (1 << 13) | pid;
-	enx_reg_16(FC) |= 0x100;							 // force discontinuity
-	discont = 1;
-	avia_gt_free_irq(ENX_IRQ_PCR);
-	avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
+		enx_reg_16(PCR_PID) = (1 << 13) | pid;
+		avia_gt_free_irq(ENX_IRQ_PCR);
+		avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
     } else if (avia_gt_chip(GTX)) {
 
-	rh(PCRPID) = (1 << 13) | pid;
-	rh(FCR) |= 0x100;							 // force discontinuity
-	discont = 1;
-	avia_gt_free_irq(GTX_IRQ_PCR);
-	avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
+		rh(PCRPID) = (1 << 13) | pid;
+		avia_gt_free_irq(GTX_IRQ_PCR);
+		avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 
     }
+	
+	avia_gt_dmx_force_discontinuity();
 
 }
 
@@ -1803,13 +1790,13 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->descramble_mac_address=0;
 	dmx->descramble_section_payload=0;
 	
-	dmx->add_frontend=dmx_add_frontend;
-	dmx->remove_frontend=dmx_remove_frontend;
-	dmx->get_frontends=dmx_get_frontends;
-	dmx->connect_frontend=dmx_connect_frontend;
-	dmx->disconnect_frontend=dmx_disconnect_frontend;
-	dmx->flush_pcr=gtx_flush_pcr;
-	dmx->set_pcr_pid=gtx_dmx_set_pcr_source;
+	dmx->add_frontend = dmx_add_frontend;
+	dmx->remove_frontend = dmx_remove_frontend;
+	dmx->get_frontends = dmx_get_frontends;
+	dmx->connect_frontend = dmx_connect_frontend;
+	dmx->disconnect_frontend = dmx_disconnect_frontend;
+	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
+	dmx->set_pcr_pid = gtx_dmx_set_pcr_source;
 	
 	gtx_tasklet.data=gtxdemux;
 
@@ -1836,7 +1823,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.80 2002/05/01 21:51:35 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.81 2002/05/02 04:56:47 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
     

@@ -21,13 +21,16 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.77  2002/05/02 04:56:47  Jolt
+ *   Merge
+ *
  *   Revision 1.76  2002/05/01 21:53:00  Jolt
  *   Merge
  *
  *
  *
  *
- *   $Revision: 1.76 $
+ *   $Revision: 1.77 $
  *
  */
 
@@ -95,9 +98,17 @@ unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 
 }
 
-//unsigned short enx_queue_offs_read[] =  { 0x08F0, 0x08E0
-//unsigned short enx_queue_offs_write[] = { 0x08F4, 0x08E4
-//unsigned short enx_queue_offs_irq[] =   { 
+void avia_gt_dmx_force_discontinuity(void)
+{
+
+//    discont = 1;
+
+    if (avia_gt_chip(ENX))
+		enx_reg_16(FC) |= 0x100;
+    else if (avia_gt_chip(GTX))
+		rh(FCR) |= 0x100;
+
+}
 
 unsigned char avia_gt_dmx_get_queue_size(unsigned char queue_nr)
 {
@@ -319,7 +330,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.76 2002/05/01 21:53:00 Jolt Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.77 2002/05/02 04:56:47 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -408,6 +419,7 @@ void __exit avia_gt_dmx_exit(void)
 }
 
 #ifdef MODULE
+EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue);
