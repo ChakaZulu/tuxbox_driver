@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.5  2002/04/21 14:36:07  Jolt
+ *   Merged GTX fb support
+ *
  *   Revision 1.4  2002/04/17 21:50:57  Jolt
  *   Capture driver fixes
  *
@@ -34,7 +37,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -42,21 +45,21 @@
 #define AVIA_GT_GV_H
 
 #define AVIA_GT_GV_INPUT_MODE_OFF	0x00
-#define AVIA_GT_GV_INPUT_MODE_RGB4	0x02
-#define AVIA_GT_GV_INPUT_MODE_RGB8	0x06
+#define AVIA_GT_GV_INPUT_MODE_RGB4	0x01
+#define AVIA_GT_GV_INPUT_MODE_RGB8	0x02
 #define AVIA_GT_GV_INPUT_MODE_RGB16	0x03
-#define AVIA_GT_GV_INPUT_MODE_RGB32	0x07
+#define AVIA_GT_GV_INPUT_MODE_RGB32	0x04
 
 extern void avia_gt_gv_cursor_hide(void);
 extern void avia_gt_gv_cursor_show(void);
 extern unsigned short avia_gt_gv_get_stride(void);
 extern void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size);
 extern void avia_gt_gv_hide(void);
-extern void avia_gt_gv_set_input_mode(unsigned char mode);
+extern int avia_gt_gv_set_input_mode(unsigned char mode);
 extern int avia_gt_gv_set_input_size(unsigned short width, unsigned short height);
 extern int avia_gt_gv_set_pos(unsigned short x, unsigned short y);
 extern void avia_gt_gv_set_size(unsigned short width, unsigned short height);
-extern void avia_gt_gv_show(void);
+extern int avia_gt_gv_show(void);
 extern int avia_gt_gv_init(void);
 extern void avia_gt_gv_exit(void);
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.24  2002/04/21 14:36:07  Jolt
+ *   Merged GTX fb support
+ *
  *   Revision 1.23  2002/04/15 19:32:44  Jolt
  *   eNX/GTX merge
  *
@@ -114,7 +117,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -129,8 +132,6 @@
     
     roh suxx.
  */
-
-#define ENX
 
 #define TCR_COLOR 0xFC0F
 #define BLEVEL		0x20
@@ -161,7 +162,7 @@
 #define RES_X           720
 #define RES_Y           576
 
-static int debug=0;
+static unsigned char fb_chip_type;
 
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
@@ -406,9 +407,8 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	printk("	   yres : %d",par->yres);
 	printk("	   stride : %x\n",par->stride); */
 
-
-#ifdef GTX
-
+    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
   rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
   rh(VHT)=par->pal?858:852;
   rh(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
@@ -496,9 +496,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   rw(VBR)=0;                       // disable background..
 
-#endif // GTX
-
-#ifdef ENX
+    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
 
 #define ENX_VCR_SET_HP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<10))) | ((X&3)<<10))
 #define ENX_VCR_SET_FP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
@@ -587,7 +585,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   else
      ENX_GVS_SET_YSZ(par->yres*2);
 
-#endif // ENX
+    }
 
   current_par = *par;
   current_par_valid=1;
@@ -601,7 +599,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   if (regno>255)
     return 1;
 
-#ifdef GTX
+    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
 
   rh(CLTA)=regno;
   mb();
@@ -622,9 +620,10 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
 	  *blue=(val&0x1F)       <<19;
 	  *transp=(val&0x8000)?BLEVEL:0;
 	}
-#endif
 
-#ifdef ENX
+
+    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
 
   enx_reg_h(CLUTA)=regno;
   mb();
@@ -642,9 +641,10 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   if (blue)
     *blue = (val & 0x000000FF);
 
-#endif  
+    }
   
-  return 0;
+    return 0;
+    
 }
 
 static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
@@ -654,7 +654,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
     return 0;
   
 
-#ifdef GTX
+    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
 
   red>>=11;
   green>>=11;
@@ -675,9 +675,8 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
 	}
   
-#endif // GTX
 
-#ifdef ENX
+    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
 
   red>>=8;
   green>>=8;
@@ -692,7 +691,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   green>>=3;
   blue>>=3;
 
-#endif // ENX
+    }
   
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
@@ -757,7 +756,9 @@ struct fbgen_hwswitch gtx_switch = {
 
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-#ifdef GTX
+
+    if (fb_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
 	switch (cmd)
 	{
 	case GTXFB_BLEV0:
@@ -781,9 +782,10 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 	default:
 		return -EINVAL;
 	}
-#endif /* GTX */
 
-#ifdef ENX
+
+    } else if (fb_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+
 	switch (cmd)
 	{
 	case ENXFB_BLEV10:
@@ -865,9 +867,10 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 	default:
 		return -EINVAL;
 	}
-#endif /* ENX */
 
-	return 0;
+    }
+
+    return 0;
 	
 }
 
@@ -890,8 +893,18 @@ int __init avia_gt_fb_init(void)
     unsigned char *gv_mem_phys;
     unsigned int gv_mem_size;
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.23 2002/04/15 19:32:44 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.24 2002/04/21 14:36:07 Jolt Exp $\n");
+    
+    fb_chip_type = avia_gt_get_chip_type();
+	
+    if ((fb_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (fb_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
 	    
+	printk("avia_gt_fb: Unsupported chip type\n");
+		    
+	return -EIO;
+			    
+    }
+					    
     avia_gt_gv_get_info(&gv_mem_phys, &gv_mem_lin, &gv_mem_size);
 		
     fb_info.offset = AVIA_GT_MEM_GV_OFFS;

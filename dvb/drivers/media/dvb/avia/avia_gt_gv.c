@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.6  2002/04/21 14:36:07  Jolt
+ *   Merged GTX fb support
+ *
  *   Revision 1.5  2002/04/16 13:58:16  Jolt
  *   eNX/GTX merge
  *
@@ -37,7 +40,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -66,22 +69,40 @@ unsigned short output_y = 0;
 
 void avia_gt_gv_set_stride(void);
 
-void avia_gt_gv_cursor_hide(void) {
+void avia_gt_gv_cursor_hide(void)
+{
 
-    enx_reg_s(GMR1)->C = 0;
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(GMR1)->C = 0;
+    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(GMR)->C = 0;
     
 }
 
-void avia_gt_gv_cursor_show(void) {
+void avia_gt_gv_cursor_show(void)
+{
 
-    enx_reg_s(GMR1)->C = 1;
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(GMR1)->C = 1;
+    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(GMR)->C = 1;
     
 }
 
-void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size) {
+void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size)
+{
 
-    if (gv_mem_phys)
-	*gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + AVIA_GT_MEM_GV_OFFS);
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	if (gv_mem_phys)
+	    *gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + AVIA_GT_MEM_GV_OFFS);
+	
+    } else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+
+        if (gv_mem_phys)
+	    *gv_mem_phys = (unsigned char *)(GTX_MEM_BASE + AVIA_GT_MEM_GV_OFFS);
+	    
+    }
 	
     if (gv_mem_lin)
 	*gv_mem_lin = avia_gt_get_mem_addr() + AVIA_GT_MEM_GV_OFFS;
@@ -99,20 +120,25 @@ unsigned short avia_gt_gv_get_stride(void) {
 
 void avia_gt_gv_hide(void) {
 
-    enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(GMR)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
     
 }
 
-void avia_gt_gv_set_input_mode(unsigned char mode) {
+int avia_gt_gv_set_input_mode(unsigned char mode) {
 
     if (input_mode != AVIA_GT_GV_INPUT_MODE_OFF)
-	enx_reg_s(GMR1)->GMD = mode;
+	return -EBUSY;
 
-    // Since mode changed, we have to recalculate some stuff
-    avia_gt_gv_set_stride();
-	
     input_mode = mode;
     
+    // Since mode changed, we have to recalculate some stuff
+    avia_gt_gv_set_stride();
+    
+    return 0;
+	
 }
 
 int avia_gt_gv_set_input_size(unsigned short width, unsigned short height) {
@@ -220,29 +246,81 @@ void avia_gt_gv_set_stride(void) {
 	    input_bpp = 2;
 	    
 	break;
-	// We dont have enough memory to support truecolor mode
-	//case AVIA_GT_GV_INPUT_MODE_RGB32:
+	case AVIA_GT_GV_INPUT_MODE_RGB32:
 	
-	//    input_bpp = 4;
+	    input_bpp = 4;
 	
-	//break;
+	break;
 	
     }
 
-    enx_reg_s(GMR1)->STRIDE = (((input_width * input_bpp) + 3) & ~3) >> 2;
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+	enx_reg_s(GMR1)->STRIDE = (((input_width * input_bpp) + 3) & ~3) >> 2;
+    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gtx_reg_s(GMR)->STRIDE = (((input_width * input_bpp) + 1) & ~1) >> 1;
     
 }
 
-void avia_gt_gv_show(void) {
+int avia_gt_gv_show(void) {
 
-    enx_reg_s(GMR1)->GMD = input_mode;
+    switch(input_mode) {
+    
+	case AVIA_GT_GV_INPUT_MODE_OFF:
+	
+	    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    	        enx_reg_s(GMR1)->GMD = 0x00;
+	    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+		gtx_reg_s(GMR)->GMD = 0x00;
+	    
+	break;
+	case AVIA_GT_GV_INPUT_MODE_RGB4:
+	
+	    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    	        enx_reg_s(GMR1)->GMD = 0x02;
+	    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+		gtx_reg_s(GMR)->GMD = 0x01;
+	    
+	break;
+	case AVIA_GT_GV_INPUT_MODE_RGB8:
+	
+	    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    	        enx_reg_s(GMR1)->GMD = 0x06;
+	    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+		gtx_reg_s(GMR)->GMD = 0x02;
+	    
+	break;
+	case AVIA_GT_GV_INPUT_MODE_RGB16:
+	
+	    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    	        enx_reg_s(GMR1)->GMD = 0x03;
+	    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+		gtx_reg_s(GMR)->GMD = 0x03;
+	    
+	break;
+	case AVIA_GT_GV_INPUT_MODE_RGB32:
+	
+	    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX)
+    	        enx_reg_s(GMR1)->GMD = 0x07;
+	    else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	        return -EINVAL;
+		
+	break;
+	default:
+	
+	    return -EINVAL;
+	
+	break;
+	
+    }
+
+    return 0;
     
 }
 
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.5 2002/04/16 13:58:16 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.6 2002/04/21 14:36:07 Jolt Exp $\n");
 
     gv_chip_type = avia_gt_get_chip_type();
     

@@ -124,6 +124,7 @@
 #define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
 
 
+#define GTX_REG_GMR	0x000
 #define GTX_REG_ISR0	0x080
 #define GTX_REG_ISR1	0x082
 #define GTX_REG_ISR2	0x084
@@ -172,6 +173,22 @@
 
 
 
+
+typedef struct {
+
+    unsigned char GMD: 2;
+    unsigned char L: 1;
+    unsigned char F: 1;
+    unsigned char C: 1;
+    unsigned char I: 1;
+    unsigned char CFT: 2;
+    unsigned char BLEV1: 4;
+    unsigned char BLEV0: 4;
+    unsigned char Reserved1: 5;
+    unsigned short STRIDE: 10;
+    unsigned char Reserved2: 1;
+
+} sGTX_REG_GMR;
 
 typedef struct {
 
