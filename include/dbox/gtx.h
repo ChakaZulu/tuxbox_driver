@@ -122,11 +122,115 @@
 #define GVS_SET_XSZ(X)   rw(GVS) = ((rw(GVS)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
 #define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
 
+
+
+
+
+#define GTX_REG_VLI1	0x0F8
+#define GTX_REG_RR0	0x100
+#define GTX_REG_VPSA	0x240
+#define GTX_REG_VPO	0x244
+#define GTX_REG_VPP	0x248
+#define GTX_REG_VPS	0x24C
+#define GTX_REG_VCSA	0x260
+#define GTX_REG_VCSP	0x264
+#define GTX_REG_VCS	0x268
+
+
+
+
+typedef struct {
+
+    unsigned short Reserved1: 10;
+    unsigned int Addr: 21;
+    unsigned char E: 1;
+
+} sGTX_REG_VCSA;
+
+typedef struct {
+
+    unsigned short HDEC: 4;
+    unsigned char Reserved1: 2;
+    unsigned short HSIZE: 9;
+    unsigned char F: 1;
+    unsigned char VDEC: 4;
+    unsigned char Reserved2: 2;
+    unsigned short VSIZE: 9;
+    unsigned char B: 1;
+
+} sGTX_REG_VCS;
+
+typedef struct {
+
+    unsigned char V: 1;
+    unsigned char Reserved1: 5;
+    unsigned short HPOS: 9;
+    unsigned char Reserved2: 3;
+    unsigned char OVOFFS: 4;
+    unsigned short EVPOS: 9;
+    unsigned char Reserved3: 1;
+
+} sGTX_REG_VCSP;
+
+typedef struct {
+
+    unsigned short Reserved1: 10;
+    unsigned int Addr: 21;
+    unsigned char E: 1;
+
+} sGTX_REG_VPSA;
+
+typedef struct {
+
+    unsigned short OFFSET;
+    unsigned char Reserved1: 4;
+    unsigned short STRIDE: 11;
+    unsigned char B: 1;
+
+} sGTX_REG_VPO;
+
+typedef struct {
+
+    unsigned char Reserved1: 6;
+    unsigned short HPOS: 9;
+    unsigned char Reserved2: 7;
+    unsigned short VPOS: 9;
+    unsigned char F: 1;
+
+} sGTX_REG_VPP;
+
+typedef struct {
+
+    unsigned char Reserved1: 6;
+    unsigned short WIDTH: 9;
+    unsigned char S: 1;
+    unsigned char Reserved2: 6;
+    unsigned short HEIGHT: 9;
+    unsigned char P: 1;
+
+} sGTX_REG_VPS;
+
+
+
+
+
 extern int gtx_allocate_dram(int size, int align);
 extern int gtx_allocate_irq(int reg, int bit, void (*isr)(int, int));
 extern void gtx_free_irq(int reg, int bit);
 
 extern unsigned char* gtx_get_mem(void);
 extern unsigned char* gtx_get_reg(void);
+
+#define gtx_get_mem_addr gtx_get_mem
+#define gtx_get_reg_addr gtx_get_reg
+
+#define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(gtx_get_reg_addr() + GTX_REG_ ## register))))
+#define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(gtx_get_reg_addr() + offset))))
+#define gtx_reg_32(register) ((unsigned int)(*((unsigned int*)(gtx_get_reg_addr() + GTX_REG_ ## register))))
+#define gtx_reg_32n(offset) ((unsigned int)(*((unsigned int*)(gtx_get_reg_addr() + offset))))
+#define gtx_reg_o(offset) (gtx_get_reg_addr() + offset)
+#define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
+#define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
 
 #endif

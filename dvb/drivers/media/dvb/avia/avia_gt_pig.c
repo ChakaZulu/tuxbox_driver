@@ -60,8 +60,8 @@ extern int enx_pig_show(unsigned char pig_nr);
 //#define CAPTURE_WIDTH 720
 #define CAPTURE_WIDTH 640
 #define CAPTURE_HEIGHT 576
-#define PIG_WIDTH 160
-#define PIG_HEIGHT 72
+#define PIG_WIDTH (160*3)
+#define PIG_HEIGHT (72*3)
 
 static devfs_handle_t devfs_handle[ENX_PIG_COUNT];
 static unsigned char pig_busy[ENX_PIG_COUNT] = {0, 0};
@@ -276,6 +276,8 @@ int enx_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short 
 
 int enx_pig_show(unsigned char pig_nr)
 {
+    unsigned short odd_offset;
+
     if (pig_nr >= ENX_PIG_COUNT)
 	return -ENODEV;
 	
@@ -283,7 +285,7 @@ int enx_pig_show(unsigned char pig_nr)
 	return -EBUSY;
 
     enx_capture_set_input(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-    enx_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr]);
+    enx_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], &odd_offset);
 
     printk("enx_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
@@ -296,7 +298,8 @@ int enx_pig_show(unsigned char pig_nr)
     enx_reg_w(VPSA1) = 0;
     enx_reg_w(VPSA1) |= ((unsigned int)pig_buffer[pig_nr] & 0xFFFFFC);			// Set buffer address (for non d-buffer mode)
     
-    enx_reg_s(VPOFFS1)->OFFSET = 512 * 1024 / 4;
+    enx_reg_s(VPOFFS1)->OFFSET = odd_offset >> 2;
+//    enx_reg_s(VPOFFS1)->OFFSET = 0;
 
     enx_reg_s(VPP1)->U = 0;
     enx_reg_s(VPP1)->F = 0;
@@ -335,7 +338,7 @@ void enx_pig_cleanup(void)
 
 static int init_enx_pig(void)
 {
-    printk("$Id: avia_gt_pig.c,v 1.3 2001/10/23 20:37:08 Jolt Exp $\n");
+    printk("$Id: avia_gt_pig.c,v 1.4 2001/11/01 18:17:31 Jolt Exp $\n");
 
     devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &enx_pig_fops, NULL);
     if (!devfs_handle[0])

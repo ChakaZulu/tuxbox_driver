@@ -234,8 +234,11 @@ void enx_capture_interrupt(int reg, int no)
     }
 }
 
-int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
+int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
 {
+    unsigned short buffer_odd_offset;
+    unsigned short capture_height;
+    unsigned short capture_width;
     unsigned short delta_x;
     unsigned short delta_y;
     unsigned char scale_x;
@@ -247,11 +250,16 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     printk("enx_capture: capture_start\n");
     
     scale_x = input_width / output_width;
-    scale_y = input_height / output_height / 2;
-    delta_x = ((input_width / scale_x) - output_width) / 2;
-    delta_y = ((input_height / scale_y) - output_height) / 2;
-    line_stride = ((input_width / scale_x) + 3) & ~3;
-    
+//    scale_y = input_height / output_height / 2;
+    scale_y = input_height / output_height;
+    capture_height = input_height / scale_y;
+    capture_width = input_width / scale_x;
+    delta_x = (capture_width - output_width) / 2;
+    delta_y = (capture_height - output_height) / 2;
+    line_stride = (((input_width / scale_x) + 3) & ~3) * 2;
+    buffer_odd_offset = (line_stride * (capture_height / 2)) + 100;
+    buffer_odd_offset = line_stride / 2;
+
     printk("enx_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
     printk("enx_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
 
@@ -259,23 +267,40 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
 #define VIDCAP_PIPEDELAY 2
 
     enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x + delta_x) / 2;
-    enx_reg_s(VCP)->EVPOS = 21 + input_y + delta_y;
+//    enx_reg_s(VCP)->OVOFFS = (scale_y - 1) / 2;
+    enx_reg_s(VCP)->OVOFFS = 0;
+    enx_reg_s(VCP)->EVPOS = 21 + ((input_y + delta_y) / 2);
 
     enx_reg_s(VCSZ)->HDEC = scale_x - 1;
     enx_reg_s(VCSZ)->HSIZE = input_width / 2;
-    enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
+
+    // If scale_y is even and greater then zero we get better results if we capture only the even fields
+    // than if we scale down both fields
+//    if ((scale_y > 0) && (!(scale_y & 0x01))) {
+
+	enx_reg_s(VCSZ)->B = 0;   				// Even-only fields
+//	enx_reg_s(VCSZ)->VDEC = (scale_y / 2) - 1;		
+    
+//    } else {
+
+//	enx_reg_s(VCSZ)->B = 1;   				// Both fields
+	enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
+    
+//    }
+
     enx_reg_s(VCSZ)->VSIZE = input_height / 2;
 
     enx_reg_s(VCSTR)->STRIDE = line_stride / 4;
 
-    enx_reg_s(VCOFFS)->Offset = 512 * 1024 / 4;
+    enx_reg_s(VCOFFS)->Offset = buffer_odd_offset >> 2;
+//    enx_reg_s(VCOFFS)->Offset = 0;
     
     enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
-    enx_reg_s(VCSA2)->Addr = (capt_buf_addr + ((input_width / scale_x) * (input_height / scale_y))) >> 2;
+//    enx_reg_s(VCSA2)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 2;
 
     enx_reg_s(VCSA1)->E = 1;
     
-    printk("enx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSTR)->STRIDE);
+    printk("enx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
     printk("enx_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
     
     state=1;
@@ -283,11 +308,13 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
     capture_busy = 1;
     
     if (capture_buffer)
-	//*capture_buffer = (unsigned char *)((((enx_reg_s(VCSA1)->Addr << 2) + (delta_x / 2) + ((delta_y / 2) * line_stride)) + 3) & ~3);
 	*capture_buffer = (unsigned char *)(enx_reg_s(VCSA1)->Addr << 2);
 	
     if (stride)
 	*stride = line_stride;
+	
+    if (odd_offset)
+	*odd_offset = buffer_odd_offset;
     
     return 0;
 }
@@ -345,7 +372,6 @@ int enx_capture_init(void)
     enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
 
     enx_reg_s(VCSZ)->F = 1;   				// Enable filter
-    enx_reg_s(VCSZ)->B = 1;   				// Both / even-only field(s)
     
     if (enx_allocate_irq(0, 5, enx_capture_interrupt) < 0)	// VL1
     {
@@ -368,7 +394,7 @@ void enx_capture_cleanup(void)
 
 static int init_capture(void)
 {
-    printk("$Id: avia_gt_capture.c,v 1.2 2001/10/23 20:37:08 Jolt Exp $\n");
+    printk("$Id: avia_gt_capture.c,v 1.3 2001/11/01 18:17:31 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,

@@ -21,8 +21,7 @@
  *
  */
 
-extern unsigned char *enx_capture_get_buf_addr(void);
 extern int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
 extern int enx_capture_set_output(unsigned short width, unsigned short height);
-extern int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride);
+extern int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);
 extern void enx_capture_stop(void);

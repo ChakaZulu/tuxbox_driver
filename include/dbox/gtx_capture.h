@@ -1,5 +1,5 @@
 /*
- *   enx_capture.h - capture driver for enx (dbox-II-project)
+ *   gtx_capture.h - capture driver for gtx (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,7 +21,8 @@
  *
  */
 
-extern int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
-extern int enx_capture_set_output(unsigned short width, unsigned short height);
-extern int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);
-extern void enx_capture_stop(void);
+extern unsigned char *gtx_capture_get_buf_addr(void);
+extern int gtx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
+extern int gtx_capture_set_output(unsigned short width, unsigned short height);
+extern int gtx_capture_start(unsigned char **capture_buffer, unsigned short *stride);
+extern void gtx_capture_stop(void);

@@ -331,6 +331,67 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char BLEV11;
+  unsigned char BLEV10;
+  
+} sENX_REG_GBLEV1;
+
+typedef struct {
+
+  unsigned char L: 1;
+  unsigned char F: 1;
+  unsigned char I: 1;
+  unsigned char P: 1;
+  unsigned char S: 2;
+  unsigned char C: 1;
+  unsigned char B: 1;
+  unsigned char GMD: 4;
+  unsigned char BANK: 4;
+  unsigned short STRIDE: 14;
+  unsigned char Reserved1: 2;
+  
+} sENX_REG_GMR1;
+
+typedef struct {
+
+  unsigned char SPP: 5;
+  unsigned char Reserved1: 1;
+  unsigned short XPOS: 10;
+  unsigned char Reserved2: 6;
+  unsigned short YPOS: 10;
+  
+} sENX_REG_GVP1;
+
+typedef struct {
+
+  unsigned char Reserved1;
+  unsigned int Addr: 22;
+  unsigned char Reserved2: 2;
+  
+} sENX_REG_GVSA1;
+
+typedef struct {
+
+  unsigned char IPP: 5;
+  unsigned char Reserved1: 1;
+  unsigned short XSZ: 10;
+  unsigned char Reserved2: 6;
+  unsigned short YSZ: 10;
+  
+} sENX_REG_GVSZ1;
+
+typedef struct {
+
+  unsigned char Reserved1: 7;
+  unsigned char E: 1;
+  unsigned char Red: 8;
+  unsigned char Green: 8;
+  unsigned char Blue: 8;
+  
+} sENX_REG_TCR1;
+
+typedef struct {
+
   unsigned short Reserved1: 11;
   unsigned int Offset: 19;
   unsigned char Reserved2: 2;
@@ -339,20 +400,19 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char HDEC: 4;
-  unsigned char Reserved1: 2;
-  unsigned short HSIZE: 9;
-  unsigned char F: 1;
-  unsigned char VDEC: 4;
+  unsigned char Reserved1: 6;
+  unsigned short HPOS: 9;
+  unsigned char U: 1;
   unsigned char Reserved2: 2;
-  unsigned short VSIZE: 9;
-  unsigned char B: 1;
+  unsigned char OVOFFS: 4;
+  unsigned short EVPOS: 9;
+  unsigned char Reserved3: 1;
   
-} sENX_REG_VCSZ;
+} sENX_REG_VCP;
 
 typedef struct {
 
-  unsigned char Reserved1: 8;
+  unsigned char Reserved1;
   unsigned int Addr: 22;
   unsigned char Reserved2: 1;
   unsigned char E: 1;
@@ -361,7 +421,7 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char Reserved1: 8;
+  unsigned char Reserved1;
   unsigned int Addr: 22;
   unsigned char Reserved2: 2;
   
@@ -378,15 +438,16 @@ typedef struct {
 
 typedef struct {
 
-  unsigned char Reserved1: 6;
-  unsigned short HPOS: 9;
-  unsigned char U: 1;
+  unsigned char HDEC: 4;
+  unsigned char Reserved1: 2;
+  unsigned short HSIZE: 9;
+  unsigned char F: 1;
+  unsigned char VDEC: 4;
   unsigned char Reserved2: 2;
-  unsigned char OVOFFS: 4;
-  unsigned short EVPOS: 9;
-  unsigned char Reserved3: 1;
+  unsigned short VSIZE: 9;
+  unsigned char B: 1;
   
-} sENX_REG_VCP;
+} sENX_REG_VCSZ;
 
 typedef struct {
 

@@ -1,5 +1,5 @@
 /*
- *   enx_capture.c - capture driver for enx (dbox-II-project)
+ *   gtx_capture.c - capture driver for gtx (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -43,15 +43,15 @@
 #error no devfs
 #endif
 
-#include <dbox/enx.h>
-#include <dbox/enx_capture.h>
+#include <dbox/gtx.h>
+#include <dbox/gtx_capture.h>
 
 static int capture_open(struct inode *inode, struct file *file);
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset);
 static int capture_release(struct inode *inode, struct file *file);
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
-static unsigned char *enx_mem;
+static unsigned char *gtx_mem;
 static int capt_buf_addr = 0xA0000;
 
 static unsigned char capture_busy = 0;
@@ -70,7 +70,7 @@ static DECLARE_MUTEX_LOCKED(lock_open);		// lock for open
 
 static devfs_handle_t devfs_handle;
 
-static struct file_operations capture_fops = {
+static struct file_operations gtx_capture_fops = {
 	owner:  	THIS_MODULE,
 	read:   	capture_read,
 	ioctl:  	capture_ioctl,
@@ -93,7 +93,7 @@ static int capture_open(struct inode *inode, struct file *file)
 			if (down_interruptible(&lock_open))
 				return -ERESTARTSYS;
 		}
-		printk("enx_capture: open\n");
+		printk("gtx_capture: open\n");
 		return 0;
 	default:
 		return -ENODEV;
@@ -116,7 +116,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 			{
 				if (state!=2)		// frame not done
 				{
-					printk("enx_capture: no frame captured, waiting.. (data: %x)\n", enx_mem[capt_buf_addr]);
+					printk("gtx_capture: no frame captured, waiting.. (data: %x)\n", gtx_mem[capt_buf_addr]);
 					if (file->f_flags & O_NONBLOCK)
 						return read;
 
@@ -128,11 +128,11 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 
 					if (signal_pending(current))
 					{
-						printk("enx_capture: aborted. %x\n", enx_mem[capt_buf_addr]);
+						printk("gtx_capture: aborted. %x\n", gtx_mem[capt_buf_addr]);
 						return -ERESTARTSYS;
 					}
 					
-					printk("enx_capture: ok\n");
+					printk("gtx_capture: ok\n");
 
 					continue;
 				}
@@ -140,12 +140,12 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 				/*done=0;
 				while (done*output_width < count) {
 				    if ((done+1)*output_width > count)
-					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, output_width);
+					memcpy(buf+done*output_width, gtx_mem+capt_buf_addr+done*line_stride, output_width);
 				    else
-					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
+					memcpy(buf+done*output_width, gtx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
 				    done++;
 				} */   
-				memcpy(buf, enx_mem+capt_buf_addr, count);
+				memcpy(buf, gtx_mem+capt_buf_addr, count);
 				
 				read=count;
 				
@@ -153,7 +153,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 
 				break;
 			}
-			//printk("enx_capture: captured 0x%X bytes\n", read);
+			//printk("gtx_capture: captured 0x%X bytes\n", read);
 			return read;
 		}
 
@@ -195,10 +195,10 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 	    x = arg & 0xFFFF;
 	    y = (arg >> 16);
     
-	    printk("enx_capture: DEBUG - HPOS=0x%X, EVPOS=0x%X\n", x, y);
+	    printk("gtx_capture: DEBUG - HPOS=0x%X, EVPOS=0x%X\n", x, y);
     
-	    enx_reg_s(VCP)->HPOS = x;
-	    enx_reg_s(VCP)->EVPOS = y;
+	    gtx_reg_s(VCSP)->HPOS = x;
+	    gtx_reg_s(VCSP)->EVPOS = y;
 	    
 	break;
 	
@@ -207,10 +207,10 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 	    x = arg & 0xFFFF;
 	    y = (arg >> 16);
     
-	    printk("enx_capture: DEBUG - HSIZE=0x%X, VSIZE=0x%X\n", x, y);
+	    printk("gtx_capture: DEBUG - HSIZE=0x%X, VSIZE=0x%X\n", x, y);
     
-	    enx_reg_s(VCSZ)->HSIZE = x;
-	    enx_reg_s(VCSZ)->VSIZE = y;
+	    gtx_reg_s(VCS)->HSIZE = x;
+	    gtx_reg_s(VCS)->VSIZE = y;
 	
 	break;    
 	
@@ -221,11 +221,11 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 //    return -ENODEV;
 }
 
-void enx_capture_interrupt(int reg, int no)
+void gtx_capture_interrupt(int reg, int no)
 {
     if (state==1)
     {
-	//printk("enx_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
+	//printk("gtx_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
 	if (frames++>1)
 	{
 	    state=2;
@@ -234,9 +234,8 @@ void enx_capture_interrupt(int reg, int no)
     }
 }
 
-int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
+int gtx_capture_start(unsigned char **capture_buffer, unsigned short *stride)
 {
-    unsigned short buffer_odd_offset;
     unsigned short capture_height;
     unsigned short capture_width;
     unsigned short delta_x;
@@ -247,91 +246,78 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, un
     if (capture_busy)
 	return -EBUSY;
 	
-    printk("enx_capture: capture_start\n");
+    printk("gtx_capture: capture_start\n");
     
     scale_x = input_width / output_width;
-//    scale_y = input_height / output_height / 2;
     scale_y = input_height / output_height;
+//    scale_y = input_height / output_height / 2;
     capture_height = input_height / scale_y;
     capture_width = input_width / scale_x;
     delta_x = (capture_width - output_width) / 2;
     delta_y = (capture_height - output_height) / 2;
-    line_stride = (((input_width / scale_x) + 3) & ~3) * 2;
-    buffer_odd_offset = (line_stride * (capture_height / 2)) + 100;
-    buffer_odd_offset = line_stride / 2;
+    line_stride = ((input_width / scale_x) + 3) & ~3;
 
-    printk("enx_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
-    printk("enx_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
+    printk("gtx_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
+    printk("gtx_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
 
-#define BLANK_TIME 132
-#define VIDCAP_PIPEDELAY 2
+    gtx_reg_s(VCSP)->HPOS = 63 + ((input_x + delta_x) / 2);
+//    gtx_reg_s(VCSP)->OVOFFS = (scale_y - 1) / 2;
+    gtx_reg_s(VCSP)->OVOFFS = 0;
+    gtx_reg_s(VCSP)->EVPOS = 21 + ((input_y + delta_y) / 2);
 
-    enx_reg_s(VCP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x + delta_x) / 2;
-//    enx_reg_s(VCP)->OVOFFS = (scale_y - 1) / 2;
-    enx_reg_s(VCP)->OVOFFS = 0;
-    enx_reg_s(VCP)->EVPOS = 21 + ((input_y + delta_y) / 2);
-
-    enx_reg_s(VCSZ)->HDEC = scale_x - 1;
-    enx_reg_s(VCSZ)->HSIZE = input_width / 2;
+    gtx_reg_s(VCS)->HDEC = scale_x - 1;
+    gtx_reg_s(VCS)->HSIZE = input_width / 2;
 
     // If scale_y is even and greater then zero we get better results if we capture only the even fields
     // than if we scale down both fields
 //    if ((scale_y > 0) && (!(scale_y & 0x01))) {
 
-	enx_reg_s(VCSZ)->B = 0;   				// Even-only fields
-//	enx_reg_s(VCSZ)->VDEC = (scale_y / 2) - 1;		
+	gtx_reg_s(VCS)->B = 0;   				// Even-only fields
+//	gtx_reg_s(VCS)->VDEC = (scale_y / 2) - 1;		
     
 //    } else {
 
-//	enx_reg_s(VCSZ)->B = 1;   				// Both fields
-	enx_reg_s(VCSZ)->VDEC = scale_y - 1;		
+//	gtx_reg_s(VCS)->B = 1;   				// Both fields
+	gtx_reg_s(VCS)->VDEC = scale_y - 1;		
     
 //    }
 
-    enx_reg_s(VCSZ)->VSIZE = input_height / 2;
+    gtx_reg_s(VCS)->VSIZE = input_height / 2;
 
-    enx_reg_s(VCSTR)->STRIDE = line_stride / 4;
+    gtx_reg_s(VCSA)->Addr = capt_buf_addr >> 1;
+//    gtx_reg_s(VPSA)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 1;
 
-    enx_reg_s(VCOFFS)->Offset = buffer_odd_offset >> 2;
-//    enx_reg_s(VCOFFS)->Offset = 0;
+    gtx_reg_s(VCSA)->E = 1;
     
-    enx_reg_s(VCSA1)->Addr = capt_buf_addr >> 2;
-//    enx_reg_s(VCSA2)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 2;
-
-    enx_reg_s(VCSA1)->E = 1;
+    printk("gtx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", gtx_reg_s(VCS)->HDEC, gtx_reg_s(VCS)->HSIZE, gtx_reg_s(VCS)->VDEC, gtx_reg_s(VCS)->VSIZE, gtx_reg_s(VCS)->B, line_stride);
+//    printk("gtx_capture: VCSA->Addr=0x%X, VPSA->Addr=0x%X, Delta=%d\n", gtx_reg_s(VCSA)->Addr, gtx_reg_s(VCSA)->Addr, gtx_reg_s(VCSA)->Addr - gtx_reg_s(VPSA)->Addr);
     
-    printk("enx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
-    printk("enx_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
-    
-    state=1;
-    frames=0;
+    state = 1;
+    frames = 0;
     capture_busy = 1;
     
     if (capture_buffer)
-	*capture_buffer = (unsigned char *)(enx_reg_s(VCSA1)->Addr << 2);
+	*capture_buffer = (unsigned char *)(gtx_reg_s(VCSA)->Addr << 1);
 	
     if (stride)
 	*stride = line_stride;
-	
-    if (odd_offset)
-	*odd_offset = buffer_odd_offset;
     
     return 0;
 }
 
-void enx_capture_stop(void)
+void gtx_capture_stop(void)
 {
     if (capture_busy) {
-	printk("enx_capture: capture_stop\n");
+	printk("gtx_capture: capture_stop\n");
     
-	enx_reg_s(VCSA1)->E = 0;
+	gtx_reg_s(VCSA)->E = 0;
     
-	state=0;
+	state = 0;
 	capture_busy = 0;
     }	
 }
 
-int enx_capture_update_param(void)
+int gtx_capture_update_param(void)
 {
     if (capture_busy)
 	return -EBUSY;
@@ -339,7 +325,7 @@ int enx_capture_update_param(void)
     return 0;
 }
 
-int enx_capture_set_output(unsigned short width, unsigned short height)
+int gtx_capture_set_output(unsigned short width, unsigned short height)
 {
     if (capture_busy)
 	return -EBUSY;
@@ -350,7 +336,7 @@ int enx_capture_set_output(unsigned short width, unsigned short height)
     return 0;
 }
 
-int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height)
+int gtx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height)
 {
     if (capture_busy)
 	return -EBUSY;
@@ -363,48 +349,46 @@ int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short wid
     return 0;
 }
 
-int enx_capture_init(void)
+int gtx_capture_init(void)
 {
-    enx_mem = enx_get_mem_addr();
+    gtx_mem = gtx_get_mem_addr();
     
-    enx_reg_w(RSTR0) &= ~(1 << 10);		// take video capture out of reset
+    gtx_reg_16(RR0) &= ~(1 << 14);			// Take video capture out of reset
 
-    enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
-
-    enx_reg_s(VCSZ)->F = 1;   				// Enable filter
+    gtx_reg_s(VCS)->F = 1;   				// Enable filter
+    gtx_reg_s(VCS)->B = 0;				// Enable hardware double buffering
     
-    if (enx_allocate_irq(0, 5, enx_capture_interrupt) < 0)	// VL1
+/*    if (gtx_allocate_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
     {
-	printk("enx_capture: unable to get interrupt\n");
+	printk("gtx_capture: unable to get interrupt\n");
 	return -EIO;
     }
-
-    enx_reg_h(VLI1) = 0;	// at beginning of every frame.
+*/
+    gtx_reg_16(VLI1) = 0;	// at beginning of every frame.
 
     return 0;
 }
 
-void enx_capture_cleanup(void)
+void gtx_capture_cleanup(void)
 {
-    enx_capture_stop();
+    gtx_capture_stop();
 
-    enx_free_irq(0, 5);
-    enx_reg_w(RSTR0) |= (1 << 10);		
+//    gtx_free_irq(1, 13);
+    gtx_reg_16(RR0) |= (1 << 14);		
 }
 
 static int init_capture(void)
 {
-    printk("$Id: enx_capture.c,v 1.3 2001/11/01 18:17:31 Jolt Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.1 2001/11/01 18:17:31 Jolt Exp $\n");
 
-    devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
-				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-				    &capture_fops, NULL );
+    devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
+
     if (!devfs_handle)
 	return -EIO;
 
     init_waitqueue_head(&frame_wait);
   
-    enx_capture_init();
+    gtx_capture_init();
 
     up(&lock_open);
     
@@ -415,15 +399,15 @@ static void __exit cleanup_capture(void)
 {
     devfs_unregister(devfs_handle);
     
-    enx_capture_cleanup();
+    gtx_capture_cleanup();
     
     down(&lock_open);
 }
 
-EXPORT_SYMBOL(enx_capture_set_input);
-EXPORT_SYMBOL(enx_capture_set_output);
-EXPORT_SYMBOL(enx_capture_start);
-EXPORT_SYMBOL(enx_capture_stop);
+EXPORT_SYMBOL(gtx_capture_set_input);
+EXPORT_SYMBOL(gtx_capture_set_output);
+EXPORT_SYMBOL(gtx_capture_start);
+EXPORT_SYMBOL(gtx_capture_stop);
 
 #ifdef MODULE
 module_init(init_capture);
