@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.26 2001/04/08 17:39:01 tmbinc Exp $
+ * $Id: dvb.c,v 1.27 2001/04/19 22:48:10 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -86,7 +86,7 @@ static int frontend_init(dvb_struct_t *dvb)
 	struct frontend fe;
 	if (!dvb->demod)
 		panic("demod not yet initialized");
-//	dvb->demod->init();
+	dvb->demod->init();
 	dvb->demod->get_frontend(&fe);
 	if (fe.type==FRONT_DVBS)
 	{
