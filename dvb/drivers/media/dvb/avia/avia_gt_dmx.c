@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.150  2002/11/20 16:59:45  Jolt
+ *   Adaptive IRQ rate control
+ *
  *   Revision 1.149  2002/11/20 12:03:46  Jolt
  *   SPTS mode support (which is now default)
  *
@@ -257,7 +260,7 @@
  *
  *
  *
- *   $Revision: 1.149 $
+ *   $Revision: 1.150 $
  *
  */
 
@@ -358,10 +361,14 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	queue_list[queue_nr].irq_count = 0;
 	queue_list[queue_nr].irq_proc = irq_proc;
 	queue_list[queue_nr].priv_data = priv_data;
+	queue_list[queue_nr].qim_irq_count = 0;
+	queue_list[queue_nr].qim_jiffies = jiffies;
+	queue_list[queue_nr].qim_mode = 0;
 	queue_list[queue_nr].read_pos = 0;
 	queue_list[queue_nr].write_pos = 0;
 
 	avia_gt_dmx_queue_reset(queue_nr);
+	avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 
 	return &queue_list[queue_nr].info;
 
@@ -1417,6 +1424,38 @@ void avia_gt_dmx_queue_flush(struct avia_gt_dmx_queue *queue)
 
 }
 
+/*
+ * Für den "Block-IRQ-Modus" wird folgender Algorithmus verwendet:
+ * Der gesamte Puffer wird geachtelt. Es wird herausgefunden, in
+ * welchem Achtel sich der Schreibpointer gerade befindet:
+ * Analog der Prozentrechnung
+ *  write_pointer * 100 / queue_size mit den Grenzen 12,5, 25 ... 100 wird
+ *  write_pointer * 8 / queue_size mit den Grenzen 1, 2 .. 8
+ * verwendet.
+ * Der Interrupt wird dann auf das erreichen des _übernächsten_ Achtel gesetzt.
+ * Das Setzen auf das nächste Achtel könnte zu Problemen führen, wenn der
+ * write_pointer kurz vor der Grenze ist.
+ */
+
+static void avia_gt_dmx_queue_qim_mode_update(u8 queue_nr)
+{
+
+	u16 value;
+	u8 block_pos;
+
+	block_pos = (queue_list[queue_nr].hw_write_pos << 4) / queue_list[queue_nr].size;
+
+	if (block_pos == 15)
+		value = 0;
+	else
+		value = (block_pos + 2) << 11;
+
+	dprintk(KERN_DEBUG "avia_gt_dmx_set_queue_irq: write_pos: 0x%04X, new irq: 0x%04X, qend 0x%04X\n", queue_list[queue_nr].hw_write_pos, value, queue_list[queue_nr].size);
+	
+	avia_gt_dmx_set_queue_irq(queue_nr, 1, block_pos);
+
+}
+
 static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 {
 
@@ -1462,6 +1501,34 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	old_hw_write_pos = queue_list[queue_nr].hw_write_pos;
 	queue_list[queue_nr].hw_write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 	
+	if (!queue_list[queue_nr].qim_mode) {
+
+		queue_list[queue_nr].qim_irq_count++;
+	
+		// We check every secord wether irq load is too high
+		if (time_after(jiffies, queue_list[queue_nr].qim_jiffies + HZ)) {
+		
+			if (queue_list[queue_nr].qim_irq_count > 100) {
+			
+				dprintk("avia_gt_dmx: detected high irq load on queue %d - enabling qim mode\n", queue_nr);
+
+				queue_list[queue_nr].qim_mode = 1;
+
+				avia_gt_dmx_queue_qim_mode_update(queue_nr);
+
+			}
+
+			queue_list[queue_nr].qim_irq_count = 0;
+			queue_list[queue_nr].qim_jiffies = jiffies;
+
+		}
+
+	} else {
+	
+		avia_gt_dmx_queue_qim_mode_update(queue_nr);
+		
+	}
+	
 	// Cases:
 	// 
 	//    [    R     OW    ] (R < OW)
@@ -1476,13 +1543,9 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	// 5. [    OW     R  W ] OVERFLOW (incl. R == W)
 	// 6. [ W  OW  R       ] OVERFLOW
 
-#if 1
-
 	if (((queue_list[queue_nr].read_pos < old_hw_write_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) && (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))) ||
 		((old_hw_write_pos < queue_list[queue_nr].read_pos) && ((queue_list[queue_nr].read_pos <= queue_list[queue_nr].hw_write_pos) || (queue_list[queue_nr].hw_write_pos < old_hw_write_pos))))
 		queue_list[queue_nr].overflow_count++;	// We can't recover here or we will break queue handling (get_data*, bytes_avail, ...)
-
-#endif
 
 	if (queue_list[queue_nr].irq_proc)
 		queue_list[queue_nr].irq_proc(&queue_list[queue_nr].info, queue_list[queue_nr].priv_data);
@@ -2128,7 +2191,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.149 2002/11/20 12:03:46 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.150 2002/11/20 16:59:45 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

@@ -68,6 +68,9 @@ typedef struct {
 	u32 mem_addr;
 	u8 overflow_count;
 	void *priv_data;
+	u32 qim_irq_count;
+	u32 qim_jiffies;
+	u8 qim_mode;
 	u32 read_pos;
 	u32 size;
 	u32 write_pos;
