@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.9  2002/04/16 15:57:23  Jolt
+ *   GTX bugfix
+ *
  *   Revision 1.8  2002/04/15 21:58:57  Jolt
  *   eNX/GTX merge
  *
@@ -105,7 +108,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -164,7 +167,7 @@ static int imr[] = {gIMR0, gIMR1, gIMR2, gIMR3};
 void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    gtx_reg_16n(isr[irq_reg]) = (1 << irq_bit);
+    gtx_reg_16n(isr[irq_reg]) |= (1 << irq_bit);
 	
 }
 
@@ -191,14 +194,14 @@ unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg)
 void avia_gt_gtx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    gtx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
+    gtx_reg_16n(imr[irq_reg]) &= ~(1 << irq_bit);
 	
 }
 
 void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    gtx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
+    gtx_reg_16n(imr[irq_reg]) |= (1 << irq_bit);
 	
 }
 
@@ -261,7 +264,7 @@ void avia_gt_gtx_init(void)
 
     int cr;
 
-    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.8 2002/04/15 21:58:57 Jolt Exp $\n");
+    printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.9 2002/04/16 15:57:23 Jolt Exp $\n");
 	
     avia_gt_gtx_reset();
 
@@ -379,17 +382,21 @@ int gtx_proc_init(void)
 int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 
-        if (offset < 0)
-                return -EINVAL;
-        if (len < 0)
-                return -EINVAL;
-        if (offset > 2048)
-                return -EINVAL;
-        if (offset + len > 2048)
-                len = 2048 - offset;
-        memcpy (buf, avia_gt_get_reg_addr() + 0x1000 + offset, len);
+    if (offset < 0)
+        return -EINVAL;
+	
+    if (len < 0)
+        return -EINVAL;
+    
+    if (offset > 2048)
+        return -EINVAL;
+	
+    if (offset + len > 2048)
+	len = 2048 - offset;
+	
+    memcpy (buf, avia_gt_get_reg_addr() + 0x1000 + offset, len);
 
-        return len;
+    return len;
 	
 }
 
