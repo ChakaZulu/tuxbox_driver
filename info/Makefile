@@ -10,6 +10,8 @@ EXTRA_CFLAGS=-I$(KERNEL_LOCATION)/arch/ppc -I../include -I../cvs/driver/include 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
 
+TUXBOX = tuxbox_core.o tuxbox_hardware_dbox2.o
+
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
 
@@ -18,5 +20,8 @@ install:
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
+
+tuxbox.o: $(TUXBOX)
+	$(LD) -m elf32ppclinux -r -o $@ $(TUXBOX)
 
 include $(KERNEL_LOCATION)/Rules.make
