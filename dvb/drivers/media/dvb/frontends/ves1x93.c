@@ -530,8 +530,6 @@ int ves1x93_set_tone (struct dvb_i2c_bus *i2c, fe_sec_tone_mode_t tone)
 static
 int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
-	struct dvb_i2c_bus *i2c = (struct dvb_i2c_bus *) fe->data;
- 
         switch (cmd) {
         case FE_GET_INFO:
 		memcpy (arg, &ves1x93_info, sizeof(struct dvb_frontend_info));
@@ -540,7 +538,7 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         case FE_READ_STATUS:
 	{
 		fe_status_t *status = arg;
-		u8 sync = ves1x93_readreg (i2c, 0x0e);
+		u8 sync = ves1x93_readreg (fe->i2c, 0x0e);
 
 		*status = 0;
 
@@ -568,36 +566,36 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	{
 		u32 *ber = (u32 *) arg;
 
-		*ber = ves1x93_readreg (i2c, 0x15);
-                *ber |= (ves1x93_readreg (i2c, 0x16) << 8);
-                *ber |= ((ves1x93_readreg (i2c, 0x17) & 0x0F) << 16);
+		*ber = ves1x93_readreg (fe->i2c, 0x15);
+                *ber |= (ves1x93_readreg (fe->i2c, 0x16) << 8);
+                *ber |= ((ves1x93_readreg (fe->i2c, 0x17) & 0x0F) << 16);
 		*ber *= 10;
 		break;
 	}
 
         case FE_READ_SIGNAL_STRENGTH:
 	{
-		u8 signal = ~ves1x93_readreg (i2c, 0x0b);
+		u8 signal = ~ves1x93_readreg (fe->i2c, 0x0b);
 		*((u16*) arg) = (signal << 8) | signal;
 		break;
 	}
 
         case FE_READ_SNR:
 	{
-		u8 snr = ~ves1x93_readreg (i2c, 0x1c);
+		u8 snr = ~ves1x93_readreg (fe->i2c, 0x1c);
 		*(u16*) arg = (snr << 8) | snr;
 		break;
 	}
 
 	case FE_READ_UNCORRECTED_BLOCKS: 
 	{
-		*(u32*) arg = ves1x93_readreg (i2c, 0x18) & 0x7f;
+		*(u32*) arg = ves1x93_readreg (fe->i2c, 0x18) & 0x7f;
 
 		if (*(u32*) arg == 0x7f)
 			*(u32*) arg = 0xffffffff;   /* counter overflow... */
 		
-		ves1x93_writereg (i2c, 0x18, 0x00);  /* reset the counter */
-		ves1x93_writereg (i2c, 0x18, 0x80);  /* dto. */
+		ves1x93_writereg (fe->i2c, 0x18, 0x00);  /* reset the counter */
+		ves1x93_writereg (fe->i2c, 0x18, 0x80);  /* dto. */
 		break;
 	}
 
@@ -605,10 +603,10 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         {
 		struct dvb_frontend_parameters *p = arg;
 
-		tuner_set_tv_freq (i2c, p->frequency, 0);
-		ves1x93_set_inversion (i2c, p->inversion);
-		ves1x93_set_fec (i2c, p->u.qpsk.fec_inner);
-		ves1x93_set_symbolrate (i2c, p->u.qpsk.symbol_rate);
+		tuner_set_tv_freq (fe->i2c, p->frequency, 0);
+		ves1x93_set_inversion (fe->i2c, p->inversion);
+		ves1x93_set_fec (fe->i2c, p->u.qpsk.fec_inner);
+		ves1x93_set_symbolrate (fe->i2c, p->u.qpsk.symbol_rate);
                 break;
         }
 
@@ -618,34 +616,34 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 #if 0
 		s32 afc;
 
-		afc = ((int)((char)(ves1x93_readreg (i2c, 0x0a) << 1)))/2;
+		afc = ((int)((char)(ves1x93_readreg (fe->i2c, 0x0a) << 1)))/2;
 		afc = (afc * (int)(p->u.qpsk.symbol_rate/8))/16;
 
 		p->frequency += afc;
 #endif
-		p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
+		p->inversion = (ves1x93_readreg (fe->i2c, 0x0f) & 2) ? 
 					INVERSION_ON : INVERSION_OFF;
-		p->u.qpsk.fec_inner = ves1x93_get_fec (i2c);
+		p->u.qpsk.fec_inner = ves1x93_get_fec (fe->i2c);
 	/*  XXX FIXME: timing offset !! */
 		break;
 	}
 
         case FE_SLEEP:
 		if (board_type == SIEMENS_PCI_1893)
-			ves1x93_writereg (i2c, 0x1f, 0x00);    /*  LNB power off  */
-		return ves1x93_writereg (i2c, 0x00, 0x08);
+			ves1x93_writereg (fe->i2c, 0x1f, 0x00);    /*  LNB power off  */
+		return ves1x93_writereg (fe->i2c, 0x00, 0x08);
 
         case FE_INIT:
-		return ves1x93_init (i2c);
+		return ves1x93_init (fe->i2c);
 
 	case FE_RESET:
-		return ves1x93_clr_bit (i2c);
+		return ves1x93_clr_bit (fe->i2c);
 
 	case FE_SET_TONE:
-		return ves1x93_set_tone (i2c, (fe_sec_tone_mode_t) arg);
+		return ves1x93_set_tone (fe->i2c, (fe_sec_tone_mode_t) arg);
 
 	case FE_SET_VOLTAGE:
-		return ves1x93_set_voltage (i2c, (fe_sec_voltage_t) arg);
+		return ves1x93_set_voltage (fe->i2c, (fe_sec_voltage_t) arg);
 
 	default:
 		return -EOPNOTSUPP;
@@ -661,7 +659,7 @@ int ves1x93_attach (struct dvb_i2c_bus *i2c)
 	if ((ves1x93_readreg (i2c, 0x1e) & 0xf0) != 0xd0)
 		return -ENODEV;
 
-	dvb_register_frontend (ves1x93_ioctl, i2c->adapter, i2c, &ves1x93_info);
+	dvb_register_frontend (ves1x93_ioctl, i2c, NULL, &ves1x93_info);
 
 	return 0;
 }
@@ -670,7 +668,7 @@ int ves1x93_attach (struct dvb_i2c_bus *i2c)
 static
 void ves1x93_detach (struct dvb_i2c_bus *i2c)
 {
-	dvb_unregister_frontend (ves1x93_ioctl, i2c->adapter);
+	dvb_unregister_frontend (ves1x93_ioctl, i2c);
 }
 
 
