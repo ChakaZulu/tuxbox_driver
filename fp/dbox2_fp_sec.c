@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_sec.c,v 1.3 2003/02/09 20:00:15 obi Exp $
+ * $Id: dbox2_fp_sec.c,v 1.4 2003/02/09 21:07:21 obi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -143,7 +143,7 @@ dbox2_fp_sec_diseqc_cmd (u8 *cmd, u8 len)
  *
  */
 
-int
+static int
 dbox2_fp_sec_set (u8 power, u8 voltage, u8 high_voltage, u8 tone)
 {
 	u8 msg[2];
@@ -223,7 +223,7 @@ dbox2_fp_sec_set_tone (u8 tone)
 
 
 int
-dbox2_fp_sec_enable_high_voltage (u8 high_voltage)
+dbox2_fp_sec_set_high_voltage (u8 high_voltage)
 {
 	return dbox2_fp_sec_set(sec_power, sec_voltage, high_voltage, sec_tone);
 }
