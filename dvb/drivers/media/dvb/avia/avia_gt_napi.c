@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.51 $
+ *   $Revision: 1.52 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.52  2001/08/18 18:59:40  tmbinc
+ *   fixed init
+ *
  *   Revision 1.51  2001/08/18 18:20:21  TripleDES
  *   moved the ucode loading to dmx
  *
@@ -306,31 +309,31 @@ void enx_tdp_init(u8 *microcode)
 #else
 void LoaduCode (u8 * microcode)
 {
-        unsigned short *dst   = (unsigned short*) &rh (RISC);
-        unsigned short *src   = (unsigned short*) microcode;
-        int             words = 0x800 / 2;
+	unsigned short *dst=(unsigned short*)&rh (RISC);
+	unsigned short *src=(unsigned short*)microcode;
+	int words=0x800/2;
 
-        rh (RR1) |= 1 << 5;         // reset RISC
-        udelay (10);
-        rh(RR1) &= ~(1 << 5);
+	rh(RR1) |= 1 << 5;         // reset RISC
+	udelay (10);
+	rh(RR1) &= ~(1 << 5);
 
-        while (words--) {
-                udelay (100);
-                *dst++ = *src++;
-        }
+	while (words--)
+	{
+		udelay(100);
+		*dst++=*src++;
+	}
 
-        dst   = (unsigned short*) &rh (RISC);
-        src   = (unsigned short*) microcode;
-        words = 0x800 / 2;
-        while (words--)
-                if (*dst++ != *src++)
-                        break;
-
-        if (words >= 0) {
-                printk (KERN_CRIT "microcode validation failed at %x\n",
-                        0x800 - words);
-                return;
-        }
+	dst=(unsigned short*) &rh (RISC);
+	src=(unsigned short*) microcode;
+	words=0x800 / 2;
+	while (words--)
+		if (*dst++ != *src++)
+			break;
+	if (words>=0)
+	{
+		printk(KERN_CRIT "microcode validation failed at %x\n", 0x800 - words);
+		return;
+	}
 }
 #endif
 
@@ -860,10 +863,16 @@ int gtx_dmx_init(void)
   mm_segment_t fs;
 
   printk(KERN_DEBUG "gtx_dmx: \n");
+#ifdef enx_dmx
+  gtxmem=enx_get_mem_addr();
+  gtxreg=enx_get_reg_addr();
+#else  
+  gtxmem=gtx_get_mem();
+  gtxreg=gtx_get_reg();
+#endif  
 
   fs = get_fs();
   set_fs(get_ds());
-  
   if(do_firmread(ucode,(char**)&microcode)==0){
   	set_fs(fs);
 	return -EIO;
@@ -877,14 +886,6 @@ int gtx_dmx_init(void)
   LoaduCode(microcode);
 #endif  		  
   vfree(microcode);
-
-#ifdef enx_dmx
-  gtxmem=enx_get_mem_addr();
-  gtxreg=enx_get_reg_addr();
-#else  
-  gtxmem=gtx_get_mem();
-  gtxreg=gtx_get_reg();
-#endif  
 
 #ifdef enx_dmx
   enx_reg_w(RSTR0) &= ~(1 << 27);
@@ -1931,7 +1932,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.51 2001/08/18 18:20:21 TripleDES Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.52 2001/08/18 18:59:40 tmbinc Exp $\n");
 
 	return gtx_dmx_init();
 }
