@@ -48,9 +48,18 @@ void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid);
 #define GTX_FILTER_PID          0
 #define GTX_FILTER_SECTION      1
 
-typedef struct gtx_demux_filter_s
+typedef struct gtx_demux_secfilter_s
 {
   dmx_section_filter_t filter;
+  int index;
+  int state;
+  
+  struct gtx_demux_secfilter_s *next;
+  struct gtx_demux_feed_s *feed;
+} gtx_demux_secfilter_t;
+
+typedef struct gtx_demux_filter_s
+{
   int index;
   int state;
   
@@ -63,7 +72,7 @@ typedef struct gtx_demux_filter_s
   int wait_pusi, invalid, pid;
   int queue, fork, cw_offset, cc, start_up, pec;
   // type=SECTION
-//  int filt_tab_idx, no_of_filters; -> mach ich sw-maessig
+  int filt_tab_idx, no_of_filters;
   
   struct gtx_demux_feed_s *feed;
 } gtx_demux_filter_t;
@@ -101,6 +110,7 @@ typedef struct gtx_demux_feed_s
   int output;
   int pid;
   gtx_demux_filter_t *filter;
+  gtx_demux_secfilter_t *secfilter;
   
   int index;
   
@@ -115,6 +125,8 @@ typedef struct gtx_demux_s
   int users;
   gtx_demux_feed_t feed[32];
   gtx_demux_filter_t filter[32];
+  gtx_demux_secfilter_t secfilter[32];
+  
   struct list_head frontend_list;
 } gtx_demux_t;
 

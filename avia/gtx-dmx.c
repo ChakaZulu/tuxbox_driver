@@ -21,13 +21,13 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
- *   Revision 1.9  2001/02/10 14:31:52  gillem
- *   add GtxDmxCleanup function
+ *   Revision 1.10  2001/02/11 15:53:25  tmbinc
+ *   section filtering (not yet working)
  *
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -202,7 +202,6 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
   rhn(base+6)=((write>>16)&63)|(size<<6);
   rhn(base+2)=((read>>16)&63)|(halt<<15);
 }
-
 
 __u32 datamask=0;
 
@@ -383,7 +382,6 @@ void gtx_dmx_close(void)
   for (j=0; j<2; j++)
     for (i=0; i<16; i++)
       gtx_free_irq(j+2, i);
-
   gtx_free_irq(0, 8);           // PCR
 }
                 // nokia api
@@ -392,7 +390,7 @@ static void gtx_task(void *data)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)data;
   int queue;
-  for (queue=0; queue<32; queue++)
+  for (queue=0; datamask && queue<32; queue++)
     if (datamask&(1<<queue))
     {
       if (gtx->feed[queue].state!=DMX_STATE_GO)
@@ -426,7 +424,10 @@ static void gtx_task(void *data)
           case DMX_TYPE_TS:
             gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0); break;
           case DMX_TYPE_SEC:
-  //          gtx->feed[queue].cb.sec(b1, b1l, b2, b2l, &gtx->feed[queue].feed.sec, 0); break;
+          {
+            printk("section no section queue %d\n", queue);             // DEBUG
+            gtx->feed[queue].cb.sec(b1, b1l, b2, b2l, &gtx->feed[queue].secfilter->filter, 0); break;
+          }
           case DMX_TYPE_PES:
   //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, &gtx->feed[queue].feed.pes, 0); break;
           }
@@ -523,8 +524,7 @@ static void dmx_set_filter(gtx_demux_filter_t *filter)
   if (filter->type==GTX_FILTER_PID)
     gtx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec);
   else
-    printk(KERN_ERR "not yet supported: sections\n");
-//    gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
+    gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
 }
 
 static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
@@ -589,11 +589,6 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
     printk("feed not DMX_STATE_READY\n");
     return -EINVAL;
   }
-  if (gtxfeed->type!=DMX_TYPE_TS)
-  {
-    printk("feed not DMX_TYPE_TS\n");
-    return -EINVAL;
-  }
 
   filter->start_up=1;
   filter->invalid=0;
@@ -604,14 +599,15 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   printk(KERN_DEBUG "STARTING filtering, pid %d\n", gtxfeed->pid);
 
-  gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+  if (gtxfeed->output&TS_PACKET)
+    gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
   gtxfeed->state=DMX_STATE_GO;
   return 0;
 }
 
 static int dmx_ts_feed_set_type(struct dmx_ts_feed_s* feed, int type, dmx_ts_pes_t pes_type)
 {
-  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+//  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   printk(KERN_DEBUG "dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
   return 0;
 }
@@ -692,16 +688,57 @@ static int dmx_release_pes_feed (struct dmx_demux_s* demux, dmx_pes_feed_t* feed
 {
   return -EINVAL;
 }
-#if 0
-                // Todo: gut, hier kommen section-filter, und die gibts noch nicht.
-static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dmx_section_filter** filter)
+
+static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dmx_section_filter_t** filter)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_t *gtx=gtxfeed->demux;
-  gtx_demux_filter_t *gtxfilter;
+  gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
+  gtx_demux_secfilter_t *gtxsecfilter;
+  
+  printk("allocating a filter.\n");
 
+  gtxsecfilter=gtx->secfilter;
+  
+  if (!gtxsecfilter)
+    return -ENOSPC;
+
+  *filter=&gtxsecfilter->filter;
+  (*filter)->parent=feed;
+  (*filter)->priv=0;
+  gtxsecfilter->feed=gtxfeed;
+  gtxsecfilter->state=DMX_STATE_READY;
+  
+  gtxsecfilter->next=gtxfeed->secfilter;
+  mb();
+  gtxfeed->secfilter=gtxsecfilter;
   return 0;
 }
+
+static int dmx_section_feed_release_filter(dmx_section_feed_t *feed,
+                                dmx_section_filter_t* filter)
+{
+  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+  gtx_demux_secfilter_t *f, *gtxfilter=(gtx_demux_secfilter_t*)filter;
+
+  printk("releasing section feed filter.\n");
+  if (gtxfilter->feed!=gtxfeed)
+    return -EINVAL;
+  if (feed->is_filtering)
+    return -EBUSY;
+  
+  f=gtxfeed->secfilter;
+  if (f==gtxfilter)
+    gtxfeed->secfilter=gtxfilter->next;
+  else
+  {
+    while (f->next!=gtxfilter)
+      f=f->next;
+    f->next=f->next->next;
+  }
+  gtxfilter->state=DMX_STATE_FREE;
+  return 0;
+}                                
 
 static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
                      __u16 pid, size_t circular_buffer_size,
@@ -710,32 +747,64 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
   
+  printk("set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
+  
   if (pid>0x1FFF)
     return -EINVAL;
-    
+
   gtxfeed->pid=pid;
 
   filter->pid=pid;
-  printk("SEC: filtering pid %d\n", pid);
-  
-  if (!gtxfeed->filter)
-  {
-    printk("no filter set.\n");
-  }
-  dmx_set_filter(gtxfeed->filter);
-  if (gtxfeed->filter->
+  printk("SEC: filtering pid %d (on %d) -> %x\n", pid, gtxfeed->index, gtxfeed->secfilter);
   gtxfeed->state=DMX_STATE_READY;
   
   return 0;
 }
-#endif
+
+static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
+{
+  int numflt=0;
+  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+  gtx_demux_filter_t *filter=gtxfeed->filter;
+  gtx_demux_secfilter_t *secfilter;
+
+  gtx_set_filter_definition_table(gtxfeed->secfilter->index, 0, gtxfeed->secfilter->index);
+  for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
+  {
+    int i;
+    gtx_set_filter_parameter_table(secfilter->index, secfilter->filter.filter_mask, secfilter->filter.filter_value, 0, 0);
+    for (i=0; i<DMX_MAX_FILTER_SIZE; i++)
+      printk("%02x ", secfilter->filter.filter_mask[i]);
+    printk("\n");
+    for (i=0; i<DMX_MAX_FILTER_SIZE; i++)
+      printk("%02x ", secfilter->filter.filter_value[i]);
+    printk(" %d -> %d\n", secfilter->index, secfilter->feed->index);
+    if (secfilter->index != gtxfeed->secfilter->index+numflt)
+      printk("warning: filter %d is not %d+%d\n", secfilter->index, gtxfeed->secfilter->index, numflt);
+    numflt++;
+  }
+
+  filter->filt_tab_idx=gtxfeed->secfilter->index;
+  filter->no_of_filters=numflt;
+  
+  dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
+  
+  printk("section filtering start\n");
+  return 0;
+}
+
+static int dmx_section_feed_stop_filtering(struct dmx_section_feed_s* feed)
+{
+  dmx_ts_feed_stop_filtering((dmx_ts_feed_t*)feed);
+  return 0;
+}
 
 static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_feed_t** feed, dmx_section_cb callback)
 {
-#if 0
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   gtx_demux_feed_t *gtxfeed;
-  if (!(gtxfeed=GtxDmxFeedAlloc(gtx, ...)))
+
+  if (!(gtxfeed=GtxDmxFeedAlloc(gtx, DMX_TS_PES_OTHER)))
   {
     printk("couldn't get gtx feed (for section_feed)\n");
     return -EBUSY;
@@ -752,8 +821,8 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   (*feed)->parent=demux;
   (*feed)->priv=0;
   (*feed)->set=dmx_section_feed_set;
-  (*feed)->allocate_filter=dmx_section_feed_start_filtering;
-  (*feed)->release_filter=dmx_section_feed_start_filtering;
+  (*feed)->allocate_filter=dmx_section_feed_allocate_filter;
+  (*feed)->release_filter=dmx_section_feed_release_filter;
   (*feed)->start_filtering=dmx_section_feed_start_filtering;
   (*feed)->stop_filtering=dmx_section_feed_stop_filtering;
   
@@ -764,12 +833,12 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
     return -EBUSY;
   }
   
-  gtxfeed->filter->type=DMX_TYPE_TS;
+  printk("allocating section feed.\n");
+  
+  gtxfeed->filter->type=DMX_TYPE_SEC;
   gtxfeed->filter->feed=gtxfeed;
   gtxfeed->filter->state=DMX_STATE_READY;
   return 0;
-#endif  
-  return -EINVAL;
 }
 
 static int dmx_release_section_feed (struct dmx_demux_s* demux,  dmx_section_feed_t* feed)
@@ -865,6 +934,12 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
     gtxdemux->filter[i].index=i;
     gtxdemux->filter[i].state=DMX_STATE_FREE;
   }
+  
+  for (i=0; i<32; i++)
+  {
+    gtxdemux->secfilter[i].index=i;
+    gtxdemux->secfilter[i].state=DMX_STATE_FREE;
+  }
 
   gtx_set_queue_pointer(Q_VIDEO, gtxdemux->feed[VIDEO_QUEUE].base, gtxdemux->feed[VIDEO_QUEUE].base, 10, 0);        // set system queues
   gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, 10, 0);
@@ -899,21 +974,9 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
 
   if (dmx_register_demux(dmx)<0)
     return -1;
-
   if (dmx->open(dmx)<0)
     return -1;
-
   return 0;
-}
-
-int GtxDmxCleanup(gtx_demux_t *gtxdemux, void *priv, char *id )
-{
-  dmx_demux_t *dmx=&gtxdemux->dmx;
-
-  if (dmx_unregister_demux(dmx)<0)
-    return -1;
-
-	return 0;
 }
 
 #ifdef MODULE
@@ -931,6 +994,5 @@ void cleanup_module(void)
 
 EXPORT_SYMBOL(cleanup_module);
 EXPORT_SYMBOL(GtxDmxInit);
-EXPORT_SYMBOL(GtxDmxCleanup);
 
 #endif
