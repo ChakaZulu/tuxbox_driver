@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.4 2004/04/18 02:49:49 carjay Exp $
+ * $Id: avia_gt_ucode.c,v 1.5 2004/05/13 15:26:19 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -678,6 +678,14 @@ void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
 		ucode_info.qid_offset = 0;
 		ucode_info.queue_mode_pes = 5;
 		break;
+        case 0x00F0:
+                ucode_info.caps = (
+                        AVIA_GT_UCODE_CAP_PES |
+                        AVIA_GT_UCODE_CAP_SEC |
+                        AVIA_GT_UCODE_CAP_TS);
+                ucode_info.qid_offset = 1;
+                ucode_info.queue_mode_pes = 3;
+                break;
 	case 0xb102:
 	case 0xb107:
 	case 0xb121:
