@@ -21,12 +21,15 @@
  *
  *
  *   $Log: enx_pcm.c,v $
+ *   Revision 1.2  2002/04/02 13:56:50  Jolt
+ *   Dependency fixes
+ *
  *   Revision 1.1  2002/04/01 22:23:22  Jolt
  *   Basic PCM driver for eNX - more to come later
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -50,6 +53,7 @@
 
 #include <dbox/enx.h>
 #include <dbox/enx_pcm.h>
+#include <dbox/avia_pcm.h>
 
 DECLARE_WAIT_QUEUE_HEAD(enx_pcm_wait);
 
@@ -121,7 +125,7 @@ void enx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 int enx_pcm_set_mode(unsigned short rate, unsigned char width, unsigned char channels, unsigned char signed_samples)
 {
 
-    dprintk("enx_pcm: setting mode (rate=%d, width=%d, channels=%d, signed_samples=%d)\n", rate, width, channels, signed_samples);
+    printk("enx_pcm: setting mode (rate=%d, width=%d, channels=%d, signed_samples=%d)\n", rate, width, channels, signed_samples);
 
     switch(rate) {
     
@@ -168,7 +172,7 @@ int enx_pcm_set_mode(unsigned short rate, unsigned char width, unsigned char cha
     
 }
 
-int enx_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
+int enx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
     int buf_nr, i;
     unsigned short *swap_target;
@@ -262,17 +266,28 @@ void enx_pcm_stop(void)
 
 }
 
+static sAviaPcmOps enx_pcm_ops = {
+
+    name: "AViA eNX soundcore",
+    play_buffer: enx_pcm_play_buffer,
+    set_mode:  enx_pcm_set_mode,
+    set_mpeg_attenuation: enx_pcm_set_mpeg_attenuation,
+    set_pcm_attenuation: enx_pcm_set_pcm_attenuation,
+    stop: enx_pcm_stop,
+    
+};
+    
 static int enx_pcm_init(void)
 {
 
-    printk("enx_pcm: $Id: enx_pcm.c,v 1.1 2002/04/01 22:23:22 Jolt Exp $\n");
+    printk("enx_pcm: $Id: enx_pcm.c,v 1.2 2002/04/02 13:56:50 Jolt Exp $\n");
 
     buf_ptr[0] = ENX_PCM_OFFSET;
     buf_busy[0] = 0;
     buf_ptr[1] = ENX_PCM_OFFSET + buf_size;
     buf_busy[1] = 0;
     
-    // Stop PCM module
+    // Reset PCM module
     enx_reg_s(RSTR0)->PCM = 1;
     
     if (enx_allocate_irq(ENX_PCM_INTR_REG, ENX_PCM_INTR_AD, enx_pcm_irq) != 0) {
@@ -293,17 +308,18 @@ static int enx_pcm_init(void)
 	
     }
 
-    // Reset PCM module
+    // Get PCM module out of reset state
     enx_reg_s(RSTR0)->PCM = 0;
 
-    enx_reg_s(PCMC)->ACD = 1;
-    enx_reg_s(PCMC)->BCD = 2;
+    //enx_reg_s(PCMC)->ACD = 1;
+    //enx_reg_s(PCMC)->BCD = 2;
     enx_reg_s(PCMC)->I = 0;
     
-    enx_pcm_set_mpeg_attenuation(0x00, 0x00);
-
     // Set a default mode
-    enx_pcm_set_mode(44100, 16, 2, 0);
+    enx_pcm_set_mode(44100, 16, 2, 1);
+    
+    // Enable inter_module access
+    inter_module_register(IM_AVIA_PCM_OPS, THIS_MODULE, &enx_pcm_ops);
         
     return 0;
     
@@ -313,6 +329,8 @@ static void __exit enx_pcm_cleanup(void)
 {
 
     printk("enx_pcm: cleanup\n");
+    
+    inter_module_unregister(IM_AVIA_PCM_OPS);
 
     enx_free_irq(ENX_PCM_INTR_REG, ENX_PCM_INTR_AD);
     enx_free_irq(ENX_PCM_INTR_REG, ENX_PCM_INTR_PF);

@@ -1,5 +1,5 @@
 /*
- *   enx_oss.c - AViA eNX oss driver (dbox-II-project)
+ *   avia_oss.c - AViA GTX/eNX oss driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,12 +21,15 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.2  2002/04/02 13:57:09  Jolt
+ *   Dependency fixes
+ *
  *   Revision 1.1  2002/04/01 22:23:22  Jolt
  *   Basic PCM driver for eNX - more to come later
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -40,71 +43,81 @@
 #include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
-#include <dbox/enx.h>
-#include <dbox/enx_pcm.h>
+#include <dbox/avia_pcm.h>
 
-int enx_dsp_dev;
+int dsp_dev;
+int mixer_dev;
+sAviaPcmOps *pcm_ops;
 
-static ssize_t enx_oss_write(struct file *file, const char *buf, size_t count, loff_t *offset)
+static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-//    printk("enx_oss: write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
+//    printk("avia_oss: dsp write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
 
-    return enx_play_buffer(buf, count, 1);
+    return pcm_ops->play_buffer((void *)buf, count, 1);
 
 }
 
-static struct file_operations enx_oss_fops = {
+static struct file_operations dsp_fops = {
 
     owner: THIS_MODULE,
-    write: enx_oss_write,
-//    ioctl:          pcm_ioctl,
-//    open:           pcm_open,
+    write: avia_oss_dsp_write,
     
 };
-					
 
-static int enx_oss_init(void)
+static struct file_operations mixer_fops = {
+
+    owner: THIS_MODULE,
+//    ioctl: avia_oss_mixer_ioctl,
+    
+};
+
+static int __init avia_oss_init(void)
 {
 
-    printk("enx_oss: $Id: avia_gt_oss.c,v 1.1 2002/04/01 22:23:22 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.2 2002/04/02 13:57:09 Jolt Exp $\n");
+    
+    if ((pcm_ops = (sAviaPcmOps *)inter_module_get(IM_AVIA_PCM_OPS)) == NULL) {
 
-    enx_pcm_set_pcm_attenuation(0x80, 0x80);
-    enx_pcm_set_mode(44100, 16, 2, 1);
-//    enx_pcm_set_mode(44100 / 4, 8, 1, 0);
-//    enx_pcm_set_mode(44100, 8, 2, 0);
+        printk("avia_oss: error - no soundcore found\n");
+        return -EIO;
+	
+    }
+
+    printk("avia_oss: found %s\n", pcm_ops->name);
     
-    //enx_play_buffer(NULL, 0, 1);
+    pcm_ops->set_pcm_attenuation(0x80, 0x80);
+    pcm_ops->set_mode(44100, 16, 2, 1);
     
-    enx_dsp_dev = register_sound_dsp(&enx_oss_fops, -1);
+    dsp_dev = register_sound_dsp(&dsp_fops, -1);
+    mixer_dev = register_sound_mixer(&mixer_fops, -1);
 
     return 0;
     
 }
 
-static void __exit enx_oss_cleanup(void)
+static void __exit avia_oss_cleanup(void)
 {
 
-    printk("enx_oss: cleanup\n");
+    printk("avia_oss: cleanup\n");
     
-    unregister_sound_dsp(enx_dsp_dev);
+    unregister_sound_mixer(mixer_dev);
+    unregister_sound_dsp(dsp_dev);
 
-    enx_pcm_set_pcm_attenuation(0x00, 0x00);
-    enx_pcm_stop();
+    pcm_ops->set_pcm_attenuation(0x00, 0x00);
+    pcm_ops->stop();
+    
+    inter_module_put(IM_AVIA_PCM_OPS);
     
 }
 
 #ifdef MODULE
-module_init(enx_oss_init);
-module_exit(enx_oss_cleanup);
+module_init(avia_oss_init);
+module_exit(avia_oss_cleanup);
 #endif

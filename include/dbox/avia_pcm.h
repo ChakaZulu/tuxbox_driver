@@ -1,9 +1,9 @@
 /*
- *   enx_pcm.h - pcm driver for enx (dbox-II-project)
+ *   avia_pcm.h - pcm driver for AViA (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2002 Florian Schirmer <jolt@tuxbox.org>
+ *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,8 +21,21 @@
  *
  */
 
-#define ENX_PCM_INTR_REG	0
+#ifndef AVIA_PCM_H
+#define AVIA_PCM_H
 
-#define ENX_PCM_INTR_PF		3
-#define ENX_PCM_INTR_AD		4
+#define IM_AVIA_PCM_OPS "im_avia_pcm_ops"
 
+typedef struct {
+
+    char *name;
+    int (*play_buffer)(void *buffer, unsigned int buffer_size, unsigned char block);
+    int (*set_mode)(unsigned short rate, unsigned char width, unsigned char channels, unsigned char signed_samples);
+    void (*set_mpeg_attenuation)(unsigned char left, unsigned char right);
+    void (*set_pcm_attenuation)(unsigned char left, unsigned char right);
+    void (*stop)(void);
+	    
+} sAviaPcmOps;
+	    
+#endif
+	    
