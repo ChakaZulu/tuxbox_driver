@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.15  2002/03/27 13:13:06  derget
+ *   nix
+ *
  *   Revision 1.14  2002/03/27 12:54:49  derget
  *   l33t h4xoring for kernel console on fb :)
  *   ntsc disabled
@@ -86,7 +89,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -153,7 +156,7 @@ static unsigned char* gtxreg;
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
     RES_X, RES_Y, RES_X, RES_Y,         /* W,H, W, H (virtual) load xres,xres_virtual*/
-    80, 96,                               /* virtual -> visible no offset */
+    0, 0,                               /* virtual -> visible no offset */
     16, 0,                              /* depth -> load bits_per_pixel */
     {10, 5, 0},                         /* ARGB 1555 */
     {5, 5, 0},
@@ -415,7 +418,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
   val|=0<<20;                           // BLEV1 = 8/8
-  val|=2<<16;                           // BLEV2 = 1/8	-> BLEVEL
+  val|=2<<16;                           // BLEV2 = 2/8	-> BLEVEL
   val|=par->stride;
 
   rw(GMR)=val;
@@ -990,7 +993,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: gen-fb.c,v 1.14 2002/03/27 12:54:49 derget Exp $\n");
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.15 2002/03/27 13:13:06 derget Exp $\n");
 	
 	return gtxfb_init();
 }
