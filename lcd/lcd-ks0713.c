@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.18  2002/03/03 07:11:48  gillem
+ *   - add lcd interface detect
+ *
  *   Revision 1.17  2002/02/24 19:19:25  obi
  *   reverted to previous revision - is not related to tuning api
  *
@@ -63,7 +66,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -879,7 +882,9 @@ void lcd_reset_init(void)
 
 int __init lcd_init(void)
 {
-    immap_t	*immap;
+	int status;
+
+	immap_t	*immap;
 
 	printk("lcd.o: LCD driver (KS0713) module\n");
 
@@ -889,21 +894,23 @@ int __init lcd_init(void)
 //		return -EIO;
 //	}
 
-  devfs_handle =
-    devfs_register ( NULL, "dbox/lcd0", DEVFS_FL_DEFAULT, 0, 0,
+	devfs_handle =
+		devfs_register ( NULL, "dbox/lcd0", DEVFS_FL_DEFAULT, 0, 0,
                      S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
                      &lcd_fops, NULL );
 
-  if ( ! devfs_handle )
-    return -EIO;
+	if ( ! devfs_handle )
+	{
+		return -EIO;
+	}
 
 //  lcd_initialized ++;
 
-  if ( ( immap = ( immap_t * ) CFG_IMMR ) == NULL )
-  {  
-    devfs_unregister ( devfs_handle );
-    return -EIO;
-  }
+	if ( ( immap = ( immap_t * ) CFG_IMMR ) == NULL )
+	{
+		devfs_unregister ( devfs_handle );
+		return -EIO;
+	}
 
 	iop = (iop8xx_t *)&immap->im_ioport;
 
@@ -912,11 +919,23 @@ int __init lcd_init(void)
 	f_vars.row = 0;
 	f_vars.col = 0;
 
-    /* reset lcd todo ;-) */
-//    lcd_reset();
+	/* reset lcd todo ;-) */
+	//lcd_reset();
 
 	// set defaults
 	LCD_MODE = LCD_MODE_ASC;
+
+	status = lcd_read_status();
+
+	switch(status&0x0f)
+	{
+		case 0x0a:
+			printk("lcd.o: found SSD181X lcd interface\n");
+			break;
+		default:
+			printk("lcd.o: found unknown (%02X) lcd interface\n",status&0x0f);
+			break;
+	}
 
 	lcd_init_console();
 
