@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.14  2002/03/20 16:05:15  obi
+ *   added missing variables to dbox.sh
+ *
  *   Revision 1.13  2001/12/01 06:53:04  gillem
  *   - malloc.h -> slab.h
  *
@@ -58,7 +61,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -397,10 +400,11 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
-	return sprintf(buf, "#!/bin/sh\nexport mID=%02x\nexport feID=%02x\nexport fpID=%02x\nexport enxID=%02x\nexport gtxID=%02x\nexport hwREV=%02x\nexport fpREV=%02x\nexport DEMOD=%s\nexport fe=%d\n",
+	return sprintf(buf, "#!/bin/sh\nexport mID=%02x\nexport feID=%02x\nexport fpID=%02x\nexport enxID=%02x\nexport gtxID=%02x\nexport hwREV=%02x\nexport fpREV=%02x\nexport DEMOD=%s\nexport fe=%d\nexport avia=%d\nexport dsID=%02x-%02x.%02x.%02x.%02x.%02x.%02x-%02x\n",
 //	return sprintf(buf, "#!/bin/sh\nexport mID=%02x feID=%02x fpID=%02x enxID=%02x gtxID=%02x hwREV=%02x fpREV=%02x DEMOD=%s\n\n",
 //	return sprintf(buf, "#!/bin/sh\nmID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nexport mID feID fpID enxID gtxID hwREV fpREV DEMOD\n\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod], info.fe);
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod], info.fe, info.avia,
+		info.dsID[0], info.dsID[1], info.dsID[2], info.dsID[3], info.dsID[4], info.dsID[5], info.dsID[6], info.dsID[7]);
 }
 
 int info_proc_init(void)
