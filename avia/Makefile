@@ -2,8 +2,8 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx_core.o gtx_dmx.o enx_core.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o gtx-capture.o enx_vbi.o gtx_vbi.o enx_capture.o gtx_capture.o enx_pig.o gtx_pig.o
-obj-m    = gtx_core.o gtx_dmx.o enx_core.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o gtx-capture.o enx_vbi.o gtx_vbi.o enx_capture.o gtx_capture.o enx_pig.o gtx_pig.o
+M_OBJS   = gtx_core.o gtx_dmx.o enx_core.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o enx_capture.o gtx_capture.o enx_pig.o gtx_pig.o
+obj-m    = gtx_core.o gtx_dmx.o enx_core.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o enx_capture.o gtx_capture.o enx_pig.o gtx_pig.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
