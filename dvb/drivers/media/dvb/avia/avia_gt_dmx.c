@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.195 2003/11/24 09:41:21 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.196 2003/11/24 09:53:01 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -37,8 +37,9 @@
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>
 
-#include "../dvb-core/demux.h"
-#include "../dvb-core/dvb_demux.h"
+#include "demux.h"
+#include "dvb_demux.h"
+
 #include "avia_av.h"
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
@@ -2062,7 +2063,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.195 2003/11/24 09:41:21 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.196 2003/11/24 09:53:01 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
