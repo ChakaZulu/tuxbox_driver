@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.43  2002/01/19 03:55:06  Hunz
+ *   some stupid mistakes fixed
+ *
  *   Revision 1.42  2002/01/19 03:38:06  Hunz
  *   initial keyboard kernel support
  *
@@ -132,7 +135,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.42 $
+ *   $Revision: 1.43 $
  *
  */
 
@@ -806,12 +809,13 @@ int irkbd_getkeycode(unsigned int scancode) {
 
 int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
   /* TODO :-( */
-  return scancode;
+  *keycode=scancode&0x7f;
+  return 1;
 }
 
 char irkbd_unexpected_up(unsigned char keycode) {
   printk("fp.o: irkbd_unexpected_up\n");
-  return 0;
+  return 0200;
 }
 
 void irkbd_leds(unsigned char leds) {
