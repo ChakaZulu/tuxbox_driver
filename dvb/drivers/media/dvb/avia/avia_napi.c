@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.7 2002/11/11 06:29:41 Jolt Exp $
+ * $Id: avia_napi.c,v 1.8 2002/11/11 06:47:21 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -31,9 +31,6 @@
 
 #include "../dvb-core/dvbdev.h"
 
-#include "avia_av_napi.h"
-#include "avia_gt_napi.h"
-
 static struct dvb_adapter *adap;
 
 struct dvb_adapter *avia_napi_get_adapter(void)
@@ -48,21 +45,11 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.7 2002/11/11 06:29:41 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.8 2002/11/11 06:47:21 Jolt Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
 		printk("avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
-		
-		return result;
-		
-	}
-
-	if ((result = avia_av_napi_register(adap, NULL)) < 0) {
-	
-		printk("avia_napi: avia_av_napi_register failed (errno = %d)\n", result);
-
-		dvb_unregister_adapter(adap);
 		
 		return result;
 		
@@ -79,7 +66,6 @@ static void __exit avia_napi_exit(void)
 
 //FIXME	dvb_net_release(&net);
 
-	avia_av_napi_unregister();
 	dvb_unregister_adapter(adap);
 
 }

@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.9  2002/11/11 06:47:21  Jolt
+ *   Module dependency cleanup
+ *
  *   Revision 1.8  2002/11/11 03:16:08  obi
  *   module licenses
  *
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -73,11 +76,11 @@
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 
+#include "avia_napi.h"
 #include "avia_av.h"
 #include "avia_av_napi.h"
 
 static struct dvb_device *audio_dev;
-static u8 dev_registered = 0;
 static struct dvb_device *video_dev;
 static struct audio_status audiostate;
 static struct video_status videostate;
@@ -757,55 +760,12 @@ static struct dvb_device avia_av_napi_audio_dev = {
 
 };
 
-int avia_av_napi_register(struct dvb_adapter *adapter, void *priv)
+int __init avia_av_napi_init(void)
 {
 
 	int result;
 
-	avia_av_napi_unregister();
-
-	if ((result = dvb_register_device(adapter, &video_dev, &avia_av_napi_video_dev, priv, DVB_DEVICE_VIDEO)) < 0) {
-
-		printk("avia_av_napi: dvb_register_device (video) failed (errno = %d)\n", result);
-
-		return result;
-
-	}
-
-	if ((result = dvb_register_device(adapter, &audio_dev, &avia_av_napi_audio_dev, priv, DVB_DEVICE_AUDIO)) < 0) {
-
-		printk("avia_av_napi: dvb_register_device (audio) failed (errno = %d)\n", result);
-
-		dvb_unregister_device(video_dev);
-
-		return result;
-
-	}
-
-	dev_registered = 1;
-
-	return 0;
-
-}
-
-void avia_av_napi_unregister(void)
-{
-
-	if (dev_registered) {
-
-		dvb_unregister_device(audio_dev);
-		dvb_unregister_device(video_dev);
-
-		dev_registered = 0;
-
-	}
-
-}
-
-int avia_av_napi_init(void)
-{
-
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.8 2002/11/11 03:16:08 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.9 2002/11/11 06:47:21 Jolt Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -822,19 +782,35 @@ int avia_av_napi_init(void)
 	videostate.video_format = VIDEO_FORMAT_4_3;
 	videostate.display_format = VIDEO_CENTER_CUT_OUT;
 
+	if ((result = dvb_register_device(avia_napi_get_adapter(), &video_dev, &avia_av_napi_video_dev, NULL, DVB_DEVICE_VIDEO)) < 0) {
+
+		printk("avia_av_napi: dvb_register_device (video) failed (errno = %d)\n", result);
+
+		return result;
+
+	}
+
+	if ((result = dvb_register_device(avia_napi_get_adapter(), &audio_dev, &avia_av_napi_audio_dev, NULL, DVB_DEVICE_AUDIO)) < 0) {
+
+		printk("avia_av_napi: dvb_register_device (audio) failed (errno = %d)\n", result);
+
+		dvb_unregister_device(video_dev);
+
+		return result;
+
+	}
+
 	return 0;
 
 }
 
-void avia_av_napi_exit(void)
+void __exit avia_av_napi_exit(void)
 {
 
-	avia_av_napi_unregister();
+	dvb_unregister_device(audio_dev);
+	dvb_unregister_device(video_dev);
 
 }
-
-EXPORT_SYMBOL(avia_av_napi_register);
-EXPORT_SYMBOL(avia_av_napi_unregister);
 
 #if defined(MODULE)
 module_init(avia_av_napi_init);

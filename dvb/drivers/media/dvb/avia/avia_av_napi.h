@@ -24,7 +24,5 @@
 #ifndef AVIA_AV_NAPI_H
 #define AVIA_AV_NAPI_H
 
-int avia_av_napi_register(struct dvb_adapter *adapter, void *priv);
-void avia_av_napi_unregister(void);
 
 #endif
