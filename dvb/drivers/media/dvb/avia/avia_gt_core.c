@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_core.c,v 1.36 2003/06/10 17:34:24 wjoost Exp $
+ * $Id: avia_gt_core.c,v 1.37 2003/07/01 04:06:17 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -23,29 +23,13 @@
  *
  */
 
-#define __KERNEL_SYSCALLS__
-
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/unistd.h>
-#include <linux/fcntl.h>
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/tqueue.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/init.h>
-#include <linux/wait.h>
-#include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/ioport.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include <tuxbox/info_dbox2.h>
 
@@ -210,7 +194,7 @@ int __init avia_gt_init(void)
 
 	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.36 2003/06/10 17:34:24 wjoost Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.37 2003/07/01 04:06:17 obi Exp $\n");
 
 	if (chip_type == -1) {
 

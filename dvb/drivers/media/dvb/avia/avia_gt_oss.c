@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_oss.c,v 1.18 2003/04/17 07:29:48 obi Exp $
+ * $Id: avia_gt_oss.c,v 1.19 2003/07/01 04:06:17 obi Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -318,7 +318,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.18 2003/04/17 07:29:48 obi Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.19 2003/07/01 04:06:17 obi Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 

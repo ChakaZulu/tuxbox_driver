@@ -1,7 +1,7 @@
 /*
  *   avia_napi.h - NAPI driver for AViA (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *

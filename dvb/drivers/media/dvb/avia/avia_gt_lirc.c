@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.8 2003/06/10 17:34:24 wjoost Exp $
+ * $Id: avia_gt_lirc.c,v 1.9 2003/07/01 04:06:17 obi Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -314,7 +314,7 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.8 2003/06/10 17:34:24 wjoost Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.9 2003/07/01 04:06:17 obi Exp $\n");
 
 	if (avia_gt_ir_init() < 0)
 	{

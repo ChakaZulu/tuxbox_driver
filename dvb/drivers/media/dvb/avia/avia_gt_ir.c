@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_ir.c,v 1.24 2003/06/10 17:34:24 wjoost Exp $
+ * $Id: avia_gt_ir.c,v 1.25 2003/07/01 04:06:17 obi Exp $
  * 
  * AViA eNX/GTX ir driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -379,7 +379,7 @@ int avia_gt_ir_init(void)
 	u16 rx_irq = 0;
 	u16 tx_irq = 0;
 
-	printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.24 2003/06/10 17:34:24 wjoost Exp $\n");
+	printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.25 2003/07/01 04:06:17 obi Exp $\n");
 
 	do_gettimeofday(&last_timestamp);
 	

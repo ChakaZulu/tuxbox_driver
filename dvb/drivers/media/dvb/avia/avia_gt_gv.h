@@ -1,7 +1,7 @@
 /*
  *   enx_gv.h - AViA eNX graphic viewport driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2001 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.9  2003/07/01 04:06:17  obi
+ *   updated homepage url, removed some unnecessary includes and cleaned up fb driver source formatting
+ *
  *   Revision 1.8  2002/10/09 18:31:12  Jolt
  *   HW copy support
  *
@@ -46,7 +49,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 

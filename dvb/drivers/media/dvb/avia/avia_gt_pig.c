@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_pig.c,v 1.35 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_pig.c,v 1.36 2003/07/01 04:06:17 obi Exp $
  *
  * pig driver for AViA eNX/GTX (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
@@ -227,7 +227,7 @@ int __init avia_gt_pig_init(void)
 
 	unsigned char pig_nr;
 
-	printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.35 2003/04/14 00:13:10 obi Exp $\n");
+	printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.36 2003/07/01 04:06:17 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
     
