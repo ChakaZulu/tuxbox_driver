@@ -760,6 +760,33 @@ typedef struct {
   
 } sENX_REG_VPSZ1;
 
+typedef struct {
+
+  unsigned short Video_Queue_Read_Pointer: 16;
+
+} sENX_REG_VQRPL;
+
+typedef struct {
+
+  unsigned short Reserved1: 10;
+  unsigned char Video_Queue_Read_Pointer: 6;
+
+} sENX_REG_VQRPH;
+
+typedef struct {
+
+  unsigned short Video_Queue_Write_Pointer: 16;
+
+} sENX_REG_VQWPL;
+
+typedef struct {
+
+  unsigned char Reserved1: 6;
+  unsigned char Q_Size: 4;
+  unsigned char Video_Queue_Write_Pointer: 6;
+
+} sENX_REG_VQWPH;
+
 extern void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
 extern unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg);
 extern unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg);
