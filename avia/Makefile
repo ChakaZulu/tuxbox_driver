@@ -32,6 +32,11 @@ clean:
 		$(GTX_DMX) $(GTX_CORE) $(GTX_FB) 		\
 		$(ENX_DMX) $(ENX_CORE) $(ENX_FB) .*.o.flags *~
 
+gtx-fb.o: gen-fb.c
+enx-fb.o: gen-fb.c
+gtx-dmx.o: gen-dmx.c
+enx-dmx.o: gen-dmx.c
+
 avia.o: $(AVIA_OBJS)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_OBJS)
 

@@ -118,7 +118,7 @@ typedef struct gtx_demux_feed_s
   int sec_len;
   int check_crc;
   
-  int index;
+  int index, int_nr, int_bit;
   
   int base, end, size, readptr;
 } gtx_demux_feed_t;
@@ -220,7 +220,5 @@ typedef struct filter_param_entry_3_s {
 typedef struct filter_param_table_3_s {
 	filter_param_entry_3_t filter_param_entry[32];
 } filter_param_table_3_t;
-
-extern void gtx_flush_pcr(void);
 
 #endif

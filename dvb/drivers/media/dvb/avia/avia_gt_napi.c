@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.37 $
+ *   $Revision: 1.38 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.38  2001/04/21 10:40:13  tmbinc
+ *   fixes for eNX
+ *
  *   Revision 1.37  2001/04/19 02:14:43  tmbinc
  *   renamed gtx-dmx.c to gen-dmx.c
  *
@@ -179,7 +182,7 @@ MODULE_DESCRIPTION("Avia GTX demux driver");
 #endif
 
 /* parameter stuff */
-static int debug = 0;
+static int debug = 1;
 
 static gtx_demux_t gtx;
 
@@ -197,7 +200,7 @@ static int GtxDmxInit(gtx_demux_t *gtxdemux);
 static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
 static void gtx_flush_pcr(void);
 
-static int wantirq;
+static int wantirq=0;
 
 struct tq_struct gtx_tasklet=
 {
@@ -308,15 +311,32 @@ void gtx_set_queue(int queue, u32 wp, u8 size)
     rh(CR1)|=0x10;
   else
     rh(CR1)&=~0x10;
-#endif    
+#endif   
+	mb(); 
   queue &= 0xF;
 #ifdef enx_dmx
-  enx_reg_h(0x880+4*queue)=wp&0xFFFF;
   enx_reg_h(0x882+4*queue)=((wp>>16)&63)|(size<<6);
+  enx_reg_h(0x880+4*queue)=wp&0xFFFF;
+  printk("set queue %d @%08x size %dkb\n", queue, wp, 64*(1<<size));
 #else  
   rh(QWPnL+4*queue)=wp&0xFFFF;
   rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
 #endif  
+}
+
+void set_queue_interrupt_address(int queue, int boundary)
+{
+#ifdef enx_dmx
+  if (queue>=16)
+    enx_reg_h(CFGR0)|=0x10;
+  else
+    enx_reg_h(CFGR0)&=~0x10;
+	queue&=0xF;
+	mb();
+	enx_reg_w(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
+#else
+	rh(QI0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);					// das geht irgendwie nicht :(
+#endif    
 }
 
 u32 gtx_get_queue_wptr(int queue)
@@ -336,11 +356,12 @@ u32 gtx_get_queue_wptr(int queue)
     else
       rh(CR1)&=~0x10;
 #endif      
+		mb();
     queue &= 0xF;
 #ifdef enx_dmx
     wp=enx_reg_h(0x880+4*queue);
     wp|=(enx_reg_h(0x882+4*queue)&63)<<16;
-#else    
+#else
     wp=rh(QWPnL+4*queue);
     wp|=(rh(QWPnH+4*queue)&63)<<16;
 #endif    
@@ -361,7 +382,6 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
   enx_reg_h(base+4)=write&0xFFFF;
   enx_reg_h(base+6)=((write>>16)&63)|(size<<6);
   enx_reg_h(base+2)=((read>>16)&63);
-  printk("QUEUE:%x\n",base);
 #else
   int base=queue*8+0x1E0;
   
@@ -409,20 +429,36 @@ __u32 datamask=0;
 
 static void gtx_queue_interrupt(int nr, int bit)
 {
+#ifdef enx_dmx
+	int queue;
+	if (nr==3)
+		queue=bit+16;
+	else if (nr==4)
+		queue=bit+1;
+	else if (nr==5)
+		queue=bit-6;
+	else
+	{
+		printk("unexpected enx queue interrupt %d:%d", nr, bit);
+		return;
+	}
+	if (!(wantirq&0xF))
+	  printk("gtx_queue_interrupt on queue %d (%d)\n", queue, wantirq);
+#else
   int queue=(nr-2)*16+bit;
-
+#endif  
   datamask|=1<<queue;
   wantirq++;
 
-  if (gtx_tasklet.data)
-    schedule_task(&gtx_tasklet);
+	if (gtx_tasklet.data)
+		schedule_task(&gtx_tasklet);
 }
 
 static Pcr_t gtx_read_transport_pcr(void)
 {
   Pcr_t pcr;
 #ifdef enx_dmx
-  pcr.hi =enx_reg_h(TP_PCR_2)<<16;
+   pcr.hi =enx_reg_h(TP_PCR_2)<<16;
   pcr.hi|=enx_reg_h(TP_PCR_1);
   pcr.lo =enx_reg_h(TP_PCR_0)&0x81FF;
 #else 
@@ -612,7 +648,8 @@ static void gtx_dmx_set_pcr_source(int pid)
   enx_reg_h(FC)|=0x100;               // force discontinuity
   discont=1;
   enx_free_irq(1, 5);
-  enx_allocate_irq(1, 5, gtx_pcr_interrupt);       // pcr reception
+  		// DEBUG DEBUG DEBUG! !  ! !  
+//  enx_allocate_irq(1, 5, gtx_pcr_interrupt);       // pcr reception
 #else
   rh(PCRPID)=(1<<13)|pid;
   rh(FCR)|=0x100;               // force discontinuity
@@ -621,6 +658,8 @@ static void gtx_dmx_set_pcr_source(int pid)
   gtx_allocate_irq(0, 8, gtx_pcr_interrupt);       // pcr reception
 #endif  
 }
+
+extern int register_demux(struct dmx_demux_s *demux);
 
 int gtx_dmx_init(void)
 {
@@ -642,29 +681,24 @@ int gtx_dmx_init(void)
   enx_reg_w(RSTR0) &= ~(1 << 31);
   enx_reg_w(RSTR0) &= ~(1 << 28);
   enx_reg_w(RSTR0) &= ~(1 << 0);
-  
-  
+    
   enx_reg_w(CFGR0) &= ~(1 << 3);
   enx_reg_w(CFGR0) &= ~(1 << 1);
   enx_reg_w(CFGR0) &= ~(1 << 0);
   
   enx_reg_h(FC) = 0x9147;
-  enx_reg_h(SYNC_HYST) =0xE2;
+  enx_reg_h(SYNC_HYST) =0x21;
   enx_reg_h(BQ) = 0x00BC;
   
-  enx_reg_w(CFGR0) |= 1 << 24;
+  enx_reg_w(CFGR0) |= 1 << 24;		// enable dac output
   
   enx_reg_h(AVI_0) = 0x6CF;
   enx_reg_h(AVI_1) = 0xA;
   
-  enx_reg_h(VCR) = 0x40 | 1 << 13;
-  enx_reg_h(VHT) = 857 | 3 << 10 | 0x5000;
-  enx_reg_h(VLT) = 623 | 21 << 11;
-  
   enx_reg_h(PCMC) = 0xF4C0;
-  enx_reg_w(CFGR0) |= 1 << 31;
-  
-  printk("ENX-INITed\n");
+	enx_reg_w(CFGR0) &= ~3; 				// disable clip mode
+	
+  printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
 #else
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
   rh(RR1)|=1<<6;
@@ -686,20 +720,29 @@ int gtx_dmx_init(void)
   return 0;
 }
 
+extern int unregister_demux(struct dmx_demux_s *demux);
+
 void gtx_dmx_close(void)
 {
-  int i, j;
-  
+  int i;
+#ifndef enx_dmx
+	int j;
+#endif
   unregister_demux(&gtx.dmx);
   GtxDmxCleanup(&gtx);
 
+#ifdef enx_dmx
+	for (i=1; i<16; i++)
+	{
+		enx_free_irq(3, i);
+		enx_free_irq(4, i);
+	}
+	enx_free_irq(5, 6);
+	enx_free_irq(5, 7);
+	enx_free_irq(1, 5);           // PCR
+#else
   for (j=0; j<2; j++)
     for (i=0; i<16; i++)
-#ifdef enx_dmx
-      enx_free_irq(j+2, i);
-
-  enx_free_irq(1, 5);           // PCR
-#else
       gtx_free_irq(j+2, i);
 
   gtx_free_irq(0, 8);           // PCR
@@ -750,11 +793,10 @@ static void gtx_task(void *data)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)data;
   int queue;
-	int cc=-1,ccn;
+	int ccn;
   static int c;
-
+  
   for (queue=0; datamask && queue<32; queue++)
-
     if (datamask&(1<<queue))
     {
       gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
@@ -795,7 +837,7 @@ static void gtx_task(void *data)
           {
 						// handle TS
 	          case DMX_TYPE_TS:
-  	          gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0);
+//  	          gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0);
 							break;
 
 						// handle section
@@ -1124,10 +1166,39 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   dprintk(KERN_DEBUG "gtx_dmx: STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
   printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
-
+  
   if (gtxfeed->output&TS_PACKET)
 #ifdef enx_dmx
-    enx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+	{
+		if (gtxfeed->index>=17)
+		{
+			gtxfeed->int_nr=3;
+			gtxfeed->int_bit=gtxfeed->index-16;
+		} else if (gtxfeed->index>=2)
+		{
+			gtxfeed->int_nr=4;
+			gtxfeed->int_bit=gtxfeed->index-1;
+		}	else
+		{
+			gtxfeed->int_nr=5;
+			gtxfeed->int_bit=gtxfeed->index+6;
+		}
+		printk("Using irq %d:%d for queue %d\n", gtxfeed->int_nr, gtxfeed->int_bit, gtxfeed->index);
+		
+		enx_reg_w(IPR4)=0x55555555;
+		enx_reg_w(IPR5)=0x55555555;
+		
+		enx_allocate_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
+		printk("ISR4 %x\n", enx_reg_h(0x108));
+		printk("IMR4 %x\n", enx_reg_h(0x118));
+		udelay(100*1000);
+		printk("ISR4 %x\n", enx_reg_h(0x108));
+		printk("IMR4 %x\n", enx_reg_h(0x118));
+		
+		enx_reg_h(CFGR0)&=~0x10;
+		
+		printk("-> %x %x\n", enx_reg_h(0x880+gtxfeed->index*4), enx_reg_h(0x882+gtxfeed->index*4));
+  }
 #else  
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
 #endif    
@@ -1150,11 +1221,16 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
   dmx_set_filter(gtxfeed->filter);
   
   feed->is_filtering=0;
+
+	if (gtxfeed->output&TS_PACKET)
+	{
 #ifdef enx_dmx
-  enx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+		printk("clearing int %d:%d\n", gtxfeed->int_nr, gtxfeed->int_bit);
+	  enx_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
 #else
-  gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+	  gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
 #endif  
+  }
   printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
   gtxfeed->state=DMX_STATE_ALLOCATED;
   return 0;  
@@ -1488,15 +1564,10 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
       &gtxdemux->frontend_list;
 
   for (i=0; i<NUM_PID_FILTER; i++)      // disable all pid filters
-  {
     gtx_set_pid_table(i, 0, 1, 0);
-    gtx_set_queue(i, 0x20000*i, 11);
-  }
   
-  for (i=0; i<NUM_QUEUES; i++)
-#ifndef enx_dmx
-    rh(QI0+i*2)=0;            // das geht irgendwie nicht :(
-#endif    
+	for (i=0; i<NUM_QUEUES; i++)
+		set_queue_interrupt_address(i, -1);
 
   for (i=0; i<NUM_QUEUES; i++)
   {
