@@ -38,6 +38,18 @@ DFB_GRAPHICS_DRIVER( gtx );
 #define GTX_BLITTING_FUNCTIONS \
                (DFXL_BLIT)
 
+/* do what the enx pixel formatter does to ARGB1555 2byte-pixels
+ * i.e.:
+ *  construct every 8bit color value from its 5bit input
+ *  using bit order: 4 3 2 1 0 4 3 2
+ *  and save the alpha bit
+ */
+#define ENX_ARGB1555_TO_ARGB(x) \
+     ((x & 0x8000) << 9) \
+   | ((x & 0x7a00) << 9) | ((x & 0x7000) << 4) \
+   | ((x & 0x03e0) << 6) | ((x & 0x0380) << 1) \
+   | ((x & 0x001f) << 3) | ((x & 0x001a) >> 2)
+
 
 typedef struct {
   /* misc stuff */
@@ -519,8 +531,10 @@ driver_init_device( GraphicsDevice     *device,
     gtx_out16 (gdrv->mmio_base, GTX_TCR, PIXEL_ARGB1555(0xff, 0x24, 0x50, 0x9f));
   }
   else if (enx) {
+	/* this does only work for graphics mode ARGB1555 (GMD=3)
+	 */
     gdev->orig_tcr = gtx_in32 (gdrv->mmio_base, ENX_TCR1);
-    gtx_out32 (gdrv->mmio_base, ENX_TCR1, PIXEL_ARGB(0xff, 0x24, 0x50, 0x9f) & 0x1ffffff);
+    gtx_out32 (gdrv->mmio_base, ENX_TCR1, ENX_ARGB1555_TO_ARGB(PIXEL_ARGB1555(0xff, 0x24, 0x50, 0x9f)) & 0x1ffffff);
   }
 
   return DFB_OK;
