@@ -118,12 +118,10 @@ gtx_validate_color (GTXDriverData *gdrv,
 								state->color.b));
           break;
         case DSPF_RGB16:
-	  BUG("DSPF_RGB16");
-/*          gtx_out32 (gdrv->mmio_base, ENX_BCLR01,
-			  (state->color.r << 16) |
-		          (state->color.g << 8) |
-			  state->color.b);
-*/          break;
+          gtx_out32 (gdrv->mmio_base, ENX_BCLR01, PIXEL_RGB16 (state->color.r,
+                                                               state->color.g,
+                                                               state->color.b));
+          break;
 	case DSPF_RGB32:
 	  BUG("DSPF_RGB32 not implemented");
 	  break;
