@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.112 $
+ *   $Revision: 1.113 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.113  2002/09/09 21:59:01  Jolt
+ *   HW sections fix
+ *
  *   Revision 1.112  2002/09/09 18:30:36  Jolt
  *   Symbol fix
  *
@@ -587,7 +590,15 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 	unsigned i;
 	u8 type;
 	__u32 blocked = 0;
-							
+	
+	if (queue_nr != AVIA_GT_DMX_QUEUE_MESSAGE) {
+	
+		printk("avia_gt_napi: unexpected queue %d in dmx message handler\n", queue_nr);
+		
+		return;
+	
+	}
+
 	while (queue_info->bytes_avail(queue_nr) > 0) {
 							
 		type = queue_info->get_data8(queue_nr);
@@ -595,17 +606,17 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 		switch(type) {
 		
 			case DMX_MESSAGE_CC_ERROR:
-			
+								
 				sync_lost = 0;
-				msg.type = type;					
-				
+				msg.type = type;
+
 				if (queue_info->bytes_avail(queue_nr) < (sizeof(msg) - 1)) {
 									
 					printk("avia_gt_napi: short CC-error-message received.\n");
 										
 					avia_gt_dmx_queue_reset(queue_nr);
 										
-					break;
+					return;
 										
 				}
 									
@@ -613,12 +624,11 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 				
-					if ((gtx->feed[i].state == DMX_STATE_GO) && 
-					    (gtx->feed[i].type == DMX_TYPE_HW_SEC) && 
+					if ((gtx->feed[i].state == DMX_STATE_GO) &&
+						(gtx->feed[i].type == DMX_TYPE_HW_SEC) &&
 						(gtx->feed[i].filter->pid == (msg.pid & 0x1FFF))) {
-					
-						dprintk("avia_gt_napi: cc discontinuity on feed %d\n", i);
-
+						
+						dprintk("avia_gt_napi: cc discontinuity on feed %d\n",i);
 						gtx->feed[i].filter->invalid = 1;
 						dmx_set_filter(gtx->feed[i].filter);
 						gtx->feed[i].filter->invalid = 0;
@@ -628,14 +638,14 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 						blocked |= 1 << i;
 						dmx_set_filter(gtx->feed[i].filter);
 						
-						break;
+						return;
 						
 					}
-					
+
 				}
-				
+
 			break;
-									
+			
 			case DMX_MESSAGE_ADAPTION:
 								
 				sync_lost = 0;
@@ -644,11 +654,11 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 				if (queue_info->bytes_avail(queue_nr) < (sizeof(adaption) - 1))	{
 									
 					printk("avia_gt_napi: short private adaption field message.\n");
-
-					avia_gt_dmx_queue_reset(queue_nr);										
 										
-					break;
+					avia_gt_dmx_queue_reset(queue_nr);
 										
+					return;
+								
 				}
 
 				queue_info->move_data(queue_nr, ((u8 *)&adaption) + 1, sizeof(adaption) - 1);
@@ -659,7 +669,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 
 					avia_gt_dmx_queue_reset(queue_nr);
 
-					break;
+					return;
 										
 				}
 
@@ -668,7 +678,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 			break;
 #if 0	
 			case DMX_MESSAGE_SYNC_LOSS:
-						
+								
 				if (!sync_lost) {
 									
 					sync_lost = 1;
@@ -676,7 +686,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 										
 					for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
 					
-						if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].type == DMX_TYPE_HW_SEC))	{
+						if ((gtx->feed[i].state == DMX_STATE_GO) &&	(gtx->feed[i].type == DMX_TYPE_HW_SEC))	{
 						
 							gtx->feed[i].filter->invalid = 1;
 							dmx_set_filter(gtx->feed[i].filter);
@@ -687,7 +697,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 							blocked |= 1 << i;
 							dmx_set_filter(gtx->feed[i].filter);
 							
-							break;
+							return;
 							
 						}
 						
@@ -705,7 +715,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 					printk("avia_gt_napi: short section completed message.\n");
 										
-					break;
+					return;
 										
 				}
 									
@@ -713,24 +723,27 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 				if (!(blocked & (1 << comp_msg.filter_index))) {
 									
-//					printk("got section completed %d\n",comp_msg.filter_index);
-
-					sync_lost = 0;
-					avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
-						
+//						printk("got section completed %d\n",comp_msg.filter_index);
+						sync_lost = 0;
+						avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
+									
 				}
-
+									
 			break;
 			
-			default:									
+			default:
 #if 0
 				printk("bad message, type-value %02X, len = %d\n",type,queue_info->bytes_avail(queue_nr));
 #endif
+//				dump(b1,b1l,b2,b2l);
+
+				return;
+									
 			break;
 
 		}
-								
-	}
+
+	}						
 						
 }
 
@@ -1834,7 +1847,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.112 2002/09/09 18:30:36 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.113 2002/09/09 21:59:01 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
