@@ -60,15 +60,31 @@ MODULE_DESCRIPTION("eNX/GTX-VBI driver");
 static dmx_ts_feed_t* feed_vtxt;
 static dmx_demux_t *dmx_demux;
 
-static int avia_gt_vbi_stop_vtxt(void)
+static void avia_gt_vbi_reset(unsigned char reenable)
 {
 
     if (avia_gt_chip(ENX))
-	enx_reg_s(TCNTL)->GO = 0;
+	enx_reg_s(RSTR0)->TTX = 1;
     else if (avia_gt_chip(GTX))
-	rh(TTCR) &= ~(1 << 9);
+	gtx_reg_s(RR1)->TTX = 1;
+
+    if (reenable) {
+
+	if (avia_gt_chip(ENX))
+	    enx_reg_s(RSTR0)->TTX = 0;
+	else if (avia_gt_chip(GTX))
+	    gtx_reg_s(RR1)->TTX = 0;
+    
+    }
+    
+}
+
+static int avia_gt_vbi_stop_vtxt(void)
+{
 
     if (active_vtxt_pid >= 0) {
+
+	avia_gt_vbi_reset(0);
 
 	if (feed_vtxt->stop_filtering(feed_vtxt) < 0) {
   
@@ -92,14 +108,10 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
     avia_gt_vbi_stop_vtxt();
 
-    if (avia_gt_chip(ENX))
-	enx_reg_s(TCNTL)->GO = 1;
-    else if (avia_gt_chip(GTX))
-	rh(TTCR) |= (1 << 9);
-
     if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
   
 	printk("avia_gt_vbi: error while setting vtxt feed\n");  
+	
 	return -EIO;
   
     }
@@ -107,10 +119,27 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
     if (feed_vtxt->start_filtering(feed_vtxt) < 0) {
   
 	printk("avia_gt_vbi: error while starting vtxt feed\n");  
+	
 	return -EIO;
   
     }
     
+    avia_gt_vbi_reset(1);
+    
+    if (avia_gt_chip(ENX)) {
+
+	enx_reg_s(RSTR0)->TTX = 0;
+	enx_reg_16(TCNTL) |= (1 << 15);   
+	 enx_reg_16(TCNTL) |= (1 << 9); 
+    // 	enx_reg_s(TCNTL)->GO = 1;
+    
+    } else if (avia_gt_chip(GTX)) {
+    
+	rh(TTCR) |= (1 << 14);
+	rh(TTCR) |= (1 << 9);
+
+    }	
+
     active_vtxt_pid = pid;
 
     return 0;
@@ -160,6 +189,8 @@ static struct file_operations avia_gt_vbi_fops = {
 int dmx_ts_callback(__u8* buffer1, size_t buffer1_length, __u8* buffer2, size_t buffer2_length, dmx_ts_feed_t *source, dmx_success_t success)
 {
 
+    printk("VBI-IRQ!!!!\n");
+
     return 0;
 
 }
@@ -169,7 +200,7 @@ static int __init avia_gt_vbi_init(void)
 
     struct list_head *dmx_list;
 
-    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.6 2002/04/22 17:40:01 Jolt Exp $\n");
+    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.7 2002/04/23 00:10:44 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -181,22 +212,10 @@ static int __init avia_gt_vbi_init(void)
 			
     }
 
-    if (avia_gt_chip(ENX)) {
-
-	enx_reg_s(RSTR0)->TTX = 1;
-	enx_reg_s(RSTR0)->TTX = 0;
+    if (avia_gt_chip(ENX))
 	enx_reg_s(CFGR0)->TCP = 0;
-	enx_reg_s(TCNTL)->PE = 1;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	gtx_reg_s(RR1)->TTX = 1;
-	gtx_reg_s(RR1)->TTX = 0;
+    else if (avia_gt_chip(GTX))
 	rh(CR1) &= ~(1 << 3);
-	rh(TTCR) |= (1 << 14);
-	rh(TTCR) |= (1 << 9);
-
-    }
 			        
     devfs_handle = devfs_register(NULL, "dbox/vbi0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_vbi_fops, NULL);
 
