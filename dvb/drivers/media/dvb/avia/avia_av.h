@@ -50,7 +50,7 @@
 #define TM_DRAM  0x00
 #define TM_RES   0x40
 #define TM_GBUS  0x80
-#define TM_SRAM  0xC0
+#define TM_SRAM  0xc0
 
 /* decoder init complete / audio decode start (600 only?) */
 #define IRQ_INIT_AUDD	(1 << 23)
@@ -94,9 +94,9 @@
 #define Fade				0x0223
 #define Freeze				0x0125
 #define NewPlayMode			0x0028
-#define Pause				0x022A
-#define Reset				0x802D
-#define Resume				0x002E
+#define Pause				0x022a
+#define Reset				0x802d
+#define Resume				0x002e
 
 #define SelectStream			0x0231
 #define SetFill				0x0532
@@ -121,7 +121,7 @@
 #define OSDXORData			0x0357
 #define OSDXORegion			0x0658
 #define PCM_Mix				0x0659
-#define PCM_MakeWaves			0x065A
+#define PCM_MakeWaves			0x065a
 
 /* DRAM Register */
 #define AC3_ACMOD_CMIXLEV		0x0418
@@ -230,8 +230,8 @@
 #define MR_PIC_PTS			0x02f0
 #define MR_PIC_STC			0x02f4
 
-#define MRC_ID				0x02A0
-#define MRC_STATUS			0x02A8
+#define MRC_ID				0x02a0
+#define MRC_STATUS			0x02a8
 
 #define N_AUD_DECODED			0x02f8
 #define N_AUD_ERRORS			0x0320
