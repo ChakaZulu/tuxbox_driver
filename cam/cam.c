@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.11  2001/04/09 22:58:22  tmbinc
+ *   added philips-support.
+ *
  *   Revision 1.10  2001/04/09 19:48:44  TripleDES
  *   added cam init (fp-cmd)
  *
@@ -47,7 +50,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -106,7 +109,12 @@ static char *firmware=0;
 #define CAM_MINOR            2
 #define I2C_DRIVERID_CAM     0x6E
 
+#define PHILIPS
 #define CAM_INTERRUPT        SIU_IRQ3
+
+#define CAM_CODE_BASE_02        0xC040000
+#define CAM_DATA_BASE_02        0xC020000
+
 #define CAM_CODE_BASE        0xC000000
 #define CAM_CODE_SIZE        0x20000
                               // BUG BUG ... oder? .so meint: 0xE00 0000, aber das geht nicht.
@@ -460,7 +468,10 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 
 int cam_reset()
 {
-	return fp_do_reset(0xAF);
+	if (info.mID==DBOX_MID_NOKIA)
+		return fp_do_reset(0xAF);
+	else
+		return fp_cam_reset();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -637,10 +648,18 @@ int cam_init(void)
 	u32 *microcode;
 	char caminit[11]={0x50,0x08,0x23,0x84,0x01,0x04,0x17,0x02,0x10,0x00,0x91};
 		
+	dbox_get_info(&info);
 	init_waitqueue_head(&queuewait);
 
-	code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
-	data_base=ioremap(CAM_DATA_BASE, CAM_DATA_BASE);
+	if (info.mID==2)	// special handling for philips
+	{
+		code_base=ioremap(CAM_CODE_BASE_02, CAM_CODE_SIZE);
+		data_base=ioremap(CAM_DATA_BASE_02, CAM_DATA_BASE);
+	} else
+	{
+		code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
+		data_base=ioremap(CAM_DATA_BASE, CAM_DATA_BASE);
+	}
 
 	if (!code_base || !data_base)
 	{
@@ -727,23 +746,8 @@ int cam_init(void)
 		panic("Could not allocate CAM IRQ!");
 	}
 
-        dbox_get_info(&info);
-        switch (info.mID)
-	{
-	  case DBOX_MID_SAGEM:
-	  {
-	    cam_write_message(caminit,11);
-	    fp_cam_reset();  
-	    printk("CAM: send sagem init....\n");
-		  }
-	  case DBOX_MID_PHILIPS:	  
-	  {
-	    cam_write_message(caminit,11);
-            fp_cam_reset();	    
-	    printk("CAM: send Philips init....\n");
-	    
-		  }
-	}	
+	if (info.mID!=DBOX_MID_NOKIA)
+		cam_write_message(caminit,11);
 	
 	return 0;
 }

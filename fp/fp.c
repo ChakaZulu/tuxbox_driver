@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.25  2001/04/09 22:58:22  tmbinc
+ *   added philips-support.
+ *
  *   Revision 1.24  2001/04/09 22:33:57  TripleDES
  *   some unused commands cleared (sagem testing)
  *
@@ -75,7 +78,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -497,7 +500,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 			immap->im_ioport.iop_padat&=~2;
 		}
 
-    fp_sendcmd(new_client, 0x04, 0x71); //sagem / philips ? needs this
+    fp_sendcmd(new_client, 0x04, 0x71); //sagem needs this
 /*    fp_sendcmd(new_client, 0x22, 0xbf);
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
@@ -772,7 +775,7 @@ static int fp_close(void)
 /* ------------------------------------------------------------------------- */
 int fp_cam_reset()    //needed for sagem / philips?
 {
-	char msg[2]={0x05, 0xEF,0x0e,0x00,0x00};
+	char msg[2]={0x05, 0xEF};
 	
 	dprintk("fp: CAM-RESET\n");
 
