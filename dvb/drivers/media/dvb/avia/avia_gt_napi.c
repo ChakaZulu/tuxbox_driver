@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.96 $
+ *   $Revision: 1.97 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.97  2002/09/03 05:17:38  Jolt
+ *   HW sections workaround
+ *
  *   Revision 1.96  2002/09/02 20:56:06  Jolt
  *   - HW section fix (GTX)
  *   - DMX/NAPI cleanups
@@ -821,6 +824,7 @@ static void gtx_task(void *data)
 										b1 += len;
 									}
 								}
+#if 0	
 								else if (type == DMX_MESSAGE_SYNC_LOSS)
 								{
 									if (!sync_lost)
@@ -847,6 +851,7 @@ static void gtx_task(void *data)
 										}
 									}
 								}
+#endif
 								else if (type == DMX_MESSAGE_SECTION_COMPLETED)
 								{
 									comp_msg.type = type;
@@ -1934,7 +1939,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.96 2002/09/02 20:56:06 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.97 2002/09/03 05:17:38 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
