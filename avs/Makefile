@@ -9,22 +9,20 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.0/misc/
-
-BUILD_DATE=$(shell date)
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 
 #################################################
 # some magic for using linux kernel settings
 # when compiling module(s)
 
 M_OBJS       = cxa2092.o
-APPZ	     = switch
-APPZ_SOURCE  = switch.c
+APPL	     = switch
+APPL_SOURCE  = switch.c
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
+EXTRA_CFLAGS=
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
@@ -34,10 +32,9 @@ install:
 	cp $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(APPZ) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) $(APPL) .*.o.flags *~
 
-appz:
-	powerpc-linux-gcc -o $(APPZ) $(APPZ_SOURCE)
+appl:
+	powerpc-linux-gcc -o $(APPL) $(APPL_SOURCE)
 
 include $(KERNEL_LOCATION)/Rules.make
-
