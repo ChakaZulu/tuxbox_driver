@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.6 2002/12/26 09:27:48 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.7 2002/12/26 21:25:28 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -40,6 +40,8 @@ static u16 rcbeg = 0, rcend = 0;
 static wait_queue_head_t rcwait;
 static DECLARE_MUTEX_LOCKED(rc_opened);
 static struct input_dev input_dev;
+static old_rc = 1;
+static new_rc = 1;
 
 //#define dprintk printk
 #define dprintk if (0) printk
@@ -304,8 +306,12 @@ int __init dbox2_fp_rc_init(void)
 
 	input_register_device(&input_dev);
 
-	dbox2_fp_queue_alloc(0, queue_handler);
-	dbox2_fp_queue_alloc(3, queue_handler);
+	if (old_rc)
+		dbox2_fp_queue_alloc(0, queue_handler);
+
+	if (new_rc)
+		dbox2_fp_queue_alloc(3, queue_handler);
+		
 	dbox2_fp_queue_alloc(4, queue_handler);
 
 	devfs_handle = devfs_register(NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
@@ -326,8 +332,12 @@ int __init dbox2_fp_rc_init(void)
 void __exit dbox2_fp_rc_exit(void)
 {
 
-	dbox2_fp_queue_free(0);
-	dbox2_fp_queue_free(3);
+	if (old_rc)
+		dbox2_fp_queue_free(0);
+
+	if (new_rc)
+		dbox2_fp_queue_free(3);
+
 	dbox2_fp_queue_free(4);
 
 	input_unregister_device(&input_dev);
@@ -338,6 +348,8 @@ void __exit dbox2_fp_rc_exit(void)
 #ifdef MODULE
 module_init(dbox2_fp_rc_init);
 module_exit(dbox2_fp_rc_exit);
+MODULE_PARM(old_rc, "i");
+MODULE_PARM(new_rc, "i");
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("dbox2 remote control driver");
 #ifdef MODULE_LICENSE
