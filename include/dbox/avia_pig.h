@@ -22,8 +22,15 @@
  */
 
 #define AVIA_PIG_HIDE	 	1
-#define AVIA_PIG_SHOW	 	2
-#define AVIA_PIG_SET_POS 	3
-#define AVIA_PIG_SET_SOURCE 	4
-#define AVIA_PIG_SET_SIZE 	5
-#define AVIA_PIG_SET_STACK 	6
+#define AVIA_PIG_SET_POS 	2
+#define AVIA_PIG_SET_SOURCE 	3
+#define AVIA_PIG_SET_SIZE 	4
+#define AVIA_PIG_SET_STACK 	5
+#define AVIA_PIG_SHOW	 	6
+
+#define avia_pig_hide(fd) 		ioctl(fd, AVIA_PIG_HIDE, 0)
+#define avia_pig_set_pos(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_POS, (x | (y << 16)))
+#define avia_pig_set_source(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_SOURCE, (x | (y << 16)))
+#define avia_pig_set_size(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_SIZE, (x | (y << 16)))
+#define avia_pig_set_stack(fd, order) 	ioctl(fd, AVIA_PIG_SET_SIZE, order)
+#define avia_pig_show(fd) 		ioctl(fd, AVIA_PIG_SHOW, 0)
