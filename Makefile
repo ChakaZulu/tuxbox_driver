@@ -14,9 +14,9 @@ export CURRENT KERNEL_LOCATION MODULE_DEST BIN_DEST
 
 #################################################
 
-mod-subdirs := nokia avs cxa2092 cxa2126 lcd saa7126 pcm
+mod-subdirs := nokia avs lcd saa7126 pcm
 
-subdir-y := nokia avs cxa2092 cxa2126 lcd saa7126 pcm
+subdir-y := nokia avs lcd saa7126 pcm
 
 subdir-m :=	$(subdir-y)
 
