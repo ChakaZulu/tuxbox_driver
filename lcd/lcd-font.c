@@ -21,16 +21,20 @@
  *
  *
  *   $Log: lcd-font.c,v $
+ *   Revision 1.4  2001/12/01 06:53:17  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.3  2001/06/03 20:45:50  kwon
  *   indent
  *
  *   Revision 1.2  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
+#include <linux/slab.h>
 #include "lcd-font.h"
 #include "font_8x8.h"
 #include "font_acorn_8x8.h"

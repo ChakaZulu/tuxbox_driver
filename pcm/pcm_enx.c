@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm_enx.c,v $
+ *   Revision 1.5  2001/12/01 06:53:35  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.4  2001/11/26 23:20:20  obi
  *   struct pcm_state moved to pcm.h
  *
@@ -65,7 +68,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -74,7 +77,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>

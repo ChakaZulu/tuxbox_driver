@@ -21,10 +21,13 @@
  *
  *
  *   $Log: lcd-font.h,v $
+ *   Revision 1.3  2001/12/01 06:53:17  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.2  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 

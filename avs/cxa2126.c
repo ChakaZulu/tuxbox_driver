@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.19  2001/12/01 06:52:05  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.18  2001/09/17 21:23:11  TripleDES
  *   some changes (scart fnc 2 init) &  (removed some printks from ves1993)
  *
@@ -76,7 +79,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -89,7 +92,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
@@ -498,7 +501,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.18 2001/09/17 21:23:11 TripleDES Exp $\n");
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.19 2001/12/01 06:52:05 gillem Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */

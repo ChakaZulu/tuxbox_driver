@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.17  2001/12/01 06:52:39  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.16  2001/02/20 18:36:54  gillem
  *   - remove polling some drivers not work now !
  *
@@ -35,7 +38,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -44,7 +47,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>

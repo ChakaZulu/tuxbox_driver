@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.35  2001/12/01 06:52:28  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.34  2001/11/06 15:54:59  tmbinc
  *   added FP_WAKEUP and ioctls. (only for nokia)
  *
@@ -107,7 +110,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.34 $
+ *   $Revision: 1.35 $
  *
  */
 
@@ -118,7 +121,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

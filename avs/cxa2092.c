@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.20  2001/12/01 06:52:05  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.19  2001/07/03 19:24:19  gillem
  *   - some changes
  *
@@ -74,7 +77,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -85,7 +88,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/types.h>
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.14  2001/12/01 06:53:17  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.13  2001/11/25 21:37:46  gillem
  *   - fix adc
  *   - add new ioctl (LCD_IOCTL_INIT)
@@ -54,14 +57,14 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.10  2001/12/01 06:52:05  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.9  2001/07/23 21:32:45  gillem
  *   - fix some values
  *
@@ -49,7 +52,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -60,7 +63,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/types.h>
 

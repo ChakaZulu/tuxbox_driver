@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.13  2001/12/01 06:53:04  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.12  2001/10/18 23:22:15  Jolt
  *   Fix for gcc < 3
  *
@@ -55,7 +58,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -68,7 +71,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>

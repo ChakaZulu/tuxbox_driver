@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.15  2001/12/01 06:52:16  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.14  2001/09/29 23:24:48  tmbinc
  *   removed debug output
  *
@@ -59,7 +62,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -76,7 +79,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>

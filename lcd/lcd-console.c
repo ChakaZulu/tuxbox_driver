@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.9  2001/12/01 06:53:17  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.8  2001/09/17 21:25:55  TripleDES
  *   removed the "@lcd"
  *
@@ -39,14 +42,14 @@
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>

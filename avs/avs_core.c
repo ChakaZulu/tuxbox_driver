@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.17  2001/12/01 06:52:05  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.16  2001/07/21 18:40:51  gillem
  *   - fix address-range for stv6412
  *
@@ -67,7 +70,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -80,7 +83,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
