@@ -154,9 +154,10 @@ static int tsa5059_set_freq(struct dvb_i2c_bus *i2c, u32 freq)
 	int diff;
 	int i;
 
-	if (freq < 1100000)		/*  555uA */
-		cp = 2;
-	else if (freq < 1200000)	/*  260uA */
+// 	if (freq < 1100000)		/*  555uA */
+// 		cp = 2;
+// 	else 
+	if (freq < 1200000)	/*  260uA */
 		cp = 1;
 	else if (freq < 1600000)	/*  120uA */
 		cp = 0;
