@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.171 2003/05/02 20:19:40 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.172 2003/05/03 07:28:03 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1658,12 +1658,12 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	}
 	else
 	{
-		pcr_diff = last_pcr - pcr;
+		pcr_diff = pcr + 0x200000000 - last_pcr;
 	}
 
 	if (pcr_diff > MAX_PCR_DIFF)
 	{
-		printk(KERN_INFO "PCR discontinuity: PCR: 0x%01X%04X, OLDPCR: 0x%01X%04X, Diff: %d\n",
+		printk(KERN_INFO "PCR discontinuity: PCR: 0x%01X%08X, OLDPCR: 0x%01X%08X, Diff: %d\n",
 			(u32) (pcr >> 32),(u32) (pcr & 0xFFFFFFFF),
 			(u32) (last_pcr >> 32), (u32) (last_pcr & 0xFFFFFFFF),
 			(s32) pcr_diff);
@@ -1775,7 +1775,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 	if (gain_changed)
 	{
-//		printk(KERN_INFO "Diff: %d, Last-Diff: %d Direction: %d, Gain: %d\n",pcr_lstc_diff,last_pcr_lstc_diff,direction,gain);
+		printk(KERN_INFO "Diff: %d, Last-Diff: %d Direction: %d, Gain: %d\n",pcr_lstc_diff,last_pcr_lstc_diff,direction,gain);
 		avia_gt_dmx_set_dac(gain);
 	}
 }
@@ -2320,7 +2320,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.171 2003/05/02 20:19:40 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.172 2003/05/03 07:28:03 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
