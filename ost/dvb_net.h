@@ -34,14 +34,16 @@
 
 typedef struct dvb_net_priv_s {
         struct net_device_stats stats;
+        char name[6];
+	u16 pid;
         dmx_demux_t *demux;
 	dmx_section_feed_t *secfeed;
 	dmx_section_filter_t *secfilter;
-        char name[6];
-	u16 pid;
+	int multi_num;
+	dmx_section_filter_t *multi_secfilter[DVB_NET_MULTICAST_MAX];
+	unsigned char multi_macs[DVB_NET_MULTICAST_MAX][6];
+	int mode;
 } dvb_net_priv_t;
-
-struct dvb_net_s;
 
 typedef struct dvb_net_s {
 	int card_num;
@@ -54,7 +56,6 @@ typedef struct dvb_net_s {
 	int  (*dvb_net_init)      (struct dvb_net_s *dvbnet, dmx_demux_t *demux);
 	int  (*dvb_net_add_if)    (struct dvb_net_s *dvbnet, u16 pid);
 	int  (*dvb_net_remove_if) (struct dvb_net_s *dvbnet, int num);
-
 } dvb_net_t;
 
 /*

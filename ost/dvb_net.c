@@ -18,27 +18,23 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- *
- *   $Log: dvb_net.c,v $
- *   Revision 1.5  2001/07/03 19:34:23  gillem
- *   - sync with cvs (linuxtv)
- *
- *   Revision 1.4  2001/06/26 18:24:23  gillem
- *   - change dvb_net init
- *
- *   Revision 1.3  2001/06/25 20:31:48  gillem
- *   - fix return value
- *
- *   Revision 1.2  2001/06/25 20:23:39  gillem
- *   - bugfix (set pointer)
- *   - add debug output
- *   - add pointercheck
- *
- *
  */
 
+#ifdef __DVB_PACK__
 #include <ost/demux.h>
+#else
+#include <linux/ost/demux.h>
+#endif
+
 #include "dvb_net.h"
+
+#ifdef MODULE
+MODULE_DESCRIPTION("DVB network driver");
+MODULE_AUTHOR("Ralph Metzler");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+#endif
 
 /* external stuff in dvb.c */
 int register_dvbnet(dvb_net_t *dvbnet);
@@ -61,8 +57,6 @@ unsigned short my_eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 	
-	printk("dvb_net: (my_eth_type_trans) %x %x\n",skb,dev);
-
 	skb->mac.raw=skb->data;
 	skb_pull(skb,dev->hard_header_len);
 	eth= skb->mac.ethernet;
@@ -101,8 +95,6 @@ dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
         u8 *eth;
         struct sk_buff *skb;
 
-		printk("dvb_net: (dvb_net_sec) %x %x %x\n",dev,pkt,pkt_len);
-
         if (!pkt_len)
                 return;
         skb = dev_alloc_skb(pkt_len+2);
@@ -134,28 +126,12 @@ dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 }
  
 static int 
-dvb_net_callback(__u8 *buffer1, size_t buffer1_len,
-		 __u8 *buffer2, size_t buffer2_len,
+dvb_net_callback(u8 *buffer1, size_t buffer1_len,
+		 u8 *buffer2, size_t buffer2_len,
 		 dmx_section_filter_t *filter,
 		 dmx_success_t success)
 {
-	struct net_device *dev;
-
-	if (!filter || !dev)
-	{
-		printk("dvb_net: warning filter null pointer\n");
-		return -1;
-	}
-
-	dev = (struct net_device *) filter->priv;
-
-	if(!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: (dvb_net_callback) %s\n",dev->name);
+        struct net_device *dev=(struct net_device *) filter->priv;
 
 	/* FIXME: this only works if exactly one complete section is
 	          delivered in buffer1 only */
@@ -169,258 +145,239 @@ dvb_net_tx(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static u8 mask_normal[6]={0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static u8 mask_allmulti[6]={0xff, 0xff, 0xff, 0x00, 0x00, 0x00};
+static u8 mac_allmulti[6]={0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
+static u8 mask_promisc[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+static int 
+dvb_net_filter_set(struct net_device *dev, 
+		   dmx_section_filter_t **secfilter,
+		   unsigned char *mac, u8 *mac_mask)
+{
+	dvb_net_priv_t *priv=(dvb_net_priv_t *)dev->priv;
+	int ret;
+
+	*secfilter=0;
+	ret=priv->secfeed->allocate_filter(priv->secfeed, secfilter);
+	if (ret<0) {
+		printk("%s: could not get filter\n", dev->name);
+		return ret;
+	}
+
+	(*secfilter)->priv=(void *) dev;
+
+	memset((*secfilter)->filter_value, 0, DMX_MAX_FILTER_SIZE);
+	memset((*secfilter)->filter_mask , 0, DMX_MAX_FILTER_SIZE);
+
+	(*secfilter)->filter_value[0]=0x3e;
+	(*secfilter)->filter_mask[0]=0xff;
+
+	(*secfilter)->filter_value[3]=mac[5];
+	(*secfilter)->filter_mask[3]=mac_mask[5];
+	(*secfilter)->filter_value[4]=mac[4];
+	(*secfilter)->filter_mask[4]=mac_mask[4];
+	(*secfilter)->filter_value[8]=mac[3];
+	(*secfilter)->filter_mask[8]=mac_mask[3];
+	(*secfilter)->filter_value[9]=mac[2];
+	(*secfilter)->filter_mask[9]=mac_mask[2];
+
+	(*secfilter)->filter_value[10]=mac[1];
+	(*secfilter)->filter_mask[10]=mac_mask[1];
+	(*secfilter)->filter_value[11]=mac[0];
+	(*secfilter)->filter_mask[11]=mac_mask[0];
+
+	printk("%s: filter mac=%02x %02x %02x %02x %02x %02x\n", 
+	       dev->name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	return 0;
+}
+
+static int
+dvb_net_feed_start(struct net_device *dev)
+{
+	int ret, i;
+	dvb_net_priv_t *priv=(dvb_net_priv_t *)dev->priv;
+        dmx_demux_t *demux=priv->demux;
+        unsigned char *mac=(unsigned char *) dev->dev_addr;
+		
+	priv->secfeed=0;
+	priv->secfilter=0;
+
+	ret=demux->allocate_section_feed(demux, &priv->secfeed, 
+					 dvb_net_callback);
+	if (ret<0) {
+		printk("%s: could not get section feed\n", dev->name);
+		return ret;
+	}
+
+	ret=priv->secfeed->set(priv->secfeed, priv->pid, 32768, 0, 0);
+	if (ret<0) {
+		printk("%s: could not set section feed\n", dev->name);
+		priv->demux->
+		        release_section_feed(priv->demux, priv->secfeed);
+		priv->secfeed=0;
+		return ret;
+	}
+	MOD_INC_USE_COUNT;
+	
+	if (priv->mode<3) 
+		dvb_net_filter_set(dev, &priv->secfilter, mac, mask_normal);
+
+	switch (priv->mode) {
+	case 1:
+		for (i=0; i<priv->multi_num; i++) 
+			dvb_net_filter_set(dev, &priv->multi_secfilter[i],
+					   priv->multi_macs[i], mask_normal);
+		break;
+	case 2:
+		priv->multi_num=1;
+		dvb_net_filter_set(dev, &priv->multi_secfilter[0], mac_allmulti, mask_allmulti);
+		break;
+	case 3:
+		priv->multi_num=0;
+		dvb_net_filter_set(dev, &priv->secfilter, mac, mask_promisc);
+		break;
+	}
+	
+	priv->secfeed->start_filtering(priv->secfeed);
+	return 0;
+}
+
+static void
+dvb_net_feed_stop(struct net_device *dev)
+{
+	dvb_net_priv_t *priv=(dvb_net_priv_t *)dev->priv;
+	int i;
+
+        if (priv->secfeed) {
+	        if (priv->secfeed->is_filtering)
+		        priv->secfeed->stop_filtering(priv->secfeed);
+	        if (priv->secfilter)
+		        priv->secfeed->
+			        release_filter(priv->secfeed, 
+					       priv->secfilter);
+		priv->secfilter=0;
+
+		for (i=0; i<priv->multi_num; i++) {
+			if (priv->multi_secfilter[i])
+				priv->secfeed->
+					release_filter(priv->secfeed, 
+						       priv->multi_secfilter[i]);
+			priv->multi_secfilter[i]=0;
+		}
+		priv->demux->
+		        release_section_feed(priv->demux, priv->secfeed);
+		priv->secfeed=0;
+		MOD_DEC_USE_COUNT;
+	} else
+		printk("%s: no feed to stop\n", dev->name);
+}
+
+static int
+dvb_set_mc_filter(struct net_device *dev, struct dev_mc_list *mc)
+{
+	dvb_net_priv_t *priv=(dvb_net_priv_t *)dev->priv;
+
+	if (priv->multi_num==DVB_NET_MULTICAST_MAX)
+		return -ENOMEM;
+
+	memcpy(priv->multi_macs[priv->multi_num], mc->dmi_addr, 6);
+	
+	priv->multi_num++;
+	return 0;
+}
+
 static void
 dvb_net_set_multi(struct net_device *dev)
 {
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return;
+	dvb_net_priv_t *priv=(dvb_net_priv_t *)dev->priv;
+
+	dvb_net_feed_stop(dev);
+	
+	priv->mode=0;
+	if (dev->flags&IFF_PROMISC) {
+		printk("%s: promiscuous mode\n", dev->name);
+		priv->mode=3;
+	} else if((dev->flags&IFF_ALLMULTI)) {
+		printk("%s: allmulti mode\n", dev->name);
+		priv->mode=2;
+	} else if(dev->mc_count) {
+                int mci;
+                struct dev_mc_list *mc;
+		
+		printk("%s: set_mc_list, %d entries\n", 
+		       dev->name, dev->mc_count);
+		priv->mode=1;
+		priv->multi_num=0;
+                for (mci=0, mc=dev->mc_list; 
+		     mci<dev->mc_count;
+		     mc=mc->next, mci++) {
+			dvb_set_mc_filter(dev, mc);
+                } 
 	}
-
-	printk("%s: set_multi\n", dev->name);
-
-	if (dev->flags&IFF_PROMISC)
-	{
-		/* Enable promiscuous mode */
-	}
-	else if((dev->flags&IFF_ALLMULTI))
-	{
-		/* Disable promiscuous mode, use normal mode. */
-          //hardware_set_filter(NULL);
-
-	}
-	else if(dev->mc_count)
-	{
-		int mci=0;
-
-		struct dev_mc_list *mc;
-
-		for (mc=dev->mc_list; (mc!=NULL) &&
-			(mci<DVB_NET_MULTICAST_MAX);
-			 mc=mc->next, mci++) {
-                  //set_mc_filter(dev, );
-		}
-	}
-	else
-		;
+	dvb_net_feed_start(dev);
 }
 
 static int
 dvb_net_set_config(struct net_device *dev, struct ifmap *map)
 {
-	if ((!dev) || (!map))
-	{
-		printk("dvb_net: warning null pointer %x %x\n",dev,map);
-		return -1;
-	}
-
-	printk("%s set_config\n",dev->name);
-
 	if (netif_running(dev))
-	{
 		return -EBUSY;
-	}
-
-	//printk("dvb_net: PID=%04x\n", map->base_addr);
 	return 0;
-}
-
-#define MASK 0xFF
-
-static int
-dvb_net_filter_set(struct net_device *dev, unsigned char *mac)
-{
-	int ret;
-	dvb_net_priv_t *priv;
-	dmx_demux_t *demux;
-
-	if(!dev)
-	{
-		printk("dvb_net: warning null pointer %x %x\n",dev,mac);
-		return -1;
-	}
-
-	priv  = (dvb_net_priv_t *)dev->priv;
-	demux = priv->demux;
-
-	printk("%s: filter_set\n", dev->name);
-
-	priv->secfeed=0;
-	priv->secfilter=0;
-
-	if (!(mac[0]|mac[1]|mac[2]|mac[3]|mac[4]|mac[5]))
-	        return 0;
-
-	ret=demux->allocate_section_feed(demux, &priv->secfeed, 
-					 dvb_net_callback);
-	if (ret<0)
-		return ret;
-	ret=priv->secfeed->set(priv->secfeed, priv->pid, 32768, 0, 0);
-	if (ret<0)
-	        return ret;
-	ret=priv->secfeed->allocate_filter(priv->secfeed, 
-					   &priv->secfilter);
-	if (ret<0)
-	        return ret;
-	priv->secfilter->priv=(void *) dev;
-
-	memset(priv->secfilter->filter_value, 0, DMX_MAX_FILTER_SIZE);
-	memset(priv->secfilter->filter_mask , 0, DMX_MAX_FILTER_SIZE);
-
-
-	priv->secfilter->filter_value[0]=0x3e;
-	priv->secfilter->filter_mask[0]=MASK;
-
-	priv->secfilter->filter_value[3]=mac[5];
-	priv->secfilter->filter_mask[3]=MASK;
-	priv->secfilter->filter_value[4]=mac[4];
-	priv->secfilter->filter_mask[4]=MASK;
-	priv->secfilter->filter_value[8]=mac[3];
-	priv->secfilter->filter_mask[8]=MASK;
-	priv->secfilter->filter_value[9]=mac[2];
-	priv->secfilter->filter_mask[9]=MASK;
-	priv->secfilter->filter_value[10]=mac[1];
-	priv->secfilter->filter_mask[10]=MASK;
-	priv->secfilter->filter_value[11]=mac[0];
-	priv->secfilter->filter_mask[11]=MASK;
-
-	priv->secfeed->start_filtering(priv->secfeed);
-	MOD_INC_USE_COUNT;
-	return 0;
-}
-
-static void
-dvb_net_filter_free(struct net_device *dev)
-{
-	dvb_net_priv_t *priv;
-
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return;
-	}
-	
-	priv = (dvb_net_priv_t *)dev->priv;
-
-	if (!priv)
-	{
-		printk("dvb_net: warning priv null pointer\n");
-		return;
-	}
-
-	printk("%s: filter_free\n", dev->name);
-
-	if (priv->secfeed) {
-		printk("%s: filter_free %x\n", dev->name, priv);
-		if (priv->secfeed->is_filtering)
-			priv->secfeed->stop_filtering(priv->secfeed);
-		if (priv->secfilter)
-			priv->secfeed->
-				release_filter(priv->secfeed,
-				priv->secfilter);
-		priv->demux->
-			release_section_feed(priv->demux, priv->secfeed);
-		priv->secfeed=0;
-		MOD_DEC_USE_COUNT;
-	}
 }
 
 static int
 dvb_net_set_mac(struct net_device *dev, void *p)
 {
-	struct sockaddr *addr;
-	unsigned char *mac;
-
-	if ((!dev) || (!p))
-	{
-		printk("dvb_net: warning null pointer %x %x\n",dev,p);
-		return -1;
-	}
-
-	addr = p;
-
-	printk("%s: set_mac\n", dev->name);
+	struct sockaddr *addr=p;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	mac=(unsigned char *) dev->dev_addr;
 	if (netif_running(dev)) {
-		dvb_net_filter_free(dev);
-		if (dvb_net_filter_set(dev, mac))
-			printk("dvb_net_filter_set failed\n");
+	        dvb_net_feed_stop(dev);
+		dvb_net_feed_start(dev);
 	}
-
-	return 0;
+        return 0;
 }
 
 
 static int
 dvb_net_open(struct net_device *dev)
 {
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return -1;
-	}
-
-	if (dvb_net_filter_set(dev, dev->dev_addr))
-		printk("dvb_net_filter_set failed\n");
-
-	printk("dvb_net: open %x\n",dev);
-
+	dvb_net_feed_start(dev);
 	return 0;
 }
 
 static int
 dvb_net_stop(struct net_device *dev)
 {
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: stop\n");
-    dvb_net_filter_free(dev);
-
+        dvb_net_feed_stop(dev);
 	return 0;
 }
 
 static struct net_device_stats *
 dvb_net_get_stats(struct net_device *dev)
 {
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return 0;
-	}
-
-	printk("dvb_net: get_stats\n");
-	return &((dvb_net_priv_t *)dev->priv)->stats;
+        return &((dvb_net_priv_t *)dev->priv)->stats;
 }
 
 
 static int
 dvb_net_init_dev(struct net_device *dev)
 {
-	if (!dev)
-	{
-		printk("dvb_net: warning device null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: dvb_net_init_dev\n");
+	ether_setup(dev);
 
 	dev->open		= dvb_net_open;
 	dev->stop		= dvb_net_stop;
 	dev->hard_start_xmit	= dvb_net_tx;
-	dev->hard_header	= 0;
 	dev->get_stats		= dvb_net_get_stats;
 	dev->set_multicast_list = dvb_net_set_multi;
 	dev->set_config         = dvb_net_set_config;
-	ether_setup(dev);
 	dev->set_mac_address    = dvb_net_set_mac;
 	dev->mtu		= 4096;
+	dev->mc_count=0;
+
+	dev->flags             |= IFF_NOARP;
+	dev->hard_header_cache  = NULL;
 	
 	return 0;
 }
@@ -430,15 +387,7 @@ get_if(dvb_net_t *dvbnet)
 {
 	int i;
 
-	if (!dvbnet)
-	{
-		printk("dvb_net: warning dvbnet null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: get_if\n");
-
-	for (i=0; i<dvbnet->dev_num; i++)
+	for (i=0; i<dvbnet->dev_num; i++) 
 		if (!dvbnet->state[i])
 			break;
 	if (i==dvbnet->dev_num)
@@ -451,19 +400,12 @@ get_if(dvb_net_t *dvbnet)
 int 
 dvb_net_add_if(dvb_net_t *dvbnet, u16 pid)
 {
-	struct net_device *net;
+        struct net_device *net;
 	dmx_demux_t *demux;
+	dvb_net_priv_t *priv;
 	int result;
 	int if_num;
  
-	if (!dvbnet)
-	{
-		printk("dvb_net: warning dvbnet null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: net_add_if pid: %x\n",pid);
-
 	if_num=get_if(dvbnet);
 	if (if_num<0)
 		return -EINVAL;
@@ -475,49 +417,40 @@ dvb_net_add_if(dvb_net_t *dvbnet, u16 pid)
 	net->irq       = 0;
 	net->dma       = 0;
 	net->mem_start = 0;
-
-	memcpy(net->name, "dvb0_0", 7);
-	net->name[3]=dvbnet->card_num+0x30;
-	net->name[5]=if_num+0x30;
-	net->next      = NULL;
-	net->init      = dvb_net_init_dev;
-	net->priv      = kmalloc(sizeof(dvb_net_priv_t), GFP_KERNEL);
-
+        memcpy(net->name, "dvb0_0", 7);
+        net->name[3]=dvbnet->card_num+0x30;
+        net->name[5]=if_num+0x30;
+        net->next      = NULL;
+        net->init      = dvb_net_init_dev;
+        net->priv      = kmalloc(sizeof(dvb_net_priv_t), GFP_KERNEL);
 	if (net->priv == NULL)
 			return -ENOMEM;
 
-	memset(&((dvb_net_priv_t *)net->priv)->stats,
-               0, sizeof(struct net_device_stats));
+	priv=net->priv;
+	memset(priv, 0, sizeof(dvb_net_priv_t));
+        priv->demux=demux;
+        priv->pid=pid;
+	priv->mode=0;
 
-	((dvb_net_priv_t *)net->priv)->demux=demux;
-	((dvb_net_priv_t *)net->priv)->pid=pid;
-	((dvb_net_priv_t *)net->priv)->secfeed = 0;
-	((dvb_net_priv_t *)net->priv)->secfilter = 0;
-
-	net->base_addr=pid;
+        net->base_addr=pid;
                 
-	if ((result = register_netdev(net)) < 0)
+	if ((result = register_netdev(net)) < 0) {
 		return result;
-	return if_num;
+	}
+	MOD_INC_USE_COUNT;
+        return if_num;
 }
 
 int 
 dvb_net_remove_if(dvb_net_t *dvbnet, int num)
 {
-	if (!dvbnet)
-	{
-		printk("dvb_net: warning dvbnet null pointer\n");
-		return -1;
-	}
-
-	printk("dvb_net: net_remove_if %x\n",num);
-
 	if (!dvbnet->state[num])
 		return -EINVAL;
 	dvb_net_stop(&dvbnet->device[num]);
-	kfree(dvbnet->device[num].priv);
-	unregister_netdev(&dvbnet->device[num]);
+        kfree(dvbnet->device[num].priv);
+        unregister_netdev(&dvbnet->device[num]);
 	dvbnet->state[num]=0;
+	MOD_DEC_USE_COUNT;
 	return 0;
 }
 
@@ -526,13 +459,6 @@ dvb_net_release(dvb_net_t *dvbnet)
 {
 	int i;
 
-	if (!dvbnet)
-	{
-		printk("dvb_net: warning dvbnet null pointer\n");
-		return;
-	}
-
-	printk("net_release\n");
 	for (i=0; i<dvbnet->dev_num; i++) {
 		if (!dvbnet->state[i])
 			continue;
@@ -544,33 +470,20 @@ int
 dvb_net_init(dvb_net_t *dvbnet, dmx_demux_t *demux)
 {
 	int i;
-
-	if ((!dvbnet) || (!demux))
-	{
-		printk("dvb_net: warning null pointer %x %x\n",dvbnet,demux);
-		return -1;
-	}
-
-	printk("dvb_net: net_init\n");
-
+		
 	dvbnet->demux=demux;
 	dvbnet->dev_num=DVB_NET_DEVICES_MAX;
-
-	for (i=0; i<dvbnet->dev_num; i++)
+	for (i=0; i<dvbnet->dev_num; i++) 
 		dvbnet->state[i]=0;
 	return 0;
 }
 
-/* ---------------------------------------------------------------------- */
-
 #ifdef MODULE
-
-MODULE_DESCRIPTION("DVB-NET driver");
 
 int
 init_module (void)
 {
-	printk("DVB-NET: $Id: dvb_net.c,v 1.5 2001/07/03 19:34:23 gillem Exp $\n");
+	printk("dvb_net: $Id: dvb_net.c,v 1.6 2002/08/12 18:24:05 obi Exp $\n");
 
 	dvb_net.dvb_net_release   = dvb_net_release;
 	dvb_net.dvb_net_init      = dvb_net_init;
@@ -586,4 +499,5 @@ cleanup_module(void)
 	unregister_dvbnet(&dvb_net);
 }
 
-#endif
+#endif /* MODULE */
+
