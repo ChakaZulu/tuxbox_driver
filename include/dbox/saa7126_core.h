@@ -34,6 +34,8 @@
 #define SAAIOGWSS	11	/* get wide screen signaling data */
 #define SAA_READREG	12	/* read single register */
 #define SAA_WRITEREG	13	/* write single register */
+#define SAAIOSCSYNC  14 /* set sync correction in rgb mode */
+#define SAAIOGCSYNC  15 /* set sync correction in rgb mode */
 
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1

@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.34 2003/12/16 09:30:48 derget Exp $
+ * $Id: saa7126_core.c,v 1.35 2003/12/16 19:43:58 zwen Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -653,6 +653,48 @@ saa7126_wss_set(struct i2c_client *client, int i)
 	return 0;
 }
 
+static int
+saa7126_csync_set(struct i2c_client *client, u8 val)
+{
+	u8 reg;
+	if (val == 0) {
+		reg = saa7126_readreg(client, 0x75);
+		reg &= 0x07; /* Clear CSYNCA Bits */
+		saa7126_writereg(client, 0x75, reg);
+		reg = saa7126_readreg(client, 0x3A);
+		reg &= ~0x04; /* Clear CSYNC Bit */
+		saa7126_writereg(client, 0x3A, reg);
+	}
+	else if(val<32) {
+		reg = saa7126_readreg(client, 0x75);
+		reg = (reg & 0x07) | (val<<3); /* Set CSYNCA Bits */
+		saa7126_writereg(client, 0x75, reg);
+		reg = saa7126_readreg(client, 0x3A);
+		reg |= 0x04; /* Set CSYNC Bit */
+		saa7126_writereg(client, 0x3A, reg);
+		return 0;
+	}
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+saa7126_csync_get(struct i2c_client *client)
+{
+	u8 reg;
+	reg = saa7126_readreg(client, 0x3A);
+	reg &= 0x04; /* GET CSYNC Bit */
+	if(reg)
+	{
+		reg = (saa7126_readreg(client, 0x75) | ~0x07) >> 3;
+		return reg;
+	}
+	else
+		return 0;
+}
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -747,7 +789,17 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 
 		return saa7126_writereg(client, (val >> 8) & 0xff, val & 0xff);
 
-	default:
+	case SAAIOSCSYNC:
+		if (copy_from_user(&val, parg, sizeof(val)))
+				return -EFAULT;
+		return saa7126_csync_set(client, val);
+
+	case SAAIOGCSYNC:
+			val = saa7126_csync_get(client);
+
+			return (copy_to_user(&val, parg, sizeof(val)));
+	
+	 default:
 		return -EINVAL;
 	}
 
