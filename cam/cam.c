@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.24  2003/09/08 23:16:17  obi
+ *   fixes
+ *
  *   Revision 1.23  2003/08/13 17:14:20  obi
  *   added cam_poll()
  *
@@ -88,7 +91,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -365,11 +368,11 @@ static void do_firmwrite( u32 *buffer )
 {
 	int size,i;
 	void *base;
-	immap_t *immap=(immap_t *)IMAP_ADDR ;
-	volatile cpm8xx_t *cp=&immap->im_cpm;
+	volatile immap_t *immap = (volatile immap_t *)IMAP_ADDR ;
+	volatile cpm8xx_t *cp = &immap->im_cpm;
 
-	base = (void*)buffer;
-	size=CAM_CODE_SIZE;
+	base = (void *)buffer;
+	size = CAM_CODE_SIZE;
 
 	cp->cp_pbpar&=~15;  // GPIO (not cpm-io)
 	cp->cp_pbodr&=~15;  // driven output (not tristate)
@@ -461,7 +464,7 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.23 2003/08/13 17:14:20 obi Exp $\n");
+	printk("$Id: cam.c,v 1.24 2003/09/08 23:16:17 obi Exp $\n");
 	
 	if (!mio) {
 	
@@ -514,8 +517,8 @@ int __init cam_init(void)
 
 	up(&cam_busy);
 
-	if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
-			panic("Could not allocate CAM IRQ!");
+	if (request_irq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
+		panic("Could not allocate CAM IRQ!");
 
 	return 0;
 }
@@ -523,8 +526,8 @@ int __init cam_init(void)
 void __exit cam_cleanup(void)
 {
 	int res;
-	immap_t *immap=(immap_t *)IMAP_ADDR ;
-	volatile cpm8xx_t *cp=&immap->im_cpm;
+	volatile immap_t *immap = (volatile immap_t *)IMAP_ADDR ;
+	volatile cpm8xx_t *cp = &immap->im_cpm;
 
 	free_irq(CAM_INTERRUPT, THIS_MODULE);
 	schedule(); // HACK: let all task queues run.

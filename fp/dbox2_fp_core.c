@@ -90,32 +90,28 @@ static unsigned short normal_i2c[] = { 0x60 >> 1, I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { 0x60 >> 1, 0x60 >> 1, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
-static int fp_id=0;
+static int fp_id = 0;
+struct fp_data *defdata = NULL;
 
-struct fp_data *defdata=0;
+static void fp_task(void * arg);
 
-static void fp_task (void * arg);
-
-struct tq_struct fp_tasklet =
-{
-	routine:	fp_task,
-	data:		0
+struct tq_struct fp_tasklet = {
+	.routine = fp_task,
+	.data = NULL,
 };
 
-static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
+static void fp_interrupt(int irq, void *dev, struct pt_regs *regs);
 
 /*****************************************************************************\
  *   Generic Frontprocessor Functions
 \*****************************************************************************/
 
-struct i2c_client *
-fp_get_i2c (void)
+struct i2c_client *fp_get_i2c(void)
 {
 	return defdata->client;
 }
 
-int
-fp_cmd (struct i2c_client * client, u8 cmd, u8 * res, u32 size)
+int fp_cmd(struct i2c_client *client, u8 cmd, u8 *res, u32 size)
 {
 	int ret;
 	struct i2c_msg msg [] = { { addr: client->addr, flags: 0, buf: &cmd, len: 1 },
@@ -143,8 +139,7 @@ fp_cmd (struct i2c_client * client, u8 cmd, u8 * res, u32 size)
 }
 
 
-int
-fp_sendcmd (struct i2c_client * client, u8 b0, u8 b1)
+int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1)
 {
 	u8 cmd [] = { b0, b1 };
 
@@ -157,8 +152,7 @@ fp_sendcmd (struct i2c_client * client, u8 b0, u8 b1)
 }
 
 
-static int
-fp_getid (struct i2c_client * client)
+static int fp_getid(struct i2c_client *client)
 {
 	u8 id [] = { 0x00, 0x00, 0x00 };
 
@@ -172,8 +166,7 @@ fp_getid (struct i2c_client * client)
  *   File Operations
 \*****************************************************************************/
 
-static int
-fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg)
+static int fp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int val;
 
@@ -272,50 +265,30 @@ fp_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 	}
 }
 
-static int
-fp_open (struct inode * inode, struct file * file)
+static int fp_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static int
-fp_release (struct inode * inode, struct file * file)
+static int fp_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static struct
-file_operations fp_fops =
-{
-	owner:			THIS_MODULE,
-	llseek:			NULL,
-	read:			NULL,
-	write:			NULL,
-	readdir:		NULL,
-	poll:			NULL,
-	ioctl:			fp_ioctl,
-	mmap:			NULL,
-	open:			fp_open,
-	flush:			NULL,
-	release:		fp_release,
-	fsync:			NULL,
-	fasync:			NULL,
-	lock:			NULL,
-	readv:			NULL,
-	writev:			NULL,
-	sendpage:		NULL,
-	get_unmapped_area:	NULL
+static struct file_operations fp_fops = {
+	.owner = THIS_MODULE,
+	.ioctl = fp_ioctl,
+	.open = fp_open,
+	.release = fp_release,
 };
 
 /*****************************************************************************\
  *   I2C Functions
 \*****************************************************************************/
 
-static struct
-i2c_driver fp_driver;
+static struct i2c_driver fp_driver;
 
-static int
-fp_detach_client (struct i2c_client * client)
+static int fp_detach_client(struct i2c_client *client)
 {
 	int err;
 
@@ -331,8 +304,7 @@ fp_detach_client (struct i2c_client * client)
 }
 
 
-static int
-fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flags, int kind)
+static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned short flags, int kind)
 {
 	int err = 0;
 	struct i2c_client *new_client;
@@ -358,7 +330,7 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 
 		int fpid;
 		/*u8 buf[2];*/
-		immap_t *immap = (immap_t *) IMAP_ADDR;
+		volatile immap_t *immap = (volatile immap_t *)IMAP_ADDR;
 
 		/*
 		 * FP ID
@@ -371,20 +343,16 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 		fpid = fp_getid(new_client);
 
 		if ((fpid != 0x52) && (fpid != 0x5a)) {
-
 			dprintk("fp.o: bogus fpID %d\n", fpid);
 			kfree(new_client);
 			return -1;
-
 		}
 
 		if (useimap) {
-
-			immap->im_ioport.iop_papar &= ~2;
-			immap->im_ioport.iop_paodr &= ~2;
-			immap->im_ioport.iop_padir |= 2;
-			immap->im_ioport.iop_padat &= ~2;
-
+			immap->im_ioport.iop_papar &= ~0x0002;
+			immap->im_ioport.iop_paodr &= ~0x0002;
+			immap->im_ioport.iop_padir |=  0x0002;
+			immap->im_ioport.iop_padat &= ~0x0002;
 		}
 
 		/* sagem needs this (71) LNB-Voltage 51-V 71-H */
@@ -420,31 +388,28 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 		return err;
 	}
 
-	if (request_8xxirq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
+	if (request_irq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
 		panic("Could not allocate FP IRQ!");
 
 	return 0;
 }
 
 
-static int
-fp_attach_adapter (struct i2c_adapter * adapter)
+static int fp_attach_adapter(struct i2c_adapter *adapter)
 {
 	return i2c_probe(adapter, &addr_data, &fp_detect_client);
 }
 
 
-static struct
-i2c_driver fp_driver =
-{
-	name:		"DBox2 Frontprocessor driver",
-	id:		I2C_FP_DRIVERID,
-	flags:		I2C_DF_NOTIFY,
-	attach_adapter:	&fp_attach_adapter,
-	detach_client:	&fp_detach_client,
-	command:	0,
-	inc_use:	0,
-	dec_use:	0
+static struct i2c_driver fp_driver = {
+	.name = "DBox2 Frontprocessor driver",
+	.id = I2C_FP_DRIVERID,
+	.flags = I2C_DF_NOTIFY,
+	.attach_adapter = fp_attach_adapter,
+	.detach_client = fp_detach_client,
+	.command = NULL,
+	.inc_use = NULL,
+	.dec_use = NULL,
 };
 
 
@@ -457,15 +422,12 @@ i2c_driver fp_driver =
 #define QUEUE_COUNT	8
 
 static struct fp_queue {
-
 	u8 busy;
 	queue_proc_t queue_proc;
-
 } queue_list[QUEUE_COUNT];
 
 int dbox2_fp_queue_alloc(u8 queue_nr, queue_proc_t queue_proc)
 {
-
 	if (queue_nr >= QUEUE_COUNT)
 		return -EINVAL;
 
@@ -476,21 +438,17 @@ int dbox2_fp_queue_alloc(u8 queue_nr, queue_proc_t queue_proc)
 	queue_list[queue_nr].queue_proc = queue_proc;
 
 	return 0;
-
 }
 
 void dbox2_fp_queue_free(u8 queue_nr)
 {
-
 	if (queue_nr >= QUEUE_COUNT)
 		return;
 
 	queue_list[queue_nr].busy = 0;
-
 }
 
-static void
-fp_handle_vcr (struct fp_data * dev, int fpVCR)
+static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 {
 	struct event_t event;
 
@@ -507,8 +465,7 @@ fp_handle_vcr (struct fp_data * dev, int fpVCR)
 
 
 #if 0
-static void
-fp_handle_unknown (struct fp_data * dev)
+static void fp_handle_unknown(struct fp_data *dev)
 {
 	u8 rc;
 
@@ -518,8 +475,7 @@ fp_handle_unknown (struct fp_data * dev)
 #endif
 
 
-static void
-fp_check_queues (void)
+static void fp_check_queues(void)
 {
 	u8 status;
 	u8 queue_nr;
@@ -562,10 +518,9 @@ fp_check_queues (void)
 }
 
 
-static void
-fp_task (void * arg)
+static void fp_task(void *arg)
 {
-	immap_t *immap=(immap_t*)IMAP_ADDR;
+	volatile immap_t *immap = (volatile immap_t *)IMAP_ADDR;
 
 	fp_check_queues();
 
@@ -576,16 +531,14 @@ fp_task (void * arg)
 }
 
 
-static void
-fp_interrupt(int irq, void * vdev, struct pt_regs * regs)
+static void fp_interrupt(int irq, void *vdev, struct pt_regs *regs)
 {
-	immap_t *immap = (immap_t *) IMAP_ADDR;
+	volatile immap_t *immap = (volatile immap_t *)IMAP_ADDR;
 
 	if (useimap)
 		immap->im_ioport.iop_padat |= 2;
 
 	schedule_task(&fp_tasklet);
-	return;
 }
 
 
@@ -595,26 +548,24 @@ fp_interrupt(int irq, void * vdev, struct pt_regs * regs)
 \*****************************************************************************/
 
 
-static int
-__init fp_init (void)
+static int __init fp_init(void)
 {
 	int res;
-	/*int i;*/
 
 	mid = tuxbox_dbox2_mid;
 
 	switch (mid) {
-		case TUXBOX_DBOX2_MID_NOKIA:
-			fp_revision = 0x81;
-			break;
+	case TUXBOX_DBOX2_MID_NOKIA:
+		fp_revision = 0x81;
+		break;
 
-		case TUXBOX_DBOX2_MID_PHILIPS:
-			fp_revision = 0x30;
-			break;
+	case TUXBOX_DBOX2_MID_PHILIPS:
+		fp_revision = 0x30;
+		break;
 
-		case TUXBOX_DBOX2_MID_SAGEM:
-			fp_revision = 0x23;
-			break;
+	case TUXBOX_DBOX2_MID_SAGEM:
+		fp_revision = 0x23;
+		break;
 	}
 
 	if ((res = i2c_add_driver(&fp_driver))) {
@@ -628,10 +579,9 @@ __init fp_init (void)
 		return -EBUSY;
 	}
 
-	devfs_handle =
-		devfs_register(NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
-				S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-				&fp_fops, NULL);
+	devfs_handle = devfs_register(NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
+		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		&fp_fops, NULL);
 
 	if (!devfs_handle) {
 		i2c_del_driver(&fp_driver);
@@ -651,8 +601,7 @@ __init fp_init (void)
 }
 
 
-	static void
-__exit fp_exit (void)
+static void __exit fp_exit(void)
 {
 	if (i2c_del_driver(&fp_driver)) {
 		dprintk("fp.o: Driver unregistration failed, module not removed.\n");
@@ -669,29 +618,19 @@ __exit fp_exit (void)
 
 	if (ppc_md.halt == dbox2_fp_power_off)
 		ppc_md.halt = NULL;
-
-	/*
-	   dbox2_fp_reset_exit();
-	   dbox2_fp_sec_exit();
-	   */
 }
+
+module_init(fp_init);
+module_exit(fp_exit);
+
+MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+MODULE_DESCRIPTION("DBox2 Frontprocessor");
+MODULE_LICENSE("GPL");
+MODULE_PARM(debug,"i");
+MODULE_PARM(useimap,"i");
 
 EXPORT_SYMBOL(dbox2_fp_queue_alloc);
 EXPORT_SYMBOL(dbox2_fp_queue_free);
 EXPORT_SYMBOL(fp_cmd);
 EXPORT_SYMBOL(fp_sendcmd);
 EXPORT_SYMBOL(fp_get_i2c);
-
-#ifdef MODULE
-module_init(fp_init);
-module_exit(fp_exit);
-
-MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("DBox2 Frontprocessor");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-MODULE_PARM(debug,"i");
-MODULE_PARM(useimap,"i");
-#endif
-
