@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.22  2002/09/23 17:07:02  obi
+ *   moved lcd-ks0713.h to include/dbox
+ *
  *   Revision 1.21  2002/05/06 02:18:19  obi
  *   cleanup for new kernel
  *
@@ -76,7 +79,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -106,8 +109,8 @@
 #include <commproc.h>
 #endif
 
-#include "dbox/info.h"
-#include "lcd-ks0713.h"
+#include <dbox/info.h>
+#include <dbox/lcd-ks0713.h>
 #include "lcd-console.h"
 
 #include <linux/devfs_fs_kernel.h>
