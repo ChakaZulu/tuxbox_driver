@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.5 2002/11/10 21:25:24 Jolt Exp $
+ * $Id: avia_napi.c,v 1.6 2002/11/11 02:56:27 obi Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -52,25 +52,6 @@ static int avia_napi_i2c_master_xfer(struct dvb_i2c_bus *i2c, struct i2c_msg msg
 
 }
 
-static int avia_napi_after_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
-{
-
-//	printk("avia_napi: after_ioctl\n");
-
-	return 0;
-
-}
-
-static int avia_napi_before_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
-{
-
-//	printk("avia_napi: before_ioctl\n");
-
-	// Returning 0 will skip the fe ioctl
-	return -ENODEV;
-
-}
-
 struct dvb_adapter *avia_napi_get_adapter(void)
 {
 
@@ -83,7 +64,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.5 2002/11/10 21:25:24 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.6 2002/11/11 02:56:27 obi Exp $\n");
 	
 	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
@@ -103,22 +84,10 @@ static int __init avia_napi_init(void)
 	
 	}
 
-	if ((result = dvb_add_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl, NULL)) < 0) {
-	
-		printk("avia_napi: dvb_add_frontend_ioctls failed (errno = %d)\n", result);
-
-		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
-		dvb_unregister_adapter(adap);
-		
-		return result;
-		
-	}
-
 	if ((result = avia_av_napi_register(adap, NULL)) < 0) {
 	
 		printk("avia_napi: avia_av_napi_register failed (errno = %d)\n", result);
 
-		dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
 		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 		dvb_unregister_adapter(adap);
 		
@@ -138,7 +107,6 @@ static void __exit avia_napi_exit(void)
 //FIXME	dvb_net_release(&net);
 
 	avia_av_napi_unregister();
-	dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
 	dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
 	dvb_unregister_adapter(adap);
 
