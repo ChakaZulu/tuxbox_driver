@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.42 2004/03/11 14:56:23 derget Exp $
+ * $Id: saa7126_core.c,v 1.43 2004/08/04 19:57:11 derget Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -329,7 +329,9 @@ saa7126_write_inittab (struct i2c_client *client)
 			saa7126_writebuf(client, inittab[i].reg, inittab[i].buf, inittab[i].len);
 	
 	encoder->standby = 0;
-	encoder->reg_2d = saa7126_readreg(client, 0x2d);
+
+	saa7126_writereg(client, 0x2d, encoder->reg_2d);
+	saa7126_writereg(client, 0x3a, encoder->reg_3a);
 	encoder->reg_61 = saa7126_readreg(client, 0x61);
 	return 0;
 }
