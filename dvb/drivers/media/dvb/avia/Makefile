@@ -4,8 +4,8 @@
 
 STANDALONE = 0
 
-M_OBJS   = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
-obj-m    = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
+M_OBJS   = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_pig.o
+obj-m    = gtx_dmx.o avia_gt.o avia_gt_fb.o avia_gt_oss.o enx_dmx.o avia.o osd.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_pig.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o

@@ -44,7 +44,7 @@
 #endif
 
 #include <dbox/avia_gt.h>
-#include <dbox/gtx_capture.h>
+#include <dbox/avia_gt_capture.h>
 #include <dbox/avia_gt_pig.h>
 
 #define GTX_PIG_COUNT 1
@@ -217,7 +217,7 @@ int gtx_pig_hide(unsigned char pig_nr)
 
 	gtx_reg_s(VPSA)->E = 0;
 
-	gtx_capture_stop();
+	avia_gt_capture_stop();
     
 	pig_busy[pig_nr] = 0;
 	
@@ -258,7 +258,7 @@ int gtx_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short 
     if (pig_busy[pig_nr])
 	return -EBUSY;
 	
-    result = gtx_capture_set_output(width, height);
+    result = avia_gt_capture_set_output_size(width, height);
     
     if (result < 0)
 	return result;
@@ -280,8 +280,9 @@ int gtx_pig_show(unsigned char pig_nr)
     if (pig_busy[pig_nr])
 	return -EBUSY;
 
-    gtx_capture_set_input(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-    gtx_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr]);
+    avia_gt_capture_set_input_pos(0, 0);
+    avia_gt_capture_set_input_size(CAPTURE_WIDTH, CAPTURE_HEIGHT);
+    avia_gt_capture_start(&pig_buffer[pig_nr], &pig_stride[pig_nr], NULL);
 
     printk("gtx_pig: buffer=0x%X, stride=0x%X\n", (unsigned int)pig_buffer[pig_nr], pig_stride[pig_nr]);
 
