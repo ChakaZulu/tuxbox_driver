@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.81 2003/11/21 20:06:16 obi Exp $
+ * $Id: avia_av_core.c,v 1.82 2003/11/24 08:50:33 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1337,7 +1337,7 @@ int avia_av_set_audio_attenuation(const u8 new_att)
 	return 0;
 }
 
-int avia_av_audio_pts_to_stc(struct pes_header *pes)
+int avia_av_audio_pts_to_stc(const struct pes_header *pes)
 {
 	u64 pts;
 
@@ -1391,7 +1391,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.81 2003/11/21 20:06:16 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.82 2003/11/24 08:50:33 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
@@ -1421,4 +1421,3 @@ MODULE_PARM(firmware,"s");
 MODULE_PARM_DESC(debug, "1: enable debug messages");
 MODULE_PARM_DESC(tv_standard, "0: PAL, 1: NTSC");
 MODULE_PARM_DESC(firmware, "path to microcode");
-
