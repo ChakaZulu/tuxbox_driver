@@ -1,7 +1,7 @@
 /*
  *   avia_gt_capture.h - capture driver for eNX/GTX (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *

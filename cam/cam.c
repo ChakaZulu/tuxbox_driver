@@ -1,7 +1,7 @@
 /*
  *   cam.c - CAM driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.25  2003/09/30 04:54:03  obi
+ *   updated homepage url
+ *
  *   Revision 1.24  2003/09/08 23:16:17  obi
  *   fixes
  *
@@ -91,7 +94,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -464,7 +467,7 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.24 2003/09/08 23:16:17 obi Exp $\n");
+	printk("$Id: cam.c,v 1.25 2003/09/30 04:54:03 obi Exp $\n");
 	
 	if (!mio) {
 	

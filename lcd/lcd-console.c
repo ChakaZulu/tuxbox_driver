@@ -1,7 +1,7 @@
 /*
  *   lcd-console.c - lcd console driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2001 Gillem (htoa@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.11  2003/09/30 04:54:05  obi
+ *   updated homepage url
+ *
  *   Revision 1.10  2002/09/23 17:07:02  obi
  *   moved lcd-ks0713.h to include/dbox
  *
@@ -45,7 +48,7 @@
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 

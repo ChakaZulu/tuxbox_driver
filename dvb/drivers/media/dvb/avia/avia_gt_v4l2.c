@@ -1,9 +1,9 @@
 /*
- * $Id: avia_gt_v4l2.c,v 1.11 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_v4l2.c,v 1.12 2003/09/30 04:54:03 obi Exp $
  *
  * AViA eNX/GTX v4l2 driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
@@ -222,7 +222,7 @@ static struct video_device device_info = {
 static int __init avia_gt_v4l2_init(void)
 {
 
-	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.11 2003/08/01 17:31:22 obi Exp $\n");
+	printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.12 2003/09/30 04:54:03 obi Exp $\n");
 	
 	return video_register_device(&device_info, VFL_TYPE_GRABBER, -1);
 

@@ -1,7 +1,7 @@
 /*
  *   saa7126_core.h - pal driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2001 Gillem (htoa@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.14  2003/09/30 04:54:04  obi
+ *   updated homepage url
+ *
  *   Revision 1.13  2003/04/21 19:19:50  obi
  *   patch by Micha_R:
  *   - added support for YUV output
@@ -66,7 +69,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 

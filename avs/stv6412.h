@@ -1,7 +1,7 @@
 /*
  *   stv6412.h - audio/video switch driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.h,v $
+ *   Revision 1.4  2003/09/30 04:54:02  obi
+ *   updated homepage url
+ *
  *   Revision 1.3  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -32,7 +35,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 

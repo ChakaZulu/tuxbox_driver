@@ -1,7 +1,7 @@
 /*
  *   lcd-ks0713.h - lcd driver for KS0713 and compatible (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2001 Gillem (htoa@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.h,v $
+ *   Revision 1.10  2003/09/30 04:54:04  obi
+ *   updated homepage url
+ *
  *   Revision 1.9  2001/11/25 21:37:46  gillem
  *   - fix adc
  *   - add new ioctl (LCD_IOCTL_INIT)
@@ -42,7 +45,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 

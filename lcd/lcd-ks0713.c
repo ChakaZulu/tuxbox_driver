@@ -1,7 +1,7 @@
 /*
  *   lcd-ks0713.c - lcd driver for KS0713 and compatible (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2002 Gillem (gillem@berlios.de)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.24  2003/09/30 04:54:05  obi
+ *   updated homepage url
+ *
  *   Revision 1.23  2003/03/04 21:18:09  waldi
  *   - add frontend info to tuxbox module (not implemented in dreambox part)
  *   - use the TUXBOX defines
@@ -84,7 +87,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 

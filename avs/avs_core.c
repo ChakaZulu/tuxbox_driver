@@ -1,9 +1,9 @@
 /*
- * $Id: avs_core.c,v 1.24 2003/03/05 09:52:17 waldi Exp $
+ * $Id: avs_core.c,v 1.25 2003/09/30 04:54:02 obi Exp $
  * 
  * audio/video switch core driver (dbox-II-project)
  *
- * Homepage: http://dbox2.elxsi.de
+ * Homepage: http://www.tuxbox.org
  *
  * Copyright (C) 2001-2002 Gillem gillem@berlios.de
  *

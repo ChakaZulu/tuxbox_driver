@@ -1,7 +1,7 @@
 /*
  *   cxa2092.c - audio/video switch driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.26  2003/09/30 04:54:02  obi
+ *   updated homepage url
+ *
  *   Revision 1.25  2003/02/17 17:30:07  alexw
  *   fnc at init
  *
@@ -94,7 +97,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 

@@ -1,7 +1,7 @@
 /*
  *   cxa2092.h - audio/video switch driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.13  2003/09/30 04:54:02  obi
+ *   updated homepage url
+ *
  *   Revision 1.12  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -56,7 +59,7 @@
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 

@@ -1,7 +1,7 @@
 /*
  *   avs_core.h - audio/video switch core driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001-2002 Gillem gillem@berlios.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.8  2003/09/30 04:54:04  obi
+ *   updated homepage url
+ *
  *   Revision 1.7  2002/04/25 12:07:06  happydude
  *   unified setting of scart pin8 voltage for lazyT :)
  *
@@ -43,7 +46,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 

@@ -1,7 +1,7 @@
 /*
  *   lcd-font.c - lcd font driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2001 Gillem (htoa@gmx.net)
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-font.c,v $
+ *   Revision 1.6  2003/09/30 04:54:05  obi
+ *   updated homepage url
+ *
  *   Revision 1.5  2002/08/12 17:16:27  obi
  *   removed compiler warnings
  *
@@ -33,7 +36,7 @@
  *   Revision 1.2  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 

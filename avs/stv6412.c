@@ -1,7 +1,7 @@
 /*
  *   stv6412.c - audio/video switch driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.23  2003/09/30 04:54:02  obi
+ *   updated homepage url
+ *
  *   Revision 1.22  2002/08/04 17:33:30  happydude
  *   fix double unmute
  *
@@ -87,7 +90,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 

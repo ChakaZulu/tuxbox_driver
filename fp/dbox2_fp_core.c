@@ -1,7 +1,7 @@
 /*
  *   fp.c - FP driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ *   Homepage: http://www.tuxbox.org
  *
  *   Copyright (C) 2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
