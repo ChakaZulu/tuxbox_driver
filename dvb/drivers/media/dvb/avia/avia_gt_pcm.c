@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.19  2002/10/03 11:12:42  thegoodguy
+ *   Reenable full volume
+ *
  *   Revision 1.18  2002/09/25 18:50:52  Jolt
  *   Added 24000 and 12000 sample rate support
  *
@@ -81,7 +84,7 @@
  *
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -578,7 +581,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad  = (unsigned short)0;
 	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.18 2002/09/25 18:50:52 Jolt Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.19 2002/10/03 11:12:42 thegoodguy Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -638,7 +641,7 @@ int avia_gt_pcm_init(void)
 		gtx_reg_set(PCMC, I, 0);
 
 	// Pass through mpeg samples
-	avia_gt_pcm_set_mpeg_attenuation(0x40, 0x40);
+	avia_gt_pcm_set_mpeg_attenuation(0x80, 0x80);
 
 	// Set a default mode
 	avia_gt_pcm_set_rate(44100);

@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.81 2002/10/03 02:02:38 obi Exp $
+ * $Id: dvb.c,v 1.82 2002/10/03 11:12:42 thegoodguy Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -930,7 +930,7 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 			/* unmute av spdif (2) and analog audio (4) */
 			wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 6);
 			/* unmute gt mpeg */
-			avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 2, (dvb->audiomixer.volume_right + 1) >> 2);
+			avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 1, (dvb->audiomixer.volume_right + 1) >> 1);
 		}
 		wDR(NEW_AUDIO_CONFIG, 1);
 		dvb->audiostate.muteState=(boolean) arg;
@@ -1013,8 +1013,8 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 		if (dvb->audiomixer.volume_right > AUDIO_MIXER_MAX_VOLUME)
 			dvb->audiomixer.volume_right = AUDIO_MIXER_MAX_VOLUME;
 
-		avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 2,
-				(dvb->audiomixer.volume_right + 1) >> 2);
+		avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 1,
+				(dvb->audiomixer.volume_right + 1) >> 1);
 		break;
 
 	case AUDIO_SET_STREAMTYPE:
