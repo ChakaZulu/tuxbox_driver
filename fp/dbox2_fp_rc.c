@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.20 2003/12/07 16:21:34 obi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.21 2004/02/07 15:00:16 carjay Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -35,6 +35,7 @@ enum {
 #define UP_TIMEOUT (HZ / 4)
 
 static struct input_dev *rc_input_dev;
+static u8 toggle_bits;
 static int disable_old_rc;
 static int disable_new_rc;
 
@@ -85,6 +86,7 @@ static void dbox2_fp_rc_keyup(unsigned long data)
 		return;
 
 	/* "key released" event after timeout */
+	toggle_bits=0xff;
 	input_event(rc_input_dev, EV_KEY, data, KEY_RELEASED);
 }
 
@@ -128,7 +130,6 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 
 static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 {
-	static u8 toggle_bits = 0xff;
 	struct rc_key *key;
 	u16 rc_code;
 	u8 cmd;
@@ -151,12 +152,14 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++) {
 		if (key->value_new == (rc_code & 0x1f)) {
 			if (timer_pending(&keyup_timer)) {
-				del_timer(&keyup_timer);
+				del_timer_sync(&keyup_timer);
 				if ((keyup_timer.data != key->code) || (toggle_bits != ((rc_code >> 6) & 0x03)))
-					input_event(rc_input_dev, EV_KEY, keyup_timer.data, KEY_RELEASED);
+					if (toggle_bits!=0xff) {
+						input_event(rc_input_dev, EV_KEY, keyup_timer.data, KEY_RELEASED);
+						toggle_bits=0xff;
+					}
 			}
-
-			if (toggle_bits == ((rc_code >> 6) & 0x03))
+			if ((toggle_bits!=0xff)&&(toggle_bits == ((rc_code >> 6) & 0x03)))
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_AUTOREPEAT);
 			else
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_PRESSED);
@@ -174,6 +177,7 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 {
 	struct rc_key *key;
+	toggle_bits=0xff;
 
 	rc_input_dev = input_dev;
 
