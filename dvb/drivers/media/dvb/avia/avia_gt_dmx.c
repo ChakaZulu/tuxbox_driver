@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.80  2002/05/02 21:26:01  Jolt
+ *   Test
+ *
  *   Revision 1.79  2002/05/02 20:23:10  Jolt
  *   Fixes
  *
@@ -36,7 +39,7 @@
  *
  *
  *
- *   $Revision: 1.79 $
+ *   $Revision: 1.80 $
  *
  */
 
@@ -233,9 +236,11 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 
     if (avia_gt_chip(ENX)) {
     
-		enx_reg_s(PCR_PID)->E = 0;
-		enx_reg_s(PCR_PID)->PID = pid;
-		enx_reg_s(PCR_PID)->E = 1;
+		//enx_reg_s(PCR_PID)->E = 0;
+		//enx_reg_s(PCR_PID)->PID = pid;
+		//enx_reg_s(PCR_PID)->E = 1;
+
+		enx_reg_16(PCR_PID) = (1 << 13) | pid;
 
 		avia_gt_free_irq(ENX_IRQ_PCR);
 		avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
@@ -622,7 +627,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.79 2002/05/02 20:23:10 Jolt Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.80 2002/05/02 21:26:01 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
