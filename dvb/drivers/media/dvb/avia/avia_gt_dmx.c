@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.177 2003/06/20 15:00:35 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.178 2003/06/28 19:49:43 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1111,7 +1111,7 @@ u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr)
 			read_pos = gtx_reg_16n(base) | ((gtx_reg_16n(base + 2) & 0x3F) << 16);
 	}
 	while (previous_read_pos != read_pos);
-	
+
 	if (read_pos > (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
 		printk(KERN_CRIT "avia_gt_dmx: system_queue_get_read_pos: queue %d read_pos 0x%X > queue_end 0x%X\n", queue_nr, read_pos, queue_list[queue_nr].mem_addr + queue_list[queue_nr].size);
 		read_pos = queue_list[queue_nr].mem_addr;
@@ -2098,7 +2098,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.177 2003/06/20 15:00:35 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.178 2003/06/28 19:49:43 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2123,20 +2123,22 @@ int __init avia_gt_dmx_init(void)
 		return result;
 
 	if (avia_gt_chip(ENX)) {
-		enx_reg_32(RSTR0) &= ~(1 << 27);
-		enx_reg_32(RSTR0) &= ~(1 << 13);
-		enx_reg_32(RSTR0) &= ~(1 << 11);
-		enx_reg_32(RSTR0) &= ~(1 << 9);
-		enx_reg_32(RSTR0) &= ~(1 << 23);
-		enx_reg_32(RSTR0) &= ~(1 << 31);
+		enx_reg_set(RSTR0,AVI,0);
+		enx_reg_set(RSTR0,QUE,0);
+		enx_reg_set(RSTR0,GFIX,0);
+		enx_reg_set(RSTR0,VDEO,0);
+		enx_reg_set(RSTR0,FRMR,0);
+		enx_reg_set(RSTR0,UART2,0);
+		enx_reg_set(RSTR0,PAR1284,0);
+		enx_reg_set(RSTR0,PCMA,0);
 
-		enx_reg_32(CFGR0) &= ~(1 << 3);
-		enx_reg_32(CFGR0) &= ~(1 << 1);
-		enx_reg_32(CFGR0) &= ~(1 << 0);
+		enx_reg_16(FC) = 0x1147;
 
-		enx_reg_16(FC) = 0x9147;
 		enx_reg_16(SYNC_HYST) = 0x21;
 		enx_reg_16(BQ) = 0x00BC;
+
+		enx_reg_set(RSTR0,FRCH,0);
+		enx_reg_16(FC) = 0x9147;
 
 		/* enable dac output */
 		enx_reg_32(CFGR0) |= 1 << 24;
