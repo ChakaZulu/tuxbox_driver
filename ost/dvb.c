@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.5 2001/03/05 17:33:50 waldi Exp $
+ * $Id: dvb.c,v 1.6 2001/03/06 19:56:51 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -89,8 +89,7 @@ static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
     b|=freq;
     
     fp_set_tuner_dword(T_QPSK, b);
-    fp_set_polarisation(P_HOR);
-//    fp_set_polarisation(P_VERT);
+    fp_set_sec(1,1);
     return 0;
   } else if (dvb->front.type==FRONT_DVBC)
   {
@@ -151,6 +150,61 @@ static int frontend_init(dvb_struct_t *dvb)
   
   dvb->front=fe;
   
+  return 0;
+}
+
+int SetSec(int power,int volt,int tone) {
+  volt++;
+  if (power == 0)
+    volt=0;
+  return fp_set_sec(volt,tone);
+}
+
+int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
+  int val;
+  
+  switch(mode) {
+  case SEC_TONE_ON:
+    val=1;
+    break;
+  case SEC_TONE_OFF:
+    val=0;
+    break;
+  default:
+    return -EINVAL;
+  }
+  dvb->front.ttk=val;
+  SetSec(dvb->front.power,dvb->front.volt,val);
+  return 0;
+}
+
+int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
+  int power=1, volt=0;
+  
+  switch(voltage) {
+  case SEC_VOLTAGE_LT: //WHAT's THIS FOR ??
+    return -EOPNOTSUPP;
+  case SEC_VOLTAGE_OFF:
+    power=0;
+    break;
+  case SEC_VOLTAGE_13:
+    volt=0;
+    break;
+  case SEC_VOLTAGE_18:
+    volt=1;
+    break;
+  case SEC_VOLTAGE_13_5:
+    volt=2;
+    break;
+  case SEC_VOLTAGE_18_5:
+    volt=3;
+    break;
+  default:
+    return -EINVAL;
+  }
+  dvb->front.power=power;
+  dvb->front.volt=volt;
+  SetSec(power,volt,dvb->front.ttk);
   return 0;
 }
 
@@ -447,9 +501,58 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     return 0;
     break;
   }
-//  case DVB_DEVICE_SEC:
+  case DVB_DEVICE_SEC:
+        switch(type) {
+    case SEC_GET_STATUS:
+      {
+	struct secStatus status;
+
+	status.busMode=SEC_BUS_IDLE;
+
+	if (!dvb->front.power)
+	  status.busMode=SEC_BUS_OFF;
+	
+	status.selVolt=dvb->front.volt;
+	
+	status.contTone=dvb->front.ttk;
+	if(copy_to_user(parg,&status, sizeof(status)))
+	  return -EFAULT;
+      }
+      break;
+	case SEC_RESET_OVERLOAD:
+	  {
+	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	      return -EPERM;
+	    dvb->front.power=1;
+	    SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
+	    return 0;
+	  }
+	  break;
+	case SEC_SEND_SEQUENCE:
+	  {
+	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	      return -EPERM;
+	    return -ENOSYS; // TODO
+	  }
+	case SEC_SET_TONE:
+	  {
+	    secToneMode mode = (secToneMode) arg;
+	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	      return -EPERM;
+	    return secSetTone(dvb,mode);
+	  }
+	case SEC_SET_VOLTAGE:
+	  {
+	    secVoltage val = (secVoltage) arg;
+	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+	      return -EPERM;
+	    return secSetVoltage(dvb,val);
+	  }
+	default:
+	  return -EOPNOTSUPP;
+	}
   case DVB_DEVICE_DEMUX:
-     return DmxDevIoctl(&dvb->dmxdev, file, cmd, arg);
+    return DmxDevIoctl(&dvb->dmxdev, file, cmd, arg);
   default:
     return -EOPNOTSUPP;
   }
