@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.10  2001/04/09 19:48:44  TripleDES
+ *   added cam init (fp-cmd)
+ *
  *   Revision 1.9  2001/04/09 17:43:15  TripleDES
  *   added sagem/philips? init
  *   -it depends now on info
@@ -44,7 +47,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -729,15 +732,19 @@ int cam_init(void)
 	{
 	  case DBOX_MID_SAGEM:
 	  {
-		  cam_write_message(caminit,11);
+	    cam_write_message(caminit,11);
+	    fp_cam_reset();  
+	    printk("CAM: send sagem init....\n");
 		  }
 	  case DBOX_MID_PHILIPS:	  
 	  {
-         	  cam_write_message(caminit,11);
+	    cam_write_message(caminit,11);
+            fp_cam_reset();	    
+	    printk("CAM: send Philips init....\n");
+	    
 		  }
 	}	
 	
-        
 	return 0;
 }
 
