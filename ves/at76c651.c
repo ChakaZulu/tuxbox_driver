@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.26 2002/02/24 15:32:06 woglinde Exp $
+    $Id: at76c651.c,v 1.27 2002/06/28 22:08:09 Hunz Exp $
 
     AT76C651  - DVB frontend driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.27  2002/06/28 22:08:09  Hunz
+    patch von dumdidum
+
     Revision 1.26  2002/02/24 15:32:06  woglinde
     new tuner-api now in HEAD, not only in branch,
     to check out the old tuner-api should be easy using
@@ -315,78 +318,21 @@ static int set_tuner_dword(struct i2c_client *client, u32 tw)
 static int tuner_set_freq(struct i2c_client *client, int freq)
 {
 	u32 dw=0;
-	dprintk("AT76C651: tuner_set_freq: %d\n", freq);
-	// Rechne mal wer
-//	unsigned dw=0x17e28e06+(freq-346000000UL)/8000000UL*0x800000;
-	switch(freq) {
-		case 474000:
-			dw=0x1fe28e85; // Geschaetzt
-			break;
-		case 466000:
-			dw=0x1f628e85; // Geschaetzt
-			break;
-		case 458000:
-			dw=0x1ee28e85; // Geschaetzt
-			break;
-		case 450000:
-			dw=0x1e628e85; // Geschaetzt
-			break;
-		case 442000:
-			dw=0x1de28e85;
-			break;
-		case 434000:
-			dw=0x1d628e85;
-			break;
-		case 426000:
-			dw=0x1ce28e85;
-			break;
-		case 418000:
-			dw=0x1c628e85; // Geschaetzt
-			break;
-		case 410000:
-			dw=0x1be28e85;
-			break;
-		case 402000:
-			dw=0x1b628e85;
-			break;
-		case 394000:
-			dw=0x1ae28e06;
-			break;
-		case 386000:
-			dw=0x1a628e06;
-			break;
-		case 378000:
-			dw=0x19e28e06;
-			break;
-		case 370000:
-			dw=0x19628e06;
-			break;
-		case 362000:
-			dw=0x18e28e06;
-			break;
-		case 354000:
-			dw=0x18628e06;
-			break;
-		case 346000:
-			dw=0x17e28e06;
-			break;
-		case 338000:
-			dw=0x17628e06;
-			break;
-		case 330000:
-			dw=0x16e28e06;
-			break;
-		default:
-			printk("AT76C651: Frequency %d not supported\n", freq);
-			break;
-	}
-	if(dw) 
-	{
-		set_tuner_dword(client, dw);
-		return 0;
+	if (freq>394000 & freq<=810000) dw+=0x16e28e85;
+	else if (freq>=178000 & freq<=394000) dw+=0x0D628e06;
+	if (dw) {
+	    // Rechne mal wer
+	    // unsigned dw=0x17e28e06+(freq-346000000UL)/8000000UL*0x800000;
+	    freq=freq/1000;
+	    freq-=178;
+	    freq/=8;
+	    freq*=0x800000;
+	    dw+=freq;
+	    set_tuner_dword(client, dw);
+	    return 0;
 	}
 	else
-		return -1;
+	return -1;
 }
 
 // Tuner an i2c an/abhaengen
@@ -715,7 +661,7 @@ static int detach_client(struct i2c_client *client)
 int init_module(void) {
 	int res;
 
-	dprintk("AT76C651: $Id: at76c651.c,v 1.26 2002/02/24 15:32:06 woglinde Exp $\n");
+	dprintk("AT76C651: $Id: at76c651.c,v 1.27 2002/06/28 22:08:09 Hunz Exp $\n");
 	if ((res = i2c_add_driver(&dvbt_driver)))
 	{
 		printk("AT76C651: Driver registration failed, module not inserted.\n");
