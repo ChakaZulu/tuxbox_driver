@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.39 2004/02/09 16:27:09 derget Exp $
+ * $Id: saa7126_core.c,v 1.40 2004/02/21 21:56:36 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -133,6 +133,30 @@ static struct saa7126_initdata saa7126_inittab_ntsc [] =
 };
 
 
+/*
+WSS-Bits
+--------
+for PAL-625 there are 8 combinations:
+
+    Index  Bits  Aspectr Format Pos      ActiveLines RecommendedDisplay
+    -----------------------------------------------------------------------------------------
+	0 (01000)   4:3   full    -          576      centered, black side bars
+	1 (00001)  14:9   lbx    center      504      centered, black side bars (or full)
+	2 (00010)  14:9   lbx    top         504      centered, black side bars (or full)
+	3 (01011)  16:9   lbx    center      430      full width
+	4 (00100)  16:9   lbx    top         430      full width
+	5 (01101) >16:9   lbx    center       -       full width (lbx'ed) or zoomed in (full)
+	6 (01110)  14:9   full   center      576
+	7 (00111)  16:9   anam    -          576
+
+for NTSC-525 only bits 0 and 1 are used, rest is set to 0:
+
+    Bit 0	1
+    ---------------------
+    b0  4:3	16:9
+    b1  normal	letterbox
+
+*/
 static const unsigned char wss_data[8] =
 {
 	0x08, 0x01, 0x02, 0x0b, 0x04, 0x0d, 0x0e, 0x07
