@@ -838,10 +838,7 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 			ret=-EFAULT;
 		else
 		{
-			if (npara.pid == 0x1500 || npara.pid == 0x1000)
-				break;
-			else
-				ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
+			ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &npara);
 		}
 		break;
 	}
