@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.52 2001/12/15 21:38:31 Hunz Exp $
+ * $Id: dvb.c,v 1.53 2001/12/19 13:17:03 derget Exp $
  */
 
 #include <linux/config.h>
@@ -897,14 +897,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				case VIDEO_STOP:
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
-					printk("CHCH [DECODER] ABORT\n");
+					//printk("CHCH [DECODER] ABORT\n");
 					avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
 					//avia_command(Abort, 0);
 					break;
 				}
 				case VIDEO_PLAY:
 				{
-					printk("CHCH [DECODER] PLAY\n");
+					//printk("CHCH [DECODER] PLAY\n");
 					avia_command(NewChannel, 0, 0, 0);
 					//avia_command(Play, 0, 0, 0);
 					udelay(10*1000);
@@ -937,7 +937,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						dvb->videostate.streamSource=(videoStreamSource_t) arg;
 						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
 							return -EINVAL;
-						printk("CHCH [DECODER] SETSTREAMTYPE\n");
+						//printk("CHCH [DECODER] SETSTREAMTYPE\n");
 						avia_command(SetStreamType, 0xB);
 						
 						avia_flush_pcr();
