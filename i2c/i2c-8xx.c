@@ -19,10 +19,13 @@
  *
  *
  *   $Log: i2c-8xx.c,v $
+ *   Revision 1.13  2001/02/09 17:26:12  gillem
+ *   global commproc.h
+ *
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -43,9 +46,10 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/hardirq.h>
-
-#include "commproc.h"
 #include <linux/i2c.h>
+
+/* HACK HACK HACK */
+#include <commproc.h>
 
 /* parameter stuff */
 static int debug = 0;
