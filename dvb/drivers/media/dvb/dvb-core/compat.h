@@ -30,6 +30,15 @@
 #endif
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)) || !CONFIG_VIDEO_DEV
+#define video_usercopy generic_usercopy
+
+extern int generic_usercopy(struct inode *inode, struct file *file,
+	                    unsigned int cmd, unsigned long arg,
+			    int (*func)(struct inode *inode, struct file *file,
+			    unsigned int cmd, void *arg));
+#endif
+
 #ifndef minor
 #define minor(dev) MINOR(dev)
 #endif

@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.166 $
+ *   $Revision: 1.167 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.167  2002/12/20 21:27:41  Jolt
+ *   Fix lots of ugly things
+ *
  *   Revision 1.166  2002/11/21 21:44:29  Jolt
  *   Cleanups
  *
@@ -782,7 +785,7 @@ static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 
 }
 
-static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, u8 *buf, size_t count)
+static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf, size_t count)
 {
 
 	printk("avia_gt_napi: write_to_decoder\n");
@@ -912,7 +915,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.166 2002/11/21 21:44:29 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.167 2002/12/20 21:27:41 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

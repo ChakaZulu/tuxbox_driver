@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.30  2002/12/20 21:27:41  Jolt
+ *   Fix lots of ugly things
+ *
  *   Revision 1.29  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -93,7 +96,7 @@
  *
  *
  *
- *   $Revision: 1.29 $
+ *   $Revision: 1.30 $
  *
  */
 	
@@ -363,7 +366,7 @@ int __init avia_gt_pig_init(void)
     char					 devname[128]	= { 0 };
     unsigned char	 pig_nr				= (unsigned char)0;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.29 2002/10/20 20:38:26 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.30 2002/12/20 21:27:41 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -445,6 +448,9 @@ void __exit avia_gt_pig_exit(void)
     }    
     
 }
+
+EXPORT_SYMBOL(avia_gt_pig_hide);
+EXPORT_SYMBOL(avia_gt_pig_show);
 
 #if defined(MODULE) && defined(STANDALONE)
 module_init(avia_gt_pig_init);

@@ -39,11 +39,6 @@ EXPORT_SYMBOL(dvb_generic_ioctl);
 EXPORT_SYMBOL(dvb_generic_open);
 EXPORT_SYMBOL(dvb_generic_release);
 
-EXPORT_SYMBOL(dvb_filter_ipack_init);
-EXPORT_SYMBOL(dvb_filter_ipack_reset);
-EXPORT_SYMBOL(dvb_filter_ipack_free);
-EXPORT_SYMBOL(dvb_filter_ipack_flush);
-EXPORT_SYMBOL(dvb_filter_instant_repack);
 EXPORT_SYMBOL(dvb_filter_pes2ts_init);
 EXPORT_SYMBOL(dvb_filter_pes2ts);
 

@@ -437,9 +437,11 @@ int dvb_frontend_thread (void *data)
 
 	lock_kernel ();
 	daemonize ();
-/*	not needed anymore in 2.5.x, done in daemonize()
+/*	not needed anymore in 2.5.x, done in daemonize() */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	reparent_to_init ();
-*/
+#endif
+
 	sigfillset (&current->blocked);
 	fe->thread = current;
 	snprintf (current->comm, sizeof (current->comm), "kdvb-fe-%i:%i",
