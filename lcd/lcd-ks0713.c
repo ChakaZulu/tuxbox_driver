@@ -21,6 +21,12 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.8  2001/01/28 18:49:08  gillem
+ *   add ioctl
+ *   LCD_IOCTL_CLEAR
+ *   LCD_IOCTL_SET_POS
+ *   LCD_IOCTL_GET_POS
+ *
  *   Revision 1.7  2001/01/26 23:51:33  gillem
  *   some kernel styles change
  *
@@ -30,12 +36,9 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
-
-#include "lcd-ks0713.h"
-#include "lcd-console.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -47,8 +50,7 @@
 
 #include <linux/init.h>
 
-// ppc stuff
-#include "commproc.h"
+/* ppc stuff */
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
@@ -56,6 +58,12 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+
+/* HACK HACK HACK */
+#include <commproc.h>
+
+#include "lcd-ks0713.h"
+#include "lcd-console.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -98,13 +106,6 @@ static struct file_operations lcd_fops = {
 	open:		lcd_open,
 	llseek:		lcd_seek,
 };
-
-typedef struct file_vars
-{
-	int pos;
-	int row;
-	int col;
-} file_vars;
 
 static struct file_vars f_vars;
 
@@ -309,7 +310,7 @@ static int lcd_read_byte(void)
 ///////////////////////////////////////////////////////////////////////////////
 /* write byte */
 
-static void lcd_write_byte( int data )
+void lcd_write_byte( int data )
 {
 	lcd_set_port_write();
 
@@ -344,6 +345,7 @@ int lcd_set_pixel( struct lcd_pixel * pix )
 	// set dram pointer
 	lcd_set_pos( y, pix->x );
 	lcd_read_dummy();
+
     val = lcd_read_byte();
 
     v = pix->v;
@@ -544,14 +546,18 @@ static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 
 void lcd_set_pos( int row, int col )
 {
-	f_vars.pos = row*col;
-	f_vars.row = row;
-	f_vars.col = col;
+//	f_vars.pos = row*col;
 
-	// set dram pointer
-	lcd_send_cmd( LCD_CMD_SPAGE, row );
-	lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
-	lcd_send_cmd( 0x00, col&0x0F );
+	if ( (f_vars.row != row) && (row>=0) ) {
+        f_vars.row = row;
+    	lcd_send_cmd( LCD_CMD_SPAGE, row );
+    }
+
+	if ( (f_vars.col != col) && (col>=0) ) {
+        f_vars.col = col;
+        lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
+    	lcd_send_cmd( 0x00, col&0x0F );
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -561,6 +567,7 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 {
 	int val;
     struct lcd_pixel pix;
+    struct lcd_pos pos;
 
 	switch (cmd) {
 
@@ -660,21 +667,23 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 				lcd_send_cmd( 0x00, val&0x03 );
 				break;
 
-    		case LCD_IOCTL_SPAGE:
+    		case LCD_IOCTL_SROW:
+//    		case LCD_IOCTL_SPAGE:
 
-				if ( (val > 0x08) || (val < 0) )
+				if ( (val >= LCD_ROWS ) || (val < 0) )
 					return -EINVAL;
 
-    			lcd_send_cmd( LCD_CMD_SPAGE, val&0x0F );
+                lcd_set_pos( val, -1 );
+
 				break;
 
     		case LCD_IOCTL_SCOLUMN:
 
-				if ( (val > LCD_COLS) || (val < 0) )
+				if ( (val >= LCD_COLS) || (val < 0) )
 					return -EINVAL;
 
-				lcd_send_cmd( LCD_CMD_COL, (val>>4)&0x0F );
-				lcd_send_cmd( 0x00, val&0x0F );
+                lcd_set_pos( -1, val );
+
 				break;
 
 		case LCD_IOCTL_WRITE_BYTE:
@@ -722,10 +731,43 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
     		case LCD_IOCTL_SET_PIXEL:
 
-    			if ( copy_from_user(&pix,(struct lcd_pixel*)arg,sizeof(struct lcd_pixel)) )
+    			if ( copy_from_user(&pix,(struct lcd_pixel*)arg,sizeof(struct lcd_pixel)) ) {
     	        	return -EFAULT;
+                }
 
                 return lcd_set_pixel(&pix);
+
+    		case  LCD_IOCTL_GET_POS:
+
+                pos.row = f_vars.row;
+                pos.col = f_vars.col;
+
+            	if ( copy_to_user( &pos, (lcd_pos*)arg, sizeof(struct lcd_pos) ) ) {
+            		return -EFAULT;
+                }
+
+                break;
+
+    		case  LCD_IOCTL_SET_POS:
+
+    			if ( copy_from_user(&pos,(struct lcd_pos*)arg,sizeof(struct lcd_pos)) ) {
+    	        	return -EFAULT;
+                }
+
+                if ( pos.row > LCD_ROWS ) {
+                    return -EINVAL;
+                }
+
+                if ( pos.col > LCD_COLS ) {
+                    return -EINVAL;
+                }
+
+                lcd_set_pos( pos.row, pos.col );
+                break;
+
+            case LCD_IOCTL_CLEAR:
+                lcd_clear();
+                break;
         }
     }
 
@@ -746,10 +788,22 @@ int lcd_open (struct inode *inode, struct file *file)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+void lcd_clear(void)
+{
+	static unsigned char d[LCD_BUFFER_SIZE];
+
+	f_vars.row = 0;
+	f_vars.col = 0;
+
+	memset(d,0x00,LCD_BUFFER_SIZE);
+	lcd_write_dram(d);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 void lcd_reset(void)
 {
-    int i;
-
+    // TODO: not work :-/
     lcd_send_cmd( LCD_CMD_RESET, 0 );
     udelay(1000*100);
 	lcd_send_cmd( LCD_CMD_ON, 1 );

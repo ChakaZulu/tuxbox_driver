@@ -21,13 +21,19 @@
  *
  *
  *   $Log: lcd-console.c,v $
+ *   Revision 1.6  2001/01/28 18:49:08  gillem
+ *   add ioctl
+ *   LCD_IOCTL_CLEAR
+ *   LCD_IOCTL_SET_POS
+ *   LCD_IOCTL_GET_POS
+ *
  *   Revision 1.5  2001/01/26 23:51:33  gillem
  *   some kernel styles change
  *
  *   Revision 1.4  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -48,29 +54,14 @@
 
 #define INITSTRING "@lcd:\x0a"
 
-int row,col;
-
 ///////////////////////////////////////////////////////////////////////////////
 
 void lcd_init_console(void)
 {
 	lcd_init_font(0);
-	lcd_console_clear();
+	lcd_clear();
 
 	lcd_console_put_data(INITSTRING,strlen(INITSTRING));
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-void lcd_console_clear(void)
-{
-	static unsigned char d[LCD_BUFFER_SIZE];
-
-	row = 0;
-	col = 0;
-
-	memset(d,0xFF,LCD_BUFFER_SIZE);
-	lcd_write_dram(d);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -92,18 +83,18 @@ void lcd_console_put_data( unsigned char *data, int len )
                     break;
 		}
 
-    	if (col == MAX_COL) {
-			col=0;
-			row++;
+    	if (f_vars.col == MAX_COL) {
+			f_vars.col=0;
+			f_vars.row++;
 		}
 
-		if ( row == MAX_ROW ) {
+		if ( f_vars.row == MAX_ROW ) {
 			lcd_console_new_line();
-			row--;
+			f_vars.row--;
 		}
 
 		lcd_console_put_char( data[i] );
-		col++;
+		f_vars.col++;
 	}
 }
 
@@ -117,7 +108,7 @@ void lcd_console_put_char( unsigned char data )
 	// load font to b
 	lcd_convert_to_font( b, &data, 1 );
 
-	lcd_set_pos( row, col*8 );
+	lcd_set_pos( f_vars.row, f_vars.col*8 );
 
 	for(i=0;i<8;i++) {
 		lcd_write_byte( b[i] );
@@ -128,21 +119,21 @@ void lcd_console_put_char( unsigned char data )
 
 void lcd_console_new_line()
 {
-	for(;col<=MAX_COL;col++) {
+	for(;f_vars.col<=MAX_COL;f_vars.col++) {
 		lcd_console_put_char(0x20);
 	}
 
-    if ( row == MAX_ROW ) {
-		row--;
+    if ( f_vars.row == MAX_ROW ) {
+		f_vars.row--;
 		lcd_console_scroll_down( 1 );
 
-		for(col=0;col<=MAX_COL;col++) {
+		for(f_vars.col=0;f_vars.col<=MAX_COL;f_vars.col++) {
 			lcd_console_put_char(0x20);
 		}
 	}
 
-	row++;
-	col=0;
+	f_vars.row++;
+	f_vars.col=0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

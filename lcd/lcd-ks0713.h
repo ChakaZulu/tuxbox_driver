@@ -21,13 +21,19 @@
  *
  *
  *   $Log: lcd-ks0713.h,v $
+ *   Revision 1.7  2001/01/28 18:49:08  gillem
+ *   add ioctl
+ *   LCD_IOCTL_CLEAR
+ *   LCD_IOCTL_SET_POS
+ *   LCD_IOCTL_GET_POS
+ *
  *   Revision 1.6  2001/01/20 19:01:21  gillem
  *   - add pixel function
  *
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -62,12 +68,16 @@
 #define LCD_IOCTL_SEL_RES		(14|LCDSET)
 #define LCD_IOCTL_SIR			(15|LCDSET)
 #define LCD_IOCTL_SPAGE			(16|LCDSET)
+#define LCD_IOCTL_SROW			(16|LCDSET)
 #define LCD_IOCTL_SCOLUMN		(17|LCDSET)
 #define LCD_IOCTL_SET_ADDR		(18)
 #define LCD_IOCTL_READ_BYTE		(19|LCDGET)
 #define LCD_IOCTL_WRITE_BYTE	(20|LCDSET)
 #define LCD_IOCTL_ASC_MODE		(21|LCDSET)
 #define LCD_IOCTL_SET_PIXEL     (22)
+#define LCD_IOCTL_GET_POS       (23)
+#define LCD_IOCTL_SET_POS       (24)
+#define LCD_IOCTL_CLEAR         (25)
 
 #define LCD_ROWS				8
 #define LCD_COLS				120
@@ -83,9 +93,24 @@ typedef struct lcd_pixel {
  unsigned char v;   // 0 = off 1 = on 2 = inv
 } lcd_pixel;
 
+typedef struct lcd_pos {
+ unsigned char row;
+ unsigned char col;
+} lcd_pos;
+
 #ifdef __KERNEL__
 void lcd_set_pos( int row, int col );
-static void lcd_write_byte( int data );
+void lcd_write_byte( int data );
 void lcd_read_dram( unsigned char * dest );
 void lcd_write_dram( unsigned char * dest );
+void lcd_clear(void);
+
+typedef struct file_vars
+{
+	int pos;
+	int row;
+	int col;
+} file_vars;
+
+extern struct file_vars f_vars;
 #endif
