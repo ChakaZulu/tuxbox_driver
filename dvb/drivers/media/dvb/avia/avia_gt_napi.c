@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.198 2004/02/17 19:51:09 wjoost Exp $
+ * $Id: avia_gt_napi.c,v 1.199 2004/04/07 23:23:36 carjay Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -43,6 +43,7 @@
 #include "avia_gt.h"
 #include "avia_gt_accel.h"
 #include "avia_gt_dmx.h"
+#include "avia_gt_ucode.h"
 #include "avia_gt_napi.h"
 #include "avia_gt_vbi.h"
 #include "avia_napi.h"
@@ -781,7 +782,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.198 2004/02/17 19:51:09 wjoost Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.199 2004/04/07 23:23:36 carjay Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
