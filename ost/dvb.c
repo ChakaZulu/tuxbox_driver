@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.53 2001/12/19 13:17:03 derget Exp $
+ * $Id: dvb.c,v 1.54 2002/01/22 22:35:26 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -45,7 +45,6 @@
 #include <ost/frontend.h>
 #include <ost/sec.h>
 #include <ost/video.h>
-#include <ost/osd.h>
 #include <ost/net.h>
 
 #include <dbox/dvb.h>
@@ -61,6 +60,7 @@
 #include "dvbdev.h"
 #include "dmxdev.h"
 #include "dvb_net.h"
+#include <dbox/dvb_frontend.h>
 
 /* dirty - gotta do that better... -Hunz */
 #define EBUSOVERLOAD -6
@@ -69,345 +69,134 @@
 typedef struct dvb_struct
 {
 	dmxdev_t						dmxdev;
-	dvb_device_t					dvb_dev;
-	struct frontend					front;
-	struct demod_function_struct	*demod;
-	qpsk_t							qpsk;
-	struct videoStatus				videostate;
-	int								num;
+	dvb_device_t				dvb_dev;
+	dvb_front_t					*frontend;
+	struct videoStatus	videostate;
+	FrontendPowerState	powerstate;
+	struct secStatus		sec;
+	int									num;
 	dvb_net_t						*dvb_net;
 } dvb_struct_t;
 
 static dvb_struct_t dvb;
-																																// F R O N T E N D
-static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
-{
-	if (dvb->demod->set_frequency)
-		return dvb->demod->set_frequency(freq);
-	
-	printk("couldn't set tuner frequency because of missing/old driver\n");
-	return -1;
-}
 
-static int frontend_init(dvb_struct_t *dvb)
+static int secSetTone(struct dvb_struct *dvb, secToneMode mode)
 {
-	struct frontend fe;
-	if (!dvb->demod)
-		panic("demod not yet initialized");
-	dvb->demod->init();
-	dvb->demod->get_frontend(&fe);
-	if (fe.type==FRONT_DVBS)
+	if (dvb->frontend)
 	{
-		printk("using QPSK\n");
-		// tuner init.
-		fe.power=OST_POWER_ON;
-		fe.AFC=1;
-		fe.fec=0;
-		fe.channel_flags=DVB_CHANNEL_FTA;
-		fe.volt=SEC_VOLTAGE_13;
-		fe.ttk=SEC_TONE_ON;
-		fe.diseqc=0;
-		fe.freq=fe.curfreq=(12666000-10600000)*1000;
-		fe.srate=22000000;
-		fe.video_pid=162;
-		fe.audio_pid=96;
-		fe.tt_pid=0x1012;
-		fe.inv=0;
-	} else if (fe.type==FRONT_DVBC)
-	{
-		printk("using QAM\n");
-		fe.power=OST_POWER_ON;
-		fe.freq=394000000;
-		fe.srate=6900000;
-		fe.video_pid=0x262;
-		fe.audio_pid=0x26c;
-		fe.qam=2;
-		fe.inv=0;
+		dvb->sec.contTone=mode;
+		dvb_frontend_sec_set_tone(dvb->frontend, mode);
+		return 0;
 	}
-	dvb->demod->set_frontend(&fe);
-	
-	dvb->front=fe;
-	
-	return 0;
+	return -ENOENT;
 }
 
-int SetSec(powerState_t power,secVoltage voltage,secToneMode contone) {
-	int volt, tone;
-
-	// no bus overload error-handling here - we need this function for SEC-bus-reset after overload
-
-	if (contone != SEC_TONE_ON)
-		tone=0;
-	else
-		tone=1;
-	
-	switch(voltage) {
-	case SEC_VOLTAGE_OFF:
-		volt=0;
-		break;
-	case SEC_VOLTAGE_LT:
-		volt=-1;
-		break;
-	case SEC_VOLTAGE_13:
-		volt=1;
-		break;
-	case SEC_VOLTAGE_13_5:
-		volt=2;
-		break;
-	case SEC_VOLTAGE_18:
-		volt=3;
-		break;
-	case SEC_VOLTAGE_18_5:
-		volt=4;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (power != OST_POWER_ON)
-		volt=0;
-
-	if (!dvb.demod || !dvb.demod->set_sec)
-		return -EINVAL; 
-	return dvb.demod->set_sec(volt,tone);
-}
-
-int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
-	int res, status;
-	secToneMode old;
-	
-	if (!dvb->demod || !dvb->demod->sec_status)
-		return -EINVAL;
-
-	// ERROR handling
-	status=dvb->demod->sec_status();
-	if (status == -1)
-		return -EBUSOVERLOAD;
-	else if (status == -2)
-		return -EBUSY;
-	else if (status < 0)
-		return -EINTERNAL;
-
-	dvb->front.ttk=mode;
-	res=SetSec(dvb->front.power,dvb->front.volt,mode);
-	if (res < 0)
-		dvb->front.ttk=old;
-	return res;
-}
-
-int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
-	int res, status;
-	secVoltage old;
-
-	if (!dvb->demod || !dvb->demod->sec_status)
-		return -EINVAL;
-
-	// ERROR handling
-	status=dvb->demod->sec_status();
-	
-	if (status == -1)
-		return -EBUSOVERLOAD;
-	else if (status == -2)
-		return -EBUSY;
-	else if (status < 0)
-		return -EINTERNAL;
-	
-	old=dvb->front.volt;
-	dvb->front.volt=voltage;
-	res=SetSec(dvb->front.power,voltage,dvb->front.ttk);
-	// error
-	if (res < 0)
-		dvb->front.volt=old;	 
-	return res;
-}
-
-int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
+static int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage)
 {
-	int i, ret, burst, len, status;
-	secVoltage old_volt;
-	secToneMode old_tone;
-	u8 msg[16];
-	
-	if (!dvb->demod || !dvb->demod->sec_status || !dvb->demod->send_diseqc)
-		return -EINVAL;
+	if (dvb->frontend)
+	{
+		dvb->sec.selVolt=voltage;
+		dvb_frontend_sec_set_voltage(dvb->frontend, voltage);
+		return 0;
+	} else
+		return -ENOENT;
+}
 
-	// ERROR handling
-	status=dvb->demod->sec_status();
+static int
+secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
+{
+	int i, ret;
+	struct secCommand scommands;
 	
-	if (status == -1)
-		return -EBUSOVERLOAD;
-	else if (status == -2)
-		return -EBUSY;
-	else if (status < 0)
-		return -EINTERNAL;
-
+	if (!dvb->frontend)
+	{
+		printk("no frontend.\n");
+		return -ENOENT;
+	}
+	
 	switch (seq->miniCommand)
 	{
 	case SEC_MINI_NONE:
-		burst=-1;
-		break;
 	case SEC_MINI_A:
-		burst=0;
-		break;
 	case SEC_MINI_B:
-		burst=1;
 		break;
 	default:
 		return -EINVAL;
 	}
 	
 	for (i=0; i<seq->numCommands; i++) {
-		switch (seq->commands[i].type) {
-		case SEC_CMDTYPE_DISEQC:
-			len=seq->commands[i].u.diseqc.numParams;
-			if (len>SEC_MAX_DISEQC_PARAMS)
-				return -EINVAL;
-			
-			msg[0]=0xe0;
-			msg[1]=seq->commands[i].u.diseqc.addr;
-			msg[2]=seq->commands[i].u.diseqc.cmd;
-			memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
-			ret=dvb->demod->send_diseqc(msg,len+3);
-			if (ret < 0)
-				return -EINTERNAL;
-			break;
-		case SEC_CMDTYPE_PAUSE:
-			// what to do here ??
-			break;
-		case SEC_CMDTYPE_VSEC:
-		default:
-			return -EINVAL;
-		}
+		if (copy_from_user(&scommands, &seq->commands[i],
+				sizeof(struct secCommand)))
+			continue;
+		dvb_frontend_sec_command(dvb->frontend, &scommands);
 	}
-				
-	if (burst != -1) {
-		if (burst==0)
-			msg[0]=0;
-		else if (burst == 1)
-			msg[0]=0xFF;
-		ret=dvb->demod->send_diseqc(msg,1);
-		if (ret < 0)
-			return -EINTERNAL;
+	
+	if (seq->miniCommand!=SEC_MINI_NONE)
+		dvb_frontend_sec_mini_command(dvb->frontend, seq->miniCommand);
+	
+	ret=secSetVoltage(dvb, seq->voltage);
+	if (ret<0)
+	{
+		printk("setVoltage failed.\n");
+		return ret;
 	}
-
-	old_volt=dvb->front.volt;
-	old_tone=dvb->front.ttk;
-	dvb->front.volt=seq->voltage;
 	ret=secSetTone(dvb, seq->continuousTone);
-	if (ret < 0) {
-		dvb->front.volt=old_volt;
-		dvb->front.ttk=old_tone;
+	if (ret<0)
+	{
+		printk("setTone failed.\n");
 	}
 	return ret;
 }
 
-/* osd stuff */
-static int
-OSD_DrawCommand(struct dvb_struct *dvb, osd_cmd_t *dc)
+
+void tuning_complete_cb(void *priv)
 {
-/*	switch (dc->cmd)
-	{
-		case OSD_Close:
-				//DestroyOSDWindow(dvb, dvb->osdwin);
-                return 0;
-		case OSD_Open:
-				dvb->osdbpp[dvb->osdwin]=(dc->color-1)&7;
-				CreateOSDWindow(dvb, dvb->osdwin, bpp2bit[dvb->osdbpp[dvb->osdwin]],
-								dc->x1-dc->x0+1, dc->y1-dc->y0+1);
-				MoveWindowAbs(dvb, dvb->osdwin, dc->x0, dc->y0);
-				SetColorBlend(dvb, dvb->osdwin);
-				return 0;
-		case OSD_Show:
-				MoveWindowRel(dvb, dvb->osdwin, 0, 0);
-				return 0;
-		case OSD_Hide:
-				HideWindow(dvb, dvb->osdwin);
-				return 0;
-		case OSD_Clear:
-				DrawBlock(dvb, dvb->osdwin, 0, 0, 720, 576, 0);
-				return 0;
-		case OSD_Fill:
-				DrawBlock(dvb, dvb->osdwin, 0, 0, 720, 576, dc->color);
-				return 0;
-		case OSD_SetColor:
-				OSDSetColor(dvb, dc->color, dc->x0, dc->y0, dc->x1, dc->y1);
-				return 0;
-		case OSD_SetPalette:
-		{
-				int i, len=dc->x0-dc->color+1;
-				u8 colors[len*4];
+	struct dvb_struct *dvb=(struct dvb_struct *) priv;
+}
+        
+static int frontend_init(dvb_struct_t *dvb)
+{
+	FrontendParameters para;
 
-				if (copy_from_user(colors, dc->data, sizeof(colors)))
-						return -EFAULT;
-				for (i=0; i<len; i++)
-					OSDSetColor(dvb, dc->color+i,
-								colors[i*4]  , colors[i*4+1],
-								colors[i*4+2], colors[i*4+3]);
-				return 0;
-		}
-		case OSD_SetTrans:
-				return 0;
-		case OSD_SetPixel:
-				DrawLine(dvb, dvb->osdwin,
-						dc->x0, dc->y0, 0, 0,
-						dc->color);
-				return 0;
-		case OSD_GetPixel:
-				return 0;
-
-		case OSD_SetRow:
-				dc->y1=dc->y0;
-				return 0;
-		case OSD_SetBlock:
-				OSDSetBlock(dvb, dc->x0, dc->y0, dc->x1, dc->y1, dc->color, dc->data);
-				return 0;
-
-		case OSD_FillRow:
-				DrawBlock(dvb, dvb->osdwin, dc->x0, dc->y0,
-						dc->x1-dc->x0+1, dc->y1,
-						dc->color);
-				return 0;
-		case OSD_FillBlock:
-				DrawBlock(dvb, dvb->osdwin, dc->x0, dc->y0,
-						dc->x1-dc->x0+1, dc->y1-dc->y0+1,
-						dc->color);
-				return 0;
-		case OSD_Line:
-				DrawLine(dvb, dvb->osdwin,
-						dc->x0, dc->y0, dc->x1-dc->x0, dc->y1-dc->y0,
-						dc->color);
-				return 0;
-		case OSD_Query:
-				return 0;
-		case OSD_Test:
-				return 0;
-		case OSD_Text:
-		{
-				char textbuf[240];
-
-				if (strncpy_from_user(textbuf, dc->data, 240)<0)
-						return -EFAULT;
-				textbuf[239]=0;
-				if (dc->x1>3)
-						dc->x1=3;
-				SetFont(dvb, dvb->osdwin, dc->x1,
-						(u16) (dc->color&0xffff), (u16) (dc->color>>16));
-				FlushText(dvb);
-				WriteText(dvb, dvb->osdwin, dc->x0, dc->y0, textbuf);
-				return 0;
-		}
-		case OSD_SetWindow:
-				if (dc->x0<1 || dc->x0>7)
-					return -EINVAL;
-				dvb->osdwin=dc->x0;
-				return 0;
-		case OSD_MoveWindow:
-				MoveWindowAbs(dvb, dvb->osdwin, dc->x0, dc->y0);
-				SetColorBlend(dvb, dvb->osdwin);
-				return 0;
-		default:
-				return -EINVAL;
-	}*/
+	dvb->frontend->priv=(void *)dvb;
+	dvb->frontend->complete_cb=tuning_complete_cb;
+	dvb_frontend_init(dvb->frontend);
+	
+	dvb->powerstate=FE_POWER_ON;
+	
+	switch (dvb->frontend->type) {
+	case DVB_S:
+		para.Frequency=12480000-10600000;
+		para.u.qpsk.SymbolRate=27500000;
+		para.u.qpsk.FEC_inner=0;
+		secSetTone(dvb, SEC_TONE_ON);
+		secSetVoltage(dvb, SEC_VOLTAGE_13);
+		break;
+	case DVB_C:
+		para.Frequency=394000000;
+		para.u.qam.SymbolRate=6900000;
+		para.u.qam.FEC_inner=0;
+		para.u.qam.QAM=QAM_64;
+		break;
+	case DVB_T:
+		para.Frequency=730000000;
+		para.u.ofdm.bandWidth=BANDWIDTH_8_MHZ;
+		para.u.ofdm.HP_CodeRate=FEC_2_3;
+		para.u.ofdm.LP_CodeRate=FEC_1_2;
+		para.u.ofdm.Constellation=QAM_16;
+		para.u.ofdm.TransmissionMode=TRANSMISSION_MODE_2K;
+		para.u.ofdm.guardInterval=GUARD_INTERVAL_1_8;
+		para.u.ofdm.HierarchyInformation=HIERARCHY_NONE;
+		break;
+	}
 	return 0;
+}
+
+static int demod_command(struct dvb_struct *dvb, unsigned int cmd, void *arg)
+{
+	if (!dvb->frontend->demod)
+		return -1;
+	return dvb->frontend->demod->driver->command(dvb->frontend->demod, cmd, arg);
 }
 
 int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct file *file)
@@ -504,7 +293,7 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 		}
 		case DVB_DEVICE_FRONTEND:
 		{
-			if (!dvb->demod)
+			if (!dvb->frontend)
 				return -ENOENT;
 			break;
 		}
@@ -515,10 +304,6 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 			return DmxDevDVROpen(&dvb->dmxdev, file);
 		}
 		case DVB_DEVICE_CA:
-		{
-			break;
-		}
-		case DVB_DEVICE_OSD:
 		{
 			break;
 		}
@@ -633,10 +418,6 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
 		{
 			break;
 		}
-		case DVB_DEVICE_OSD:
-		{
-			break;
-		}
 		case DVB_DEVICE_NET:
 		{
 			break;
@@ -745,10 +526,6 @@ ssize_t dvb_read(struct dvb_device *dvbdev, int type, struct file *file, char *b
 			return DmxDevDVRRead(&dvb->dmxdev, file, buf, count, ppos);
 		}
 		case DVB_DEVICE_CA:
-		{
-			break;
-		}
-		case DVB_DEVICE_OSD:
 		{
 			break;
 		}
@@ -863,10 +640,6 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
 		{
 			break;
 		}
-		case DVB_DEVICE_OSD:
-		{
-			break;
-		}
 		case DVB_DEVICE_NET:
 		{
 			break;
@@ -937,15 +710,13 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						dvb->videostate.streamSource=(videoStreamSource_t) arg;
 						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
 							return -EINVAL;
-						//printk("CHCH [DECODER] SETSTREAMTYPE\n");
-						avia_command(SetStreamType, 0xB);
+						// printk("CHCH [DECODER] SETSTREAMTYPE\n");
+						// avia_command(SetStreamType, 0xB);
 						
 						avia_flush_pcr();
 					
 						if (dvb->dmxdev.demux)
 						    dvb->dmxdev.demux->flush_pcr();
-						
-						
 						
 						//avia_command(SelectStream, 0, 0);
 						//avia_command(SelectStream, 2, 0);
@@ -1127,330 +898,263 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_FRONTEND:
 		{
-			if (!dvb->demod)
+			if (!dvb->frontend)
 				return -ENOSYS;
 
 			switch (cmd)
 			{
-				case OST_SELFTEST:
-				{
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					if(dvb->demod->sec_status)
-						return dvb->demod->sec_status(); // anyone a better idea ?
-					else
-						return -ENOSYS;
-					break;
-				}
-				case OST_SET_POWER_STATE:
-				{
-					uint32_t pwr,old;
-					int res;
-	
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					if (copy_from_user(&pwr, parg, sizeof(pwr))) //FIXME!! -Hunz
-						return -EFAULT;
-					if(dvb->demod->set_sec)
-					{
-						if (!dvb->demod->sec_status || (dvb->demod->sec_status() < 0))
-							return -EINVAL;
-						old=dvb->front.power;
-						if(pwr == OST_POWER_OFF)
-							dvb->front.power=OST_POWER_OFF;
-						else
-							dvb->front.power=OST_POWER_ON;
-						res=SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
-						if (res < 0)
-							dvb->front.power=old;
-						return res;
-					}	else
-					{
-						if(pwr == OST_POWER_OFF)
-							dvb->front.power=OST_POWER_OFF;
-						else
-							dvb->front.power=OST_POWER_ON;
-						return 0;
-					}
-					break;
-				}
-				case OST_GET_POWER_STATE:
-				{
-					uint32_t pwr;
-	
-					if ((file->f_flags&O_ACCMODE)==O_WRONLY)
-						return -EPERM;
-					pwr=dvb->front.power;
-					if(copy_to_user(parg, &pwr, sizeof(pwr)))
-						return -EFAULT;
-					break;	
-				}
-				case FE_READ_STATUS:
-				{
-					feStatus stat;
-
-					stat=0;
-					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power==OST_POWER_ON)
-						stat|=FE_HAS_POWER;
-					if ((dvb->front.sync&0x1f)==0x1f)
-						stat|=FE_HAS_SIGNAL;
-        		                if ((dvb->front.sync&1))
-	                	                stat|=FE_HAS_LOCK;
-					if (dvb->front.inv)
-						stat|=QPSK_SPECTRUM_INV;
-
-					if(copy_to_user(parg, &stat, sizeof(stat)))
-						return -EFAULT;
-					break;
-				}
-				case FE_READ_BER:
-				{
-					uint32_t ber;
-			
-					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power!=OST_POWER_ON)
-						return -ENOSIGNAL;
-					ber=dvb->front.vber*10;
-					if(copy_to_user(parg, &ber, sizeof(ber)))
-						return -EFAULT;
-					break;
-				}
-				case FE_READ_SIGNAL_STRENGTH:
-				{
-					int32_t signal;
-					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power!=OST_POWER_ON)
-						return -ENOSIGNAL;
-					signal=dvb->front.agc;
-					if (copy_to_user(parg, &signal, sizeof(signal)))
-						return -EFAULT;
-					break;
-				}
-				case FE_READ_SNR:
-				{
-					int32_t snr;
-					dvb->demod->get_frontend(&dvb->front);
-					if (dvb->front.power!=OST_POWER_ON)
-						return -ENOSIGNAL;
-					snr=dvb->front.nest;
-					if (copy_to_user(parg, &snr, sizeof(snr)))
-						return -EFAULT;
-					break;
-				}
-				case FE_READ_UNCORRECTED_BLOCKS:
-				{
-					uint32_t uncp;
-
-					if ( dvb->demod->get_unc_packet(&uncp) < 0 )
-					{
-						return -ENOSYS;
-					}
-					else
-					{
-						if (copy_to_user(parg, &uncp, sizeof(uncp)))
-							return -EFAULT;
-					}
-
-					break;
-				}
-				case FE_GET_NEXT_FREQUENCY:
-				{
-					uint32_t freq;
-
-					if (copy_from_user(&freq, parg, sizeof(freq)))
-						return -EFAULT;
-					freq+=1000;
-					if (copy_to_user(parg, &freq, sizeof(freq)))
-						return -EFAULT;
-					break;
-				}
-				case FE_GET_NEXT_SYMBOL_RATE:
-				{
-					uint32_t rate;
-
-					if(copy_from_user(&rate, parg, sizeof(rate)))
-						return -EFAULT;
-
-					// FIXME: how does one really calculate this?
-					if (rate<5000000)
-						rate+=500000;
-					else if(rate<10000000)
-						rate+=1000000;
-					else if(rate<30000000)
-						rate+=2000000;
-					else
-						return -EINVAL;
-
-					if(copy_to_user(parg, &rate, sizeof(rate)))
-						return -EFAULT;
-					break;
-				}
-				/* QPSK-Stuff */
-				case QPSK_TUNE:
-				{
-					struct qpskParameters para;
-					static const uint8_t fectab[8]={8,0,1,2,4,6,0,8};
-					u32 val;
-	
-					if(copy_from_user(&para, parg, sizeof(para)))
-						return -EFAULT;
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					if (para.FEC_inner>7)
-						return -EINVAL;
-					val=para.iFrequency*1000;
-					if (dvb->front.freq!=val)
-					{
-//						printk ("frontend.c: fe.freq != val...\n");
-						tuner_setfreq(dvb, val);
-						dvb->front.freq=val;
-					}
-
-					val=para.SymbolRate;
-					dvb->front.srate=val;
-					dvb->front.fec=fectab[para.FEC_inner];
-					dvb->demod->set_frontend(&dvb->front);
-
-					// TODO: qpsk event				
-					break;
-				}
-				case QPSK_GET_EVENT:
-				{
-					return -ENOTSUPP;
-				}
-				case QPSK_FE_INFO:
-				{
-					struct qpskFrontendInfo feinfo;
-		
-					feinfo.minFrequency=500;	//KHz?
-					feinfo.maxFrequency=2100000;
-					feinfo.minSymbolRate=500000;
-					feinfo.maxSymbolRate=30000000;
-					feinfo.hwType=0;		//??
-					feinfo.hwVersion=0; //??
-
-					if(copy_to_user(parg, &feinfo, sizeof(feinfo)))
-						return -EFAULT;
-					break;
-				}
-				case QPSK_WRITE_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QPSK_READ_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QPSK_GET_STATUS:
-				{
-					return -ENOTSUPP;
-				}
-				/* QAM-Stuff */
-				case QAM_TUNE:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_GET_EVENT:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_FE_INFO:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_WRITE_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_READ_REGISTER:
-				{
-					return -ENOTSUPP;
-				}
-				case QAM_GET_STATUS:
-				{
-					return -ENOTSUPP;
-				}
-				default:
-				{
-					printk("ost_frontend_ioctl: UNEXPECTED cmd: %d.\n", cmd);
-					return -EOPNOTSUPP;
-				}
+			case FE_SELFTEST:
+				break;
+			case FE_SET_POWER_STATE:
+				dvb->powerstate=arg;
+				secSetVoltage(dvb, (dvb->powerstate==FE_POWER_ON)?dvb->sec.selVolt:SEC_VOLTAGE_LT);
+				return 0;
+			case FE_POWER_SUSPEND:
+			case FE_POWER_STANDBY:
+			case FE_POWER_OFF:
+				dvb->powerstate=FE_POWER_OFF;
+				secSetVoltage(dvb, SEC_VOLTAGE_LT);
+				return 0;
+			case FE_GET_POWER_STATE:
+				if(copy_to_user(parg, &dvb->powerstate, sizeof(u32)))
+					return -EFAULT;
+				break;
+			case FE_READ_STATUS:
+			{
+				FrontendStatus stat=0;
+				demod_command(dvb, FE_READ_STATUS, &stat);
+				if (dvb->powerstate==FE_POWER_ON)
+					stat|=FE_HAS_POWER;
+				if(copy_to_user(parg, &stat, sizeof(stat)))
+					return -EFAULT;
+				break;
 			}
+			case FE_READ_BER:
+			{
+				uint32_t ber;
+				if (dvb->powerstate!=FE_POWER_ON)
+					return -ENOSIGNAL;
+				demod_command(dvb, FE_READ_BER, &ber);
+				if(copy_to_user(parg, &ber, sizeof(ber)))
+					return -EFAULT;
+				break;
+			}
+			case FE_READ_SIGNAL_STRENGTH:
+			{
+				int32_t signal;
+				if (dvb->powerstate!=FE_POWER_ON)
+					return -ENOSIGNAL;
+				demod_command(dvb, FE_READ_SIGNAL_STRENGTH, &signal);
+				if(copy_to_user(parg, &signal, sizeof(signal)))
+					return -EFAULT;
+				break;
+			}
+			case FE_READ_SNR:
+			{
+				int32_t snr;
+				if (dvb->powerstate!=FE_POWER_ON)
+					return -ENOSIGNAL;
+				demod_command(dvb, FE_READ_SNR, &snr);
+				if(copy_to_user(parg, &snr, sizeof(snr)))
+					return -EFAULT;
+				break;
+			}
+			case FE_READ_UNCORRECTED_BLOCKS:
+			{
+				u32 ublocks;
+				if (dvb->powerstate!=FE_POWER_ON)
+					return -ENOSIGNAL;
+				if (demod_command(dvb, FE_READ_UNCORRECTED_BLOCKS,
+						&ublocks)<0)
+					return -ENOSYS;
+				if(copy_to_user(parg, &ublocks, sizeof(ublocks)))
+					return -EFAULT;
+				break;
+			}
+			case FE_GET_NEXT_FREQUENCY:
+			{
+				uint32_t freq;
+				if (copy_from_user(&freq, parg, sizeof(freq)))
+					return -EFAULT;
+				if (dvb->frontend->type==DVB_S)
+					// FIXME: how does one calculate this?
+					freq+=1000; //FIXME: KHz like in QPSK_TUNE??
+				else
+					freq+=1000000;
+				
+				if (copy_to_user(parg, &freq, sizeof(freq)))
+					return -EFAULT;
+				break;
+			}
+			case FE_GET_NEXT_SYMBOL_RATE:
+			{
+				uint32_t rate;
+				
+				if(copy_from_user(&rate, parg, sizeof(rate)))
+					return -EFAULT;
+					
+				if (dvb->frontend->type==DVB_C) {
+					if (rate < 1725000)
+						rate = 1725000;
+					else if (rate < 3450000)
+						rate = 3450000;
+					else if (rate < 5175000)
+						rate = 5175000;
+					else if (rate < 5500000)
+						rate = 5500000;
+					else if (rate < 6875000)
+						rate = 6875000;
+					else if (rate < 6900000)
+						rate = 6900000;
+					else
+						return -EINVAL;
+				}
+				// FIXME: how does one really calculate this?
+				else if (rate<5000000)
+					rate+=500000;
+				else if(rate<10000000)
+					rate+=1000000;
+				else if(rate<30000000)
+					rate+=2000000;
+				else
+					return -EINVAL;
+				
+				if(copy_to_user(parg, &rate, sizeof(rate)))
+					return -EFAULT;
+				break;
+			}
+			case FE_GET_FRONTEND:
+			{
+				if(copy_to_user(parg, &dvb->frontend->param,
+						sizeof(FrontendParameters)))
+					return -EFAULT;
+				break;
+			}
+			case FE_SET_FRONTEND:
+			{
+				FrontendParameters para;
+				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+					return -EPERM;
+				if(copy_from_user(&para, parg, sizeof(para)))
+					return -EFAULT;
+				if (dvb->frontend->type==DVB_S && para.u.qpsk.FEC_inner>FEC_NONE)
+					return -EINVAL;
+				if (dvb->frontend->type==DVB_C && para.u.qam.FEC_inner>FEC_NONE)
+					return -EINVAL;
+				else if (dvb->frontend->type==DVB_T && (para.u.ofdm.Constellation!=QPSK &&
+						para.u.ofdm.Constellation!=QAM_16 && para.u.ofdm.Constellation!=QAM_64))
+					return -EINVAL;
+				
+				if (para.Frequency>20000000)		// if >20Ghz, divide by 1000
+					para.Frequency/=1000;
 
+				dvb_frontend_tune(dvb->frontend, &para);
+				return 0;
+			}
+			case FE_GET_EVENT:
+			{
+				FrontendEvent event;
+				int ret;
+				ret=dvb_frontend_get_event(dvb->frontend, &event,
+					file->f_flags&O_NONBLOCK);
+				if (ret<0)
+					return ret;
+				if(copy_to_user(parg, &event, sizeof(event)))
+					return -EFAULT;
+				break;
+			}
+			case FE_GET_INFO:
+			{
+				FrontendInfo feinfo;
+				switch (dvb->frontend->type) {
+				case DVB_S:
+					feinfo.type=FE_QPSK;
+					feinfo.minFrequency=500;  //KHz?
+					feinfo.maxFrequency=2700000;
+					break;
+				case DVB_C:
+					feinfo.type=FE_QAM;
+					feinfo.minFrequency=40000000;
+					feinfo.maxFrequency=870000000;
+					break;
+				case DVB_T:
+					feinfo.type=FE_OFDM;
+					feinfo.minFrequency=470000000;
+					feinfo.maxFrequency=860000000;
+					break;
+				}
+				feinfo.minSymbolRate=500000;
+				feinfo.maxSymbolRate=30000000;
+				feinfo.hwType=0;    //??
+				feinfo.hwVersion=0;
+				if(copy_to_user(parg, &feinfo, sizeof(feinfo)))
+					return -EFAULT;
+				break;
+			}
+			default:
+				return -ENOIOCTLCMD;
+			}
 			return 0;
 		}
 		case DVB_DEVICE_SEC:
 		{
-			if (!dvb->demod->set_sec)
-				return -ENOENT;
-
-			switch(cmd)
+			if (!dvb->frontend)
 			{
-				case SEC_GET_STATUS:
-				{
-					struct secStatus status;
-					int ret;
-
-					if ((file->f_flags&O_ACCMODE)==O_WRONLY)
-						return -EPERM;
-					if (!dvb->demod->sec_status)
-						return -ENOSYS;
-
-					ret=dvb->demod->sec_status();
-					if (ret == 0)
-						status.busMode=SEC_BUS_IDLE;
-					else if (ret == -1)
-						status.busMode=SEC_BUS_OVERLOAD;
-					else if (ret == -2)
-						status.busMode=SEC_BUS_BUSY;
-					else if ((dvb->front.power == SEC_VOLTAGE_OFF) || (dvb->front.power == SEC_VOLTAGE_LT))
-						status.busMode=SEC_BUS_OFF;
-	
-					status.selVolt=dvb->front.volt;
-					status.contTone=dvb->front.ttk;
-					if(copy_to_user(parg,&status, sizeof(status)))
-						return -EFAULT;
-					break;
-				}
-				case SEC_RESET_OVERLOAD:
-				{
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					dvb->front.power=OST_POWER_ON;
-					SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
-					break;
-				}
-				case SEC_SEND_SEQUENCE:
-				{
-					struct secCmdSequence seq;
-
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					if(copy_from_user(&seq, parg, sizeof(seq)))
-						return -EFAULT;
-					return secSendSequence(dvb, &seq);
-		 		}
-				case SEC_SET_TONE:
-				{
-					secToneMode mode = (secToneMode) arg;
-
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					return secSetTone(dvb,mode);
-				}
-				case SEC_SET_VOLTAGE:
-				{
-					secVoltage val = (secVoltage) arg;
-
-					if ((file->f_flags&O_ACCMODE)==O_RDONLY)
-						return -EPERM;
-					return secSetVoltage(dvb,val);
-				}
-				default:
-					return -EOPNOTSUPP;
+				printk("nix frontend.\n");
+				return -ENOENT;
 			}
 
+			if (file->f_flags&O_NONBLOCK)
+				return -EWOULDBLOCK;
+			
+			switch(cmd) {
+			case SEC_GET_STATUS:
+			{
+				if(copy_to_user(parg, &dvb->sec, sizeof(dvb->sec)))
+					return -EFAULT;
+				break;
+			}
+			case SEC_RESET_OVERLOAD:
+			{
+				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+					return -EPERM;
+				break;
+			}
+			case SEC_SEND_SEQUENCE:
+			{
+				struct secCmdSequence seq;
+				if(copy_from_user(&seq, parg, sizeof(seq)))
+					return -EFAULT;
+				
+				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+					return -EPERM;
+				
+				dvb_frontend_stop(dvb->frontend);
+				return secSendSequence(dvb, &seq);
+			}
+			case SEC_SET_TONE:
+			{
+				secToneMode mode = (secToneMode) arg;
+
+				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+					return -EPERM;
+				
+				dvb_frontend_stop(dvb->frontend);
+				return secSetTone(dvb, mode);
+			}
+			case SEC_SET_VOLTAGE:
+			{
+				secVoltage val = (secVoltage) arg;
+				
+				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
+					return -EPERM;
+
+				dvb_frontend_stop(dvb->frontend);
+				return secSetVoltage(dvb, val);
+			}
+			default:
+				return -EINVAL;
+			}
 			return 0;
 		}
 		case DVB_DEVICE_DEMUX:
@@ -1552,29 +1256,6 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		case DVB_DEVICE_OSTKBD:
 		{
 		}
-		case DVB_DEVICE_OSD:
-		{
-			switch (cmd)
-			{
-				case OSD_SEND_CMD:
-				{
-					osd_cmd_t doc;
-
-					if(copy_from_user(&doc, parg, sizeof(osd_cmd_t)))
-					{
-						return -EFAULT;
-					}
-
-					return OSD_DrawCommand(dvb, &doc);
-                }
-                default:
-				{
-                        return -EINVAL;
-                }
-			}
-
-			return 0;
-		}
 		case DVB_DEVICE_NET:
 		{
 			if (!dvb->dvb_net)
@@ -1623,15 +1304,7 @@ unsigned int dvb_poll(struct dvb_device *dvbdev, int type, struct file *file, po
 
 	switch (type) {
 	case DVB_DEVICE_FRONTEND:
-#if 0
-	if (dvb->qpsk.eventw!=dvb->qpsk.eventr)
-		return (POLLIN | POLLRDNORM | POLLPRI);
-
-	poll_wait(file, &dvb->qpsk.eventq, wait);
-	if (dvb->qpsk.eventw!=dvb->qpsk.eventr)
-		 return (POLLIN | POLLRDNORM | POLLPRI);
-#endif
-		return 0;
+		return dvb_frontend_poll(dvb->frontend, file, wait);
 	case DVB_DEVICE_DEMUX:
 		return DmxDevPoll(&dvb->dmxdev, file, wait);
 //	case DVB_DEVICE_VIDEO:
@@ -1646,24 +1319,12 @@ unsigned int dvb_poll(struct dvb_device *dvbdev, int type, struct file *file, po
 
 static int dvb_register(struct dvb_struct *dvb)
 {
-//	int i;
 	int result;
 	struct dvb_device *dvbd=&dvb->dvb_dev;
 
 	dvb->num=0;
 	dvb->dmxdev.demux=0;
 	dvb->dvb_net=0;
-
-//	for (i=0; i<32; i++)
-//		dvb->handle2filter[i]=NULL;
-
-	init_waitqueue_head(&dvb->qpsk.eventq);
-	spin_lock_init (&dvb->qpsk.eventlock);
-	dvb->qpsk.eventw=dvb->qpsk.eventr=0;
-	dvb->qpsk.overflow=0;
-//	dvb->secbusy=0;
-
-	// audiostate
 
 	dvbd->priv=(void *)dvb;
 	dvbd->open=dvb_open;
@@ -1691,11 +1352,12 @@ void dvb_unregister(struct dvb_struct *dvb)
 	return dvb_unregister_device(&dvb->dvb_dev);
 }
 
-int register_demod(struct demod_function_struct *demod)
+int register_frontend(dvb_front_t *frontend)
 {
-	if (!dvb.demod)
+	if (!dvb.frontend)
 	{
-		dvb.demod=demod;
+		dvb.frontend=frontend;
+		printk("registering frontend...\n");
 #ifdef MODULE
 		MOD_INC_USE_COUNT;
 #endif
@@ -1704,11 +1366,12 @@ int register_demod(struct demod_function_struct *demod)
 	return -EEXIST;
 }
 
-int unregister_demod(struct demod_function_struct *demod)
+int unregister_frontend(dvb_front_t *frontend)
 {
-	if (dvb.demod==demod)
+	if (dvb.frontend==frontend)
 	{
-		dvb.demod=0;
+		dvb_frontend_exit(frontend);
+		dvb.frontend=0;
 #ifdef MODULE
 		MOD_DEC_USE_COUNT;
 #endif
@@ -1798,8 +1461,8 @@ void __exit dvb_cleanup_module (void)
 
 module_init ( dvb_init_module );
 module_exit ( dvb_cleanup_module );
-EXPORT_SYMBOL(register_demod);
-EXPORT_SYMBOL(unregister_demod);
+EXPORT_SYMBOL(register_frontend);
+EXPORT_SYMBOL(unregister_frontend);
 EXPORT_SYMBOL(register_demux);
 EXPORT_SYMBOL(unregister_demux);
 EXPORT_SYMBOL(register_dvbnet);

@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS    = demux.o dvbdev.o dvb.o dmxdev.o dvb_net.o
+M_OBJS    = demux.o dvbdev.o dvb.o dmxdev.o dvb_net.o dvb_frontend.o
 TEST_APPZ = test_audio test_av test_dmx test_front test_video
 
 

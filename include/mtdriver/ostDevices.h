@@ -23,7 +23,7 @@
  * \brief Default major numbers and device names for OST-specific
  * device drivers.
  *
- * \version $Id: ostDevices.h,v 1.1 2001/05/25 23:17:44 gillem Exp $
+ * \version $Id: ostDevices.h,v 1.2 2002/01/22 22:35:26 tmbinc Exp $
  *
  * \date <Add date>
  *
@@ -46,7 +46,7 @@ extern "C" {
  *      OST
  */
 
-/* $Id: ostDevices.h,v 1.1 2001/05/25 23:17:44 gillem Exp $ */
+/* $Id: ostDevices.h,v 1.2 2002/01/22 22:35:26 tmbinc Exp $ */
 
 /*
  * Defines and consts
@@ -131,12 +131,14 @@ extern "C" {
 #define DVBCLK_IOCTL1    1
 #define DVBCLK_IOCTL2    2
 
+#if 0
 #define DMX_IOCTL0       3
 #define DMX_IOCTL1       4
 #define DMX_IOCTL2       5
 #define DMX_IOCTL3       6
 #define DMX_IOCTL4       7
 #define DMX_IOCTL5       8
+#endif 
 
 #define DVBFE_IOCTL0     9
 #define DVBFE_IOCTL1     10
@@ -246,7 +248,7 @@ extern "C" {
 
 #define SEC_IOCTL3       98
 #define SEC_IOCTL4       99
-
+#if 0
 #define DMX_IOCTL6       100
 #define DMX_IOCTL7       101
 #define DMX_IOCTL8       102
@@ -299,7 +301,7 @@ extern "C" {
 #define FPRTC_IOCTL2     144
 #define FPRTC_IOCTL3     145
 
-
+#endif
 /* A command that DVB side devices could implement (callSync) to report their version. */
 #define DVB_DEV_VER      32767
 
