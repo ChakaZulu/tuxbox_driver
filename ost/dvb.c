@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.49 2001/09/19 21:23:36 TripleDES Exp $
+ * $Id: dvb.c,v 1.50 2001/10/16 19:17:28 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -1107,7 +1107,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    avia_command(SelectStream,2,0x1FFF);
 					    avia_command(SelectStream,3,0);
 					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
-					    //wDR(0x468,0xFFFF);
+					    wDR(0x468,0xFFFF);
 					    
 					    break;
 					case 0:
@@ -1115,7 +1115,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    avia_command(SelectStream,3,0x1FFF);
 					    avia_command(SelectStream,2,0);
 					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
-					    //wDR(0x468,0xFFFF);
+					    wDR(0x468,0xFFFF);
 					    
 					    break;
 				    }
