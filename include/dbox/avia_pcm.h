@@ -30,7 +30,11 @@ typedef struct {
 
     char *name;
     int (*play_buffer)(void *buffer, unsigned int buffer_size, unsigned char block);
-    int (*set_mode)(unsigned short rate, unsigned char width, unsigned char channels, unsigned char signed_samples);
+    int (*set_rate)(unsigned short rate);
+    int (*set_width)(unsigned char width);
+    int (*set_channels)(unsigned char channels);
+    int (*set_signed)(unsigned char signed_samples);
+    int (*set_endian)(unsigned char be);
     void (*set_mpeg_attenuation)(unsigned char left, unsigned char right);
     void (*set_pcm_attenuation)(unsigned char left, unsigned char right);
     void (*stop)(void);
