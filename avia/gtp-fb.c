@@ -21,13 +21,16 @@
  *
  *
  *   $Log: gtp-fb.c,v $
+ *   Revision 1.2  2001/04/19 23:32:27  Jolt
+ *   Merge Part II
+ *
  *   Revision 1.1  2001/04/17 22:57:34  Jolt
  *   Merged framebuffer
  *
- *   Revision 1.0  2001/03/23 08:00:30  Jolt
+ *   Revision 1.0  2001/04/17 08:00:30  Jolt
  *   - initial import
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -52,6 +55,7 @@
 #include <video/fbcon.h>
 #include <video/fbcon-cfb16.h>
 
+#include "gtp-core.h"
 #include "gtp-fb.h"
 
 #define RES_X           720
@@ -78,9 +82,8 @@ struct gtp_fb_info
 {
   struct fb_info_gen gen;
 
-  void *videobase;
+  sGtpDev gtp_dev;
   u32 videosize;
-  void *pvideobase;
 };
 
 struct gtp_fb_par
@@ -152,9 +155,9 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
     fix->visual=FB_VISUAL_TRUECOLOR;
 
   fix->line_length=par->stride;
-  fix->smem_start=(unsigned long)fb_info.pvideobase;
+  fix->smem_start=(unsigned long)fb_info.gtp_dev.fb_mem_phys;
   fix->smem_len=1024*1024;                            // fix->line_length*par->yres;
-  fix->mmio_start=(unsigned long)fb_info.pvideobase;  // gtxmem;
+  fix->mmio_start=(unsigned long)fb_info.gtp_dev.fb_mem_lin; 
   fix->mmio_len=0x410000;
   
   fix->xpanstep=0;
@@ -293,7 +296,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
   struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
 
-  gtp_fb_set_param(par->pal, par->bpp, par->lowres, par->interlaced, par->xres, par->yres, par->stride);
+  fb_info.gtp_dev.fb_param_set(par->pal, par->bpp, par->lowres, par->interlaced, par->xres, par->yres, par->stride);
   
   current_par = *par;
   current_par_valid=1;
@@ -308,7 +311,7 @@ static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   if (regno > 255)
     return 1;
 
-  gtp_fb_getcolreg(regno, red, green, blue, transp);
+  fb_info.gtp_dev.fb_clut_get(regno, red, green, blue, transp);
   
   return 0;
   
@@ -326,7 +329,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   blue>>=11;
   transp=!!transp;
   
-  gtp_fb_setcolreg(regno, red, green, blue, transp);
+  fb_info.gtp_dev.fb_clut_set(regno, red, green, blue, transp);
 
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
@@ -348,7 +351,7 @@ static void gtx_set_disp(const void *fb_par, struct display *disp,
 {
   struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
    
-  disp->screen_base=(char*)fb_info.videobase;
+  disp->screen_base=(char*)fb_info.gtp_dev.fb_mem_lin;
   switch (par->bpp)
   {
 #if 1
@@ -404,11 +407,10 @@ static struct fb_ops gtxfb_ops = {
      *  Initialization
      */
 
-int __init gtxfb_init(void)
+int gtp_attach(sGtpDev *gtp_dev)
 {
 
-  fb_info.videobase=gtp_fb_mem_lin();
-  fb_info.pvideobase=gtp_fb_mem_phys();
+  memcpy(&fb_info.gtp_dev, gtp_dev, sizeof(sGtpDev));
 
   fb_info.gen.info.node = -1;
   fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -423,7 +425,7 @@ int __init gtxfb_init(void)
   fb_info.gen.fbhw=&gtx_switch;
   fb_info.gen.fbhw->detect();
 
-  strcpy(fb_info.gen.info.modename, "AViA Framebuffer");
+  strcpy(fb_info.gen.info.modename, "GTP Framebuffer");
 
   fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
   disp.var.activate = FB_ACTIVATE_NOW;
@@ -437,27 +439,44 @@ int __init gtxfb_init(void)
   printk(KERN_INFO "fb%d: %s frame buffer device\n", 
          GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
-#ifdef MODULE
-  atomic_set(&THIS_MODULE->uc.usecount, 1);
-#endif
+
+// Ummm .... :-?
+
+//#ifdef MODULE
+//  atomic_set(&THIS_MODULE->uc.usecount, 1);
+//#endif
+
   return 0;
 }
 
-void gtxfb_close(void)
+void gtp_detach(sGtpDev *gtp_dev)
 {
   unregister_framebuffer((struct fb_info*)&fb_info);
 }
+
+sGtpFb gtp_fb;
+int gtp_fb_nr;
 
 #ifdef MODULE
 
 int init_module(void)
 {
-  return gtxfb_init();
+
+  gtp_fb.name = "GTP Generic Framebuffer";
+  gtp_fb.attach = gtp_attach;
+  gtp_fb.detach = gtp_detach;
+
+  gtp_fb_nr = gtp_fb_register(&gtp_fb);
+
+  return (gtp_fb_nr <= 0);
+  
 }
+
 void cleanup_module(void)
 {
-  gtxfb_close();
+
+  gtp_fb_release(gtp_fb_nr);
+
 }
-EXPORT_SYMBOL(cleanup_module);
 
 #endif
