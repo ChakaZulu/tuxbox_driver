@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.91  2002/07/08 15:12:47  wjoost
+ *
+ *   ein paar nicht benutzte Felder initialisiert (wie in avia_gt_napi.c 1.88)
+ *
  *   Revision 1.90  2002/07/07 16:55:42  wjoost
  *
  *   Meine Sagem hustet mir sonst was :-(
@@ -71,7 +75,7 @@
  *
  *
  *
- *   $Revision: 1.90 $
+ *   $Revision: 1.91 $
  *
  */
 
@@ -382,10 +386,12 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 	e.fork = !!fork;
 	e.CW_offset = cw_offset;
 	e.CC = cc;
+	e._PSH = 0;
 	e.start_up = !!start_up;
-	e.PEC = pec;
+	e.PEC = !!pec;
 	e.filt_tab_idx = filt_tab_idx;
 	e.no_of_filter = no_of_filter;
+	e.State = 0;
 
 	*((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]) = *((u32 *) &e);
 
@@ -407,6 +413,7 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 
 	e.wait_pusi = wait_pusi;
 	e.VALID = !!valid;			// 0 = VALID, 1 = INVALID
+	e.Reserved1 = 0;
 	e.PID = pid;
 	*((u16 *) &risc_mem_map->PID_Search_Table[entry]) = *((u16 *) &e);
 	
@@ -803,7 +810,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.90 2002/07/07 16:55:42 wjoost Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.91 2002/07/08 15:12:47 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
