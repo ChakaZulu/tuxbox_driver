@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.27  2001/03/16 19:50:28  gillem
+ *   - fix section parser
+ *
  *   Revision 1.26  2001/03/16 17:49:56  gillem
  *   - fix section parser
  *
@@ -79,7 +82,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 
@@ -488,6 +491,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
   if (!gtxfeed->sec_recv)
 	{
+		gtxfeed->sec_len=gtxfeed->sec_recv=0;
     return;
 	}
 
@@ -497,18 +501,18 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
     for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
 		{
-      if ((gtxfeed->sec_buffer[0]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i])
+      if ( !((gtxfeed->sec_buffer[0]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i]) )
 			{
         ok=0;
 			}
 		}
 
-    if (ok)
+    if (!ok)
 		{
 			if ( crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0 )
 	      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
 			else
-				printk("gtx_dmx: CRC Problem !!!\n");
+				dprintk("gtx_dmx: CRC Problem !!!\n");
 		}
   }
 
