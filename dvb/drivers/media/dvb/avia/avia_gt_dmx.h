@@ -212,6 +212,7 @@ int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what);
 int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_filters, void *v_secfilter);
 int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id);
 int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[], u8 param[], u8 not_flag, u8 not_flag_ver_id_byte);
+void avia_gt_dmx_system_queue_set_pointer(u8 queue_nr, u32 read_pos, u32 write_pos);
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void);
 void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry);
 int avia_gt_dmx_init(void);
