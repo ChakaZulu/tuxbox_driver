@@ -1,3 +1,34 @@
+/*
+ *   fp.c - FP driver (dbox-II-project)
+ *
+ *   Homepage: http://dbox2.elxsi.de
+ *
+ *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.7  2001/02/22 14:29:06  gillem
+ *   - change interrupt stuff (use 2.4.2 kernel patch)
+ *
+ *
+ *   $Revision: 1.7 $
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -295,7 +326,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
   new_client->id=fp_id++;
   if ((err=i2c_attach_client(new_client)))
     goto ERROR3;
-  if (request_8xxirq(FP_INTERRUPT, fp_interrupt, 0, "fp", data) != 0)
+  if (request_8xxirq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
     panic("Could not allocate FP IRQ!");
   printk("attached fp @%02x\n", address>>1);
   return 0;
@@ -398,8 +429,8 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
   immap_t *immap=(immap_t*)IMAP_ADDR;
   immap->im_ioport.iop_padat|=2;
-//  schedule_task(&fp_tasklet);
-  fp_task(0);
+  schedule_task(&fp_tasklet);
+//  fp_task(0);
   return ;
 }
 
@@ -541,6 +572,7 @@ static void fp_task(void *arg)
   immap_t *immap=(immap_t*)IMAP_ADDR;
   fp_check_queues();
   immap->im_ioport.iop_padat&=~2;
+  enable_irq(FP_INTERRUPT);
 }
 
 int fp_send_diseqc(u32 dw)
