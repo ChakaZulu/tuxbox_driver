@@ -618,11 +618,9 @@ int dvb_frontend_open (struct inode *inode, struct file *file)
 
 		/*  empty event queue */
 		fe->events.eventr = fe->events.eventw;
-	
-		return ret;
 	}
-	else
-		return 0;
+
+	return ret;
 }
 
 
@@ -634,13 +632,10 @@ int dvb_frontend_release (struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
+	if (!((file->f_flags & O_ACCMODE) == O_RDONLY))
 		fe->release_jiffies = jiffies;
 
-		return dvb_generic_release (inode, file);
-	}
-	else
-		return 0;
+	return dvb_generic_release (inode, file);
 }
 
 
