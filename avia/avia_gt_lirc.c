@@ -31,6 +31,8 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/list.h>
+#include <linux/poll.h>
+#include <linux/random.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -66,21 +68,21 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 
 		case LIRC_GET_FEATURES:
 
-			result = put_user(/*LIRC_CAN_REC_MODE2 |*/ LIRC_CAN_SEND_PULSE | LIRC_CAN_SET_SEND_CARRIER | LIRC_CAN_SET_SEND_DUTY_CYCLE, (unsigned long *)arg);
+			result = put_user(LIRC_CAN_REC_MODE2 | LIRC_CAN_SEND_PULSE | LIRC_CAN_SET_SEND_CARRIER | LIRC_CAN_SET_SEND_DUTY_CYCLE, (unsigned long *)arg);
 
 			if (result)
 				return result;
 
 		break;
 
-/*		case LIRC_GET_REC_MODE:
+		case LIRC_GET_REC_MODE:
 
 			result = put_user(LIRC_MODE_MODE2, (unsigned long *)arg);
 
 			if (result)
 				return result;
 
-		break;*/
+		break;
 
 		case LIRC_GET_SEND_MODE:
 
@@ -91,7 +93,7 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 
 		break;
 
-/*		case LIRC_SET_REC_MODE:
+		case LIRC_SET_REC_MODE:
 
 			result = get_user(value, (unsigned long *)arg);
 
@@ -101,7 +103,7 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 			if (value != LIRC_MODE_MODE2)
 				return -EINVAL;
 
-		break;*/
+		break;
 
 		case LIRC_SET_SEND_CARRIER:
 
@@ -149,10 +151,130 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 
 }
 
+u8 got_pulse = 0;
+
+static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
+{
+
+	if ((avia_gt_ir_get_rx_buffer_read_position() == avia_gt_ir_get_rx_buffer_write_position()) && (!got_pulse))
+		poll_wait(file, avia_gt_ir_receive_data(), wait);
+
+	if ((avia_gt_ir_get_rx_buffer_read_position() != avia_gt_ir_get_rx_buffer_write_position()) || (got_pulse))
+		return (POLLIN | POLLRDNORM);
+	else
+		return 0;
+
+}
+					
+u32 pulse_len;
+u8 got_next = 0;
+u32 next_high;
+u32 next_low;
+
 static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, loff_t *f_pos)
 {
 
-	return count;
+	u32 period_high;
+	u32 period_low;
+//	u32 rand_val;
+	int result;
+	u32 done = 0;
+	lirc_t *rx_buffer = (lirc_t *)buf;
+
+	if (count % sizeof(lirc_t))
+		return -EINVAL;
+
+	while ((done * sizeof(lirc_t)) < count) {
+	
+		if (got_pulse) {
+		
+			rx_buffer[done] = pulse_len | PULSE_BIT;
+		
+			got_pulse = 0;
+
+		} else {
+
+/*			if (got_next) {
+			
+				period_low = next_low;
+				period_high = next_high;
+				
+				got_next = 0;
+			
+			} else {*/
+			
+				if ((result = avia_gt_ir_receive_pulse(&period_low, &period_high, !(file->f_flags & O_NONBLOCK))))
+					return result;
+					
+//			}
+
+/*			if ((period_high > 350) && (period_high < 750))
+				period_high = 562;
+
+			if ((period_high > 8000) && (period_high < 10000))
+				period_high = 9000;
+
+			if ((period_low > 350) && (period_low < 750))
+				period_low = 562;
+
+			if ((period_low > 1400) && (period_low < 1900))
+				period_low = 1687;
+
+			if ((period_low > 1900) && (period_low < 2500))
+				period_low = 2250;
+
+			if ((period_low > 3500) && (period_low < 5500))
+				period_low = 4500;
+*/			
+/*			if (period_low > 16000) {
+			
+				get_random_bytes(&rand_val, sizeof(rand_val));
+				//period_low = rand_val * 100 + 150000;
+				//period_low = 120000;
+				
+				if (avia_gt_ir_get_rx_read_position() == avia_gt_ir_get_rx_buffer_position())
+					udelay(7500);
+				
+				if (avia_gt_ir_get_rx_read_position() != avia_gt_ir_get_rx_buffer_position()) {
+
+					if ((result = avia_gt_ir_receive_pulse(&next_low, &next_high, 1)))
+						return result;
+					
+					got_next = 1;
+				
+				//	if ((next_low > 1500) && (next_low < 3000))
+				//		period_low = 95000 + ((jiffies << 3) & 0xFFF);
+
+				//	if ((next_low > 3000) && (next_low < 5500))
+				//		period_low = 600000 + ((jiffies << 2) & 0xFFFF);
+						
+				} else {
+				
+					printk("avia_gt_lirc: Sigh!\n");
+					
+				}
+				
+			}*/
+
+			got_pulse = 1;
+			
+			if (period_high & ~PULSE_MASK)
+				pulse_len = PULSE_MASK;
+			else
+				pulse_len = period_high;
+
+			if (period_low & ~PULSE_MASK)
+				rx_buffer[done] = PULSE_MASK;
+			else
+				rx_buffer[done] = period_low;
+
+		}
+
+		done++;
+
+	}
+
+	return (done * sizeof(lirc_t));
 
 }
 
@@ -162,7 +284,7 @@ static ssize_t avia_gt_lirc_write(struct file *file, const char *buf, size_t cou
 	u32 pulse_count;
 	u32 pulse_nr;
 	int result;
-
+	
 	if (count % sizeof(lirc_t))
 		return -EINVAL;
 
@@ -189,6 +311,7 @@ static struct file_operations avia_gt_lirc_fops = {
 
 	owner:	THIS_MODULE,
 	ioctl:	avia_gt_lirc_ioctl,
+	poll:	avia_gt_lirc_poll,
 	read:	avia_gt_lirc_read,
 	write:	avia_gt_lirc_write,
 
@@ -197,7 +320,7 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.2 2002/05/11 21:09:26 obi Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.3 2002/05/20 21:09:11 Jolt Exp $\n");
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 

@@ -45,17 +45,36 @@
 
 typedef struct {
 
-	u8 MSPR;
-	u8 MSPL;
+	u8 RTH;
+	u8 RTC;
+
+} sAviaGtRxIrPulse;
+
+typedef struct {
+
+	u32 low;
+	u32 high;
 
 } sAviaGtIrPulse;
 
-extern int avia_gt_ir_queue_pulse(unsigned short period_high, unsigned short period_low, u8 block);
+typedef struct {
+
+	u8 MSPR;
+	u8 MSPL;
+
+} sAviaGtTxIrPulse;
+
+extern u32 avia_gt_ir_get_rx_buffer_read_position(void);
+extern u32 avia_gt_ir_get_rx_buffer_write_position(void);
+extern int avia_gt_ir_queue_pulse(u32 period_high, u32 period_low, u8 block);
+extern wait_queue_head_t *avia_gt_ir_receive_data(void);
+extern int avia_gt_ir_receive_pulse(u32 *period_low, u32 *period_high, u8 block);
 extern int avia_gt_ir_send_buffer(u8 block);
-extern int avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low, u8 block);
+extern int avia_gt_ir_send_pulse(u32 period_high, u32 period_low, u8 block);
 extern void avia_gt_ir_set_duty_cycle(u32 new_duty_cycle);
 extern void avia_gt_ir_set_frequency(u32 new_frequency);
 extern int avia_gt_ir_init(void);
 extern void avia_gt_ir_exit(void);
 	    
 #endif
+	    
