@@ -1,3 +1,43 @@
+/*
+ *   gtx-core.c - AViA GTX framebuffer driver (dbox-II-project)
+ *
+ *   Homepage: http://dbox2.elxsi.de
+ *
+ *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: gtx-fb.c,v $
+ *   Revision 1.7  2001/01/31 17:17:46  tmbinc
+ *   Cleaned up avia drivers. - tmb
+ *
+ *   $Revision: 1.7 $
+ *
+ */
+
+ /*
+    This framebuffer device is somehow incomplete and buggy.
+    It just supports one resolution (RES_XxRES_Y, currently
+    720x576) and one color depth (16bpp), althought the GTX
+    is able to support 4bpp and 8bpp as well.
+    
+    There were attempts to rewrite this driver, but i don't
+    know the state of this work.
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -51,10 +91,9 @@ static void InitGraphics(int pal)
   VCR_SET_HP(2);
   VCR_SET_FP(0);
   GVP_SET_COORD(127,43);
-//  GVS_SET_XSZ(740);
-//  GVS_SET_YSZ(622);
-
-
+/*  GVS_SET_XSZ(740);
+  GVS_SET_YSZ(622);
+*/
   rw(VBR)=0;                       // disable background..
 }
 
@@ -238,7 +277,7 @@ static void gtx_set_disp(const void *par, struct display *disp,
   disp->dispsw = &fbcon_cfb16;
   disp->dispsw_data = fbcon_cmap.cfb16;
 #else
-  #error you unrule.
+  #error Please select FBCON_HAS_CFB16 in kernel config.
 #endif
 }
 

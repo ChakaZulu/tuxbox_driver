@@ -1,3 +1,43 @@
+/*
+ *   gtx-core.c - AViA GTX demux driver (dbox-II-project)
+ *
+ *   Homepage: http://dbox2.elxsi.de
+ *
+ *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: gtx-dmx.c,v $
+ *   Revision 1.8  2001/01/31 17:17:46  tmbinc
+ *   Cleaned up avia drivers. - tmb
+ *
+ *   $Revision: 1.8 $
+ *
+ */
+
+/*
+    this driver implements the Nokia-DVB-Api (Kernel level Demux driver),
+    but it isn't yet complete.
+    
+    It does not yet support section filtering and descrambling (and some
+    minor features as well).
+    
+    writing isn't supported, either.
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -22,15 +62,12 @@
 #include "dbox/gtx-dmx.h"
 #include "dbox/avia.h"
 
-// #define DF printk("%s\n", __FUNCTION__);
-#define DF
-
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("GTX DMX Driver");
+MODULE_DESCRIPTION("Avia GTX demux driver");
 #endif
 
 static u32 gtx_get_queue_wptr(int queue);
@@ -211,14 +248,14 @@ static void gtx_set_pcr(Pcr_t pcr)
 static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
 {
   s32 delta;
-  delta = (s32) clk1.hi;
-  delta -= (s32) clk2.hi;
-  delta *= (s32) 2;
-  delta += (s32)((clk1.lo >> 15) & 1);
-  delta -= (s32)((clk2.lo >> 15) & 1);
-  delta *= (s32) 300;
-  delta += (s32)(clk1.lo & 0x1FF);
-  delta -= (s32)(clk2.lo & 0x1FF);
+  delta=(s32)clk1.hi;
+  delta-=(s32)clk2.hi;
+  delta*=(s32)2;
+  delta+=(s32)((clk1.lo>>15)&1);
+  delta-=(s32)((clk2.lo>>15)&1);
+  delta*=(s32)300;
+  delta+=(s32)(clk1.lo & 0x1FF);
+  delta-=(s32)(clk2.lo & 0x1FF);
   return delta;
 }
 
@@ -256,12 +293,13 @@ static void gtx_pcr_interrupt(int b, int r)
     oldClk=currentClk;
     discont=0;
     large_delta_count=0;
-    printk("we have a discont:\n");
-    printk("write stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);      // wieso LATCHED CLOCK?
+    printk(KERN_DEBUG "we have a discont:\n");
+    printk(KERN_DEBUG "new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
     gtx_set_pcr(TPpcr);
-    avia_set_pcr(TPpcr.hi-100, TPpcr.lo);
+    avia_set_pcr(TPpcr.hi, TPpcr.lo);
     return;
   }
+
   elapsedTime=latchedClk.hi-oldClk.hi;
   if (elapsedTime > TIME_HI_THRESHOLD)
   {
@@ -304,7 +342,7 @@ WE_HAVE_DISCONTINUITY:
   
 }
 
-void gtx_dmx_set_time_source(int pid)
+static void gtx_dmx_set_pcr_source(int pid)
 {
   rh(PCRPID)=(1<<13)|pid;
   rh(FCR)|=0x100;               // force discontinuity
@@ -315,7 +353,7 @@ void gtx_dmx_set_time_source(int pid)
 
 int gtx_dmx_init(void)
 {
-  printk("gtx_dmx: ");
+  printk(KERN_DEBUG "gtx_dmx: \n");
   gtxmem=gtx_get_mem();
   gtxreg=gtx_get_reg();
 
@@ -330,7 +368,7 @@ int gtx_dmx_init(void)
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
  
-  printk("AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
+  printk(KERN_DEBUG "AVI: %04x %04x\n", rh(AVI), rh(AVI+2));
 
   return 0;
 }
@@ -398,7 +436,6 @@ static void gtx_task(void *data)
 static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_t *gtx)
 {
   int i;
-  DF
   for (i=0; i<32; i++)
     if (gtx->filter[i].state==DMX_STATE_FREE)
       break;
@@ -411,7 +448,6 @@ static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_t *gtx)
 static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 {
   int i;
-  DF
   
   switch (type)
   {
@@ -431,7 +467,7 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
     for (i=USER_QUEUE_START; i<LAST_USER_QUEUE; i++)
       if (gtx->feed[i].state==DMX_STATE_FREE)
         break;
-                // evtl. system-queue nehmen wenn nix anderes mehr da ist.. 
+                // TODO: evtl. system-queue nehmen wenn nix anderes mehr da ist.. 
     if (i==LAST_USER_QUEUE)
       return 0;
     break;
@@ -440,14 +476,13 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
   if (gtx->feed[i].state!=DMX_STATE_FREE)
     return 0;
   gtx->feed[i].state=DMX_STATE_ALLOCATED;
-  printk("gtx-dmx: using queue %d for %d\n", i, type);
+  printk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", i, type);
   return &gtx->feed[i];
 }
 
 static int dmx_open(struct dmx_demux_s* demux)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
-  DF
   gtx->users++;
   return 0;
 }
@@ -455,11 +490,10 @@ static int dmx_open(struct dmx_demux_s* demux)
 static int dmx_close (struct dmx_demux_s* demux)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
-  DF
   if (!gtx->users)
     return -ENODEV;
   gtx->users--;
-  printk("dmx close.\n");
+  printk(KERN_DEBUG "dmx close.\n");
   if (!gtx->users)
   {
     int i;
@@ -467,28 +501,26 @@ static int dmx_close (struct dmx_demux_s* demux)
     gtx_tasklet.data=0;
     for (i=0; i<32; i++)
       if (gtx->feed[i].state!=DMX_STATE_FREE)
-        printk("gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
+        printk(KERN_ERR "gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
   }
   return 0;
 }
 
 static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 {
-  DF
-  printk("fatal: dmx_write not yet implemented!\n");
+  printk(KERN_ERR "gtx-dmx: dmx_write not yet implemented!\n");
   return 0;
 }
 
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
-  DF
   printk("SETTING invalid %d, pid %x -> %d (output: %d)\n", filter->invalid, filter->pid, filter->queue, filter->output);
   gtx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
   if (filter->type==GTX_FILTER_PID)
     gtx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec);
   else
-    printk("not yet supported: sections\n");
-///    gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
+    printk(KERN_ERR "not yet supported: sections\n");
+//    gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
 }
 
 static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
@@ -496,27 +528,25 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
   
-  DF
-  
   if (pid>0x1FFF)
     return -EINVAL;
     
   gtxfeed->pid=pid;
 
   filter->pid=pid;
-  printk("filtering pid %d\n", pid);
+  printk(KERN_DEBUG "filtering pid %d\n", pid);
   filter->wait_pusi=0;  // right?
 
-  printk("feed output: %x\n", gtxfeed->output);
+  printk(KERN_DEBUG "feed output: %x\n", gtxfeed->output);
   if (gtxfeed->output&TS_PCR)
   {
-    printk("setting PCR-pid to %x\n", pid);
-    gtx_dmx_set_time_source(pid);
+    printk(KERN_DEBUG "setting PCR-pid to %x\n", pid);
+    gtx_dmx_set_pcr_source(pid);
   }
   if (gtxfeed->pes_type==DMX_TS_PES_VIDEO)
   {
-    printk("assuming PCR_PID == VPID == %04x\n", pid);
-    gtx_dmx_set_time_source(pid);
+    printk(KERN_DEBUG "assuming PCR_PID == VPID == %04x\n", pid);
+    gtx_dmx_set_pcr_source(pid);
   }
 
   filter->type=GTX_FILTER_PID;
@@ -550,8 +580,6 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
   
-  DF
-  
   if (gtxfeed->state!=DMX_STATE_READY)
   {
     printk("feed not DMX_STATE_READY\n");
@@ -570,7 +598,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
   
-  printk("STARTING filtering, pid %d\n", gtxfeed->pid);
+  printk(KERN_DEBUG "STARTING filtering, pid %d\n", gtxfeed->pid);
 
   gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
   gtxfeed->state=DMX_STATE_GO;
@@ -580,7 +608,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 static int dmx_ts_feed_set_type(struct dmx_ts_feed_s* feed, int type, dmx_ts_pes_t pes_type)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-  printk("dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
+  printk(KERN_DEBUG "dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
   return 0;
 }
 
@@ -588,7 +616,6 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
-  DF
   filter->invalid=1;
   dmx_set_filter(gtxfeed->filter);
   
@@ -602,10 +629,9 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   gtx_demux_feed_t *gtxfeed;
-  DF
   if (!(gtxfeed=GtxDmxFeedAlloc(gtx, pes_type)))
   {
-    printk("couldn't get gtx feed\n");
+    printk(KERN_ERR "couldn't get gtx feed\n");
     return -EBUSY;
   }
 
@@ -629,7 +655,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
   {
-    printk("couldn't get gtx filter\n");
+    printk(KERN_ERR "couldn't get gtx filter\n");
     gtxfeed->state=DMX_STATE_FREE;
     return -EBUSY;
   }
@@ -643,7 +669,6 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 static int dmx_release_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t* feed)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-  DF
   if (gtxfeed->state==DMX_STATE_FREE)
     return -EINVAL;
   // buffer.. ne, eher nicht.
@@ -664,6 +689,7 @@ static int dmx_release_pes_feed (struct dmx_demux_s* demux, dmx_pes_feed_t* feed
   return -EINVAL;
 }
 #if 0
+                // Todo: gut, hier kommen section-filter, und die gibts noch nicht.
 static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dmx_section_filter** filter)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
@@ -679,8 +705,6 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
-  
-  DF
   
   if (pid>0x1FFF)
     return -EINVAL;
@@ -707,7 +731,6 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 #if 0
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   gtx_demux_feed_t *gtxfeed;
-  DF
   if (!(gtxfeed=GtxDmxFeedAlloc(gtx, ...)))
   {
     printk("couldn't get gtx feed (for section_feed)\n");
@@ -754,7 +777,6 @@ static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   struct list_head *pos, *head=&gtx->frontend_list;
-  DF
   if (!(frontend->id && frontend->vendor && frontend->model))
     return -EINVAL;
   list_for_each(pos, head)
@@ -770,7 +792,6 @@ static int dmx_remove_frontend (struct dmx_demux_s* demux,  dmx_frontend_t* fron
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   struct list_head *pos, *head=&gtx->frontend_list;
-  DF
   list_for_each(pos, head)
   {
     if (DMX_FE_ENTRY(pos)==frontend)
@@ -785,7 +806,6 @@ static int dmx_remove_frontend (struct dmx_demux_s* demux,  dmx_frontend_t* fron
 static struct list_head* dmx_get_frontends (struct dmx_demux_s* demux)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
-  DF
   if (list_empty(&gtx->frontend_list))
     return 0;
   return &gtx->frontend_list;
@@ -793,7 +813,6 @@ static struct list_head* dmx_get_frontends (struct dmx_demux_s* demux)
 
 static int dmx_connect_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)
 {
-  DF
   if (demux->frontend)
     return -EINVAL;
   demux->frontend=frontend;
@@ -802,7 +821,6 @@ static int dmx_connect_frontend (struct dmx_demux_s* demux, dmx_frontend_t* fron
 
 static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
 {
-  DF
   demux->frontend=0;
   return -EINVAL;
 }
@@ -811,7 +829,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
 {
   dmx_demux_t *dmx=&gtxdemux->dmx;
   int i;
-  DF
   gtxdemux->users=0;
   
   gtxdemux->frontend_list.next=
@@ -827,8 +844,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
   for (i=0; i<NUM_QUEUES; i++)
     rh(QI0+i*2)=0;            // das geht irgendwie nicht :(
 
-  gtx_dmx_set_time_source(0xFF);                // DEBUG
-  
   for (i=0; i<NUM_QUEUES; i++)
   {
     gtxdemux->feed[i].size=64*1024;             // geht atm nicht anders
@@ -894,7 +909,7 @@ int init_module(void)
 
 void cleanup_module(void)
 { 
-  printk("dmx: close\n");
+  printk(KERN_INFO "dmx: close\n");
   gtx_dmx_close();
 }
 

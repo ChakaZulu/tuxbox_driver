@@ -1,5 +1,33 @@
-// #define a500v093 _binary_500v092_bin_start
-// #define a500v093        _binary_500v090_bin_start  
+/*
+ *   avia.c - AViA x00 driver (dbox-II-project)
+ *
+ *   Homepage: http://dbox2.elxsi.de
+ *
+ *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: avia.c,v $
+ *   Revision 1.8  2001/01/31 17:17:46  tmbinc
+ *   Cleaned up avia drivers. - tmb
+ *
+ *   $Revision: 1.8 $
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -17,12 +45,12 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "../fp/fp.h"
+#include "dbox/fp.h"
 #include "dbox/avia.h"
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("Avia x00 Driver");
+MODULE_DESCRIPTION("Avia x00 driver");
 
 void avia_set_pcr(u32 hi, u32 lo);
 
@@ -31,15 +59,10 @@ u32 *microcode;
 int aviarev;
 
 static int dev;
-                                                // der interrupt geht nicht.
-                                                
-                                                // bis der interrupt nicht geht suckt der treiber
-                                                
-                                                // wenn der treiber suckt kann ich da auch nichts machen
-                                                
-                                                // der interrupt geht ja nicht.
+
+                                        // TODO: interrupt geht nicht :(
 #define AVIA_INTERRUPT         SIU_IRQ4
-                                                // FIX DAS MAL WER! :)
+
                 /* finally i got them */
 #define UX_MAGIC                        0x00
 #define UX_NUM_SECTIONS                 0x01
@@ -87,19 +110,11 @@ void avia_wr(int mode, u32 address, u32 data)
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
 
-#define wGB(a, d) avia_wr(TM_GBUS, a, d)
-#define rGB(a) avia_rd(TM_GBUS, a)
-#define wSR(a, d) avia_wr(TM_SRAM, a, d)
-#define rSR(a) avia_rd(TM_SRAM, a)
-#define wDR(a, d) avia_wr(TM_DRAM, a, d)
-#define rDR(a) avia_rd(TM_DRAM, a)
-
 inline void wIM(u32 addr, u32 data)
 {
   wGB(0x36, addr);
   wGB(0x34, data);
 }
-
 
 inline u32 rIM(u32 addr)
 {
@@ -109,11 +124,11 @@ inline u32 rIM(u32 addr)
   return rGB(0x3B);
 }
 
-void InitialGBus(void)
+static void InitialGBus(void)
 {
   unsigned long *ptr=((unsigned long*)microcode)+0x306;
   int words=*ptr--, data, addr;
-  printk("performing %d initial G-bus Writes. (don't panic! ;)\n", words);
+  printk(KERN_DEBUG "performing %d initial G-bus Writes. (don't panic! ;)\n", words);
   while (words--)
   {
     addr=*ptr--;
@@ -122,14 +137,14 @@ void InitialGBus(void)
   }
 }
 
-void FinalGBus(void)
+static void FinalGBus(void)
 {
   unsigned long *ptr=((unsigned long*)microcode)+0x306;
   int words=*ptr--, data, addr;
   *ptr-=words;
   ptr-=words*4;
   words=*ptr--;
-  printk("performing %d final G-bus Writes.\n", words);
+  printk(KERN_DEBUG "performing %d final G-bus Writes.\n", words);
   while (words--)
   {
     addr=*ptr--;
@@ -138,12 +153,12 @@ void FinalGBus(void)
   }
 }
 
-unsigned long endian_swap(unsigned long v)
+inline unsigned long endian_swap(unsigned long v)
 {
   return ((v&0xFF)<<24)|((v&0xFF00)<<8)|((v&0xFF0000)>>8)|((v&0xFF000000)>>24);
 }
 
-void dram_memcpyw(u32 dst, u32 *src, int words)
+static void dram_memcpyw(u32 dst, u32 *src, int words)
 {
   while (words--)
   {
@@ -152,7 +167,7 @@ void dram_memcpyw(u32 dst, u32 *src, int words)
   }
 }
 
-void load_dram_image(u32 section_start)
+static void load_dram_image(u32 section_start)
 {
   u32 dst, *src, words, errors=0;
   words=endian_swap(microcode[section_start+UX_SECTION_LENGTH_OFFSET])/4;
@@ -166,10 +181,10 @@ void load_dram_image(u32 section_start)
     dst+=4;
   }
   if (errors)
-    printk("ERROR: microcode verify: %d errors.\n", errors);
+    printk(KERN_ERR "ERROR: microcode verify: %d errors.\n", errors);
 }
 
-void load_imem_image(u32 data_start)
+static void load_imem_image(u32 data_start)
 {
   u32 *src, i, words, errors=0;
   src=microcode+data_start+UX_SECTION_DATA_IMEM;
@@ -183,15 +198,13 @@ void load_imem_image(u32 data_start)
     if (rGB(0x3B)!=src[i])
       errors++;
   if (errors)
-    printk("ERROR: imem verify: %d errors\n", errors);
+    printk(KERN_ERR "ERROR: imem verify: %d errors\n", errors);
 } 
 
-void LoaduCode(void)
+static void LoaduCode(void)
 {
   int num_sections=endian_swap(microcode[1]);
   int data_offset=3;
-  
-  printk("%d sections in microcode.\n", num_sections);
   
   while (num_sections--)
   {
@@ -220,7 +233,7 @@ u32 avia_command(u32 command, ...)
   u32 stataddr, tries, i;
   va_list ap;
   va_start(ap, command);
-                // TODO: kernel lock (somewhat DRINGEND wenn wir mal irgendwann .. und so weiter)
+                // TODO: kernel lock (DRINGEND)
   tries=100;
   while (!rDR(0x5C)) { udelay(10000); if (! (tries--)) { printk("AVIA timeout.\n"); return -1; } }
   
@@ -334,7 +347,7 @@ int init_module(void)
   load_imem_image(UX_FIRST_SECTION_START+UX_SECTION_DATA_OFFSET);
 
   wDR(0x1A8, 0xA);              // TM_MODE              (nokia) (br: evtl. 0x18, aber das wäre seriell.. eNX?)
-  wDR(0x7C, 0);                 // walter says 3, tries say 1, nokia says 0, br too  ... HSYNC/VSYNC master, BT.656 output
+  wDR(0x7C, 0);                 // (HSYNC/VSYNC master, BT.656 output)
 
   wDR(0xEC, 6);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
 
@@ -342,7 +355,7 @@ int init_module(void)
   wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
 
   wDR(0xE0, 0x70F);
-  wDR(0xF4, 0);                // AUDIO_ATTENUATION (br: 0)
+  wDR(0xF4, 0);                 // AUDIO_ATTENUATION (br: 0)
 
   wDR(0x250, 1);                // DISABLE_OSD: yes (br)
   wDR(0x1B0, 6);                // AV_SYNC_MODE: (NO_SYNC) 6: AV_SYNC
@@ -351,10 +364,10 @@ int init_module(void)
   wDR(0x1C4, 0x1004);           // AUDIO_PTS_SKIP_THRESHOLD_1
   wDR(0x1C8, 0x1004);
   wDR(0x1C0, 0xE10);
-  wDR(0x68, 0);                 // 16Mbit DRAM (nokia) (walter) (br)
+  wDR(0x68, 0);                 // 16Mbit DRAM (nokia) (br)
   wDR(0x6C, 0);                 // (nokia) (br)
   wDR(0x64, 0);
-  if (pal)                      // (br) (walter)
+  if (pal)                      // (br)
     wDR(0x21C, PAL_16MB_WO_ROM_SRAM);
   else
     wDR(0x21C, NTSC_16MB_WO_ROM_SRAM);
@@ -370,7 +383,6 @@ int init_module(void)
   wGB(0, (rGB(0)&~1)|2);  // enable interrupts
                 // ...
 //  wDR(0x200, 0xFFFFFFFF);       // all (aber es kommt nix :)
-                                // TAUSCHE: 50% der cam-interrupts (das sind eh genug) gegen ein paar avia-interrupts ("command fertig" z.b.)
   tries=20;
   
   while ((rDR(0x2A0)!=0x2))
@@ -406,14 +418,6 @@ int init_module(void)
 
   if (avia_wait(avia_command(SetStreamType, 0xB))==-1)             // BR
     return 0;
-
-/*  printk("SelectStream (vid): %x\n", WaitCommand(Command(0x0231, 0xB, 0, 0, 0, 0, 0)));
-  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x0, 0xFFFF, 0, 0, 0, 0)));
-  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x2, 0xFFFF, 0, 0, 0, 0)));
-  printk("SelectStream (aud): %x\n", WaitCommand(Command(0x0231, 0x3, 0xFFFF, 0, 0, 0, 0)));
-*/
-
-  avia_set_pcr(0xFF00, 00);
 
   avia_wait(avia_command(SelectStream, 0, 0xFF));
   avia_wait(avia_command(SelectStream, 2, 0x100));
