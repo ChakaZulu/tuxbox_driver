@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.13  2002/10/01 20:22:59  Jolt
+ *   Cleanups
+ *
  *   Revision 1.12  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -60,7 +63,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -432,6 +435,7 @@ static int init_avia_osd(void)
 	}
 
 	return 0;
+	
 }
 
 /* ---------------------------------------------------------------------- */
@@ -444,7 +448,12 @@ MODULE_PARM(debug,"i");
 MODULE_LICENSE("GPL");
 #endif
 
-int init_module(void)
+#if defined(MODULE) && defined(STANDALONE)
+module_init(avia_av_osd_init);
+module_exit(avia_av_osd_exit);
+#endif
+
+/*int init_module(void)
 {
 	return init_avia_osd();
 }
@@ -457,7 +466,7 @@ void cleanup_module(void)
 	devfs_unregister ( devfs_handle );
 
 	return;
-}
+}*/
 #endif
 
 /* ---------------------------------------------------------------------- */

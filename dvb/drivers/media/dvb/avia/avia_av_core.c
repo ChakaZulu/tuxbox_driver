@@ -1,5 +1,5 @@
 /*
- *   avia.c - AViA x00 driver (dbox-II-project)
+ *   avia_av.c - AViA x00 driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.35  2002/10/01 20:22:59  Jolt
+ *   Cleanups
+ *
  *   Revision 1.34  2002/09/30 19:46:10  Jolt
  *   SPTS support
  *
@@ -158,7 +161,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.34 $
+ *   $Revision: 1.35 $
  *
  */
 
@@ -178,7 +181,6 @@
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#include <linux/proc_fs.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
@@ -187,10 +189,11 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/fp.h"
-#include "dbox/avia.h"
-#include "dbox/info.h"
-#include "dbox/event.h"
+#include <dbox/fp.h>
+#include <dbox/avia.h>
+#include <dbox/avia_av_event.h>
+#include <dbox/avia_av_proc.h>
+#include <dbox/info.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -212,11 +215,9 @@ int aviarev;
 int silirev;
 
 static int dev;
-static int run_cmd;
 
 /* interrupt stuff */
 #define AVIA_INTERRUPT		  SIU_IRQ4
-#define AVIA_CMD_TIMEOUT		350
 
 static spinlock_t avia_lock;
 static spinlock_t avia_register_lock;
@@ -246,41 +247,7 @@ static u16 sample_rate = 44100;
 
 static int avia_delay_sync = -1;
 
-#ifdef CONFIG_PROC_FS
-static int avia_proc_init    (void);
-static int avia_proc_cleanup (void);
-
-static int read_bitstream_settings (char *buf, char **start, off_t offset,
-				    int len, int *eof, void *private);
-static int avia_proc_initialized = 0;
-#else /* undef CONFIG_PROC_FS */
-#define avia_proc_init()
-#define avia_proc_cleanup()
-#endif /* CONFIG_PROC_FS */
-
-/* timer & event stuff */
-#define AVIA_EVENT_TIMER 100	/* max. ~100Hz (not realtime...) */
-
-struct avia_event_reg {
-	u16 hsize;
-	u16 vsize;
-	u16 aratio;
-	u16 frate;
-	u16 brate;
-	u16 vbsize;
-	u16 atype;
-};
-
-static spinlock_t avia_event_lock;
-static struct timer_list avia_event_timer;
-
-static void avia_event_init(void);
-static void avia_event_cleanup(void);
-static void avia_event_func(unsigned long data);
 static void avia_htd_interrupt(void);
-
-static u32 event_delay;
-
 
 static int avia_standby( int state );
 
@@ -288,31 +255,39 @@ static int avia_standby( int state );
 u32
 avia_rd (int mode, int address)
 {
-	int data;
+
+	u32 result;
 
 	spin_lock_irq(&avia_register_lock);
 
 	address   &= 0x3FFFFF;
+	
 	aviamem[6] = ((address >> 16) | mode) & 0xFF;
-	aviamem[5] =  (address >>  8) & 0xFF;
+	aviamem[5] = (address >>  8) & 0xFF;
 	aviamem[4] = address & 0xFF;
-	data       = aviamem[3] << 24;
-	data      |= aviamem[2] << 16;
-	data      |= aviamem[1] <<  8;
-	data      |= aviamem[0];
+	
+	mb();
+	
+	result  = aviamem[3] << 24;
+	result |= aviamem[2] << 16;
+	result |= aviamem[1] << 8;
+	result |= aviamem[0];
 
 	spin_unlock_irq(&avia_register_lock);
 
-	return data;
+	return result;
+	
 }
 
 /* ---------------------------------------------------------------------- */
 void
 avia_wr (int mode, u32 address, u32 data)
 {
+
 	spin_lock_irq(&avia_register_lock);
 
-	address&=0x3FFFFF;
+	address &= 0x3FFFFF;
+	
 	aviamem[6] = ((address >> 16) | mode) & 0xFF;
 	aviamem[5] =  (address >>  8) & 0xFF;
 	aviamem[4] = address & 0xFF;
@@ -322,25 +297,30 @@ avia_wr (int mode, u32 address, u32 data)
 	aviamem[0] = data & 0xFF;
 
 	spin_unlock_irq(&avia_register_lock);
+	
 }
 
 /* ---------------------------------------------------------------------- */
 inline void
 wIM (u32 addr, u32 data)
 {
+
 	wGB (0x36, addr);
 	wGB (0x34, data);
+	
 }
 
 /* ---------------------------------------------------------------------- */
 inline u32
 rIM (u32 addr)
 {
-	wGB (0x3A, 0x0B);
-	wGB (0x3B, addr);
-	wGB (0x3A, 0x0E);
 
-	return rGB (0x3B);
+	wGB(0x3A, 0x0B);
+	wGB(0x3B, addr);
+	wGB(0x3A, 0x0E);
+
+	return rGB(0x3B);
+	
 }
 
 /* ---------------------------------------------------------------------- */
@@ -477,7 +457,7 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 
 	spin_lock(&avia_lock);
 
-	status = rDR (0x2AC);
+	status = rDR(0x2AC);
 
 	/* usr data */
 	if (status & (1 << 12)) {
@@ -621,8 +601,6 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 	
 }
 
-/* ---------------------------------------------------------------------- */
-
 u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 {
 
@@ -644,6 +622,9 @@ u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 	}
 
 	dprintk("SA: 0x%X -> end -> S: 0x%X\n", status_addr, rDR(status_addr));
+	
+	if (rDR(status_addr) == 0x05)
+		printk("avia_av: warning - command @ 0x%X failed\n", status_addr);
 
 	return rDR(status_addr);
 
@@ -652,13 +633,8 @@ u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 static u32 avia_cmd_status_get_addr(void)
 {
 
-	if (wait_event_interruptible(avia_cmd_state_wait, rDR(0x5C))) {
-	
-		printk("sorry timeout in cmd_state ...\n");
-		
-		return 0;
-		
-	}
+	while (!rDR(0x5C))
+		schedule();
 
 	return rDR(0x5C);
 	
@@ -671,7 +647,6 @@ u32 avia_command(u32 command, ...)
 	va_list ap;
 	u32 status_addr;
 	
-	// BUSY ?
 	if (!avia_cmd_status_get_addr()) {
 	
 		printk(KERN_ERR "avia_av: timeout.\n");
@@ -719,8 +694,6 @@ u32 avia_command(u32 command, ...)
 
 }
 
-/* ---------------------------------------------------------------------- */
-
 void avia_set_pcr(u32 hi, u32 lo)
 {
 	u32 data1 = (hi>>16)&0xFFFF;
@@ -740,12 +713,13 @@ void avia_set_pcr(u32 hi, u32 lo)
 	avia_delay_sync=50;
 }
 
-/* ---------------------------------------------------------------------- */
-
 void avia_flush_pcr(void)
 {
+
 	dprintk("CHCH [DECODE] disabling sync\n");
+	
 	wDR(AV_SYNC_MODE, 0);			   // no sync
+	
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1033,8 +1007,6 @@ static int init_avia(void)
 	int						 tries			= (int)0;
 	mm_segment_t	 fs;
 	
-	run_cmd = 0;
-
 	/* remap avia memory */
 	if(!aviamem)
 		aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
@@ -1229,7 +1201,7 @@ static int init_avia(void)
 		return -EIO;
 	}
 
-	avia_event_init();
+	avia_av_event_init();
 
 	avia_command(Abort, 0);
 
@@ -1247,182 +1219,6 @@ static int init_avia(void)
 
 /* ---------------------------------------------------------------------- */
 
-#ifdef CONFIG_PROC_FS
-
-int avia_proc_init(void)
-{
-	struct proc_dir_entry *proc_bus_avia = (struct proc_dir_entry *)NULL;
-
-	avia_proc_initialized = 0;
-
-	if (!proc_bus) {
-		printk("avia_core.o: /proc/bus/ does not exist");
-		avia_proc_cleanup();
-		return -ENOENT;
-	}
-
-	proc_bus_avia = create_proc_entry("bitstream", 0, proc_bus);
-
-	if (!proc_bus_avia) {
-		printk("avia_core.o: Could not create /proc/bus/bitstream");
-		avia_proc_cleanup();
-		return -ENOENT;
-	}
-
-	proc_bus_avia->read_proc = &read_bitstream_settings;
-	proc_bus_avia->owner = THIS_MODULE;
-	avia_proc_initialized += 2;
-	return 0;
-}
-
-/* ----------------------------------------------------
- * The /proc functions
- * ----------------------------------------------------
- */
-
-int read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof,
-		 void *private)
-{
-	int nr = 0;
-
-	nr  = sprintf(buf,"Bitstream Settings:\n");
-	nr += sprintf(buf+nr,"H_SIZE:  %d\n",rDR(H_SIZE)&0xFFFF);
-	nr += sprintf(buf+nr,"V_SIZE:  %d\n",rDR(V_SIZE)&0xFFFF);
-	nr += sprintf(buf+nr,"A_RATIO: %d\n",rDR(ASPECT_RATIO)&0xFFFF);
-	nr += sprintf(buf+nr,"F_RATE:  %d\n",rDR(FRAME_RATE)&0xFFFF);
-	nr += sprintf(buf+nr,"B_RATE:  %d\n",rDR(BIT_RATE)&0xFFFF);
-	nr += sprintf(buf+nr,"VB_SIZE: %d\n",rDR(VBV_SIZE)&0xFFFF);
-	nr += sprintf(buf+nr,"A_TYPE:  %d\n",rDR(AUDIO_TYPE)&0xFFFF);
-
-	return nr;
-}
-
-int avia_proc_cleanup(void)
-{
-	if (avia_proc_initialized >= 1)
-	{
-		remove_proc_entry("bitstream", proc_bus);
-		avia_proc_initialized-=2;
-	}
-
-	return 0;
-}
-
-#endif /* def CONFIG_PROC_FS */
-
-/* ---------------------------------------------------------------------- */
-
-void avia_event_init()
-{
-	char * p = (char *)NULL;
-
-	spin_lock_irq(&avia_event_lock);
-
-	event_delay = 0;
-
-	p = kmalloc ( sizeof(struct avia_event_reg), GFP_KERNEL );
-
-	if (p)
-	{
-		init_timer(&avia_event_timer);
-
-		avia_event_timer.function = avia_event_func;
-		avia_event_timer.expires  = jiffies + HZ/AVIA_EVENT_TIMER + 2*HZ/100;
-		avia_event_timer.data     = (unsigned long)p;
-
-		add_timer(&avia_event_timer);
-	}
-	// else -ENOMEM
-
-	spin_unlock_irq(&avia_event_lock);
-}
-
-void avia_event_cleanup()
-{
-	spin_lock_irq(&avia_event_lock);
-
-	if (avia_event_timer.data)
-	{
-		kfree((char*)avia_event_timer.data);
-		avia_event_timer.data = 0;
-	}
-
-	del_timer(&avia_event_timer);
-
-	spin_unlock_irq(&avia_event_lock);
-}
-
-void avia_event_func(unsigned long data)
-{
-	struct avia_event_reg	*reg		= (struct avia_event_reg *)NULL; 
-
-	spin_lock_irq(&avia_event_lock);
-
-    if (rDR(0x5C))
-		wake_up_interruptible(&avia_cmd_state_wait);
-
-	// TODO: optimize
-	if((++event_delay)==30)
-	{
-		event_delay = 0;
-
-		reg = (struct avia_event_reg *)data;
-
-		if(reg)
-		{
-			if ( ( (rDR(H_SIZE)&0xFFFF) != reg->hsize ) ||
-			     ( (rDR(V_SIZE)&0xFFFF) != reg->vsize ) )
-			{
-				struct event_t				 event;
-
-				reg->hsize = (rDR(H_SIZE)&0xFFFF);
-				reg->vsize = (rDR(V_SIZE)&0xFFFF);
-
-				memset(&event,0,sizeof(event_t));
-				event.event = EVENT_VHSIZE_CHANGE;
-				event_write_message( &event, 1 );
-			}
-
-			if ( (rDR(ASPECT_RATIO)&0xFFFF) != reg->aratio )
-			{
-				struct event_t				 event;
-
-				reg->aratio = (rDR(ASPECT_RATIO)&0xFFFF);
-
-				memset(&event,0,sizeof(event_t));
-				event.event = EVENT_ARATIO_CHANGE;
-				event_write_message( &event, 1 );
-			}
-
-			if ( (rDR(FRAME_RATE)&0xFFFF) != reg->frate )
-			{
-				reg->frate = (rDR(FRAME_RATE)&0xFFFF);
-			}
-
-			if ( (rDR(BIT_RATE)&0xFFFF) != reg->brate )
-			{
-				reg->brate = (rDR(BIT_RATE)&0xFFFF);
-			}
-
-			if ( (rDR(VBV_SIZE)&0xFFFF) != reg->vbsize )
-			{
-				reg->vbsize = (rDR(VBV_SIZE)&0xFFFF);
-			}
-
-			if ( (rDR(AUDIO_TYPE)&0xFFFF) != reg->atype )
-			{
-				reg->atype = (rDR(AUDIO_TYPE)&0xFFFF);
-			}
-		}
-	}
-
-	mod_timer(&avia_event_timer, jiffies + HZ/AVIA_EVENT_TIMER + 2*HZ/100);
-
-	spin_unlock_irq(&avia_event_lock);
-}
-
-/* ---------------------------------------------------------------------- */
-
 int avia_standby( int state )
 {
 	if (state == 0)
@@ -1434,7 +1230,7 @@ int avia_standby( int state )
 	}
 	else
 	{
-		avia_event_cleanup();
+		avia_av_event_exit();
 
 		/* disable interrupts */
 		wDR(0x200,0);
@@ -1485,31 +1281,29 @@ MODULE_LICENSE("GPL");
 int
 init_module (void)
 {
-	int err = (int)0;
 
-	printk ("AVIA: $Id: avia_av_core.c,v 1.34 2002/09/30 19:46:10 Jolt Exp $\n");
+	int err;
+
+	printk ("avia_av: $Id: avia_av_core.c,v 1.35 2002/10/01 20:22:59 Jolt Exp $\n");
 
 	aviamem = 0;
 
-	if ( !(err=init_avia()) )
-	{
-		avia_proc_init();
-	}
+	if (!(err = init_avia()))
+		avia_av_proc_init();
 
 	return err;
+	
 }
 
 void cleanup_module(void)
 {
-	printk("AVIA: cleanup and standby\n");
 
-	avia_proc_cleanup();
+	avia_av_proc_exit();
 
 	avia_standby(1);
 
 	if (aviamem)
-	{
 		iounmap((void*)aviamem);
-	}
+
 }
 #endif
