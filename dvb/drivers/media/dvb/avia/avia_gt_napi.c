@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.142 $
+ *   $Revision: 1.143 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.143  2002/10/30 18:58:24  Jolt
+ *   First skeleton of the new API
+ *
  *   Revision 1.142  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -473,12 +476,15 @@
 #include <asm/uaccess.h>
 
 #include "../dvb-core/demux.h"
+#include "../dvb-core/dvb_demux.h"
+#include "../dvb-core/dmxdev.h"
 
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_napi.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static struct dvb_demux demux;
 
 //#undef dprintk
 //#define dprintk printk
@@ -550,6 +556,8 @@ extern int unregister_demux(struct dmx_demux_s *demux);
 
 void gtx_dmx_close(void)
 {
+
+	return;
 
 	u8 queue_nr;
 
@@ -2026,9 +2034,12 @@ static void gtx_dmx_set_pcr_pid(int pid)
 
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
-	dmx_demux_t *dmx=&gtxdemux->dmx;
+//	dmx_demux_t *dmx=&gtxdemux->dmx;
+	dmx_demux_t *dmx;
 	int i =(int)0;
 	u8 nullmask[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+return 0;
 
 	gtxdemux->users=0;
 
@@ -2124,6 +2135,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 {
 
+	return 0;
+
 	dmx_demux_t *dmx = &gtxdemux->dmx;
 
 	if ((gtxdemux->feed[MESSAGE_QUEUE].type == DMX_TYPE_MESSAGE) && (gtxdemux->feed[MESSAGE_QUEUE].state == DMX_STATE_GO)) {
@@ -2141,10 +2154,108 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 	
 }
 
+static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, u8 *buf, size_t count)
+{
+
+	printk("avia_gt_napi: write_to_decoder\n");
+
+	return 0;
+
+}
+
+static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
+
+	printk("avia_gt_napi: start_feed\n");
+	
+	if (!dvbdmx->dmx.frontend)
+		return -EINVAL;
+
+	printk("  pid: 0x%04X\n", dvbdmxfeed->pid);
+		
+	switch(dvbdmxfeed->type) {
+	
+		case DMX_TYPE_TS:
+			printk("  type: DMX_TYPE_TS\n");
+			break;
+			
+		case DMX_TYPE_SEC:
+			printk("  type: DMX_TYPE_SEC\n");
+			break;
+			
+		default:
+			printk("  type: unknown (%d)\n", dvbdmxfeed->type);
+			return -EINVAL;
+
+	}
+	
+	printk("  ts_type:");
+
+	if (dvbdmxfeed->ts_type & TS_DECODER)
+		printk(" TS_DECODER");
+	
+	if (dvbdmxfeed->ts_type & TS_PACKET)
+		printk(" TS_PACKET");
+
+	if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
+		printk(" TS_PAYLOAD_ONLY");
+		
+	printk("\n");
+	
+	switch(dvbdmxfeed->pes_type) {
+	
+		case DMX_TS_PES_VIDEO:
+			printk("  pes_type: DMX_TS_PES_VIDEO\n");
+			break;
+			
+		case DMX_TS_PES_AUDIO:
+			printk("  pes_type: DMX_TS_PES_AUDIO\n");
+			break;
+			
+		case DMX_TS_PES_TELETEXT:
+			printk("  pes_type: DMX_TS_PES_TELETEXT\n");
+			break;
+			
+		case DMX_TS_PES_PCR:
+			printk("  pes_type: DMX_TS_PES_PCR\n");
+			break;
+			
+		case DMX_TS_PES_OTHER:
+			printk("  pes_type: DMX_TS_PES_OTHER\n");
+			break;
+			
+		default:
+			printk("  pes_type: unknown (%d)\n", dvbdmxfeed->pes_type);
+			return -EINVAL;
+
+	}
+	
+	return 0;
+
+}
+
+static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	printk("avia_gt_napi: stop_feed\n");
+
+	return 0;
+
+}
+
+struct dvb_demux *avia_gt_napi_get_demux(void)
+{
+
+	return &demux;
+	
+}
+
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.142 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.143 2002/10/30 18:58:24 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -2155,9 +2266,31 @@ int __init avia_gt_napi_init(void)
 		return -EIO;
 
     }
+	
+	memset(&demux, 0, sizeof(demux));
+
+	demux.dmx.vendor = "AViA";
+	demux.dmx.model = "GTX/eNX";
+	demux.dmx.id = "demux0_0";
+	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING;
+
+	demux.priv = NULL;	
+	demux.filternum = 31;
+	demux.feednum = 31;
+	demux.start_feed = avia_gt_napi_start_feed;
+	demux.stop_feed = avia_gt_napi_stop_feed;
+	demux.write_to_decoder = avia_gt_napi_write_to_decoder;
+	
+	if (dvb_dmx_init(&demux)) {
+	
+		printk("avia_gt_napi: dvb_dmx_init failed\n");
+		
+		return -EFAULT;
+		
+	}
 
 	GtxDmxInit(&gtx);
-	register_demux(&gtx.dmx);
+//	register_demux(&gtx.dmx);
 
 	return 0;
 
@@ -2167,6 +2300,8 @@ void __exit avia_gt_napi_exit(void)
 {
 
 	gtx_dmx_close();
+
+	dvb_dmx_release(&demux);
 
 }
 
