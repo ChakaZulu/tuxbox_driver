@@ -21,6 +21,14 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.34  2001/04/08 22:22:29  TripleDES
+ *   added eNX support
+ *   -every register/ucode access is temporarily duplicated for eNX testing - will be cleared soon ;)
+ *   -up to now there is no section support for eNX
+ *   -need to rewrite the register-defines gReg for gtx, eReg for enx (perhaps/tmb?)
+ *   -queue-interrupts are not correct for eNX
+ *   -uncomment the "#define enx_dmx" for testing eNX
+ *
  *   Revision 1.33  2001/04/08 02:05:40  tmbinc
  *   made it more modular, this time the demux. dvb.c not anymore dependant on
  *   the gtx.
@@ -101,7 +109,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.33 $
+ *   $Revision: 1.34 $
  *
  */
 
@@ -134,16 +142,18 @@
 #include <asm/uaccess.h>
 
 #include <ost/demux.h>
-#include <dbox/dvb.h>
+
 #include <dbox/gtx.h>
+#include <dbox/enx.h>
 #include <dbox/gtx-dmx.h>
 #include <dbox/avia.h>
-
 #include "crc32.h"
+
 
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
+//#define enx_dmx   /uncomment for enx-support
         // #undef GTX_SECTIONS
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -179,7 +189,11 @@ struct tq_struct gtx_tasklet=
 
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
+#ifdef enx_dmx
+  enx_reg_h(0x2700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
+#else
   rh(RISC+0x700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
+#endif  
 }
 
 void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec)
@@ -196,7 +210,11 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
   w[2]=(!!start_up)<<6;
   w[2]|=(!!pec)<<5;
   w[3]=0;
+#ifdef enx_dmx
+  enx_reg_w(0x2740+entry*4)=*(u32*)w;
+#else  
   rw(RISC+0x740+entry*4)=*(u32*)w;
+#endif  
 }
 
 #ifdef GTX_SECTIONS
@@ -262,14 +280,25 @@ void gtx_set_queue(int queue, u32 wp, u8 size)
   /* the 32 queue pointers are visible to the
    * host processor in two banks of 16.
    */
+#ifdef enx_dmx
+  if (queue>=16)
+    enx_reg_h(CFGR0)|=0x10;
+  else
+    enx_reg_h(CFGR0)&=~0x10;
+#else   
   if (queue>=16)
     rh(CR1)|=0x10;
   else
     rh(CR1)&=~0x10;
+#endif    
   queue &= 0xF;
-  
+#ifdef enx_dmx
+  enx_reg_h(0x880+4*queue)=wp&0xFFFF;
+  enx_reg_h(0x882+4*queue)=((wp>>16)&63)|(size<<6);
+#else  
   rh(QWPnL+4*queue)=wp&0xFFFF;
   rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
+#endif  
 }
 
 u32 gtx_get_queue_wptr(int queue)
@@ -278,13 +307,25 @@ u32 gtx_get_queue_wptr(int queue)
   do
   {
     oldwp=wp;
+#ifdef enx_dmx    
+    if (queue>=16)
+      enx_reg_h(CFGR0)|=0x10;
+    else
+      enx_reg_h(CFGR0)&=~0x10;
+#else
     if (queue>=16)
       rh(CR1)|=0x10;
     else
       rh(CR1)&=~0x10;
+#endif      
     queue &= 0xF;
+#ifdef enx_dmx
+    wp=enx_reg_h(0x880+4*queue);
+    wp|=(enx_reg_h(0x882+4*queue)&63)<<16;
+#else    
     wp=rh(QWPnL+4*queue);
     wp|=(rh(QWPnH+4*queue)&63)<<16;
+#endif    
   } while (wp!=oldwp);
   return wp; 
 }
@@ -295,19 +336,35 @@ u32 gtx_get_queue_wptr(int queue)
 
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 {
+#ifdef enx_dmx
+  int base=queue*8+0x8E0;
+  
+  enx_reg_h(base)=read&0xFFFF;
+  enx_reg_h(base+4)=write&0xFFFF;
+  enx_reg_h(base+6)=((write>>16)&63)|(size<<6);
+  enx_reg_h(base+2)=((read>>16)&63);
+  printk("QUEUE:%x\n",base);
+#else
   int base=queue*8+0x1E0;
   
   rhn(base)=read&0xFFFF;
   rhn(base+4)=write&0xFFFF;
   rhn(base+6)=((write>>16)&63)|(size<<6);
   rhn(base+2)=((read>>16)&63)|(halt<<15);
+#endif  
 }
 
 void gtx_set_queue_rptr(int queue, u32 read)
 {
-	int base=queue*8+0x1E0;
+#ifdef enx_dmx
+  int base=queue*8+0x8E0;
+//3des  enx_reg_h(base)=read&0xFFFF;    //3des: dont work on eNX
+//3des  enx_reg_h(base+2)=((read>>16)&63)|(rhn(base+2)&(1<<15));
+#else
+  int base=queue*8+0x1E0;
   rhn(base)=read&0xFFFF;
   rhn(base+2)=((read>>16)&63)|(rhn(base+2)&(1<<15));
+#endif  
 }
 
 void gtx_reset_queue(int queue)
@@ -346,35 +403,59 @@ static void gtx_queue_interrupt(int nr, int bit)
 static Pcr_t gtx_read_transport_pcr(void)
 {
   Pcr_t pcr;
+#ifdef enx_dmx
+  pcr.hi =enx_reg_h(TP_PCR_2)<<16;
+  pcr.hi|=enx_reg_h(TP_PCR_1);
+  pcr.lo =enx_reg_h(TP_PCR_0)&0x81FF;
+#else 
   pcr.hi =rh(PCR2)<<16;
   pcr.hi|=rh(PCR1);
   pcr.lo =rh(PCR0)&0x81FF;
+#endif  
   return pcr;
 }
 
 static Pcr_t gtx_read_latched_clk(void)
 {
   Pcr_t pcr;
+#ifdef enx_dmx
+  pcr.hi =enx_reg_h(LC_STC_2)<<16;
+  pcr.hi|=enx_reg_h(LC_STC_1);
+  pcr.lo =enx_reg_h(LC_STC_0)&0x81FF;
+#else  
   pcr.hi =rh(LSTC2)<<16;
   pcr.hi|=rh(LSTC1);
   pcr.lo =rh(LSTC0)&0x81FF;
+#endif  
   return pcr;
 }
 
 static Pcr_t gtx_read_current_clk(void)
 {
   Pcr_t pcr;
+#ifdef enx_dmx
+  pcr.hi =enx_reg_h(STC_COUNTER_2)<<16;
+  pcr.hi|=enx_reg_h(STC_COUNTER_1);
+  pcr.lo =enx_reg_h(STC_COUNTER_0)&0x81FF;
+#else  
   pcr.hi =rh(STC2)<<16;
   pcr.hi|=rh(STC1);
   pcr.lo =rh(STC0)&0x81FF;
+#endif  
   return pcr;
 }
 
 static void gtx_set_pcr(Pcr_t pcr)
 {
+#ifdef enx_dmx
+  enx_reg_h(STC_COUNTER_2)=pcr.hi>>16;
+  enx_reg_h(STC_COUNTER_1)=pcr.hi&0xFFFF;
+  enx_reg_h(STC_COUNTER_0)=pcr.lo&0x81FF;
+#else
   rh(STC2)=pcr.hi>>16;
   rh(STC1)=pcr.hi&0xFFFF;
   rh(STC0)=pcr.lo&0x81FF;
+#endif
 }
 
 static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
@@ -427,7 +508,11 @@ static void gtx_pcr_interrupt(int b, int r)
     dprintk(/* KERN_DEBUG*/  "gtx_dmx: we have a discont:\n");
     dprintk(KERN_DEBUG "gtx_dmx: new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
     deltaPCR_AVERAGE=0;
+#ifdef enx_dmx    
+    enx_reg_h(FC)|=0x100;               // force discontinuity
+#else
     rh(FCR)|=0x100;               // force discontinuity
+#endif
     gtx_set_pcr(TPpcr);
     avia_set_pcr(TPpcr.hi, TPpcr.lo);
     return;
@@ -478,7 +563,12 @@ static void gtx_pcr_interrupt(int b, int r)
 
   deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*32);
 
+#ifdef enx_dmx
+  enx_reg_h(DAC_PC)=deltaClk;
+  enx_reg_h(DAC_CP)=9;
+#else
   rw(DPCR)=(deltaClk<<16)|9;
+#endif  
 
   oldClk=latchedClk;
   return;
@@ -490,24 +580,74 @@ WE_HAVE_DISCONTINUITY:
 static void gtx_flush_pcr(void)
 {
 	discont=1;
+#ifdef enx_dmx
+	enx_reg_h(FC)|=0x100;
+#else	
 	rh(FCR)|=0x100;
+#endif	
 }
 
 static void gtx_dmx_set_pcr_source(int pid)
 {
+#ifdef enx_dmx
+  enx_reg_h(PCR_PID)=(1<<13)|pid;
+  enx_reg_h(FC)|=0x100;               // force discontinuity
+  discont=1;
+  enx_free_irq(1, 5);
+  enx_allocate_irq(1, 5, gtx_pcr_interrupt);       // pcr reception
+#else
   rh(PCRPID)=(1<<13)|pid;
   rh(FCR)|=0x100;               // force discontinuity
   discont=1;
   gtx_free_irq(0, 8);
   gtx_allocate_irq(0, 8, gtx_pcr_interrupt);       // pcr reception
+#endif  
 }
 
 int gtx_dmx_init(void)
 {
   printk(KERN_DEBUG "gtx_dmx: \n");
+#ifdef enx_dmx
+  gtxmem=enx_get_mem_addr();
+  gtxreg=enx_get_reg_addr();
+#else  
   gtxmem=gtx_get_mem();
   gtxreg=gtx_get_reg();
+#endif  
 
+#ifdef enx_dmx
+  enx_reg_w(RSTR0) &= ~(1 << 27);
+  enx_reg_w(RSTR0) &= ~(1 << 13);
+  enx_reg_w(RSTR0) &= ~(1 << 11);
+  enx_reg_w(RSTR0) &= ~(1 << 9);
+  enx_reg_w(RSTR0) &= ~(1 << 23);
+  enx_reg_w(RSTR0) &= ~(1 << 31);
+  enx_reg_w(RSTR0) &= ~(1 << 28);
+  enx_reg_w(RSTR0) &= ~(1 << 0);
+  
+  
+  enx_reg_w(CFGR0) &= ~(1 << 3);
+  enx_reg_w(CFGR0) &= ~(1 << 1);
+  enx_reg_w(CFGR0) &= ~(1 << 0);
+  
+  enx_reg_h(FC) = 0x9147;
+  enx_reg_h(SYNC_HYST) =0xE2;
+  enx_reg_h(BQ) = 0x00BC;
+  
+  enx_reg_w(CFGR0) |= 1 << 24;
+  
+  enx_reg_h(AVI_0) = 0x6CF;
+  enx_reg_h(AVI_1) = 0xA;
+  
+  enx_reg_h(VCR) = 0x40 | 1 << 13;
+  enx_reg_h(VHT) = 857 | 3 << 10 | 0x5000;
+  enx_reg_h(VLT) = 623 | 21 << 11;
+  
+  enx_reg_h(PCMC) = 0xF4C0;
+  enx_reg_w(CFGR0) |= 1 << 31;
+  
+  printk("ENX-INITed\n");
+#else
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
   rh(RR1)|=1<<6;
   rh(RR1)&=~(1<<6);
@@ -520,6 +660,7 @@ int gtx_dmx_init(void)
 
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
+#endif  
 
 	GtxDmxInit(&gtx);
 	register_demux(&gtx.dmx);
@@ -536,9 +677,15 @@ void gtx_dmx_close(void)
 
   for (j=0; j<2; j++)
     for (i=0; i<16; i++)
+#ifdef enx_dmx
+      enx_free_irq(j+2, i);
+
+  enx_free_irq(1, 5);           // PCR
+#else
       gtx_free_irq(j+2, i);
 
   gtx_free_irq(0, 8);           // PCR
+#endif  
 }
                 // nokia api
 
@@ -961,7 +1108,11 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   printk("CHCH [DEMUX] START %d\n", gtxfeed->index);
 
   if (gtxfeed->output&TS_PACKET)
+#ifdef enx_dmx
+    enx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+#else  
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+#endif    
   gtxfeed->state=DMX_STATE_GO;
   return 0;
 }
@@ -981,7 +1132,11 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
   dmx_set_filter(gtxfeed->filter);
   
   feed->is_filtering=0;
+#ifdef enx_dmx
+  enx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+#else
   gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+#endif  
   printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
   gtxfeed->state=DMX_STATE_ALLOCATED;
   return 0;  
@@ -1321,7 +1476,9 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
   }
   
   for (i=0; i<NUM_QUEUES; i++)
+#ifndef enx_dmx
     rh(QI0+i*2)=0;            // das geht irgendwie nicht :(
+#endif    
 
   for (i=0; i<NUM_QUEUES; i++)
   {
