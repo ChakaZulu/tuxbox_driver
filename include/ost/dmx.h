@@ -27,10 +27,11 @@
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
-#ifndef _LINUX_TYPES_H
 #include <stdint.h>
 #endif
-#include <time.h>
+
+#ifndef EBUFFEROVERFLOW
+#define EBUFFEROVERFLOW 769
 #endif
 
 /* pid_t conflicts with linux/include/linux/types.h !!!*/
@@ -88,10 +89,12 @@ typedef struct dmxFilter
 	uint8_t         mask[DMX_FILTER_SIZE];
 } dmxFilter_t;
 
+
 struct dmxFrontEnd
 {
   //TBD             tbd;
 };
+
 
 struct dmxSctFilterParams
 {
@@ -102,6 +105,7 @@ struct dmxSctFilterParams
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
+#define DMX_KERNEL_CLIENT   0x8000
 };
 
 
@@ -121,8 +125,7 @@ struct dmxEvent
 	time_t                      timeStamp;
 	union
 	{
-		dmxScramblingStatus_t              scrambling;
-	        //TBD;
+		dmxScramblingStatus_t scrambling;
 	} u;
 };
 
@@ -133,7 +136,6 @@ struct dmxEvent
 #define DMX_SET_PES_FILTER       _IOW('o',44,struct dmxPesFilterParams *)
 #define DMX_SET_BUFFER_SIZE      _IOW('o',45,unsigned long)
 #define DMX_GET_EVENT            _IOR('o',46,struct dmxEvent *)
-
-
+#define DMX_GET_PES_PIDS         _IOR('o',47,dvb_pid_t *)
 
 #endif /*_OST_DMX_H_*/
