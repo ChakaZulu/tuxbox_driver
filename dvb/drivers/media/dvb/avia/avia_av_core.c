@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.2  2001/02/16 20:48:29  gillem
+ *   - some avia600 tests
+ *
  *   Revision 1.1  2001/02/15 21:55:56  gillem
  *   - change module name to avia.o
  *   - add interrupt for commands
@@ -47,7 +50,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -320,6 +323,9 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 			run_cmd--;
 			wake_up_interruptible( &avia_cmd_wait );
 		}
+		else
+		{
+		}
 	}
 
 	/* INIT INTR */
@@ -513,34 +519,6 @@ u32 avia_wait(u32 sa)
 	}
 
 	return(rDR(sa));
-
-	while (1)
-	{
-		int status;
-
-		if (!tries--)
-		{
-			dprintk("COMMAND timeout.\n");
-			return -1;
-		}
-
-		status=rDR(sa);
-
-		if (!status)
-		{
-			return status;
-		}
-
-		if (status>=3)
-		{
-			return status;
-		}
-
-		schedule();
-		udelay(1000);
-	}
-
-	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -871,6 +849,9 @@ static int init_avia(void)
 		case 1:
     			dprintk("AVIA 500 LB3 found. (no microcode)\n");
 				break;
+		case 3:
+				dprintk("AVIA 600L found. (no support yet)\n");
+				break;
   		default:
     			dprintk("AVIA 500 LB4 found. (nice)\n");
     			break;
@@ -879,15 +860,19 @@ static int init_avia(void)
 	/* TODO: AVIA 600 INIT !!! */
 
     /* D.4.3 - Initialize the SDRAM DMA Controller */
-	if (!aviarev)
+	switch (aviarev)
 	{
-		wGB(0x22, 0x10000);
-		wGB(0x23, 0x5FBE);
-		wGB(0x22, 0x12);
-		wGB(0x23, 0x3a1800);
-	} else {
-	    wGB(0x22, 0xF);
-	    wGB(0x23, 0x14EC);
+		case 0:
+		case 3:
+			wGB(0x22, 0x10000);
+			wGB(0x23, 0x5FBE);
+			wGB(0x22, 0x12);
+			wGB(0x23, 0x3a1800);
+			break;
+		defualt:
+		    wGB(0x22, 0xF);
+		    wGB(0x23, 0x14EC);
+			break;
 	}
 
 	InitialGBus(microcode);
@@ -905,6 +890,9 @@ static int init_avia(void)
 	FinalGBus(microcode);
 
 	vfree(microcode);
+
+	/* set cpu running mode */
+	wGB(0x39, 0x900000);
 
 	/* enable decoder/host interrupt */
 	wGB(0, rGB(0)|(1<<7));
@@ -933,7 +921,7 @@ static int init_avia(void)
 
 	if (!tries)
 	{
-		dprintk("Timeout waiting for decoder initcomplete.\n");
+		dprintk("Timeout waiting for decoder initcomplete. (%08X)\n",rDR(0x2A0));
 		return -EIO;
 	}
 
@@ -962,7 +950,7 @@ static int init_avia(void)
 		return 0;
 	}
 
-//	avia_wait(avia_command(SelectStream, 0, 0xFF));
+	avia_wait(avia_command(SelectStream, 0, 0xFF));
 //	avia_wait(avia_command(SelectStream, 2, 0x100));
 //	avia_wait(avia_command(SelectStream, 3, 0x100));
 	avia_command(Play, 0, 0, 0);
