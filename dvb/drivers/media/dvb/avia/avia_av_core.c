@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.49  2002/12/17 16:41:14  wjoost
+ *   Audioumschaltung
+ *
  *   Revision 1.48  2002/11/20 12:03:46  Jolt
  *   SPTS mode support (which is now default)
  *
@@ -200,7 +203,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.48 $
+ *   $Revision: 1.49 $
  *
  */
 
@@ -264,6 +267,7 @@ static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
 static u8 bypass_mode = 0;
 static u16 pid_audio = 0xFFFF;
+static u16 decoder_pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
 static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
@@ -1299,7 +1303,7 @@ int avia_av_pid_set(u8 type, u16 pid)
 int avia_av_play_state_set_audio(u8 new_play_state)
 {
 
-	if (new_play_state == play_state_audio)
+	if ( (new_play_state == play_state_audio) && ((pid_audio == decoder_pid_audio) || (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)) )
 		return 0;
 		
 	switch(new_play_state) {
@@ -1321,6 +1325,8 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 		case AVIA_AV_PLAY_STATE_PLAYING:
 
 			dprintk("avia_av: starting audio decoder (apid=0x%04X)\n", pid_audio);
+
+			decoder_pid_audio = pid_audio;
 
 			if (bypass_mode)
 				avia_command(SelectStream, 0x02, pid_audio);
@@ -1617,7 +1623,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.48 2002/11/20 12:03:46 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.49 2002/12/17 16:41:14 wjoost Exp $\n");
 
 	aviamem = 0;
 
