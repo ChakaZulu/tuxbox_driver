@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.24  2001/04/09 22:33:57  TripleDES
+ *   some unused commands cleared (sagem testing)
+ *
  *   Revision 1.23  2001/04/09 19:49:40  TripleDES
  *   added fp_cam_reset for sagem/philips? support
  *
@@ -72,7 +75,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -495,17 +498,17 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 		}
 
     fp_sendcmd(new_client, 0x04, 0x71); //sagem / philips ? needs this
-    fp_sendcmd(new_client, 0x22, 0xbf);
+/*    fp_sendcmd(new_client, 0x22, 0xbf);
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
     fp_sendcmd(new_client, 0x18, 0xb3);
     fp_cmd(new_client, 0x1e, buf, 2); 
-
-		fp_sendcmd(new_client, 0x26, 0x80);		// disable (non-working) break code
+*/
+		fp_sendcmd(new_client, 0x26, 0x00);		// disable (non-working) break code
     
-		fp_cmd(new_client, 0x23, buf, 1);
+	/*	fp_cmd(new_client, 0x23, buf, 1);
 		fp_cmd(new_client, 0x20, buf, 1);
-		fp_cmd(new_client, 0x01, buf, 2);
+		fp_cmd(new_client, 0x01, buf, 2);*/
 	}
 
 	strcpy(new_client->name, client_name);
