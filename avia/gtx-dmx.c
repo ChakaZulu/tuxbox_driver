@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.17  2001/03/09 20:48:31  gillem
+ *   - add debug option
+ *
  *   Revision 1.16  2001/03/07 22:25:14  tmbinc
  *   Tried to fix PCR.
  *
@@ -48,7 +51,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -94,6 +97,11 @@ static unsigned char* gtxreg;
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia GTX demux driver");
 #endif
+
+/* parameter stuff */
+static int debug = 0;
+
+#define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
 static u32 gtx_get_queue_wptr(int queue);
 static Pcr_t gtx_read_transport_pcr(void);
@@ -151,10 +159,10 @@ void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork,
   w[2]|=(!!pec)<<5;
   w[2]|=filt_tab_idx;
   w[3]=no_of_filters;
-  printk("no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
+  dprintk("gtx_dmx: no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
   rw(RISC+0x740+entry*4)=*(u32*)w;
   udelay(1000*1000);
-  printk("read %08x\n", rw(RISC+0x740+entry*4));
+  dprintk("gtx_dmx: read %08x\n", rw(RISC+0x740+entry*4));
 }
 
 void gtx_set_filter_definition_table(int entry, int and_or_flag, int filter_param_id)
@@ -330,8 +338,8 @@ static void gtx_pcr_interrupt(int b, int r)
     oldClk=currentClk;
     discont=0;
     large_delta_count=0;
-    printk(/* KERN_DEBUG*/  "we have a discont:\n");
-    printk(KERN_DEBUG "new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
+    dprintk(/* KERN_DEBUG*/  "gtx_dmx: we have a discont:\n");
+    dprintk(KERN_DEBUG "gtx_dmx: new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
     deltaPCR_AVERAGE=0;
     rh(FCR)|=0x100;               // force discontinuity
     gtx_set_pcr(TPpcr);
@@ -342,13 +350,13 @@ static void gtx_pcr_interrupt(int b, int r)
   elapsedTime=latchedClk.hi-oldClk.hi;
   if (elapsedTime > TIME_HI_THRESHOLD)
   {
-    printk("elapsed time disc.\n");
+    dprintk("gtx_dmx: elapsed time disc.\n");
     goto WE_HAVE_DISCONTINUITY;
   }
   deltaClk=TPpcr.hi-latchedClk.hi;
   if ((deltaClk < -MAX_HI_DELTA) || (deltaClk > MAX_HI_DELTA))
   {
-    printk("large_delta disc.\n");
+    dprintk("gtx_dmx: large_delta disc.\n");
     if (large_delta_count++>MAX_DELTA_COUNT)
       goto WE_HAVE_DISCONTINUITY; 
     return;
@@ -362,7 +370,7 @@ static void gtx_pcr_interrupt(int b, int r)
   
   if ((deltaPCR_AVERAGE < -0x20000) || (deltaPCR_AVERAGE > 0x20000))
   {
-    printk("tmb pcr\n");
+    dprintk("gtx_dmx: tmb pcr\n");
     goto WE_HAVE_DISCONTINUITY;
   }
   
@@ -389,7 +397,7 @@ static void gtx_pcr_interrupt(int b, int r)
   oldClk=latchedClk;
   return;
 WE_HAVE_DISCONTINUITY:
-  printk("WE_HAVE_DISCONTINUITY\n");
+  dprintk("gtx_dmx: WE_HAVE_DISCONTINUITY\n");
   discont=1;
 }
 
@@ -447,8 +455,9 @@ static void gtx_task(void *data)
     if (datamask&(1<<queue))
     {
       gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
-      if (gtxfeed->state!=DMX_STATE_GO)
-        printk("DEBUG: interrupt on non-GO feed\n!");
+      if (gtxfeed->state!=DMX_STATE_GO) {
+        dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed\n!");
+	  }
       else
       {
         if (gtxfeed->output&TS_PACKET)
@@ -490,7 +499,7 @@ static void gtx_task(void *data)
           { 
             if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
             {
-              printk("there's a BIG out of sync problem\n");
+              printk("gtx_dmx: there's a BIG out of sync problem\n");
               break;
             }
             
@@ -526,19 +535,19 @@ static void gtx_task(void *data)
               }
               
               if (c != (tspacket+188))
-                printk("TMB KANN NICHT CODEN.\n");
+                dprintk("gtx_dmx: TMB KANN NICHT CODEN.\n");
                 
               c=tspacket;
               
-              printk("processing incoming packet.\n");
+              dprintk("gtx_dmx: processing incoming packet.\n");
               if (*c++!=0x47)
               {
-                printk("NO SYNC.\n");
+                dprintk("gtx_dmx: NO SYNC.\n");
                 break;
               }
               if (*c++&0x40)
               {
-                printk("PUSI.\n");
+                dprintk("gtx_dmx: PUSI.\n");
                 // read section length
               }
               
@@ -547,7 +556,7 @@ static void gtx_task(void *data)
               
               if (gtxqueue->sec_recv>=gtxqueue->sec_len)
               {
-                printk("section DONE %d bytes.\n", gtxqueue->sec_len);
+                dprintk("gtx_dmx: section DONE %d bytes.\n", gtxqueue->sec_len);
                  // filter and callback
               }
             }
@@ -617,7 +626,7 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
   if (gtx->feed[i].state!=DMX_STATE_FREE)
     return 0;
   gtx->feed[i].state=DMX_STATE_ALLOCATED;
-  printk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", i, type);
+  dprintk(KERN_DEBUG "gtx-dmx: using queue %d for %d\n", i, type);
   return &gtx->feed[i];
 }
 
@@ -634,7 +643,7 @@ static int dmx_close (struct dmx_demux_s* demux)
   if (!gtx->users)
     return -ENODEV;
   gtx->users--;
-  printk(KERN_DEBUG "dmx close.\n");
+  dprintk(KERN_DEBUG "gtx_dmx: close.\n");
   if (!gtx->users)
   {
     int i;
@@ -642,20 +651,20 @@ static int dmx_close (struct dmx_demux_s* demux)
     gtx_tasklet.data=0;
     for (i=0; i<32; i++)
       if (gtx->feed[i].state!=DMX_STATE_FREE)
-        printk(KERN_ERR "gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
+        dprintk(KERN_ERR "gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
   }
   return 0;
 }
 
 static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 {
-  printk(KERN_ERR "gtx-dmx: dmx_write not yet implemented!\n");
+  dprintk(KERN_ERR "gtx-dmx: dmx_write not yet implemented!\n");
   return 0;
 }
 
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
-  printk("%d) SETTING invalid %d, pid %x -> %d (output: %d)\n", filter->index, filter->invalid, filter->pid, filter->queue, filter->output);
+  dprintk("gtx_dmx: %d) SETTING invalid %d, pid %x -> %d (output: %d)\n", filter->index, filter->invalid, filter->pid, filter->queue, filter->output);
   gtx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
 #if GTX_SECTIONS
   if (filter->type==GTX_FILTER_PID)
@@ -678,18 +687,18 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
   gtxfeed->pid=pid;
 
   filter->pid=pid;
-  printk(KERN_DEBUG "filtering pid %d\n", pid);
+  dprintk(KERN_DEBUG "gtx_dmx: filtering pid %d\n", pid);
   filter->wait_pusi=0;  // right?
 
-  printk(KERN_DEBUG "feed output: %x\n", gtxfeed->output);
+  dprintk(KERN_DEBUG "gtx_dmx: feed output: %x\n", gtxfeed->output);
   if (gtxfeed->output&TS_PCR)
   {
-    printk(KERN_DEBUG "setting PCR-pid to %x\n", pid);
+    dprintk(KERN_DEBUG "gtx_dmx: setting PCR-pid to %x\n", pid);
     gtx_dmx_set_pcr_source(pid);
   }
   if (gtxfeed->pes_type==DMX_TS_PES_VIDEO)
   {
-    printk(KERN_DEBUG "assuming PCR_PID == VPID == %04x\n", pid);
+    dprintk(KERN_DEBUG "gtx_dmx: assuming PCR_PID == VPID == %04x\n", pid);
     gtx_dmx_set_pcr_source(pid);
   }
 
@@ -726,7 +735,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   if (gtxfeed->state!=DMX_STATE_READY)
   {
-    printk("feed not DMX_STATE_READY\n");
+    dprintk("gtx_dmx: feed not DMX_STATE_READY\n");
     return -EINVAL;
   }
 
@@ -737,7 +746,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
   
-  printk(KERN_DEBUG "STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
+  dprintk(KERN_DEBUG "gtx_dmx: STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
 
   if (gtxfeed->output&TS_PACKET)
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
@@ -748,7 +757,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 static int dmx_ts_feed_set_type(struct dmx_ts_feed_s* feed, int type, dmx_ts_pes_t pes_type)
 {
 //  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-  printk(KERN_DEBUG "dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
+  dprintk(KERN_DEBUG "gtx_dmx: dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
   return 0;
 }
 
@@ -771,7 +780,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
   gtx_demux_feed_t *gtxfeed;
   if (!(gtxfeed=GtxDmxFeedAlloc(gtx, pes_type)))
   {
-    printk(KERN_ERR "couldn't get gtx feed\n");
+    dprintk(KERN_ERR "gtx_dmx: couldn't get gtx feed\n");
     return -EBUSY;
   }
 
@@ -795,7 +804,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
   {
-    printk(KERN_ERR "couldn't get gtx filter\n");
+    dprintk(KERN_ERR "gtx_dmx: couldn't get gtx filter\n");
     gtxfeed->state=DMX_STATE_FREE;
     return -EBUSY;
   }
@@ -836,7 +845,7 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
 //  gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
   gtx_demux_secfilter_t *gtxsecfilter;
   
-  printk("allocating a filter.\n");
+  dprintk("gtx_dmx: allocating a filter.\n");
 
   gtxsecfilter=gtx->secfilter;
   
@@ -861,7 +870,7 @@ static int dmx_section_feed_release_filter(dmx_section_feed_t *feed,
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_secfilter_t *f, *gtxfilter=(gtx_demux_secfilter_t*)filter;
 
-  printk("releasing section feed filter.\n");
+  dprintk("gtx_dmx: releasing section feed filter.\n");
   if (gtxfilter->feed!=gtxfeed)
     return -EINVAL;
   if (feed->is_filtering)
@@ -887,7 +896,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
   
-  printk("set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
+  dprintk("gtx_dmx: set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
   
   if (pid>0x1FFF)
     return -EINVAL;
@@ -910,7 +919,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 #endif
   dmx_set_filter(gtxfeed->filter);
 
-  printk("SEC: filtering pid %d (on %d) -> %p\n", pid, gtxfeed->index, gtxfeed->secfilter);
+  dprintk("gtx_dmx: SEC: filtering pid %d (on %d) -> %p\n", pid, gtxfeed->index, gtxfeed->secfilter);
   gtxfeed->output=TS_PACKET;
   gtxfeed->state=DMX_STATE_READY;
   
@@ -931,19 +940,19 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
     int i;
     gtx_set_filter_parameter_table(secfilter->index, secfilter->filter.filter_mask, secfilter->filter.filter_value, 0, 0);
     for (i=0; i<DMX_MAX_FILTER_SIZE; i++)
-      printk("%02x ", secfilter->filter.filter_mask[i]);
-    printk("\n");
+      dprintk("gtx_dmx: %02x ", secfilter->filter.filter_mask[i]);
+    dprintk("\n");
     for (i=0; i<DMX_MAX_FILTER_SIZE; i++)
-      printk("%02x ", secfilter->filter.filter_value[i]);
-    printk(" %d -> %d\n", secfilter->index, secfilter->feed->index);
+      dprintk("gtx_dmx: %02x ", secfilter->filter.filter_value[i]);
+    dprintk(" %d -> %d\n", secfilter->index, secfilter->feed->index);
     if (secfilter->index != gtxfeed->secfilter->index+numflt)
-      printk("warning: filter %d is not %d+%d\n", secfilter->index, gtxfeed->secfilter->index, numflt);
+      dprintk("gtx_dmx: warning: filter %d is not %d+%d\n", secfilter->index, gtxfeed->secfilter->index, numflt);
     numflt++;
   }
 
   filter->filt_tab_idx=gtxfeed->secfilter->index;
   filter->no_of_filters=numflt-1;
-  printk("section filtering start (%d filter)\n", numflt);
+  dprintk("gtx_dmx: section filtering start (%d filter)\n", numflt);
 #endif
   
   dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
@@ -964,7 +973,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 
   if (!(gtxfeed=GtxDmxFeedAlloc(gtx, DMX_TS_PES_OTHER)))
   {
-    printk("couldn't get gtx feed (for section_feed)\n");
+    dprintk("gtx_dmx: couldn't get gtx feed (for section_feed)\n");
     return -EBUSY;
   }
 
@@ -990,12 +999,12 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
   {
-    printk("couldn't get gtx filter\n");
+    dprintk("gtx_dmx: couldn't get gtx filter\n");
     gtxfeed->state=DMX_STATE_FREE;
     return -EBUSY;
   }
   
-  printk("allocating section feed, filter %d.\n", gtxfeed->filter->index);
+  dprintk("gtx_dmx: allocating section feed, filter %d.\n", gtxfeed->filter->index);
   
   gtxfeed->filter->type=DMX_TYPE_SEC;
   gtxfeed->filter->feed=gtxfeed;
@@ -1008,7 +1017,7 @@ static int dmx_release_section_feed (struct dmx_demux_s* demux,  dmx_section_fee
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   if (gtxfeed->secfilter)
   {
-    printk("BUSY.\n");
+    dprintk("gtx_dmx: BUSY.\n");
     return -EBUSY;
   }
   kfree(gtxfeed->sec_buffer);
@@ -1162,6 +1171,9 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux, void *priv, char *id )
 }
 
 #ifdef MODULE
+
+MODULE_PARM(debug,"i");
+MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
