@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.15 2002/10/22 01:52:25 obi Exp $
+ * $Id: tda8044h.c,v 1.16 2002/10/29 18:43:56 obi Exp $
  *   
  * tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -27,6 +27,7 @@
 
 #include "compat.h"
 #include "dvb_frontend.h"
+#include "dvb_i2c.h"
 
 
 static int debug = 0;
@@ -128,22 +129,22 @@ int tda8044_set_freq (struct dvb_i2c_bus *i2c, u32 freq)
 
 
 static
-int tda8044_init (struct dvb_frontend *frontend)
+int tda8044_init (struct dvb_i2c_bus *i2c)
 {
 	u32 i;
 
 	for (i = 0; i < sizeof(tda8044_inittab); i++)
-		if (tda8044_writereg(frontend->i2c, i, tda8044_inittab[i]) < 0)
+		if (tda8044_writereg(i2c, i, tda8044_inittab[i]) < 0)
 			return -1;
 
 	udelay(10000);
 
-	tda8044_writereg(frontend->i2c, 0x0F, 0x50);
-	//tda8044_writereg(frontend->i2c, 0x20, 0x8F);
-	//tda8044_writereg(frontend->i2c, 0x20, 0xBF);
-	//tda8044_writereg(frontend->i2c, 0x00, 0x04);
-	//tda8044_writereg(frontend->i2c, 0x00, 0x0C);
-	tda8044_writereg(frontend->i2c, 0x00, 0x08); /* Reset AFC1 loop filter */
+	tda8044_writereg(i2c, 0x0F, 0x50);
+	//tda8044_writereg(i2c, 0x20, 0x8F);
+	//tda8044_writereg(i2c, 0x20, 0xBF);
+	//tda8044_writereg(i2c, 0x00, 0x04);
+	//tda8044_writereg(i2c, 0x00, 0x0C);
+	tda8044_writereg(i2c, 0x00, 0x08); /* Reset AFC1 loop filter */
 
 	udelay(10000);
 
@@ -153,7 +154,7 @@ int tda8044_init (struct dvb_frontend *frontend)
 	tda8044_inittab[0x1F] = 0x7F;
 
 	for (i = 0; i < sizeof(tda8044_inittab); i++)
-		if (tda8044_writereg(frontend->i2c, i, tda8044_inittab[i]) < 0)
+		if (tda8044_writereg(i2c, i, tda8044_inittab[i]) < 0)
 			return -1;
 
 	return 0;
@@ -402,6 +403,8 @@ int tda8044_reset (struct dvb_i2c_bus *i2c)
 static
 int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 {
+	struct dvb_i2c_bus *i2c = (struct dvb_i2c_bus *) frontend->data;
+
 	switch (cmd) {
 	case FE_GET_INFO:
 		memcpy (arg, &tda8044_info, sizeof(struct dvb_frontend_info));
@@ -414,7 +417,7 @@ int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 
 		*status = 0;
 
-		sync = tda8044_readreg (frontend->i2c, 0x02);
+		sync = tda8044_readreg (i2c, 0x02);
 
 		if (sync & 0x01) /* demodulator lock */
 			*status |= FE_HAS_SIGNAL;
@@ -435,30 +438,30 @@ int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	}
 
 	case FE_READ_BER:
-		*((u32*) arg) = ((tda8044_readreg(frontend->i2c, 0x0b) & 0x1f) << 16) |
-				(tda8044_readreg(frontend->i2c, 0x0c) << 8) |
-				tda8044_readreg(frontend->i2c, 0x0d);
+		*((u32*) arg) = ((tda8044_readreg(i2c, 0x0b) & 0x1f) << 16) |
+				(tda8044_readreg(i2c, 0x0c) << 8) |
+				tda8044_readreg(i2c, 0x0d);
 
 		/* FIXME: scale to bit errors per 10^9 bits */
 		*((u32*) arg) *= 1953125 / (2 << (5 + fbcn));
 
 	case FE_READ_SIGNAL_STRENGTH:
 	{
-		u8 gain = ~tda8044_readreg(frontend->i2c, 0x01);
+		u8 gain = ~tda8044_readreg(i2c, 0x01);
 		*((u16*) arg) = (gain << 8) | gain;
 		break;
 	}
 
 	case FE_READ_SNR:
 	{
-		u8 quality = tda8044_readreg(frontend->i2c, 0x08);
+		u8 quality = tda8044_readreg(i2c, 0x08);
 		*((u16*) arg) = (quality << 8) | quality;
 		break;
 	}
 
 	case FE_READ_UNCORRECTED_BLOCKS:
 	{
-		*((u32*) arg) = tda8044_readreg(frontend->i2c, 0x0f);
+		*((u32*) arg) = tda8044_readreg(i2c, 0x0f);
 		if (*((u32*) arg) == 0xff)
 			*((u32*) arg) = 0xffffffff;
 		break;
@@ -468,15 +471,15 @@ int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	{
 		struct dvb_frontend_parameters * p = arg;
 
-		tda8044_set_freq(frontend->i2c, p->frequency);
+		tda8044_set_freq(i2c, p->frequency);
 
 		if (0)
-		tda8044_request_interrupt(frontend->i2c);
+		tda8044_request_interrupt(i2c);
 
-		tda8044_set_parameters(frontend->i2c, p->inversion, p->u.qpsk.symbol_rate, p->u.qpsk.fec_inner);
-		tda8044_set_clk(frontend->i2c);
-		tda8044_set_scpc_freq_offset(frontend->i2c);
-		tda8044_close_loop(frontend->i2c);
+		tda8044_set_parameters(i2c, p->inversion, p->u.qpsk.symbol_rate, p->u.qpsk.fec_inner);
+		tda8044_set_clk(i2c);
+		tda8044_set_scpc_freq_offset(i2c);
+		tda8044_close_loop(i2c);
 
 		break;
 	}
@@ -485,7 +488,7 @@ int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	{
 		struct dvb_frontend_parameters * p = arg;
 
-		u8 reg0e = tda8044_readreg(frontend->i2c, 0x0e);
+		u8 reg0e = tda8044_readreg(i2c, 0x0e);
 
 		/* FIXME: p->frequency = */
 
@@ -501,25 +504,25 @@ int tda8044_ioctl (struct dvb_frontend *frontend, unsigned int cmd, void *arg)
 	}
 
 	case FE_SLEEP:
-		return tda8044_sleep(frontend->i2c);
+		return tda8044_sleep(i2c);
 
 	case FE_INIT:
-		return tda8044_init(frontend);
+		return tda8044_init(i2c);
 
 	case FE_RESET:
-		return tda8044_reset(frontend->i2c);
+		return tda8044_reset(i2c);
 
 	case FE_DISEQC_SEND_MASTER_CMD:
-		return tda8044_send_diseqc_msg(frontend->i2c, arg);
+		return tda8044_send_diseqc_msg(i2c, arg);
 
 	case FE_DISEQC_SEND_BURST:
-		return tda8044_send_diseqc_burst(frontend->i2c, (fe_sec_mini_cmd_t) arg);
+		return tda8044_send_diseqc_burst(i2c, (fe_sec_mini_cmd_t) arg);
 
 	case FE_SET_TONE:
-		return tda8044_set_tone(frontend->i2c, (fe_sec_tone_mode_t) arg);
+		return tda8044_set_tone(i2c, (fe_sec_tone_mode_t) arg);
 
 	case FE_SET_VOLTAGE:
-		return tda8044_set_voltage(frontend->i2c, (fe_sec_voltage_t) arg);
+		return tda8044_set_voltage(i2c, (fe_sec_voltage_t) arg);
 
 	default:
 		return -EOPNOTSUPP;
@@ -538,7 +541,7 @@ int tda8044_attach (struct dvb_i2c_bus *i2c)
 	if (tda8044_readreg(i2c, 0x00) != 0x04)
 		return -ENODEV;
 
-	dvb_register_frontend (tda8044_ioctl, i2c, NULL, &tda8044_info);
+	dvb_register_frontend (tda8044_ioctl, i2c->adapter, NULL, &tda8044_info);
 
 	return 0;
 }
@@ -547,7 +550,7 @@ int tda8044_attach (struct dvb_i2c_bus *i2c)
 static
 void tda8044_detach (struct dvb_i2c_bus *i2c)
 {
-	dvb_unregister_frontend (tda8044_ioctl, i2c);
+	dvb_unregister_frontend (tda8044_ioctl, i2c->adapter);
 }
 
 
