@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.149 $
+ *   $Revision: 1.150 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.150  2002/11/02 17:29:17  Jolt
+ *   PCR handling
+ *
  *   Revision 1.149  2002/11/02 15:41:46  Jolt
  *   More work on the new api
  *
@@ -460,14 +463,6 @@
  *
  */
 
-/*
-		This driver implements the Nokia-DVB-Api (Kernel level Demux driver),
-		but it isn't yet complete.
-
-		It does not support descrambling (and some minor features as well).
-
-		Writing isn't supported, either.
- */
 #define __KERNEL_SYSCALLS__
 
 #include <linux/string.h>
@@ -487,9 +482,6 @@
 #include <linux/tqueue.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
@@ -507,10 +499,6 @@ static int hw_dmx_ts = 0;
 static int hw_dmx_pes = 0;
 static int hw_dmx_sec = 0;
 gtx_demux_filter_t pid2filter[0x2000];
-
-//#undef dprintk
-//#define dprintk printk
-
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -531,13 +519,6 @@ static void dmx_set_filter(gtx_demux_filter_t *filter)
 	if (!filter->invalid)
 		avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
 		
-}
-
-static void dmx_update_pid(u8 queue_nr)
-{
-
-	avia_gt_dmx_queue_irq_enable(queue_nr);
-
 }
 
 static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb_proc)(u8, void *))
@@ -568,6 +549,8 @@ static int avia_gt_napi_queue_alloc(struct dvb_demux_feed *dvbdmxfeed, void (*cb
 
 			return avia_gt_dmx_alloc_queue_teletext(NULL, cb_proc, dvbdmxfeed);
 			
+		case DMX_TS_PES_PCR:
+		case DMX_TS_PES_SUBTITLE:
 		case DMX_TS_PES_OTHER:
 		
 			return avia_gt_dmx_alloc_queue_user(NULL, cb_proc, dvbdmxfeed);
@@ -657,12 +640,14 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 
 	filter->start_up = 1;
 	filter->invalid = 0;
+
 	dmx_set_filter(filter);
 
-	dmx_update_pid(filter->queue);
-	
-	// TODO
-	
+	if ((dvbdmxfeed->ts_type & TS_PACKET) || (dvbdmxfeed->type == DMX_TYPE_SEC))
+		avia_gt_dmx_queue_irq_enable(filter->queue);
+	else
+		avia_gt_dmx_queue_irq_disable(filter->queue);
+
 	return 0;
 
 }
@@ -670,30 +655,30 @@ static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	if (hw_dmx_ts)
-		return -EINVAL;
-	else
+	if (!hw_dmx_ts)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
+
+	return -EINVAL;
 
 }
 
 static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	if (hw_dmx_pes)
-		return -EINVAL;
-	else
+	if (!hw_dmx_pes)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
+
+	return -EINVAL;
 
 }
 
 static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	if (hw_dmx_sec)
-		return -EINVAL;
-	else
+	if (!hw_dmx_sec)
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
+
+	return -EINVAL;
 
 }
 
@@ -718,6 +703,15 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	
 		case DMX_TYPE_TS:
 		case DMX_TYPE_PES:
+		
+			if (dvbdmxfeed->pes_type == DMX_TS_PES_PCR) {
+			
+				avia_gt_dmx_set_pcr_pid(dvbdmxfeed->pid);
+
+				if (!(dvbdmxfeed->type & TS_PACKET))
+					return 0;
+			
+			}
 
 			if (!(dvbdmxfeed->type & TS_PAYLOAD_ONLY))
 				return avia_gt_napi_start_feed_ts(dvbdmxfeed);
@@ -747,13 +741,17 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
+	if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (!(dvbdmxfeed->type & TS_PACKET)))
+		return 0;
+
 //	printk("avia_gt_napi: closing queue %d for pid 0x%X\n", filter->index, dvbdmxfeed->pid);
 	
+	avia_gt_dmx_queue_irq_disable(filter->queue);
+
 	filter->invalid = 1;
 
 	dmx_set_filter(filter);
 
-	avia_gt_dmx_queue_irq_disable(filter->queue);
 	avia_gt_dmx_queue_reset(filter->queue);
 	avia_gt_dmx_free_queue(filter->index);
 
@@ -771,7 +769,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.149 2002/11/02 15:41:46 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.150 2002/11/02 17:29:17 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
