@@ -273,11 +273,11 @@ DmxDevDVRRead(dmxdev_t *dmxdev, struct file *file,
 {
 	int ret;
 
-        down(&dmxdev->mutex);
+// FIX?        down(&dmxdev->mutex);
         ret= DmxDevBufferRead(&dmxdev->dvr_buffer,
 			      file->f_flags&O_NONBLOCK,
 			      buf, count, ppos);
-        up(&dmxdev->mutex);
+// FIX?        up(&dmxdev->mutex);
 	return ret;
 }
 
@@ -1083,16 +1083,14 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
         dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 	int ret=0;
 
-// fix ?
-        down(&dmxdev->mutex);
+// FIX?        down(&dmxdev->mutex);
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 	        ret=DmxDevReadSec(dmxdevfilter, file, buf, count, ppos);
 	else
 	        ret=DmxDevBufferRead(&dmxdevfilter->buffer,
 				     file->f_flags&O_NONBLOCK,
 				     buf, count, ppos);
-// fix ?
-        up(&dmxdev->mutex);
+// FIX?        up(&dmxdev->mutex);
 	return ret;
 }
 
