@@ -53,6 +53,16 @@ void lcd_reset( int fd )
     return;
 }
 
+void lcd_init( int fd )
+{
+    printf("LCD INIT\n");
+
+    if ( ioctl(fd,LCD_IOCTL_INIT,0) < 0 )
+        perror("");
+
+    return;
+}
+
 void lcd_on( int fd, int val )
 {
     printf("LCD ON %d\n",val);
@@ -174,16 +184,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-    lcd_reset(fd);
-
-	close(fd);
-
-	return 0;
-
-    for(i=0;i<=0x3f;i++) {
-        lcd_srv(fd,i);
-        sleep(1);
-    }
+    lcd_init(fd);
 
 	return 0;
 
