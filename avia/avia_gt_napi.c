@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.141 $
+ *   $Revision: 1.142 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.142  2002/10/26 16:46:18  wjoost
+ *   bug--;
+ *
  *   Revision 1.141  2002/10/09 20:20:36  Jolt
  *   DMX & Section fixes
  *
@@ -1036,8 +1039,9 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 			case DMX_TYPE_TS:
 			
-				buf_len = queue_info->bytes_avail(queue_nr);
-				
+				if ( (buf_len = queue_info->bytes_avail(queue_nr)) < 188)
+					return;
+
 				need_payload = 0;
 
 				/* Wir können bei den TS-Queues aus der Synchronisation kommen,
@@ -2157,7 +2161,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.141 2002/10/09 20:20:36 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.142 2002/10/26 16:46:18 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
