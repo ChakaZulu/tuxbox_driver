@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.19 2002/04/04 06:00:29 obi Exp $
+   $Id: ves1893.c,v 1.20 2002/04/09 23:50:12 kwon Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.20  2002/04/09 23:50:12  kwon
+    - mini-DiSEqC works correctly now
+
     Revision 1.19  2002/04/04 06:00:29  obi
     partially implemented FE_SEC_GET_STATUS
 
@@ -513,10 +516,21 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case FE_SEC_MINI_COMMAND:
 	{
-//		secMiniCmd minicmd=(secMiniCmd)arg;
-//		return fp_send_diseqc(1, (minicmd==SEC_MINI_A)?"\xFF\xFF\xFF\xFF":"\x00\x00\x00\x00", 4);		// das ist evtl. falschrum
-		printk("warning, minidiseqc nyi\n");
-		return 0;
+		secMiniCmd minicmd = (secMiniCmd) arg;
+
+		switch (minicmd) {
+		case SEC_MINI_A:
+			printk ("minidiseqc: A\n");
+			return fp_send_diseqc (1, "\x00\x00\x00\x00", 4);
+
+		case SEC_MINI_B:
+			printk ("minidiseqc: B\n");
+			return fp_send_diseqc (1, "\xff", 1);
+
+		default:
+			break;
+		}
+		break;
 	}
 	case FE_SEC_COMMAND:
 	{
