@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.10 2001/03/08 14:08:51 Hunz Exp $
+ * $Id: dvb.c,v 1.11 2001/03/08 20:02:01 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -287,7 +287,8 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
 
   switch (type) {
   case DVB_DEVICE_VIDEO:
-    avia_wait(avia_command(Reset));
+	// WHY ?????????
+//    avia_wait(avia_command(Reset));
     break;
  // case DVB_DEVICE_AUDIO:
  //   AV_Stop(dvb, RP_AUDIO);
@@ -396,7 +397,55 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     case VIDEO_GET_EVENT:
       return -ENOTSUPP;
     case VIDEO_SET_DIPLAY_FORMAT:
-      return -ENOTSUPP;
+
+        switch ((videoDisplayFormat_t)arg)
+		{
+			case VIDEO_PAN_SCAN:
+					printk("SWITCH PAN SCAN\n");
+					dvb->videostate.displayFormat = VIDEO_PAN_SCAN;
+					wDR(ASPECT_RATIO_MODE, 1);
+					return 0;
+			case VIDEO_LETTER_BOX:
+					printk("SWITCH LETTER BOX\n");
+					dvb->videostate.displayFormat = VIDEO_LETTER_BOX;
+					wDR(ASPECT_RATIO_MODE, 2);
+					return 0;
+			case VIDEO_CENTER_CUT_OUT:
+					printk("SWITCH CENTER CUT OUT\n");
+					dvb->videostate.displayFormat = VIDEO_CENTER_CUT_OUT;
+					wDR(ASPECT_RATIO_MODE, 0);
+					return 0;
+			default:
+				return -ENOTSUPP;
+		}
+
+		return -ENOTSUPP;
+
+    case VIDEO_SET_FORMAT:
+
+        switch ((videoFormat_t)arg)
+		{
+			case VIDEO_FORMAT_4_3:
+					printk("SWITCH 4:3\n");
+					dvb->videostate.videoFormat = VIDEO_FORMAT_4_3;
+					wDR(FORCE_CODED_ASPECT_RATIO, 2);
+					return 0;
+			case VIDEO_FORMAT_16_9:
+					printk("SWITCH 16:9\n");
+					dvb->videostate.videoFormat = VIDEO_FORMAT_16_9;
+					wDR(FORCE_CODED_ASPECT_RATIO, 3);
+					return 0;
+			case VIDEO_FORMAT_20_9:
+					printk("SWITCH 20:9\n");
+					dvb->videostate.videoFormat = VIDEO_FORMAT_20_9;
+					wDR(FORCE_CODED_ASPECT_RATIO, 4);
+					return 0;
+			default:
+				return -ENOTSUPP;
+		}
+
+		return -ENOTSUPP;
+
     case VIDEO_STILLPICTURE:
       return -ENOTSUPP;
     case VIDEO_FAST_FORWARD:
@@ -677,7 +726,10 @@ static int dvb_register(struct dvb_struct *dvb)
   result=dvb_register_device(dvbd);
 
   if (result<0)
+  {
+    printk("yes we can't remove all this ...\n");
     return result;
+  }
 
   memcpy(dvb->hw_demux_id, "demux0", 7);
 

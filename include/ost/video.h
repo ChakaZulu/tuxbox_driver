@@ -30,7 +30,8 @@
 
 typedef enum {
 	VIDEO_FORMAT_4_3, /* Select 4:3 format */ 
-        VIDEO_FORMAT_16_9 /* Select 16:9 format. */ 
+    VIDEO_FORMAT_16_9, /* Select 16:9 format. */
+    VIDEO_FORMAT_20_9 /* Select 20:9 format. */
 } videoFormat_t;
 
 
@@ -91,5 +92,5 @@ struct videoDisplayStillPicture {
 #define VIDEO_STILLPICTURE         _IOW('o', 30, struct videoDisplayStillPicture *)
 #define VIDEO_FAST_FORWARD         _IOW('o', 31, int)
 #define VIDEO_SLOWMOTION           _IOW('o', 32, int)
-
+#define VIDEO_SET_FORMAT           _IOW('o', 33, videoFormat_t)
 #endif /*_OST_VIDEO_H_*/

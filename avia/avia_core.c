@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.10  2001/03/08 20:01:41  gillem
+ *   - add display modes + ioctl
+ *
  *   Revision 1.9  2001/03/07 20:58:07  gillem
  *   - add bitstream info @ procfs
  *
@@ -71,7 +74,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -362,7 +365,7 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 	/* usr data */
 	if(status&(1<<12))
 	{
-		dprintk(KERN_INFO "AVIA: User data :-).\n");
+//		dprintk(KERN_INFO "AVIA: User data :-).\n");
 	}
 
 	/* avia cmd stuff */
@@ -705,7 +708,7 @@ void avia_set_default(void)
 	wDR(DISPLAY_ASPECT_RATIO, 0);
 
 	/* 0: disable 1: PAN&SCAN 2: Letterbox */
-	wDR(ASPECT_RATIO_MODE, 1);
+	wDR(ASPECT_RATIO_MODE, 2);
 
 	/* 2: 4:3 3: 16:9 4: 20:9 */
 	wDR(FORCE_CODED_ASPECT_RATIO, 0);
