@@ -1,9 +1,9 @@
 /*
- *   avia_pig.h - capture driver for AViA (dbox-II-project)
+ *   avia_gt_pig.h - pig driver for AViA eNX/GTX (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Florian Schirmer <jolt@tuxbox.org>
+ *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,15 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
+
+extern int avia_gt_pig_hide(unsigned char pig_nr);
+extern int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y);
+extern int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short height, unsigned char stretch);
+extern int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order);
+extern int avia_gt_pig_show(unsigned char pig_nr);
+
+extern int avia_gt_pig_init(void);
+extern void avia_gt_pig_exit(void);
 
 #define AVIA_PIG_HIDE	 	1
 #define AVIA_PIG_SET_POS 	2

@@ -1,5 +1,5 @@
 /*
- *   gtx-core.c - AViA GTX core driver (dbox-II-project)
+ *   avia_gt_gtx.c - AViA GTX core driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.4  2002/04/12 21:31:37  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.3  2002/03/06 09:04:10  gillem
  *   - clean module unload
  *
@@ -90,7 +93,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -118,7 +121,7 @@
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 
-#include "dbox/gtx.h"
+#include "dbox/avia_gt.h"
 
 /* ---------------------------------------------------------------------- */
 
@@ -143,153 +146,13 @@ static int gtx_proc_initialized;
 
 #endif /* CONFIG_PROC_FS */
 
-#ifdef MODULE
-static char *ucode = NULL;
-#endif
-
 static int debug = 0;
-#define dprintk if (debug) printk
 
-/* interrupt stuff */
-#define GTX_INTERRUPT SIU_IRQ1
-
-unsigned char *gtxmem, *gtxreg;
-static int rambeg, ramsize;
-
-/* ---------------------------------------------------------------------- */
-
-extern void gtxfb_init    (void);
-extern void gtxfb_close   (void);
-extern void gtx_dmx_init  (void);
-extern void gtx_dmx_close (void);
-
-static void gtx_interrupt (int irq, void *dev, struct pt_regs * regs);
-static int  gtx_intialize_interrupts (void);
-static int  gtx_close_interrupts (void);
-static void gtx_close (void);
-
-/* ---------------------------------------------------------------------- */
-unsigned char
-*gtx_get_mem (void)
-{
-        return gtxmem;
-}
-
-unsigned char
-*gtx_get_reg (void)
-{
-        return gtxreg;
-}
-
-/* ---------------------------------------------------------------------- */
-void LoaduCode (u8 * microcode)
-{
-        unsigned short *dst   = (unsigned short*) &rh (RISC);
-        unsigned short *src   = (unsigned short*) microcode;
-        int             words = 0x800 / 2;
-
-        rh (RR1) |= 1 << 5;         // reset RISC
-        udelay (10);
-        rh(RR1) &= ~(1 << 5);
-
-        while (words--) {
-                udelay (100);
-                *dst++ = *src++;
-        }
-
-        dst   = (unsigned short*) &rh (RISC);
-        src   = (unsigned short*) microcode;
-        words = 0x800 / 2;
-        while (words--)
-                if (*dst++ != *src++)
-                        break;
-
-        if (words >= 0) {
-                printk (KERN_CRIT "microcode validation failed at %x\n",
-                        0x800 - words);
-                return;
-        }
-}
-
-/* ---------------------------------------------------------------------- */
-/* shamelessly stolen from sound_firmware.c */
-static int errno;
-
-static int
-do_firmread (const char *fn, char **fp)
-{
-        int    fd;
-        loff_t l;
-        char  *dp;
-
-        if ((fd = open (fn, 0, 0)) < 0) {
-                printk (KERN_ERR "%s: %s: Unable to load '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                return 0;
-        }
-
-
-        if ((l = lseek (fd, 0L, 2)) != 2 * 1024) {
-                printk (KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                sys_close (fd);
-                return 0;
-        }
-
-        lseek (fd, 0L, 0);
-        dp = vmalloc (l);
-        if (dp == NULL) {
-                printk (KERN_ERR "%s: %s: Out of memory loading '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                sys_close (fd);
-                return 0;
-        }
-
-        if (read (fd, dp, l) != l) {
-                printk (KERN_ERR "%s: %s: Failed to read '%s'.\n",
-                        __FILE__, __FUNCTION__, fn);
-                vfree (dp);
-                sys_close (fd);
-                return 0;
-        }
-
-        close (fd);
-        *fp = dp;
-        return (int) l;
-}
-
-/* ---------------------------------------------------------------------- */
-static int
-init_gtx (void)
+static void avia_gt_gtx_init(void)
 {
         int cr;
-        //u8 *microcode;
-        //mm_segment_t fs;
 
         dprintk (KERN_INFO "gtx-core: loading AViA GTX core driver\n");
-
-        //fs = get_fs ();
-        //set_fs(get_ds());
-
-        /* read firmware */
-        //if (do_firmread (ucode, (char**) &microcode) == 0) {
-        //        set_fs (fs);
-        //        return -EIO;
-        //}
-
-        //set_fs(fs);
-
-        /* remap gtx memory */
-        gtxmem = (unsigned char*) ioremap (GTX_PHYSBASE, 0x403000);
-
-        if (!gtxmem) {
-                printk (KERN_ERR "%s: %s: failed to remap gtx.\n",
-                        __FILE__, __FUNCTION__);
-                return -ENOMEM;
-        }
-
-
-        gtxreg = gtxmem + 0x400000;
 
         rh(RR0) = 0xFFFF;
         rh(RR1) = 0x00FF;
@@ -298,9 +161,6 @@ init_gtx (void)
                       | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
 
         udelay (500);
-
-        //LoaduCode (microcode);
-        //vfree(microcode);
 
         memset (gtxmem, 0xFF, 2 * 1024 * 1024);          // clear ram
         gtx_proc_init ();
@@ -324,10 +184,7 @@ init_gtx (void)
         rh (CR0) = cr;
 
         gtx_intialize_interrupts ();
-#ifndef MODULE
-        gtx_dmx_init ();
-        gtxfb_init();
-#endif
+
         // workaround for framebuffer?
         atomic_set (&THIS_MODULE->uc.usecount, 1);
         printk (KERN_NOTICE "%s: %s: loaded AViA GTX core driver\n",
@@ -357,95 +214,13 @@ init_gtx (void)
 
 	// enable teletext
 	rh(TTCR) |= (1 << 9);
-
-        return 0;
+	
 }
 
-/* ---------------------------------------------------------------------- */
-int
-gtx_allocate_dram (int size, int align)
-{
-        int newbeg = rambeg;
+static int isr[] = {gISR0, gISR1, gISR2, gISR3};
+static int imr[] = {gIMR0, gIMR1, gIMR2, gIMR3};
 
-        newbeg += align - 1;
-        newbeg &= ~(align - 1);
-        dprintk (KERN_DEBUG "%s: %s: wasting %d bytes.\n", __FILE__,
-                 __FUNCTION__, newbeg-rambeg);
-        if ((newbeg+size) > ramsize) {
-                printk (KERN_ERR "%s: %s: GTX out of memory.\n", __FILE__,
-                        __FUNCTION__);
-                return -ENOMEM;
-        }
-        rambeg = newbeg + size;
-
-        return newbeg;
-}
-
-/* ---------------------------------------------------------------------- */
-static void (*gtx_irq[64]) (int reg, int bit);
-static int isr[4] = { gISR0, gISR1, gISR2, gISR3 };
-static int imr[4] = { gIMR0, gIMR1, gIMR2, gIMR3 };
-
-/* ---------------------------------------------------------------------- */
-static void
-gtx_interrupt (int irq, void *dev, struct pt_regs * regs)
-{
-        int i, j;
-        for (i = 0; i < 3; i++) {            // bis das geklärt ist! danke.
-                int rn = rhn (isr[i]);
-
-                for (j = 0; j < 16; j++) {
-                        if (rn & (1 << j)) {
-                                int nr = i * 16 + j;
-
-                                if (gtx_irq[nr])
-                                        gtx_irq[nr] (i, j);
-                                else {
-                                        if (rhn(imr[i]) & (1 << j)) {
-                                                dprintk (KERN_DEBUG "%s: %s: "
-                                                         "masking unhandled "
-                                                         "gtx irq %d/%d\n",
-                                                         __FILE__,
-                                                         __FUNCTION__, i, j);
-                                                // disable IMR bit
-                                                rhn (imr[i]) &= ~(1 << j);
-                                        }
-                                }
-                                rhn(isr[i]) |= 1 << j;  // clear ISR bits
-                        }
-                }
-        }
-}
-
-/* ---------------------------------------------------------------------- */
-int
-gtx_allocate_irq (int reg, int bit, void (*isr) (int, int))
-{
-        int nr = reg * 16 + bit;
-        if (gtx_irq[nr]) {
-                // nur für debugzwecke, aber da ist das praktischer
-                panic (KERN_ERR "%s: %s: FATAL: gtx irq already used.\n",
-                       __FILE__, __FUNCTION__);
-                return -ENODEV;
-        }
-
-        gtx_irq[nr] = isr;
-        rhn (imr[reg]) |= 1 << bit;
-
-        return 0;
-}
-
-/* ---------------------------------------------------------------------- */
-void
-gtx_free_irq (int reg, int bit)
-{
-        rhn (imr[reg]) &= ~(1 << bit);
-        gtx_irq[reg * 16 + bit] = 0;
-}
-
-/* ---------------------------------------------------------------------- */
-static int
-gtx_intialize_interrupts (void)
+static void gtx_intialize_interrupts(void)
 {
         rh (IPR0) = -1;
         rh (IPR1) = -1;
@@ -466,19 +241,11 @@ gtx_intialize_interrupts (void)
         rh (IMR0) = 0xFFFF;
         rh (IMR1) = 0xFFFF;
 
-        if (request_8xxirq (GTX_INTERRUPT, gtx_interrupt, 0, "gtx", 0) != 0) {
-                printk (KERN_ERR "%s: %s: Could not allocate GTX IRQ!",
-                        __FILE__, __FUNCTION__);
-                return -ENODEV;
-          }
-
-        return 0;
 }
 
-/* ---------------------------------------------------------------------- */
-static int
-gtx_close_interrupts(void)
+static void gtx_close_interrupts(void)
 {
+
 	rh (RR0) |= (1 << 4);
 
         rh (IMR0) = 0;
@@ -496,21 +263,12 @@ gtx_close_interrupts(void)
         rh (ISR2) = 0;
         rh (ISR3) = 0;
 
-        free_irq (GTX_INTERRUPT, 0);
-
-        return 0;
 }
 
-/* ---------------------------------------------------------------------- */
-static void
-gtx_close (void)
+static void avia_gt_gtx_exit(void)
 {
 	gtx_proc_cleanup ();
 
-#ifndef MODULE
-        gtx_dmx_close ();
-        gtxfb_close ();
-#endif
         gtx_close_interrupts ();
 
 	rh (CR0) = 0x0030;
@@ -523,11 +281,6 @@ gtx_close (void)
 	// disable dram module, don't work :-/ why ????
 //	rh(RR0) |= (1<<10);
 
-	if (gtxmem)
-	{
-		iounmap(gtxmem);
-		gtxmem = 0;
-	}
 }
 
 #ifdef CONFIG_PROC_FS
@@ -678,31 +431,4 @@ gtx_proc_cleanup (void)
 
 
 
-/* ---------------------------------------------------------------------- */
-#ifdef MODULE
-
-int
-init_module (void)
-{
-        return init_gtx ();
-}
-
-void
-cleanup_module (void)
-{
-        return gtx_close ();
-}
-
-MODULE_PARM(debug,"i");
-MODULE_PARM(ucode,"s");
-#endif
-
-EXPORT_SYMBOL(gtx_get_mem);
-EXPORT_SYMBOL(gtx_get_reg);
-EXPORT_SYMBOL(gtx_allocate_dram);
-EXPORT_SYMBOL(gtx_allocate_irq);
-EXPORT_SYMBOL(gtx_free_irq);
-
-MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("Avia GTX driver");
 

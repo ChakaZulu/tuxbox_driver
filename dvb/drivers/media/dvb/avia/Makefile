@@ -2,13 +2,13 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx_core.o gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
-obj-m    = gtx_core.o gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
+M_OBJS   = gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
+obj-m    = gtx_dmx.o avia_gt.o enx_dmx.o avia.o osd.o enx_fb.o gtx_fb.o enx_vbi.o gtx_vbi.o gtx_capture.o gtx_pig.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 
-AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
+AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
 
 GTX_CORE  = gtx-core.o
 GTX_DMX   = gtx-dmx.o crc32.o

@@ -1,8 +1,15 @@
 #ifndef __GTX_H
 #define __GTX_H
 
-#define GTX_PHYSBASE    0x8000000
-#define GTX_FB_OFFSET	0x0100000
+
+#define GTX_REG_BASE		0x08400000
+#define GTX_REG_SIZE		0x00003000
+#define GTX_MEM_BASE		0x08000000
+#define GTX_MEM_SIZE		0x00100000
+
+#define GTX_FB_OFFSET		0x0100000
+
+#define GTX_INTERRUPT		SIU_IRQ1
 
 #define GTX_PCM_BUFFER_COUNT	25
 #define GTX_PCM_MAX_SAMPLES	1023
@@ -111,15 +118,6 @@
 #define gVSCA 		0x260
 #define gVSCP			0x264
 #define gVCS			0x268
-
-#define rw(a) (*((volatile unsigned long*)(gtxreg+g ## a)))
-#define rh(a) (*((volatile unsigned short*)(gtxreg+g ## a)))
-
-#define rwn(a) (*((volatile unsigned long*)(gtxreg+a))) 
-#define rhn(a) (*((volatile unsigned short*)(gtxreg+a))) 
-
-#define dumpw(a) printk(#a ": %08x\n", rw(a));
-#define dumph(a) printk(#a ":     %04x\n", rh(a));
 
 #define VCR_SET_HP(X)    rh(VCR) = ((rh(VCR)&(~(3<<10))) | ((X&3)<<10))
 #define VCR_SET_FP(X)    rh(VCR) = ((rh(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
@@ -288,5 +286,12 @@ extern void gtx_free_irq(int reg, int bit);
 #define gtx_reg_s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
+
+#define rw(a) (*((volatile unsigned long*)(avia_gt_get_reg_addr()+g ## a)))
+#define rh(a) (*((volatile unsigned short*)(avia_gt_get_reg_addr()+g ## a)))
+
+#define rwn(a) (*((volatile unsigned long*)(avia_gt_get_reg_addr()+a))) 
+#define rhn(a) (*((volatile unsigned short*)(avia_gt_get_reg_addr()+a))) 
+
 
 #endif

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.3  2002/04/12 21:29:35  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.2  2002/04/12 18:59:29  Jolt
  *   eNX/GTX merge
  *
@@ -28,7 +31,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -259,7 +262,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.2 2002/04/12 18:59:29 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.3 2002/04/12 21:29:35 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -273,8 +276,8 @@ int __init avia_gt_init(void)
      
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	gt_reg_addr = (unsigned char*)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	gt_reg_addr = (unsigned char*)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gt_reg_addr = (unsigned char*)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
 
     if (!gt_reg_addr) {
   
@@ -288,8 +291,8 @@ int __init avia_gt_init(void)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	gt_mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	gt_mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	gt_mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
 
     if (!gt_mem_addr) {
   
@@ -305,8 +308,8 @@ int __init avia_gt_init(void)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	result = request_8xxirq(ENX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	result = request_8xxirq(GTX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	result = request_8xxirq(GTX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
 
     if (result) {
     
@@ -322,8 +325,8 @@ int __init avia_gt_init(void)
 
     if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	avia_gt_enx_init();
-//    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	avia_gt_gtx_init();
+    else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	avia_gt_gtx_init();
 
     init_state = 4;
 
@@ -384,8 +387,8 @@ void __exit avia_gt_exit(void)
     
 	if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
     	    avia_gt_enx_exit();
-//   	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//		avia_gt_gtx_exit();
+   	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+		avia_gt_gtx_exit();
 
     }
 
@@ -393,8 +396,8 @@ void __exit avia_gt_exit(void)
     
         if (chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	    free_irq(ENX_INTERRUPT, 0);
-//    	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
-//	    free_irq(GTX_INTERRUPT, 0);
+    	else if (chip_type == AVIA_GT_CHIP_TYPE_GTX)
+	    free_irq(GTX_INTERRUPT, 0);
 
     }
 
