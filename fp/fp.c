@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.20  2001/03/18 21:28:24  tmbinc
+ *   fixed again some bug.
+ *
  *   Revision 1.19  2001/03/15 22:20:23  Hunz
  *   nothing important...
  *
@@ -60,7 +63,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -293,6 +296,7 @@ static ssize_t fp_read (struct file *file, char *buf, size_t count, loff_t *offs
 		{
 			int i;
 			DECLARE_WAITQUEUE(wait, current);
+			read=0;
 
 			for(;;)
 			{
@@ -300,7 +304,7 @@ static ssize_t fp_read (struct file *file, char *buf, size_t count, loff_t *offs
 				{
 					if (file->f_flags & O_NONBLOCK)
 					{
-						return count;
+						return read;
 					}
 
 					add_wait_queue(&rcwait, &wait);
@@ -321,7 +325,6 @@ static ssize_t fp_read (struct file *file, char *buf, size_t count, loff_t *offs
 			}
 
 			count&=~1;
-			read=0;
 
 			for (i=0; i<count; i+=2)
 			{
