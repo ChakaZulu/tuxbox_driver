@@ -51,9 +51,9 @@
 
 #include <dbox/fp.h>
 
-static int debug = 0;
-static int mio = 0;
-static char *firmware=0;
+static int debug;
+static int mio;
+static char *firmware;
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
@@ -99,7 +99,7 @@ int cam_read_message( char * buf, size_t count );
 static void *code_base;
 
 unsigned char cam_queue[CAM_QUEUE_SIZE];
-static int cam_queuewptr=0, cam_queuerptr=0;
+static int cam_queuewptr, cam_queuerptr;
 static wait_queue_head_t queuewait;
 
 static int attach_adapter(struct i2c_adapter *adap)
@@ -390,7 +390,7 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.26 2003/09/30 05:00:14 obi Exp $\n");
+	printk("$Id: cam.c,v 1.27 2003/09/30 05:45:34 obi Exp $\n");
 	
 	if (!mio) {
 	

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_oss.c,v 1.22 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_oss.c,v 1.23 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
@@ -33,8 +33,8 @@
 #include "avia_av.h"
 #include "avia_gt_pcm.h"
 
-static int avia_oss_dsp_dev = 0;
-static int avia_oss_mixer_dev = 0;
+static int avia_oss_dsp_dev;
+static int avia_oss_mixer_dev;
 
 static
 int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
@@ -267,7 +267,7 @@ static struct file_operations mixer_fops = {
 static
 int __init avia_oss_init(void)
 {
-	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.22 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.23 2003/09/30 05:45:35 obi Exp $\n");
 
 	avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 

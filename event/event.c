@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.11 2003/09/08 22:38:56 obi Exp $
+ * $Id: event.c,v 1.12 2003/09/30 05:45:38 obi Exp $
  * 
  * global event driver (dbox-II-project)
  *
@@ -48,7 +48,7 @@ struct event_private_t {
 
 #define MAX_EVENT_OPEN 5
 
-static int open_handle = 0;
+static int open_handle;
 static struct event_private_t *event_private[5];
 static DECLARE_WAIT_QUEUE_HEAD(event_wait);
 static spinlock_t event_lock;
@@ -233,7 +233,7 @@ static struct file_operations event_fops = {
 
 static int __init event_init(void)
 {
-	printk(KERN_INFO "event: $Id: event.c,v 1.11 2003/09/08 22:38:56 obi Exp $\n");
+	printk(KERN_INFO "event: $Id: event.c,v 1.12 2003/09/30 05:45:38 obi Exp $\n");
 
 	memset(event_private, 0, sizeof(event_private));
 

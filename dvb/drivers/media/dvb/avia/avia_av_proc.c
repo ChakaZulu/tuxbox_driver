@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.10 2003/07/24 01:59:21 homar Exp $
+ * $Id: avia_av_proc.c,v 1.11 2003/09/30 05:45:35 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -51,7 +51,7 @@ int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, 
 	return nr;
 }
 
-static u32 *dram_copy = NULL;
+static u32 *dram_copy;
 
 static
 int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *eof, void *data)
@@ -101,7 +101,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.10 2003/07/24 01:59:21 homar Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.11 2003/09/30 05:45:35 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");

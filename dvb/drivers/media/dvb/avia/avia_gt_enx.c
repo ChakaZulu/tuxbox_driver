@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_enx.c,v 1.20 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_enx.c,v 1.21 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX core driver (dbox-II-project)
  *
@@ -28,7 +28,7 @@
 
 #include "avia_gt.h"
 
-static sAviaGtInfo *gt_info = NULL;
+static sAviaGtInfo *gt_info;
 
 static int isr[] = {
 	ENX_REG_ISR0,
@@ -147,7 +147,7 @@ static void enx_sdram_ctrl_init(void)
 
 void avia_gt_enx_init(void)
 {
-	printk(KERN_INFO "avia_gt_enx: $Id: avia_gt_enx.c,v 1.20 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_enx: $Id: avia_gt_enx.c,v 1.21 2003/09/30 05:45:35 obi Exp $\n");
     
 	gt_info = avia_gt_get_info();
     

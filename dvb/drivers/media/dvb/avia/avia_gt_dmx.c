@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.187 2003/09/12 02:46:30 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.188 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -49,14 +49,14 @@
 static void avia_gt_dmx_bh_task(void *tl_data);
 static void avia_gt_pcr_irq(unsigned short irq);
 
-static int errno = 0;
-static sAviaGtInfo *gt_info = NULL;
-static volatile sRISC_MEM_MAP *risc_mem_map = NULL;
-static volatile u16 *riscram = NULL;
-static volatile u16 *pst = NULL;
-static volatile u16 *ppct = NULL; 
-static char *ucode = NULL;
-static int force_stc_reload = 0;
+static int errno;
+static sAviaGtInfo *gt_info;
+static volatile sRISC_MEM_MAP *risc_mem_map;
+static volatile u16 *riscram;
+static volatile u16 *pst;
+static volatile u16 *ppct; 
+static char *ucode;
+static int force_stc_reload;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 static s8 section_filter_umap[32];
 static sFilter_Definition_Entry filter_definition_table[32];
@@ -2027,7 +2027,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.187 2003/09/12 02:46:30 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.188 2003/09/30 05:45:35 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

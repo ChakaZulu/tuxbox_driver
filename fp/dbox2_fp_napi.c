@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.11 2003/05/26 06:05:20 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.12 2003/09/30 05:45:38 obi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -36,7 +36,7 @@ enum {
 	DEMOD_VES1993 = 2
 };
 
-static struct dvb_adapter *dvb_adapter = NULL;
+static struct dvb_adapter *dvb_adapter;
 
 static inline
 u32 unsigned_round_div(u32 n, u32 d)

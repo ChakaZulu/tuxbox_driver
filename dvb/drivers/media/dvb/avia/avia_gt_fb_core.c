@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.50 2003/09/13 02:45:12 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.51 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -46,8 +46,8 @@
 #define FB_ACCEL_CCUBE_AVIA_ENX 121
 #endif
 
-static sAviaGtInfo *gt_info = NULL;
-static int console_transparent = 0;
+static sAviaGtInfo *gt_info;
+static int console_transparent;
 
 /* 720x576, 8 bpp */	       // TODO: NTSC
 static struct fb_var_screeninfo default_var = {
@@ -102,10 +102,10 @@ struct gtxfb_par {
 
 static struct gtxfb_info fb_info;
 static struct gtxfb_par current_par;
-static int current_par_valid = 0;
+static int current_par_valid;
 static struct display disp;
 
-static char default_fontname[40] = { 0 };
+static char default_fontname[40];
 
 #ifdef FBCON_HAS_CFB4
 static u16 fbcon_cfb4_cmap[16];
@@ -477,7 +477,7 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.50 2003/09/13 02:45:12 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.51 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

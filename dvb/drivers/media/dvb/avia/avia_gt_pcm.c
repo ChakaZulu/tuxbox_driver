@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pcm.c,v 1.27 2003/09/12 04:41:16 obi Exp $
+ * $Id: avia_gt_pcm.c,v 1.28 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX pcm driver (dbox-II-project)
  *
@@ -42,16 +42,16 @@ typedef struct {
 
 } sPcmBuffer;
 
-LIST_HEAD(pcm_busy_buffer_list);
-LIST_HEAD(pcm_free_buffer_list);
+static LIST_HEAD(pcm_busy_buffer_list);
+static LIST_HEAD(pcm_free_buffer_list);
 
 static spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
 static spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 
-static sAviaGtInfo *gt_info = NULL;
-static unsigned char swab_samples = 0;
+static sAviaGtInfo *gt_info;
+static unsigned char swab_samples;
 static sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
-static unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE] = { 0 };
+static unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE];
 
 // Warning - result is _per_ channel
 static
@@ -368,7 +368,7 @@ int avia_gt_pcm_init(void)
 {
 	u8 buf_nr = 0;
 
-	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.27 2003/09/12 04:41:16 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.28 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

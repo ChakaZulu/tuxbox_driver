@@ -62,7 +62,7 @@ static u8 fp_revision;
 
 static devfs_handle_t devfs_handle;
 
-static int debug = 0;
+static int debug;
 static int useimap = 1;
 
 #define dprintk(fmt, args...) if (debug) printk(fmt, ##args)
@@ -90,8 +90,8 @@ static unsigned short normal_i2c[] = { 0x60 >> 1, I2C_CLIENT_END };
 static unsigned short normal_i2c_range[] = { 0x60 >> 1, 0x60 >> 1, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
-static int fp_id = 0;
-struct fp_data *defdata = NULL;
+static int fp_id;
+static struct fp_data *defdata;
 
 static void fp_task(void * arg);
 

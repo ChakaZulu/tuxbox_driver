@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.13 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_lirc.c,v 1.14 2003/09/30 05:45:35 obi Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -92,7 +92,7 @@ static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned i
 	return 0;
 }
 
-static u8 got_pulse = 0;
+static u8 got_pulse;
 
 static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 {
@@ -104,11 +104,11 @@ static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 	else
 		return 0;
 }
-					
-static u32 pulse_len = 0;
-//static u8 got_next = 0;
-//static u32 next_high = 0;
-//static u32 next_low = 0;
+
+static u32 pulse_len;
+//static u8 got_next;
+//static u32 next_high;
+//static u32 next_low;
 
 static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, loff_t *f_pos)
 {
@@ -242,7 +242,7 @@ static struct file_operations avia_gt_lirc_fops = {
 
 static int __init avia_gt_lirc_init(void)
 {
-	printk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.13 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.14 2003/09/30 05:45:35 obi Exp $\n");
 
 	if (avia_gt_ir_init() < 0)
 		return -EIO;

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.36 2003/09/23 21:48:34 zwen Exp $
+ * $Id: avia_gt_gv.c,v 1.37 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -35,10 +35,10 @@
 
 static u16 input_height = 576;
 static u8 input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
-static sAviaGtInfo *gt_info = NULL;
+static sAviaGtInfo *gt_info;
 static u16 input_width = 720;
-static u16 output_x = 0;
-static u16 output_y = 0;
+static u16 output_x;
+static u16 output_y;
 
 u8 avia_gt_get_bpp(void);
 void avia_gt_gv_set_stride(void);
@@ -433,7 +433,7 @@ int avia_gt_gv_show(void)
 
 int avia_gt_gv_init(void)
 {
-	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.36 2003/09/23 21:48:34 zwen Exp $\n");
+	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.37 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

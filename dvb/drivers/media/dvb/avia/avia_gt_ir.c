@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ir.c,v 1.29 2003/09/12 04:41:16 obi Exp $
+ * $Id: avia_gt_ir.c,v 1.30 2003/09/30 05:45:35 obi Exp $
  * 
  * AViA eNX/GTX ir driver (dbox-II-project)
  *
@@ -36,19 +36,19 @@
 DECLARE_WAIT_QUEUE_HEAD(rx_wait);
 DECLARE_WAIT_QUEUE_HEAD(tx_wait);
 
-static sAviaGtInfo *gt_info = NULL;
+static sAviaGtInfo *gt_info;
 static u32 duty_cycle = 33;
-static u16 first_period_low = 0;
-static u16 first_period_high = 0;
+static u16 first_period_low;
+static u16 first_period_high;
 static u32 frequency = 38000;
 #define RX_MAX 50000
 static sAviaGtIrPulse rx_buffer[RX_MAX];
-static u32 rx_buffer_read_position = 0;
-static u32 rx_buffer_write_position = 0;
-static u8 rx_unit_busy = 0;
-static sAviaGtTxIrPulse *tx_buffer = NULL;
-static u8 tx_buffer_pulse_count = 0;
-static u8 tx_unit_busy = 0;
+static u32 rx_buffer_read_position;
+static u32 rx_buffer_write_position;
+static u8 rx_unit_busy;
+static sAviaGtTxIrPulse *tx_buffer;
+static u8 tx_buffer_pulse_count;
+static u8 tx_unit_busy;
 
 #define IR_TICK_LENGTH (1000 * 1125 / 8)
 #define TICK_COUNT_TO_USEC(tick_count) ((tick_count) * IR_TICK_LENGTH / 1000)
@@ -260,7 +260,7 @@ void avia_gt_ir_set_queue(unsigned int addr)
 
 int avia_gt_ir_init(void)
 {
-	printk(KERN_INFO "avia_gt_ir: $Id: avia_gt_ir.c,v 1.29 2003/09/12 04:41:16 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_ir: $Id: avia_gt_ir.c,v 1.30 2003/09/30 05:45:35 obi Exp $\n");
 
 	do_gettimeofday(&last_timestamp);
 	

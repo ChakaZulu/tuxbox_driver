@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_keyboard.c,v 1.4 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_keyboard.c,v 1.5 2003/09/30 05:45:38 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -46,7 +46,7 @@ static u16 keyboard_code_map[] = {
 #define KEYBOARD_CODE_COUNT	(sizeof(keyboard_code_map) / sizeof(keyboard_code_map[0]))
 
 static struct input_dev *keyboard_input_dev;
-static u8 fn_pressed = 0;
+static u8 fn_pressed;
 
 //#define dprintk printk
 #define dprintk if (0) printk

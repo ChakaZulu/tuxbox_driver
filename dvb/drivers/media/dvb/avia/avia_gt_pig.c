@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pig.c,v 1.39 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_pig.c,v 1.40 2003/09/30 05:45:35 obi Exp $
  *
  * pig driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -36,11 +36,11 @@
 #define CAPTURE_WIDTH 720
 #define CAPTURE_HEIGHT 576
 
-static sAviaGtInfo *gt_info = NULL;
-static unsigned char pig_busy[MAX_PIG_COUNT] = { 0, 0 };
-static unsigned char *pig_buffer[MAX_PIG_COUNT] = { NULL, NULL };
-static unsigned char pig_count = 0;
-static unsigned short pig_stride[MAX_PIG_COUNT] = { 0, 0 };
+static sAviaGtInfo *gt_info;
+static unsigned char pig_busy[MAX_PIG_COUNT];
+static unsigned char *pig_buffer[MAX_PIG_COUNT];
+static unsigned char pig_count;
+static unsigned short pig_stride[MAX_PIG_COUNT];
 
 int avia_gt_pig_hide(u8 pig_nr)
 {
@@ -158,7 +158,7 @@ int __init avia_gt_pig_init(void)
 {
 	u8 pig_nr;
 
-	printk(KERN_INFO "avia_gt_pig: $Id: avia_gt_pig.c,v 1.39 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_pig: $Id: avia_gt_pig.c,v 1.40 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -1,5 +1,5 @@
 /*
- * $Id: cam_napi.c,v 1.7 2003/09/11 23:22:47 obi Exp $
+ * $Id: cam_napi.c,v 1.8 2003/09/30 05:45:34 obi Exp $
  *
  * Copyright (C) 2002, 2003 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -29,7 +29,7 @@
 
 #include <dbox/cam.h>
 
-static struct dvb_device *ca_dev = NULL;
+static struct dvb_device *ca_dev;
 
 static struct ca_slot_info slot_info_0 = {
 	.num = 0,
@@ -136,7 +136,7 @@ int cam_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "$Id: cam_napi.c,v 1.7 2003/09/11 23:22:47 obi Exp $\n");
+	printk(KERN_INFO "$Id: cam_napi.c,v 1.8 2003/09/30 05:45:34 obi Exp $\n");
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0)
 		printk("cam_napi: cam_napi_register failed (errno = %d)\n", result);

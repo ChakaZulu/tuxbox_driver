@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.32 2003/04/21 19:19:50 obi Exp $
+ * $Id: saa7126_core.c,v 1.33 2003/09/30 05:45:39 obi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -169,8 +169,8 @@ static struct file_operations saa7126_fops = {
  * module parameters
  */
 
-static int mode  = 0;
-static int ntsc  = 0;
+static int mode;
+static int ntsc;
 
 
 
@@ -178,7 +178,7 @@ static int ntsc  = 0;
  * device counter
  */
 
-static int saa7126_id = 0;
+static int saa7126_id;
 
 
 

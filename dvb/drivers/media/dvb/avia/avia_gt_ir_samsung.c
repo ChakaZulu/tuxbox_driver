@@ -83,8 +83,8 @@ static sAviaGtInfo *gt_info;
 static unsigned char *receive_buffer;
 
 static unsigned received[MAX_RECV];
-static unsigned read_ptr = 0;
-static unsigned write_ptr = 0;
+static unsigned read_ptr;
+static unsigned write_ptr;
 static struct input_dev idev;
 
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.75 2003/09/12 04:46:54 obi Exp $
+ * $Id: avia_av_core.c,v 1.76 2003/09/30 05:45:35 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -49,13 +49,13 @@
 
 TUXBOX_INFO(dbox2_gt);
 
-static int pal = 1;
-static char *firmware = NULL;
+static int tv_standard;
+static char *firmware;
 
-static int debug = 0;
+static int debug;
 #define dprintk if (debug) printk
 
-static volatile u8 *aviamem = NULL;
+static volatile u8 *aviamem;
 static int aviarev;
 static int silirev;
 
@@ -66,10 +66,10 @@ static int dev;
 static spinlock_t avia_command_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
-static u8 bypass_mode = 0;
-static u8 bypass_mode_changed = 0;
-static u16 pid_audio = 0x0000;
-static u16 pid_video = 0x0000;
+static u8 bypass_mode;
+static u8 bypass_mode_changed;
+static u16 pid_audio;
+static u16 pid_video;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
 static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
 static u16 sample_rate = 44100;
@@ -750,7 +750,7 @@ void avia_av_set_default(void)
 	avia_av_dram_write(UCODE_MEMORY, 0);
 
 	/* set pal or ntsc */
-	if (pal)
+	if (tv_standard == 0)
 		avia_av_dram_write(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
 	else
 		avia_av_dram_write(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
@@ -1374,7 +1374,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.75 2003/09/12 04:46:54 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.76 2003/09/30 05:45:35 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
@@ -1399,9 +1399,9 @@ MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("AViA 500/600 driver");
 MODULE_LICENSE("GPL");
 MODULE_PARM(debug,"i");
-MODULE_PARM(pal,"i");
+MODULE_PARM(tv_standard,"i");
 MODULE_PARM(firmware,"s");
 MODULE_PARM_DESC(debug, "1: enable debug messages");
-MODULE_PARM_DESC(pal, "0: ntsc, 1: pal");
+MODULE_PARM_DESC(tv_standard, "0: PAL, 1: NTSC");
 MODULE_PARM_DESC(firmware, "path to microcode");
 

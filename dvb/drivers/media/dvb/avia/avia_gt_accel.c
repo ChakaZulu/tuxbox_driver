@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_accel.c,v 1.18 2003/08/01 17:31:21 obi Exp $
+ * $Id: avia_gt_accel.c,v 1.19 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX accelerator driver (dbox-II-project)
  *
@@ -31,8 +31,8 @@
 #include "avia_gt.h"
 #include "avia_gt_accel.h"
 
-static sAviaGtInfo *gt_info = NULL;
-static u8 max_transaction_size = 0;
+static sAviaGtInfo *gt_info;
+static u8 max_transaction_size;
 
 void avia_gt_accel_copy(u32 buffer_src, u32 buffer_dst, u32 buffer_size, u8 decrement)
 {
@@ -148,7 +148,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 
 int __init avia_gt_accel_init(void)
 {
-	printk(KERN_INFO "avia_gt_accel: $Id: avia_gt_accel.c,v 1.18 2003/08/01 17:31:21 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_accel: $Id: avia_gt_accel.c,v 1.19 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	

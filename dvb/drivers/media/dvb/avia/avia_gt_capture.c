@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_capture.c,v 1.31 2003/09/19 15:58:55 alexw Exp $
+ * $Id: avia_gt_capture.c,v 1.32 2003/09/30 05:45:35 obi Exp $
  * 
  * capture driver for eNX/GTX (dbox-II-project)
  *
@@ -56,12 +56,12 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 static int capture_open(struct inode *inode, struct file *file);
 static int capture_release(struct inode *inode, struct file *file);
 
-static unsigned char capture_busy = 0;
-static unsigned int captured_frames = 0;
+static unsigned char capture_busy;
+static unsigned int captured_frames;
 static unsigned short input_height = 576;
 static unsigned short input_width = 720;
-static unsigned short input_x = 0;
-static unsigned short input_y = 0;
+static unsigned short input_x;
+static unsigned short input_y;
 static unsigned short line_stride = 360;
 static unsigned short output_height = 288;
 static unsigned short output_width = 360;
@@ -286,7 +286,7 @@ void avia_gt_capture_reset(int reenable)
 
 int __init avia_gt_capture_init(void)
 {
-	printk(KERN_INFO "avia_gt_capture: $Id: avia_gt_capture.c,v 1.31 2003/09/19 15:58:55 alexw Exp $\n");
+	printk(KERN_INFO "avia_gt_capture: $Id: avia_gt_capture.c,v 1.32 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.187 2003/09/11 23:22:48 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.188 2003/09/30 05:45:35 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -47,19 +47,19 @@
 #include "avia_gt_vbi.h"
 #include "avia_napi.h"
 
-static sAviaGtInfo *gt_info = NULL;
-static struct dvb_adapter *adapter = NULL;
-static struct dvb_device *ca_dev = NULL;
+static sAviaGtInfo *gt_info;
+static struct dvb_adapter *adapter;
+static struct dvb_device *ca_dev;
 static struct dvb_demux demux;
 static struct dvb_net net;
 static struct dmxdev dmxdev;
 static struct dmx_frontend fe_hw;
 static struct dmx_frontend fe_mem;
 static int hw_crc = 1;
-static int mode = 0;
+static int mode;
 
 /* only used for playback */
-static int need_audio_pts = 0;
+static int need_audio_pts;
 
 static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];
 
@@ -703,7 +703,7 @@ int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.187 2003/09/11 23:22:48 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.188 2003/09/30 05:45:35 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

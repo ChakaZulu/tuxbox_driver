@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.41 2003/09/12 04:41:15 obi Exp $
+ * $Id: avia_gt_core.c,v 1.42 2003/09/30 05:45:35 obi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -46,8 +46,8 @@
 TUXBOX_INFO(dbox2_gt);
 
 static int chip_type = -1;
-static int init_state = 0;
-static sAviaGtInfo *gt_info = NULL;
+static int init_state;
+static sAviaGtInfo *gt_info;
 static void (* gt_isr_proc_list[128])(unsigned short irq);
 
 sAviaGtInfo *avia_gt_get_info(void)
@@ -120,7 +120,7 @@ int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.41 2003/09/12 04:41:15 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.42 2003/09/30 05:45:35 obi Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
