@@ -8,6 +8,7 @@
 #define ENX_BCLR01 0x05A0 /* Blitter Color Register 0/1 */
 #define ENX_BCLR23 0x05A4 /* Blitter Color Register 2/3 */
 #define ENX_BPW    0x058C /* Blitter Pixel Width Register */
+#define ENX_BMODE  0x0590
 #define ENX_BPO    0x058E /* Blitter Pixel Offset Register */
 #define ENX_GCSRC  0x05C0 /* Graphics Copy Source Address Register */
 #define ENX_GCDST  0x05C4 /* Graphics Copy Destination Address Register */
