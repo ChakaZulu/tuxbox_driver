@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.28 2002/07/07 20:30:02 Hunz Exp $
+    $Id: at76c651.c,v 1.29 2002/08/12 16:56:42 obi Exp $
 
     AT76C651  - DVB frontend driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.29  2002/08/12 16:56:42  obi
+    removed compiler warnings
+
     Revision 1.28  2002/07/07 20:30:02  Hunz
     2. patch von dumdidum
 
@@ -249,7 +252,7 @@ static int tuner_init(struct i2c_client *client)
 	return 0;
 }
 
-static int tuner_close(struct i2c_driver *client)
+static int tuner_close(struct i2c_client *client)
 {
 	int res;
 
@@ -307,7 +310,7 @@ static int set_tuner_dword(struct i2c_client *client, u32 tw)
 
 	//if(tunerdata->lastwrite==tw)
 	//	return 0; // Nichts zu tun
-	dprintk("AT76C651: set_tuner_dword: 0x%08x, dclient_tuner: %x\n", tw, dclient_tuner);
+	//dprintk("AT76C651: set_tuner_dword: 0x%08x, dclient_tuner: %x\n", tw, dclient_tuner);
 	*((u32*)(msg))=tw;
 	ves_tuner_i2c(client, 1); //enable tuner access on at76c651
 	if (i2c_master_send(dclient_tuner, msg, len)!=len)
@@ -356,7 +359,7 @@ static void ves_tuner_i2c(struct i2c_client *client, int an)
 
 static int init(struct i2c_client *client)
 {
-	dprintk("AT76C651: init chip %x\n", client);
+	//dprintk("AT76C651: init chip %x\n", client);
 
 	// BBFREQ
 	writereg(client, 0x04, 0x3f);
@@ -395,6 +398,7 @@ u32 expTab[] = {
 };
 */
 
+#if 0
 static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
 {
 #define FREF 57800000UL
@@ -452,7 +456,6 @@ static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
 		return 0;
 }
 
-
 static const char *qamstr[6]= {
 	"QPSK",
 	"QAM 16",
@@ -484,6 +487,7 @@ static int SetQAM(struct i2c_client* client, Modulation QAM_Mode)
 	//	writereg(client, 0x07, 0x01);
 		return 0;
 }
+#endif
 
 static void inc_use (struct i2c_client *client)
 {
@@ -536,11 +540,13 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		case FE_SET_FRONTEND:
 		{
+#if 0
 			FrontendParameters *param = (FrontendParameters *) arg;
 
-			//init(client);
-			//SetQAM(client, param->u.qam.QAM);
-			//SetSymbolrate(client, param->u.qam.SymbolRate);
+			init(client);
+			SetQAM(client, param->u.qam.QAM);
+			SetSymbolrate(client, param->u.qam.SymbolRate);
+#endif
 			break;
 		}
 		case FE_SETFREQ:
@@ -589,7 +595,6 @@ static int attach_adapter(struct i2c_adapter *adap)
 {
 	struct at76c651 *at;
 	struct i2c_client *client;
-	int res;
 
 	client_template.adapter=adap;
 
@@ -664,7 +669,7 @@ static int detach_client(struct i2c_client *client)
 int init_module(void) {
 	int res;
 
-	dprintk("AT76C651: $Id: at76c651.c,v 1.28 2002/07/07 20:30:02 Hunz Exp $\n");
+	dprintk("AT76C651: $Id: at76c651.c,v 1.29 2002/08/12 16:56:42 obi Exp $\n");
 	if ((res = i2c_add_driver(&dvbt_driver)))
 	{
 		printk("AT76C651: Driver registration failed, module not inserted.\n");

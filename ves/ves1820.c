@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.28 2002/07/05 12:39:30 Homar Exp $
+   $Id: ves1820.c,v 1.29 2002/08/12 16:56:42 obi Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,9 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.29  2002/08/12 16:56:42  obi
+    removed compiler warnings
+
     Revision 1.28  2002/07/05 12:39:30  Homar
     Bugfix: INV/nonINV mixed im Kabel
 
@@ -157,7 +160,7 @@ int writereg(struct i2c_client *client, u8 reg, u8 data)
         u8 msg[] = {0x00, 0x1f, 0x00};
 
         msg[1]=reg; msg[2]=data;
-        while(ret=i2c_master_send(client, msg, 3)!=3);
+        while((ret=i2c_master_send(client, msg, 3))!=3);
         return ret;
 }
 
@@ -465,7 +468,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.28 2002/07/05 12:39:30 Homar Exp $\n");
+        printk("$Id: ves1820.c,v 1.29 2002/08/12 16:56:42 obi Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix

@@ -1,5 +1,5 @@
 /* 
- *   $Id: tda8044h.c,v 1.11 2002/08/11 19:48:15 happydude Exp $
+ *   $Id: tda8044h.c,v 1.12 2002/08/12 16:56:42 obi Exp $
  *   
  *   tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -23,6 +23,9 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.12  2002/08/12 16:56:42  obi
+ *   removed compiler warnings
+ *
  *   Revision 1.11  2002/08/11 19:48:15  happydude
  *   disable debug messages
  *
@@ -65,7 +68,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -583,7 +586,9 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case FE_SEC_GET_STATUS:
 	{
+		/*
 		struct secStatus *status=(struct secStatus*)arg;
+		*/
 		break;
 	}
 	case FE_SETFREQ:
@@ -675,10 +680,12 @@ static int tda_send_diseqc(struct i2c_client *client, u8 *cmd,unsigned int len)
 	return 0;
 }
 
+/*
 static int tda_sec_status(void)
 {
 	return 0;
 }
+*/
 
 static void tda_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
