@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.176 2003/04/12 06:03:32 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.177 2003/04/12 21:24:58 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -643,7 +643,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.176 2003/04/12 06:03:32 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.177 2003/04/12 21:24:58 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -665,7 +665,9 @@ int __init avia_gt_napi_init(void)
 	demux.dmx.vendor = "C-Cube";
 	demux.dmx.model = "AViA GTX/eNX";
 	demux.dmx.id = "demux0_0";
-	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING;
+	demux.dmx.capabilities = DMX_TS_FILTERING | DMX_PES_FILTERING |
+		DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING |
+		DMX_CRC_CHECKING;
 
 	demux.priv = NULL;
 	demux.filternum = 31;
