@@ -25,10 +25,13 @@
 #ifndef AVIA_AV_H
 #define AVIA_AV_H
 
+#include "avia_gt_napi.h"	/* struct pes_header */
+
 #define AVIA_AV_PLAY_STATE_PAUSED	0x01
 #define AVIA_AV_PLAY_STATE_PLAYING	0x02
 #define AVIA_AV_PLAY_STATE_STOPPED	0x03
 
+#define AVIA_AV_STREAM_TYPE_0		0x00
 #define AVIA_AV_STREAM_TYPE_SPTS	0x01
 #define AVIA_AV_STREAM_TYPE_PES		0x02
 #define AVIA_AV_STREAM_TYPE_ES		0x03
@@ -41,21 +44,50 @@
 #define AVIA_AV_TYPE_AUDIO		0x01
 #define AVIA_AV_TYPE_VIDEO		0x02
 
+#define AVIA_AV_BITSTREAM_SRC_TP_DEMUX	0x00
+#define AVIA_AV_BITSTREAM_SRC_HOST_IF	0x02
+
 #define TM_DRAM  0x00
+#define TM_RES   0x40
 #define TM_GBUS  0x80
 #define TM_SRAM  0xC0
 
-u32 avia_av_read(const u8 mode, u32 address);
-void avia_av_write(const u8 mode, u32 address, const u32 data);
-u32 avia_av_cmd(u32 cmd, ...);
-void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
-
-#define avia_av_gbus_write(a,d)	avia_av_write(TM_GBUS, a, d)
-#define avia_av_gbus_read(a)	avia_av_read(TM_GBUS, a)
-#define avia_av_sram_write(a,d)	avia_av_write(TM_SRAM, a, d)
-#define avia_av_sram_read(a)	avia_av_read(TM_SRAM, a)
-#define avia_av_dram_write(a,d)	avia_av_write(TM_DRAM, a, d)
-#define avia_av_dram_read(a)	avia_av_read(TM_DRAM, a)
+/* decoder init complete / audio decode start (600 only?) */
+#define IRQ_INIT_AUDD	(1 << 23)
+/* new audio settings detected */
+#define IRQ_AUD		(1 << 22)
+/* closed caption or line 21 data ready */
+#define IRQ_CC		(1 << 21)
+/* ready to receive data */
+#define IRQ_RDY_D	(1 << 20)
+/* display picture with desired time code (600 only?) */
+#define IRQ_TC_V	(1 << 18)
+/* sequence end code has been processed */
+#define IRQ_SEQ_E	(1 << 17)
+/* input buffer is full */
+#define IRQ_BUF_F	(1 << 16)
+/* low priority command complete (600 only?) */
+#define IRQ_END_L	(1 << 15)
+/* user data ready */
+#define IRQ_USR		(1 << 12)
+/* high priority command complete */
+#define IRQ_END_C	(1 << 9)
+/* input buffer underflow */
+#define IRQ_UND		(1 << 8)
+/* vsync pulse */
+#define IRQ_VSYNC	(1 << 6)
+/* picture decode complete */
+#define IRQ_PIC_D	(1 << 5)
+/* display last picture before seq end startcode */
+#define IRQ_END_V	(1 << 4)
+/* display 1st i-picture after seq startcode */
+#define IRQ_SEQ_V	(1 << 3)
+/* display 1st i-picture after gop startcode */
+#define IRQ_GOP_V	(1 << 2)
+/* display new picture */
+#define IRQ_PIC_V	(1 << 1)
+/* bitstream error detected */
+#define IRQ_ERR		(1 << 0)
 
 #define Abort				0x8120
 #define Digest				0x0621
@@ -158,6 +190,7 @@ void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
 #define DISABLE_OSD			0x0250
 #define DISP_SIZE_H_V			0x03cc
 #define DISPLAY_ASPECT_RATIO		0x0080
+#define SRAM_INFO			0x0064
 #define DRAM_INFO			0x0068
 
 #define ERR_ASPECT_RATIO_INFORMATION	0x00c0
@@ -274,7 +307,7 @@ void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
 #define VBV_DELAY			0x03e0
 #define VBV_SIZE			0x03c4
 
-#define AVIA_AV_VERSION			0x0330
+#define UCODE_VERSION			0x0330
 
 #define VIDEO_EMPTINESS			0x02c8
 #define VIDEO_FIELD			0x02d8
@@ -299,10 +332,31 @@ u16 avia_av_get_sample_rate(void);
 int avia_av_pid_set(const u8 type, const u16 pid);
 int avia_av_play_state_set_audio(const u8 new_play_state);
 int avia_av_play_state_set_video(const u8 new_play_state);
-void avia_av_set_audio_attenuation(const u8 att);
+int avia_av_set_audio_attenuation(const u8 att);
 void avia_av_set_stc(const u32 hi, const u32 lo);
 int avia_av_standby(const int state);
 int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_type_audio);
 int avia_av_sync_mode_set(const u8 new_sync_mode);
+int avia_av_audio_pts_to_stc(struct pes_header *pes);
 
-#endif
+u32 avia_av_read(const u8 mode, u32 address);
+void avia_av_write(const u8 mode, u32 address, const u32 data);
+u32 avia_av_cmd(u32 cmd, ...);
+void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
+
+#define avia_av_gbus_write(a,d)	avia_av_write(TM_GBUS, a, d)
+#define avia_av_gbus_read(a)	avia_av_read(TM_GBUS, a)
+#define avia_av_sram_write(a,d)	avia_av_write(TM_SRAM, a, d)
+#define avia_av_sram_read(a)	avia_av_read(TM_SRAM, a)
+#define avia_av_dram_write(a,d)	avia_av_write(TM_DRAM, a, d)
+#define avia_av_dram_read(a)	avia_av_read(TM_DRAM, a)
+#define avia_av_mpeg_write(d)	avia_av_write(TM_RES, 0, d)
+#define avia_av_mpeg_read()	avia_av_read(TM_RES, 0)
+
+struct avia_av_user_data_header {
+	unsigned sync_word	: 16;
+	unsigned header_type	: 4;
+	unsigned data_length	: 12;
+} __attribute__ ((packed));
+
+#endif /* AVIA_AV_H */
