@@ -1,114 +1,25 @@
 /*
- *   avia_gt_core.c - AViA eNX/GTX core driver (dbox-II-project)
+ * $Id: avia_gt_core.c,v 1.28 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX core driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_core.c,v $
- *   Revision 1.27  2002/12/29 16:22:33  wjoost
- *   Videotext reinsertion.
- *
- *   Revision 1.26  2002/12/23 11:25:33  Jolt
- *   Follow v4l2 api changes
- *
- *   Revision 1.25  2002/12/21 13:43:43  Jolt
- *   Fixes
- *
- *   Revision 1.24  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.23  2002/10/05 15:01:12  Jolt
- *   New NAPI compatible VBI interface
- *
- *   Revision 1.22  2002/09/13 22:53:55  Jolt
- *   HW CRC support
- *
- *   Revision 1.21  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.20  2002/06/07 14:00:23  tmbinc
- *   off-by-one aka. "streamen auf gtx ist kaputt" fixed.
- *
- *   *bugsuche sponsored by enigma*
- *
- *   Revision 1.19  2002/05/09 19:54:19  obi
- *   added some tabs
- *
- *   Revision 1.18  2002/05/09 07:29:21  waldi
- *   add correct license
- *
- *   Revision 1.17  2002/05/07 16:59:19  Jolt
- *   Misc stuff and cleanups
- *
- *   Revision 1.16  2002/05/07 16:40:32  Jolt
- *   IR stuff
- *
- *   Revision 1.15  2002/05/03 16:15:31  obi
- *   - formatted source
- *   - disabled one dprintk
- *
- *   Revision 1.14  2002/05/02 18:13:52  Jolt
- *   Autodetect
- *
- *   Revision 1.13  2002/05/01 21:51:35  Jolt
- *   Merge
- *
- *   Revision 1.12  2002/04/24 08:17:42  obi
- *   enabled pig
- *
- *   Revision 1.11  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.10  2002/04/19 08:54:48  Jolt
- *   Merged vbi driver
- *
- *   Revision 1.9  2002/04/17 05:56:17  Jolt
- *   Capture driver fixes
- *
- *   Revision 1.8  2002/04/15 21:58:57  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.7  2002/04/15 10:40:50  Jolt
- *   eNX/GTX
- *
- *   Revision 1.6  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.5  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.4  2002/04/13 14:47:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.3  2002/04/12 21:29:35  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.2  2002/04/12 18:59:29  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.1  2002/04/12 13:50:37  Jolt
- *   eNX/GTX merge
- *
- *
- *   $Revision: 1.27 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -301,7 +212,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.27 2002/12/29 16:22:33 wjoost Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.28 2003/01/02 05:26:43 obi Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -566,6 +477,7 @@ MODULE_DESCRIPTION("Avia eNX/GTX driver");
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
+#endif
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
@@ -573,4 +485,3 @@ EXPORT_SYMBOL(avia_gt_get_info);
 
 module_init(avia_gt_init);
 module_exit(avia_gt_exit);
-#endif

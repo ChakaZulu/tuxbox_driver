@@ -1,79 +1,27 @@
 /*
- *   avia_osd.c - AViA OSD driver (dbox-II-project)
+ * $Id: avia_av_osd.c,v 1.16 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA OSD driver (dbox-II-project)
  *
- *   Copyright (C) 2001 Gillem (htoa@gmx.net)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2001 Gillem (htoa@gmx.net)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_av_osd.c,v $
- *   Revision 1.15  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.14  2002/10/03 12:47:57  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.13  2002/10/01 20:22:59  Jolt
- *   Cleanups
- *
- *   Revision 1.12  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.11  2002/05/09 07:29:21  waldi
- *   add correct license
- *
- *   Revision 1.10  2002/05/07 16:59:19  Jolt
- *   Misc stuff and cleanups
- *
- *   Revision 1.9  2001/12/01 06:37:06  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.8  2001/03/07 19:18:38  gillem
- *   - fix 600er bug
- *
- *   Revision 1.7  2001/03/06 21:49:50  gillem
- *   - some rewrites
- *
- *   Revision 1.6  2001/03/04 22:17:46  gillem
- *   - add read function ... avia500 multiframe not work
- *
- *   Revision 1.5  2001/03/04 20:04:41  gillem
- *   - show 16 frames ... avia600 only ????
- *
- *   Revision 1.4  2001/03/04 17:57:13  gillem
- *   - add more frames, not work !
- *
- *   Revision 1.3  2001/03/03 00:24:44  gillem
- *   - not ready ...
- *
- *   Revision 1.2  2001/02/22 22:49:08  gillem
- *   - add functions
- *
- *   Revision 1.1  2001/02/22 15:30:59  gillem
- *   - initial release
- *
- *
- *   $Revision: 1.15 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
-/* ---------------------------------------------------------------------- */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -126,7 +74,7 @@ typedef struct osd_header {
 	u32 res02 	: 2   __attribute__((packed));
 
 	u32 res03 	: 8   __attribute__((packed));
-	u32 bmsize1 : 18  __attribute__((packed));
+	u32 bmsize1	: 18  __attribute__((packed));
 	u32 n1 		: 1   __attribute__((packed)); 	// set to 1
 	u32 res05 	: 5   __attribute__((packed));
 
@@ -135,7 +83,7 @@ typedef struct osd_header {
 	u32 res08 	: 3   __attribute__((packed));
 	u32 n3 		: 1   __attribute__((packed)); 	// set to 1
 	u32 res10 	: 2   __attribute__((packed));
-	u32 bmsize2 : 9   __attribute__((packed)); 	// 8:0 bms
+	u32 bmsize2	: 9   __attribute__((packed)); 	// 8:0 bms
 	u32 res11 	: 2   __attribute__((packed));
 
 	u32 res12 	: 8   __attribute__((packed));
@@ -149,15 +97,15 @@ typedef struct osd_header {
 	u32 n5 		: 1   __attribute__((packed)); 	// set to 1
 
 	u32 res17 	: 12  __attribute__((packed));
-	u32 colstart: 10  __attribute__((packed));
-	u32 colstop : 10  __attribute__((packed));
+	u32 colstart	: 10  __attribute__((packed));
+	u32 colstop	: 10  __attribute__((packed));
 
 	u32 res18 	: 12  __attribute__((packed));
-	u32 rowstart: 10  __attribute__((packed));
-	u32 rowstop : 10  __attribute__((packed));
+	u32 rowstart	: 10  __attribute__((packed));
+	u32 rowstop	: 10  __attribute__((packed));
 
 	u32 res19 	: 8   __attribute__((packed));
-	u32 palette : 22  __attribute__((packed));
+	u32 palette	: 22  __attribute__((packed));
 	u32 res20 	: 2   __attribute__((packed));
 } osd_header;
 
@@ -453,10 +401,13 @@ MODULE_PARM(debug,"i");
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
+#endif
 
-#if defined(MODULE) && defined(STANDALONE)
+#if 0
+#if defined(STANDALONE)
 module_init(avia_av_osd_init);
 module_exit(avia_av_osd_exit);
+#endif
 #endif
 
 /*int init_module(void)
@@ -473,6 +424,5 @@ void cleanup_module(void)
 
 	return;
 }*/
-#endif
 
 /* ---------------------------------------------------------------------- */

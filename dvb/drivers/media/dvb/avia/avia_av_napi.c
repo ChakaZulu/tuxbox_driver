@@ -1,68 +1,25 @@
-
 /*
- *   avia_av_napi.c - AViA 500/600 NAPI driver (dbox-II-project)
+ * $Id: avia_av_napi.c,v 1.13 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA 500/600 DVB API driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_av_napi.c,v $
- *   Revision 1.12  2002/11/20 12:03:46  Jolt
- *   SPTS mode support (which is now default)
- *
- *   Revision 1.11  2002/11/18 11:40:18  Jolt
- *   Support for AC3 and non sync mode
- *
- *   Revision 1.10  2002/11/16 16:53:15  Jolt
- *   AVIA API work
- *
- *   Revision 1.9  2002/11/11 06:47:21  Jolt
- *   Module dependency cleanup
- *
- *   Revision 1.8  2002/11/11 03:16:08  obi
- *   module licenses
- *
- *   Revision 1.7  2002/11/10 01:27:54  obi
- *   fix audio
- *
- *   Revision 1.6  2002/11/06 05:26:08  obi
- *   some fixes
- *
- *   Revision 1.5  2002/11/05 22:03:25  Jolt
- *   Decoder work
- *
- *   Revision 1.4  2002/11/05 00:02:58  Jolt
- *   Decoder work
- *
- *   Revision 1.3  2002/11/04 23:35:45  Jolt
- *   tuxindent'ed
- *
- *   Revision 1.2  2002/11/04 23:18:39  Jolt
- *   More decoder work
- *
- *   Revision 1.1  2002/11/04 23:04:02  Jolt
- *   Some decoder work
- *
- *
- *
- *
- *
- *   $Revision: 1.12 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -621,7 +578,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.12 2002/11/20 12:03:46 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.13 2003/01/02 05:26:43 obi Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -668,9 +625,10 @@ void __exit avia_av_napi_exit(void)
 
 }
 
-#if defined(MODULE)
 module_init(avia_av_napi_init);
 module_exit(avia_av_napi_exit);
+
+#if defined(MODULE)
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>, Andreas Oberritter <obi@tuxbox.org>");
 MODULE_DESCRIPTION("AViA 500/600 dvb api driver");
 #ifdef MODULE_LICENSE

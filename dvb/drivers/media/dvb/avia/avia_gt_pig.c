@@ -1,110 +1,25 @@
 /*
- *   avia_gt_pig.c - pig driver for AViA eNX/GTX (dbox-II-project)
+ * $Id: avia_gt_pig.c,v 1.33 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * pig driver for AViA eNX/GTX (dbox-II-project)
  *
- *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_pig.c,v $
- *   Revision 1.32  2002/12/21 15:20:06  Jolt
- *   Fix stack order
- *
- *   Revision 1.31  2002/12/20 22:02:41  Jolt
- *   - V4L2 compatible pig interface
- *   - Removed old pig interface
- *   - Someone needs to fix all the pig users ;-)
- *
- *   Revision 1.30  2002/12/20 21:27:41  Jolt
- *   Fix lots of ugly things
- *
- *   Revision 1.29  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.28  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.27  2002/08/06 13:06:30  wjoost
- *   Es kann nur einen (Nutzer des Capture-Moduls) geben.
- *   Entweder *ein* Programm oder avia_gt_pig
- *
- *   Revision 1.26  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.25  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.24  2002/06/06 00:07:35  dirch
- *   fixed bitmask - alexW
- *
- *   Revision 1.23  2002/06/05 18:24:47  dirch
- *   workaround for enx stretch problem, tuxtxt works now - alexW
- *
- *   Revision 1.22  2002/05/29 14:21:05  derget
- *   fixxt gtx
- *
- *   Revision 1.21  2002/05/29 13:21:41  derget
- *   test
- *
- *   Revision 1.20  2002/05/29 12:49:10  derget
- *   pic position auf nokia gefixxt und getestet :)
- *
- *   Revision 1.19  2002/05/28 23:44:11  derget
- *   gtx pic offset fixxt
- *   hm kann das mal wer testen ? :)
- *
- *   Revision 1.18  2002/05/07 16:59:19  Jolt
- *   Misc stuff and cleanups
- *
- *   Revision 1.17  2002/05/01 21:51:35  Jolt
- *   Merge
- *
- *   Revision 1.16  2002/04/24 09:08:57  obi
- *   fixed check for S
- *
- *   Revision 1.15  2002/04/23 00:11:10  Jolt
- *   Capture/PIG fixes
- *
- *   Revision 1.14  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.13  2002/04/17 05:56:17  Jolt
- *   Capture driver fixes
- *
- *   Revision 1.12  2002/04/15 21:58:57  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.11  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.10  2002/04/13 14:47:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.9  2002/04/12 18:59:29  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.8  2002/04/12 14:28:13  Jolt
- *   eNX/GTX merge
- *
- *
- *
- *   $Revision: 1.32 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 	
@@ -124,10 +39,6 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-
-#ifndef CONFIG_DEVFS_FS
-#error no devfs
-#endif
 
 #include "avia_gt.h"
 #include <linux/dvb/avia/avia_gt_capture.h>
@@ -316,7 +227,7 @@ int __init avia_gt_pig_init(void)
 
 	unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.32 2002/12/21 15:20:06 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.33 2003/01/02 05:26:43 obi Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -389,7 +300,7 @@ EXPORT_SYMBOL(avia_gt_pig_set_size);
 EXPORT_SYMBOL(avia_gt_pig_set_stack);
 EXPORT_SYMBOL(avia_gt_pig_show);
 
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_gt_pig_init);
 module_exit(avia_gt_pig_exit);
 #endif

@@ -1,92 +1,25 @@
 /*
- *   avia_gt_capture.c - capture driver for eNX/GTX (dbox-II-project)
+ * $Id: avia_gt_capture.c,v 1.25 2003/01/02 05:26:43 obi Exp $
+ * 
+ * capture driver for eNX/GTX (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ * Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
+ * Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *   $Log: avia_gt_capture.c,v $
- *   Revision 1.24  2002/12/23 11:25:33  Jolt
- *   Follow v4l2 api changes
- *
- *   Revision 1.23  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.22  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.21  2002/08/06 13:06:30  wjoost
- *   Es kann nur einen (Nutzer des Capture-Moduls) geben.
- *   Entweder *ein* Programm oder avia_gt_pig
- *
- *   Revision 1.20  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.19  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.18  2002/05/01 21:51:35  Jolt
- *   Merge
- *
- *   Revision 1.17  2002/04/25 21:09:02  Jolt
- *   Fixes/Cleanups
- *
- *   Revision 1.16  2002/04/23 00:11:10  Jolt
- *   Capture/PIG fixes
- *
- *   Revision 1.15  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.14  2002/04/18 18:42:25  obi
- *   removed annoying debug output :-)
- *
- *   Revision 1.13  2002/04/17 21:50:57  Jolt
- *   Capture driver fixes
- *
- *   Revision 1.12  2002/04/17 18:01:37  Jolt
- *   Fixed GTX support
- *
- *   Revision 1.11  2002/04/17 16:44:26  Jolt
- *   GTX support finished
- *
- *   Revision 1.10  2002/04/17 13:32:57  Jolt
- *   Capture driver merge
- *
- *   Revision 1.9  2002/04/17 05:56:17  Jolt
- *   Capture driver fixes
- *
- *   Revision 1.8  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.7  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.6  2002/04/13 14:47:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.5  2002/04/12 14:00:20  Jolt
- *   eNX/GTX merge
- *
- *
- *
- *   $Revision: 1.24 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -106,11 +39,6 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-#include <linux/devfs_fs_kernel.h>
-
-#ifndef CONFIG_DEVFS_FS
-#error no devfs
-#endif
 
 #include "avia_gt.h"
 #include "avia_gt_capture.h"
@@ -361,7 +289,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.24 2002/12/23 11:25:33 Jolt Exp $\n");
+	printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.25 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -413,15 +341,20 @@ void __exit avia_gt_capture_exit(void)
 
 }
 
-#ifdef MODULE
 EXPORT_SYMBOL(avia_gt_capture_set_input_pos);
 EXPORT_SYMBOL(avia_gt_capture_set_input_size);
 EXPORT_SYMBOL(avia_gt_capture_set_output_size);
 EXPORT_SYMBOL(avia_gt_capture_start);
 EXPORT_SYMBOL(avia_gt_capture_stop);
-#endif
 
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_gt_capture_init);
 module_exit(avia_gt_capture_exit);
+#if defined(MODULE)
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX capture driver");
+#if defined(MODULE_LICENSE)
+MODULE_LICENSE("GPL");
+#endif
+#endif
 #endif

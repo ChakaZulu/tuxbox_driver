@@ -1,93 +1,25 @@
 /*
- *   avia_gt_pcm.c - AViA eNX/GTX pcm driver (dbox-II-project)
+ * $Id: avia_gt_pcm.c,v 1.21 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX pcm driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_pcm.c,v $
- *   Revision 1.20  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.19  2002/10/03 11:12:42  thegoodguy
- *   Reenable full volume
- *
- *   Revision 1.18  2002/09/25 18:50:52  Jolt
- *   Added 24000 and 12000 sample rate support
- *
- *   Revision 1.17  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.16  2002/08/19 00:02:01  TheDOC
- *   export the poll-stuff
- *
- *   Revision 1.15  2002/08/18 18:22:30  tmbinc
- *   added poll()-support for pcm device (untested)
- *
- *   Revision 1.14  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.13  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.12  2002/05/08 12:56:41  obi
- *   export avia_gt_pcm_set_mpeg_attenuation
- *   plus some cleanup
- *
- *   Revision 1.11  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.10  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.9  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.8  2002/04/13 21:00:28  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.7  2002/04/13 14:47:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.6  2002/04/12 13:50:37  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.5  2002/04/10 21:53:31  Jolt
- *   Further cleanups/bugfixes
- *   More OSS API stuff
-
- *   Revision 1.4  2002/04/05 23:15:13  Jolt
- *   Improved buffer management - MP3 is rocking solid now
- *
- *   Revision 1.3  2002/04/02 18:14:10  Jolt
- *   Further features/bugfixes. MP3 works very well now 8-)
- *
- *   Revision 1.2  2002/04/02 13:56:50  Jolt
- *   Dependency fixes
- *
- *   Revision 1.1  2002/04/01 22:23:22  Jolt
- *   Basic PCM driver for eNX - more to come later
- *
- *
- *
- *   $Revision: 1.20 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * oundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -584,7 +516,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad  = (unsigned short)0;
 	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.20 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.21 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -676,7 +608,6 @@ void avia_gt_pcm_exit(void)
 
 }
 
-#ifdef MODULE
 EXPORT_SYMBOL(avia_gt_pcm_play_buffer);
 EXPORT_SYMBOL(avia_gt_pcm_stop);
 EXPORT_SYMBOL(avia_gt_pcm_set_signed);
@@ -688,9 +619,8 @@ EXPORT_SYMBOL(avia_gt_pcm_set_mpeg_attenuation);
 EXPORT_SYMBOL(avia_gt_pcm_set_pcm_attenuation);
 EXPORT_SYMBOL(avia_gt_pcm_get_block_size);
 EXPORT_SYMBOL(avia_gt_pcm_poll);
-#endif
 
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_gt_pcm_init);
 module_exit(avia_gt_pcm_exit);
 #endif

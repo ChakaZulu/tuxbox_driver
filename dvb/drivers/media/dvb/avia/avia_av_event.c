@@ -1,42 +1,25 @@
 /*
- *   avia_av_event.c - AViA 500/600 event driver (dbox-II-project)
+ * $Id: avia_av_event.c,v 1.5 2003/01/02 05:26:43 obi Exp $
+ *   
+ * AViA 500/600 event driver (dbox-II-project)
  *
- *   Homepage: http://dbox2.elxsi.de
+ * Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *   $Log: avia_av_event.c,v $
- *   Revision 1.4  2002/11/25 18:25:08  obi
- *   compile-/bugfix
- *
- *   Revision 1.3  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.2  2002/10/03 12:47:57  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.1  2002/10/01 20:22:59  Jolt
- *   Cleanups
- *
- *
- *
- *
- *   $Revision: 1.4 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -126,7 +109,7 @@ static void avia_av_event_timer_function(unsigned long data)
 int avia_av_event_init(void)
 {
 
-	printk("avia_av_event: $Id: avia_av_event.c,v 1.4 2002/11/25 18:25:08 obi Exp $\n");
+	printk("avia_av_event: $Id: avia_av_event.c,v 1.5 2003/01/02 05:26:43 obi Exp $\n");
 
 	event_delay = 0;
 
@@ -164,11 +147,7 @@ void avia_av_event_exit(void)
 
 }
 
-#ifdef MODULE
-//EXPORT_SYMBOL();
-#endif
-
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_av_event_init);
 module_exit(avia_av_event_exit);
 #endif

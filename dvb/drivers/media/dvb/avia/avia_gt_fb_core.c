@@ -1,178 +1,25 @@
 /*
- *   avia_gt_fb.c - AViA eNX/GTX framebuffer driver (dbox-II-project)
+ * $Id: avia_gt_fb_core.c,v 1.41 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_fb_core.c,v $
- *   Revision 1.40  2002/12/28 21:01:15  obi
- *   - fix mmio offset
- *   - set accelerator id
- *
- *   Revision 1.39  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.38  2002/10/10 14:49:33  Jolt
- *   FB cleanups
- *
- *   Revision 1.37  2002/10/09 18:31:06  Jolt
- *   HW copy support
- *
- *   Revision 1.36  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.35  2002/08/11 13:07:34  waldi
- *   color 0 is transparent if
- *   - console in text mode
- *   - enabled
- *
- *   Revision 1.34  2002/08/11 11:33:24  TheDOC
- *   whoever did this crap, shame on you! 4 and 8 bit-modes are fixed now, 16 bit needs to be fixed, can't test this right now...
- *
- *   Revision 1.33  2002/07/19 22:59:21  waldi
- *   * use sun8x16 font
- *   * color 0 is transparent
- *   * use 8bit clut mode by default
- *
- *   Revision 1.32  2002/07/10 23:10:06  tmbinc
- *   some magic to let 8bpp/32bpp console work. may interfere with some guis, but who cares.. use pzap\!
- *
- *   Revision 1.31  2002/05/30 00:39:03  obi
- *   fixed 640x480 fullscreen console
- *
- *   Revision 1.30  2002/05/03 16:47:35  obi
- *   changed fb_ioctl
- *
- *   Revision 1.29  2002/04/25 22:10:38  Jolt
- *   FB cleanup
- *
- *   Revision 1.28  2002/04/25 21:09:02  Jolt
- *   Fixes/Cleanups
- *
- *   Revision 1.27  2002/04/24 21:38:13  Jolt
- *   Framebuffer cleanups
- *
- *   Revision 1.26  2002/04/24 19:56:00  Jolt
- *   GV driver updates
- *
- *   Revision 1.25  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.24  2002/04/21 14:36:07  Jolt
- *   Merged GTX fb support
- *
- *   Revision 1.23  2002/04/15 19:32:44  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.22  2002/04/15 19:05:03  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.21  2002/04/15 12:04:53  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.20  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.19  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.18  2002/04/12 23:20:25  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.17  2002/04/12 18:59:29  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.16  2002/03/29 19:16:29  obi
- *   - simplify gtx blev code
- *   - ioctl return value fix
- *
- *   Revision 1.15  2002/03/27 13:13:06  derget
- *   nix
- *
- *   Revision 1.14  2002/03/27 12:54:49  derget
- *   l33t h4xoring for kernel console on fb :)
- *   ntsc disabled
- *   xres -> yres -> vxres -> vyres check disabled
- *   ioctrls for blev
- *   ioctrls for Graphics Viewport Position
- *   ioctrls for Transparent Color Register (schwarz durchsichtig oder nicht)
- *
- *   Revision 1.13  2002/03/06 09:02:44  gillem
- *   - fix output
- *
- *   Revision 1.12  2001/12/01 06:37:06  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.11  2001/10/23 08:49:35  Jolt
- *   eNX capture and pig driver
- *
- *   Revision 1.10  2001/09/13 17:11:37  field
- *   Fixed CRLFs (verdammter Editor!)
- *
- *   Revision 1.9  2001/09/13 17:07:00  field
- *   Fixed ENX-Framebuffer position bug
- *
- *   Revision 1.8  2001/07/13 17:08:23  McClean
- *   fix framebuffer screenposition bug
- *
- *   Revision 1.7  2001/06/09 18:49:55  tmbinc
- *   fixed gtx-setcolreg.
- *
- *   Revision 1.6  2001/05/27 20:47:51  TripleDES
- *
- *   fixed the transparency for fb-console but this works not very fine with other modes (no black) :(  ...only that the fb-console runs, again ;)
- *   -
- *
- *   Revision 1.5  2001/05/26 22:22:24  TripleDES
- *
- *   fixed the grey-backgrund
- *
- *   Revision 1.4  2001/05/04 21:07:55  fnbrd
- *   Rand gefixed.
- *
- *   Revision 1.3  2001/04/30 21:51:38  tmbinc
- *   fixed setcolreg for eNX
- *
- *   Revision 1.2  2001/04/22 13:56:35  tmbinc
- *   other philips- (and maybe sagem?) fixes
- *
- *   Revision 1.1  2001/04/20 01:21:33  Jolt
- *   Final Merge :-)
- *
- *   Revision 1.11  2001/03/23 08:00:30  gillem
- *   - adjust xpos of fb
- *
- *   Revision 1.10  2001/03/08 01:15:14  tmbinc
- *   smem_length 1MB now, transparent color, defaults to dynaclut.
- *
- *   Revision 1.9  2001/02/11 16:32:08  tmbinc
- *   fixed viewport position
- *
- *   Revision 1.8  2001/02/04 20:46:14  tmbinc
- *   improved framebuffer.
- *
- *   Revision 1.7  2001/01/31 17:17:46  tmbinc
- *   Cleaned up avia drivers. - tmb
- *
- *   $Revision: 1.40 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -699,7 +546,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.40 2002/12/28 21:01:15 obi Exp $\n");
+	printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.41 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -756,7 +603,5 @@ void __exit avia_gt_fb_exit(void)
 
 }
 
-#ifdef MODULE
 module_init(avia_gt_fb_init);
 module_exit(avia_gt_fb_exit);
-#endif

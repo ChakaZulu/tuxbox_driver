@@ -1,23 +1,25 @@
 /*
- *   avia_gt_vbi.c - vbi driver for AViA eNX/GTX (dbox-II-project)
+ * $Id: avia_gt_vbi.c,v 1.20 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * vbi driver for AViA eNX/GTX (dbox-II-project)
  *
- *   Copyright (C) 2001-2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2001-2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -146,7 +148,7 @@ int __init avia_gt_vbi_init(void)
 	u16 irq_nr = 0;
 #endif
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.19 2002/12/29 16:22:33 wjoost Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.20 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -199,17 +201,17 @@ void __exit avia_gt_vbi_exit(void)
 
 }
 
-#ifdef MODULE
 EXPORT_SYMBOL(avia_gt_vbi_start);
 EXPORT_SYMBOL(avia_gt_vbi_stop);
-#endif
 
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
+module_init(avia_gt_vbi_init);
+module_exit(avia_gt_vbi_exit);
+#if defined(MODULE)
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("AViA VBI driver");
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
-module_init(avia_gt_vbi_init);
-module_exit(avia_gt_vbi_exit);
+#endif
 #endif

@@ -1,39 +1,25 @@
 /*
- *   avia_av_proc.c - AViA 500/600 proc driver (dbox-II-project)
+ * $Id: avia_av_proc.c,v 1.4 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA 500/600 proc driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_av_proc.c,v $
- *   Revision 1.3  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.2  2002/10/03 12:47:57  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.1  2002/10/01 20:22:59  Jolt
- *   Cleanups
- *
- *
- *
- *
- *   $Revision: 1.3 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -80,7 +66,7 @@ int avia_av_proc_init(void)
 
 	struct proc_dir_entry *proc_bus_avia;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.3 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.4 2003/01/02 05:26:43 obi Exp $\n");
 
 	if (!proc_bus) {
 	
@@ -114,11 +100,7 @@ void avia_av_proc_exit(void)
 
 }
 
-#ifdef MODULE
-//EXPORT_SYMBOL();
-#endif
-
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_av_proc_init);
 module_exit(avia_av_proc_exit);
 #endif

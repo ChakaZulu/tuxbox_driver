@@ -1,59 +1,25 @@
 /*
- *   avia_gt_accel.c - AViA accelerator driver (dbox-II-project)
+ * $Id: avia_gt_accel.c,v 1.11 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX accelerator driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_accel.c,v $
- *   Revision 1.10  2002/11/11 14:03:17  Jolt
- *   CRC handling cleanups
- *
- *   Revision 1.9  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.8  2002/10/13 21:16:15  Jolt
- *   HW copy
- *
- *   Revision 1.7  2002/10/09 18:31:06  Jolt
- *   HW copy support
- *
- *   Revision 1.6  2002/09/19 21:09:20  Jolt
- *   Removed old sw crc dependency
- *
- *   Revision 1.5  2002/09/13 22:53:55  Jolt
- *   HW CRC support
- *
- *   Revision 1.4  2002/09/13 21:37:30  Jolt
- *   Fixed GTX HW-CRC
- *
- *   Revision 1.3  2002/08/27 20:18:45  Jolt
- *   Engine is working now for GTX and eNX (except for section data :-( )
- *
- *   Revision 1.2  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.1  2002/04/01 22:29:11  Jolt
- *   HW accelerated functions for eNX
- *
- *
- *
- *   $Revision: 1.10 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -205,7 +171,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.10 2002/11/11 14:03:17 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.11 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
@@ -245,15 +211,18 @@ void __exit avia_gt_accel_exit(void)
 
 }
 
-#ifdef MODULE
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-EXPORT_SYMBOL(avia_gt_accel_copy);
-EXPORT_SYMBOL(avia_gt_accel_crc32);
-#endif
-
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_gt_accel_init);
 module_exit(avia_gt_accel_exit);
+#if defined(MODULE)
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX accelerator driver");
+#if defined(MODULE_LICENSE)
+MODULE_LICENSE("GPL");
 #endif
+#endif
+#endif
+
+EXPORT_SYMBOL(avia_gt_accel_copy);
+EXPORT_SYMBOL(avia_gt_accel_crc32);
+

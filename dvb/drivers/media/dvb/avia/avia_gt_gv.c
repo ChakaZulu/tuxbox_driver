@@ -1,109 +1,25 @@
 /*
- *   avia_gt_gv.c - AViA eNX/GTX graphic viewport driver (dbox-II-project)
+ * $Id: avia_gt_gv.c,v 1.27 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_gv.c,v $
- *   Revision 1.26  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.25  2002/10/11 09:57:54  Jolt
- *   HW copy stuff
- *
- *   Revision 1.24  2002/10/09 20:20:07  Jolt
- *   Uhhh :)
- *
- *   Revision 1.23  2002/10/09 18:31:06  Jolt
- *   HW copy support
- *
- *   Revision 1.22  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.21  2002/07/21 15:16:22  waldi
- *   add workaround for broken memory access on philips boxes
- *
- *   Revision 1.20  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.19  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.18  2002/05/30 00:39:03  obi
- *   fixed 640x480 fullscreen console
- *
- *   Revision 1.17  2002/05/09 22:23:30  obi
- *   fixed avia_gt_set_blevel()
- *
- *   Revision 1.16  2002/05/08 03:47:49  obi
- *   use slab.h instead of malloc.h
- *
- *   Revision 1.15  2002/05/03 17:31:44  obi
- *   bugfix
- *
- *   Revision 1.14  2002/05/03 17:04:40  obi
- *   moved some code from fb_core to gv_init
- *   replaced r*() by gtx_reg_*()
- *
- *   Revision 1.13  2002/04/28 20:16:09  Jolt
- *   GTX fbworkaround
- *
- *   Revision 1.12  2002/04/25 22:10:38  Jolt
- *   FB cleanup
- *
- *   Revision 1.11  2002/04/25 21:09:02  Jolt
- *   Fixes/Cleanups
- *
- *   Revision 1.10  2002/04/24 21:38:13  Jolt
- *   Framebuffer cleanups
- *
- *   Revision 1.9  2002/04/24 19:56:00  Jolt
- *   GV driver updates
- *
- *   Revision 1.8  2002/04/24 08:01:00  obi
- *   more gtx support
- *
- *   Revision 1.7  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.6  2002/04/21 14:36:07  Jolt
- *   Merged GTX fb support
- *
- *   Revision 1.5  2002/04/16 13:58:16  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.4  2002/04/15 19:32:44  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.3  2002/04/15 10:40:50  Jolt
- *   eNX/GTX
- *
- *   Revision 1.2  2002/04/14 18:14:08  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.1  2001/11/01 18:19:09  Jolt
- *   graphic viewport driver added
- *
- *
- *   $Revision: 1.26 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -638,7 +554,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.26 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.27 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -785,7 +701,6 @@ void __exit avia_gt_gv_exit(void)
 
 }
 
-#ifdef MODULE
 EXPORT_SYMBOL(avia_gt_gv_copyarea);
 EXPORT_SYMBOL(avia_gt_gv_get_clut);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
@@ -797,9 +712,8 @@ EXPORT_SYMBOL(avia_gt_gv_set_pos);
 EXPORT_SYMBOL(avia_gt_gv_set_size);
 EXPORT_SYMBOL(avia_gt_gv_hide);
 EXPORT_SYMBOL(avia_gt_gv_show);
-#endif
 
-#if defined(MODULE) && defined(STANDALONE)
+#if defined(STANDALONE)
 module_init(avia_gt_gv_init);
 module_exit(avia_gt_gv_exit);
 #endif

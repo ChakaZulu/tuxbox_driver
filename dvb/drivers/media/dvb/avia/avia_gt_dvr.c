@@ -1,65 +1,25 @@
 /*
- *   avia_gt_dvr.c - Queue-Insertion driver (dbox-II-project)
+ * $Id: avia_gt_dvr.c,v 1.13 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * Queue-Insertion driver (dbox-II-project)
  *
- *   Copyright (C) 2000-2001 Ronny "3des" Strutz (3des@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2000-2001 Ronny "3des" Strutz (3des@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   $Log: avia_gt_dvr.c,v $
- *   Revision 1.12  2002/12/28 16:36:24  obi
- *   fix dvr driver build (untested)
- *
- *   Revision 1.11  2002/11/03 19:11:12  Jolt
- *   Queue handling changes part3
- *
- *   Revision 1.10  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.9  2002/10/03 12:47:57  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.8  2002/09/21 00:02:05  Jolt
- *   Improved dvr - still buggy
- *
- *   Revision 1.7  2002/09/18 16:02:40  Jolt
- *   Mostly rewritten dvr driver
- *
- *   Revision 1.6  2002/08/22 14:18:58  Jolt
- *   DVR cleanups
- *
- *   Revision 1.5  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.4  2002/06/11 22:44:35  Jolt
- *   DVR fix
- *
- *   Revision 1.3  2002/06/11 22:37:18  Jolt
- *   DVR fixes
- *
- *   Revision 1.2  2002/06/11 22:12:52  Jolt
- *   DVR merge
- *
- *   Revision 1.1  2002/06/11 22:09:18  Jolt
- *   DVR driver added
- *
- *   Revision 1.0  2001/07/31 00:37:12  TripleDES
- *   - initial release
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -449,7 +409,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 int __init avia_gt_dvr_init(void)
 {
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.12 2002/12/28 16:36:24 obi Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.13 2003/01/02 05:26:43 obi Exp $\n");
 
     gt_info = avia_gt_get_info();
 		
@@ -490,16 +450,15 @@ void __exit avia_gt_dvr_exit(void)
 
 }
 
-#ifdef MODULE
+//#if defined(STANDALONE)
+module_init(avia_gt_dvr_init);
+module_exit(avia_gt_dvr_exit);
+#if defined(MODULE)
 MODULE_AUTHOR("Ronny Strutz <3des@elitedvb.com>");
 MODULE_DESCRIPTION("Video/Audio Playback Driver");
-#ifdef MODULE_LICENSE
+#if defined(MODULE_LICENSE)
 MODULE_LICENSE("GPL");
 #endif
 #endif
+//#endif
 
-#if defined(MODULE) 
-//&& defined(STANDALONE)
-module_init(avia_gt_dvr_init);
-module_exit(avia_gt_dvr_exit);
-#endif

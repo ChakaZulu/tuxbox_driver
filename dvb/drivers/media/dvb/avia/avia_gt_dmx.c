@@ -1,278 +1,25 @@
 /*
- *   avia_gt_dmx.c - AViA eNX/GTX dmx driver (dbox-II-project)
+ * $Id: avia_gt_dmx.c,v 1.155 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX dmx driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_dmx.c,v $
- *   Revision 1.154  2002/12/16 12:07:01  wjoost
- *   so was bloedes...
- *
- *   Revision 1.153  2002/11/23 20:19:43  McClean
- *   fix no audio bux
- *
- *   Revision 1.152  2002/11/21 21:44:29  Jolt
- *   Cleanups
- *
- *   Revision 1.151  2002/11/20 18:35:13  Jolt
- *   IRQ rate fixes
- *
- *   Revision 1.150  2002/11/20 16:59:45  Jolt
- *   Adaptive IRQ rate control
- *
- *   Revision 1.149  2002/11/20 12:03:46  Jolt
- *   SPTS mode support (which is now default)
- *
- *   Revision 1.148  2002/11/17 22:37:52  Jolt
- *   PCR fixes / changes
- *
- *   Revision 1.147  2002/11/10 21:34:50  Jolt
- *   Fixes
- *
- *   Revision 1.146  2002/11/10 21:25:24  Jolt
- *   Fixes
- *
- *   Revision 1.145  2002/11/04 18:41:55  Jolt
- *   HW TS and PES support
- *
- *   Revision 1.144  2002/11/04 08:06:54  Jolt
- *   Queue handling changes part4
- *
- *   Revision 1.143  2002/11/03 19:11:12  Jolt
- *   Queue handling changes part3
- *
- *   Revision 1.142  2002/11/03 18:26:35  Jolt
- *   Queue handling changes part1
- *
- *   Revision 1.141  2002/11/01 22:36:35  Jolt
- *   Basic Soft DMX support
- *
- *   Revision 1.140  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.139  2002/10/09 20:58:31  Jolt
- *   Fix
- *
- *   Revision 1.138  2002/10/09 20:20:36  Jolt
- *   DMX & Section fixes
- *
- *   Revision 1.137  2002/10/09 09:42:59  Jolt
- *   Some small fixes
- *
- *   Revision 1.136  2002/10/08 13:47:52  Jolt
- *   Queue handling changes
- *
- *   Revision 1.135  2002/09/30 19:46:10  Jolt
- *   SPTS support
- *
- *   Revision 1.134  2002/09/21 00:00:08  Jolt
- *   Some queue changes
- *
- *   Revision 1.133  2002/09/19 11:37:01  Jolt
- *   Fixes
- *
- *   Revision 1.132  2002/09/18 15:57:24  Jolt
- *   Queue handling changes #3
- *
- *   Revision 1.131  2002/09/18 14:13:58  obi
- *   enable hw sections for ucode_0013
- *
- *   Revision 1.130  2002/09/18 13:17:28  Ghostrider
- *   fix Jolts fix
- *
- *   Revision 1.129  2002/09/18 12:13:20  Jolt
- *   Queue handling changes #2
- *
- *   Revision 1.128  2002/09/18 09:57:42  Jolt
- *   Queue handling changes
- *
- *   Revision 1.127  2002/09/18 09:26:58  Jolt
- *   Fixes
- *
- *   Revision 1.126  2002/09/17 18:06:09  Jolt
- *   DMX fixes and cleanups
- *
- *   Revision 1.125  2002/09/13 22:53:55  Jolt
- *   HW CRC support
- *
- *   Revision 1.124  2002/09/13 19:00:49  Jolt
- *   Changed queue handling
- *
- *   Revision 1.123  2002/09/13 17:07:44  Jolt
- *   Fixed section mode selection:
- *   0 - disabled
- *   1 - autodetect
- *   2 - force
- *
- *   Revision 1.122  2002/09/10 17:18:31  Jolt
- *   Grrrrr
- *
- *   Revision 1.121  2002/09/10 16:31:38  Jolt
- *   SW sections fix
- *
- *   Revision 1.120  2002/09/10 13:44:44  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.119  2002/09/09 18:30:36  Jolt
- *   Symbol fix
- *
- *   Revision 1.118  2002/09/08 16:15:22  Jolt
- *   DMX fixes
- *
- *   Revision 1.117  2002/09/08 13:02:49  Jolt
- *   DMX fixes
- *
- *   Revision 1.116  2002/09/05 18:16:13  Jolt
- *   Fixes
- *
- *   Revision 1.115  2002/09/05 17:08:08  Jolt
- *   DMX fix
- *
- *   Revision 1.114  2002/09/05 13:00:30  Jolt
- *   DMX sanity checks
- *
- *   Revision 1.113  2002/09/05 12:42:51  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.112  2002/09/05 10:35:13  Jolt
- *   Test
- *
- *   Revision 1.111  2002/09/05 10:00:47  Jolt
- *   DMX bugfix
- *
- *   Revision 1.110  2002/09/05 09:40:31  Jolt
- *   - DMX/NAPI cleanup
- *   - Bugfixes (Thanks obi)
- *
- *   Revision 1.109  2002/09/04 22:40:46  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.108  2002/09/04 22:07:40  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.107  2002/09/04 21:12:52  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.106  2002/09/04 14:26:49  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.105  2002/09/04 13:25:01  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.104  2002/09/03 21:00:34  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.103  2002/09/03 20:24:29  obi
- *   tp_pcr/stc/dir/diff: printk -> dprintk
- *
- *   Revision 1.102  2002/09/03 15:37:50  wjoost
- *   Ein Bug weniger
- *
- *   Revision 1.101  2002/09/03 14:02:05  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.100  2002/09/03 13:17:34  Jolt
- *   - DMX/NAPI cleanup
- *   - HW sections workaround
- *
- *   Revision 1.99  2002/09/02 19:25:37  Jolt
- *   - DMX/NAPI cleanup
- *   - Compile fix
- *
- *   Revision 1.98  2002/08/27 21:53:09  Jolt
- *   New sync logic
- *
- *   Revision 1.97  2002/08/25 22:14:54  Jolt
- *   Sync logic is broken :(
- *
- *   Revision 1.96  2002/08/25 20:33:19  Jolt
- *   Enabled basic sync mode
- *
- *   Revision 1.95  2002/08/25 10:19:33  Jolt
- *   HW sections can be disabled
- *
- *   Revision 1.94  2002/08/25 09:38:26  wjoost
- *   Hardware Section Filtering
- *
- *   Revision 1.93  2002/08/24 00:14:19  Jolt
- *   PCR stuff (currently no sync logic)
- *
- *   Revision 1.92  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.91  2002/07/08 15:12:47  wjoost
- *
- *   ein paar nicht benutzte Felder initialisiert (wie in avia_gt_napi.c 1.88)
- *
- *   Revision 1.90  2002/07/07 16:55:42  wjoost
- *
- *   Meine Sagem hustet mir sonst was :-(
- *
- *   Revision 1.89  2002/06/11 20:35:43  Jolt
- *   Sections cleanup
- *
- *   Revision 1.88  2002/06/07 18:06:03  Jolt
- *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
- *
- *   Revision 1.87  2002/06/07 17:53:45  Jolt
- *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
- *
- *   Revision 1.86  2002/05/09 07:29:21  waldi
- *   add correct license
- *
- *   Revision 1.85  2002/05/08 03:47:26  obi
- *   changed PRCPID to PCRPID
- *
- *   Revision 1.84  2002/05/07 16:59:19  Jolt
- *   Misc stuff and cleanups
- *
- *   Revision 1.83  2002/05/03 22:09:58  Jolt
- *   Do not require ucodes for framebuffer mode
- *
- *   Revision 1.82  2002/05/03 21:52:58  Jolt
- *   YEAH YEAH YEAH :(
- *
- *   Revision 1.81  2002/05/03 16:45:17  obi
- *   replaced r*() by gtx_reg_*()
- *   formatted source
- *
- *   Revision 1.80  2002/05/02 21:26:01  Jolt
- *   Test
- *
- *   Revision 1.79  2002/05/02 20:23:10  Jolt
- *   Fixes
- *
- *   Revision 1.78  2002/05/02 12:37:35  Jolt
- *   Merge
- *
- *   Revision 1.77  2002/05/02 04:56:47  Jolt
- *   Merge
- *
- *   Revision 1.76  2002/05/01 21:53:00  Jolt
- *   Merge
- *
- *
- *
- *
- *   $Revision: 1.154 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -2249,7 +1996,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.154 2002/12/16 12:07:01 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.155 2003/01/02 05:26:43 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2376,11 +2123,21 @@ void __exit avia_gt_dmx_exit(void)
 
 }
 
-#ifdef MODULE
+#if defined(MODULE)
 MODULE_PARM(ucode, "s");
 MODULE_PARM(hw_sections, "i");
-#ifdef MODULE_LICENSE
+#endif
+
+#if defined(STANDALONE)
+module_init(avia_gt_dmx_init);
+module_exit(avia_gt_dmx_exit);
+#if defined(MODULE)
+MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
+MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
+#if defined(MODULE_LICENSE)
 MODULE_LICENSE("GPL");
+#endif
+#endif
 #endif
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
@@ -2412,9 +2169,4 @@ EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
 //EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
 //EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);
 //EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
-#endif
 
-#if defined(MODULE) && defined(STANDALONE)
-module_init(avia_gt_dmx_init);
-module_exit(avia_gt_dmx_exit);
-#endif

@@ -1,47 +1,25 @@
 /*
- *   avia_gt_v4l2.c - AViA eNX/GTX v4l2 driver (dbox-II-project)
+ * $Id: avia_gt_v4l2.c,v 1.6 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX v4l2 driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_v4l2.c,v $
- *   Revision 1.5  2002/12/23 11:25:33  Jolt
- *   Follow v4l2 api changes
- *
- *   Revision 1.4  2002/12/21 15:20:06  Jolt
- *   Fix stack order
- *
- *   Revision 1.3  2002/12/21 13:43:43  Jolt
- *   Fixes
- *
- *   Revision 1.2  2002/12/20 22:30:43  Jolt
- *   Misc fixes / tweaks
- *
- *   Revision 1.1  2002/12/20 22:02:41  Jolt
- *   - V4L2 compatible pig interface
- *   - Removed old pig interface
- *   - Someone needs to fix all the pig users ;-)
- *
- *
- *
- *
- *   $Revision: 1.5 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -62,8 +40,8 @@
 #include "avia_gt.h"
 #include "avia_gt_pig.h"
 
-#define AVIA_GT_V4L2_DRIVER		"avia"
-#define AVIA_GT_V4L2_CARD		"AViA eNX/GTX"
+#define AVIA_GT_V4L2_DRIVER	"avia"
+#define AVIA_GT_V4L2_CARD	"AViA eNX/GTX"
 #define AVIA_GT_V4L2_BUS_INFO	"AViA core"
 #define AVIA_GT_V4L2_VERSION	KERNEL_VERSION(0,1,14)
 
@@ -244,7 +222,7 @@ static struct video_device device_info = {
 static int __init avia_gt_v4l2_init(void)
 {
 
-    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.5 2002/12/23 11:25:33 Jolt Exp $\n");
+    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.6 2003/01/02 05:26:43 obi Exp $\n");
 	
 	return video_register_device(&device_info, VFL_TYPE_GRABBER, -1);
 

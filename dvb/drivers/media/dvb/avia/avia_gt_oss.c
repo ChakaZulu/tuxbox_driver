@@ -1,74 +1,25 @@
 /*
- *   avia_gt_oss.c - AViA eNX/GTX oss driver (dbox-II-project)
+ * $Id: avia_gt_oss.c,v 1.15 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * AViA eNX/GTX oss driver (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
- *   $Log: avia_gt_oss.c,v $
- *   Revision 1.14  2002/11/25 10:57:13  obi
- *   clean up kernel symbols
- *
- *   Revision 1.13  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.12  2002/10/03 13:32:36  alexw
- *   changed output volume to avoid clipping
- *
- *   Revision 1.11  2002/09/25 18:50:52  Jolt
- *   Added 24000 and 12000 sample rate support
- *
- *   Revision 1.10  2002/09/24 17:50:19  Jolt
- *   PCM sample rate hack
- *
- *   Revision 1.9  2002/09/22 14:19:00  Jolt
- *   Misc fixes/cleanups
- *
- *   Revision 1.8  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.7  2002/08/18 18:22:30  tmbinc
- *   added poll()-support for pcm device (untested)
- *
- *   Revision 1.6  2002/05/06 02:18:18  obi
- *   cleanup for new kernel
- *
- *   Revision 1.5  2002/04/19 08:54:48  Jolt
- *   Merged vbi driver
- *
- *   Revision 1.4  2002/04/10 21:53:31  Jolt
- *   Further cleanups/bugfixes
- *   More OSS API stuff
- *
- *   Revision 1.3  2002/04/02 18:14:10  Jolt
- *   Further features/bugfixes. MP3 works very well now 8-)
- *
- *   Revision 1.2  2002/04/02 13:57:09  Jolt
- *   Dependency fixes
- *
- *   Revision 1.1  2002/04/01 22:23:22  Jolt
- *   Basic PCM driver for eNX - more to come later
- *
- *
- *
- *   $Revision: 1.14 $
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -369,7 +320,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.14 2002/11/25 10:57:13 obi Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.15 2003/01/02 05:26:43 obi Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 

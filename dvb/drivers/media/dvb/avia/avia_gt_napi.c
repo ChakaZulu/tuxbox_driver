@@ -1,516 +1,25 @@
 /*
- *	 avia_gt_napi.c - AViA GTX demux driver (dbox-II-project)
- *
- *	 Homepage: http://dbox2.elxsi.de
- *
- *	 Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
- *
- *	 This program is free software; you can redistribute it and/or modify
- *	 it under the terms of the GNU General Public License as published by
- *	 the Free Software Foundation; either version 2 of the License, or
- *	 (at your option) any later version.
- *
- *	 This program is distributed in the hope that it will be useful,
- *	 but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
- *	 GNU General Public License for more details.
- *
- *	 You should have received a copy of the GNU General Public License
- *	 along with this program; if not, write to the Free Software
- *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *   $Revision: 1.167 $
- *   $Log: avia_gt_napi.c,v $
- *   Revision 1.167  2002/12/20 21:27:41  Jolt
- *   Fix lots of ugly things
- *
- *   Revision 1.166  2002/11/21 21:44:29  Jolt
- *   Cleanups
- *
- *   Revision 1.165  2002/11/20 12:03:46  Jolt
- *   SPTS mode support (which is now default)
- *
- *   Revision 1.164  2002/11/17 22:37:52  Jolt
- *   PCR fixes / changes
- *
- *   Revision 1.163  2002/11/11 18:15:51  Jolt
- *   CRC fixes
- *
- *   Revision 1.162  2002/11/11 14:03:17  Jolt
- *   CRC handling cleanups
- *
- *   Revision 1.161  2002/11/11 12:41:17  Jolt
- *   CRC handling changes
- *
- *   Revision 1.160  2002/11/10 21:34:50  Jolt
- *   Fixes
- *
- *   Revision 1.159  2002/11/05 22:03:25  Jolt
- *   Decoder work
- *
- *   Revision 1.158  2002/11/04 18:41:55  Jolt
- *   HW TS and PES support
- *
- *   Revision 1.157  2002/11/04 16:37:58  Jolt
- *   HW CRC support
- *
- *   Revision 1.156  2002/11/04 09:09:16  Jolt
- *   Cleanups / First soft section parts
- *
- *   Revision 1.155  2002/11/04 08:06:54  Jolt
- *   Queue handling changes part4
- *
- *   Revision 1.154  2002/11/03 19:11:12  Jolt
- *   Queue handling changes part3
- *
- *   Revision 1.153  2002/11/03 18:40:10  Jolt
- *   Queue handling changes part2
- *
- *   Revision 1.152  2002/11/03 17:55:24  Jolt
- *   Performance tweaks
- *
- *   Revision 1.151  2002/11/03 14:14:50  Jolt
- *   Bugfix
- *
- *   Revision 1.150  2002/11/02 17:29:17  Jolt
- *   PCR handling
- *
- *   Revision 1.149  2002/11/02 15:41:46  Jolt
- *   More work on the new api
- *
- *   Revision 1.148  2002/11/01 22:36:35  Jolt
- *   Basic Soft DMX support
- *
- *   Revision 1.147  2002/10/31 23:29:30  Jolt
- *   Porting
- *
- *   Revision 1.146  2002/10/31 22:36:08  Jolt
- *   Porting
- *
- *   Revision 1.145  2002/10/30 20:12:34  Jolt
- *   Cleanups / Merging
- *
- *   Revision 1.144  2002/10/30 19:46:54  Jolt
- *   Cleanups / Porting
- *
- *   Revision 1.143  2002/10/30 18:58:24  Jolt
- *   First skeleton of the new API
- *
- *   Revision 1.142  2002/10/20 20:38:26  Jolt
- *   Compile fixes
- *
- *   Revision 1.141  2002/10/09 20:20:36  Jolt
- *   DMX & Section fixes
- *
- *   Revision 1.140  2002/10/07 23:12:40  Jolt
- *   Bugfixes
- *
- *   Revision 1.139  2002/10/07 21:13:25  Jolt
- *   Cleanups / Fixes
- *
- *   Revision 1.138  2002/10/07 08:24:14  Jolt
- *   NAPI cleanups
- *
- *   Revision 1.137  2002/10/06 22:05:13  Jolt
- *   NAPI cleanups
- *
- *   Revision 1.136  2002/10/06 21:43:54  Jolt
- *   NAPI cleanups
- *
- *   Revision 1.135  2002/10/06 19:26:23  wjoost
- *   bug--;
- *
- *   Revision 1.134  2002/10/06 18:53:13  wjoost
- *   Debug-Code raus ;)
- *
- *   Revision 1.133  2002/10/06 18:49:02  wjoost
- *   Gleichzeitiger PES und TS-Empfang möglich, wenn TS zuerst gestartet wird.
- *
- *   Revision 1.132  2002/10/05 15:01:12  Jolt
- *   New NAPI compatible VBI interface
- *
- *   Revision 1.131  2002/09/30 19:46:10  Jolt
- *   SPTS support
- *
- *   Revision 1.130  2002/09/18 15:57:24  Jolt
- *   Queue handling changes #3
- *
- *   Revision 1.129  2002/09/18 12:13:20  Jolt
- *   Queue handling changes #2
- *
- *   Revision 1.128  2002/09/18 09:57:42  Jolt
- *   Queue handling changes
- *
- *   Revision 1.127  2002/09/16 21:41:37  wjoost
- *   noch was vergessen
- *
- *   Revision 1.126  2002/09/16 21:35:04  wjoost
- *   BUG hunting
- *
- *   Revision 1.125  2002/09/15 16:27:33  wjoost
- *   SW-Sections: no copy
- *   some fixes
- *
- *   Revision: 1.124
- *   Revision 1.124  2002/09/14 22:04:56  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.123  2002/09/14 18:15:48  Jolt
- *   HW CRC for SW sections
- *
- *   Revision 1.122  2002/09/14 18:03:38  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.121  2002/09/14 14:43:21  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.120  2002/09/13 23:06:27  Jolt
- *   - Directly pass hw sections to napi
- *   - Enable hw crc for hw sections
- *
- *   Revision 1.119  2002/09/13 19:23:40  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.118  2002/09/13 19:00:49  Jolt
- *   Changed queue handling
- *
- *   Revision 1.117  2002/09/12 14:58:52  Jolt
- *   HW sections bugfixes
- *
- *   Revision 1.116  2002/09/10 21:15:34  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.115  2002/09/10 16:31:38  Jolt
- *   SW sections fix
- *
- *   Revision 1.114  2002/09/10 13:44:44  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.113  2002/09/09 21:59:01  Jolt
- *   HW sections fix
- *
- *   Revision 1.112  2002/09/09 18:30:36  Jolt
- *   Symbol fix
- *
- *   Revision 1.111  2002/09/09 17:46:30  Jolt
- *   Compile fix
- *
- *   Revision 1.110  2002/09/05 12:42:51  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.109  2002/09/05 12:30:53  Jolt
- *   NAPI cleanup
- *
- *   Revision 1.108  2002/09/05 11:57:44  Jolt
- *   NAPI bugfix
- *
- *   Revision 1.107  2002/09/05 09:40:32  Jolt
- *   - DMX/NAPI cleanup
- *   - Bugfixes (Thanks obi)
- *
- *   Revision 1.106  2002/09/04 22:40:47  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.105  2002/09/04 22:07:40  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.104  2002/09/04 21:12:52  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.103  2002/09/04 13:25:01  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.102  2002/09/04 07:46:29  Jolt
- *   - Removed GTX_SECTION
- *   - Removed auto pcr pid handling
- *
- *   Revision 1.101  2002/09/03 21:00:34  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.100  2002/09/03 15:37:50  wjoost
- *   Ein Bug weniger
- *
- *   Revision 1.99  2002/09/03 14:02:05  Jolt
- *   DMX/NAPI cleanup
- *
- *   Revision 1.98  2002/09/03 13:17:34  Jolt
- *   - DMX/NAPI cleanup
- *   - HW sections workaround
- *
- *   Revision 1.97  2002/09/03 05:17:38  Jolt
- *   HW sections workaround
- *
- *   Revision 1.96  2002/09/02 20:56:06  Jolt
- *   - HW section fix (GTX)
- *   - DMX/NAPI cleanups
- *
- *   Revision 1.95  2002/09/02 19:25:37  Jolt
- *   - DMX/NAPI cleanup
- *   - Compile fix
- *
- *   Revision 1.94  2002/09/01 17:50:51  wjoost
- *   I don't like #ifdef :-(
- *
- *   Revision 1.93  2002/08/25 09:38:26  wjoost
- *   Hardware Section Filtering
- *
- *   Revision 1.92  2002/08/24 09:36:07  Jolt
- *   Merge
- *
- *   Revision 1.91  2002/08/24 09:28:20  Jolt
- *   Compile fix
- *
- *   Revision 1.90  2002/08/22 13:39:33  Jolt
- *   - GCC warning fixes
- *   - screen flicker fixes
- *   Thanks a lot to Massa
- *
- *   Revision 1.89  2002/06/11 20:35:43  Jolt
- *   Sections cleanup
- *
- *   Revision 1.88  2002/05/07 16:59:19  Jolt
- *   Misc stuff and cleanups
- *
- *   Revision 1.87  2002/05/06 12:58:37  Jolt
- *   obi[TM] fix 8-)
- *
- *   Revision 1.86  2002/05/06 02:18:18  obi
- *   cleanup for new kernel
- *
- *   Revision 1.85  2002/05/05 19:58:13  Jolt
- *   Doh 8-(
- *
- *   Revision 1.84  2002/05/04 17:05:53  Jolt
- *   PCR PID workaround
- *
- *   Revision 1.83  2002/05/03 17:06:44  obi
- *   replaced r*() by gtx_reg_()
- *
- *   Revision 1.82  2002/05/02 12:37:35  Jolt
- *   Merge
- *
- *   Revision 1.81  2002/05/02 04:56:47  Jolt
- *   Merge
- *
- *   Revision 1.80  2002/05/01 21:51:35  Jolt
- *   Merge
- *
- *   Revision 1.79  2002/04/22 17:40:01  Jolt
- *   Major cleanup
- *
- *   Revision 1.78  2002/04/19 11:31:53  Jolt
- *   Added missing module init stuff
- *
- *   Revision 1.77  2002/04/19 11:28:26  Jolt
- *   Final DMX merge
- *
- *   Revision 1.76  2002/04/19 11:02:43  obi
- *   build fix
- *
- *   Revision 1.75  2002/04/19 10:07:27  Jolt
- *   DMX merge
- *
- *   Revision 1.74  2002/04/18 18:17:37  happydude
- *   deactivate pcr pid failsafe
- *
- *   Revision 1.73  2002/04/14 18:06:19  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.72  2002/04/13 23:19:05  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.71  2002/04/12 23:20:25  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.70  2002/04/12 14:28:13  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.69  2002/03/19 18:32:25  happydude
- *   allow seperate setting of pcr pid
- *
- *   Revision 1.68  2002/02/24 15:29:23  woglinde
- *   test new tuner-api
- *
- *   Revision 1.66.2.1  2002/02/09 20:44:01  TripleDES
- *   fixes
- *
- *   CV: ----------------------------------------------------------------------
- *
- *   Revision 1.66  2002/01/18 14:48:52  tmbinc
- *   small fix for multiple pid streaming
- *
- *   Revision 1.65  2002/01/02 19:45:50  tmbinc
- *   added support for streaming a pid to multiple clients.
- *
- *   Revision 1.64  2002/01/02 04:40:08  McClean
- *   make OUT OF SYNC dprintf
- *
- *   Revision 1.63  2001/12/19 13:19:17  derget
- *   debugoutput entfernt
- *   CHCH [DEMUX] START
- *   CHCH [DEMUX] STOP
- *   wer braucht das schon ..
- *
- *   Revision 1.62  2001/12/17 19:29:51  gillem
- *   - sync with includes
- *
- *   Revision 1.61  2001/12/01 06:37:06  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.60  2001/11/14 17:59:22  wjoost
- *   Section-Empfang geaendert (Pruefung auf maximale Groesse, zusammenhaengende TS-Pakete)
- *
- *	 Revision 1.55	2001/09/02 01:28:34	TripleDES
- *	 -small fix (dac)
- *
- *	 Revision 1.54	2001/09/02 01:16:42	TripleDES
- *	 -more fixes (corrects my wrong commit)
- *
- *	 Revision 1.52	2001/08/18 18:59:40	tmbinc
- *	 fixed init
- *
- *	 Revision 1.51	2001/08/18 18:20:21	TripleDES
- *	 moved the ucode loading to dmx
- *
- *	 Revision 1.50	2001/08/15 14:57:44	tmbinc
- *	 fixed queue-reset
- *
- *	 Revision 1.49	2001/07/15 17:08:45	Toerli
- *	 Flimmern bei Sagem beseitigt
- *
- *	 Revision 1.48	2001/06/25 22:27:22	gillem
- *	 - start autodetect
- *
- *	 Revision 1.47	2001/06/22 00:03:42	tmbinc
- *	 fixed aligning of queues, system queues
- *
- *	 Revision 1.46	2001/06/18 20:30:59	tmbinc
- *	 decent buffersizes. change for your needs.
- *
- *	 Revision 1.45	2001/06/18 20:14:08	tmbinc
- *	 fixed state sets in sections, now it works as expected (multiple filter on one pid)
- *
- *	 Revision 1.44	2001/06/15 00:17:26	TripleDES
- *	 fixed queue-reset problem - solves zap problem with enx
- *
- *	 Revision 1.43	2001/04/28 22:43:13	fnbrd
- *	 Added fix from tmbinc. ;)
- *
- *	 Revision 1.42	2001/04/24 17:54:14	tmbinc
- *	 fixed 188bytes-on-callback bug
- *
- *	 Revision 1.41	2001/04/22 13:56:35	tmbinc
- *	 other philips- (and maybe sagem?) fixes
- *
- *	 Revision 1.40	2001/04/21 13:08:57	tmbinc
- *	 eNX now works on philips.
- *
- *	 Revision 1.39	2001/04/21 10:57:41	tmbinc
- *	 small fix.
- *
- *	 Revision 1.38	2001/04/21 10:40:13	tmbinc
- *	 fixes for eNX
- *
- *	 Revision 1.37	2001/04/19 02:14:43	tmbinc
- *	 renamed gtx-dmx.c to gen-dmx.c
- *
- *
- *	 old log: gtx-dmx.c,v
- *	 Revision 1.36	2001/04/10 03:07:29	Hunz
- *	 1st nokia/sat fix - supported by Wodka Gorbatschow *oerks* ;)
- *
- *	 Revision 1.35	2001/04/09 23:26:42	TripleDES
- *	 some changes
- *
- *	 Revision 1.34	2001/04/08 22:22:29	TripleDES
- *	 added eNX support
- *	 -every register/ucode access is temporarily duplicated for eNX testing - will be cleared soon ;)
- *	 -up to now there is no section support for eNX
- *	 -need to rewrite the register-defines gReg for gtx, eReg for enx (perhaps/tmb?)
- *	 -queue-interrupts are not correct for eNX
- *	 -uncomment the "#define enx_dmx" for testing eNX
- *
- *	 Revision 1.33	2001/04/08 02:05:40	tmbinc
- *	 made it more modular, this time the demux. dvb.c not anymore dependant on
- *	 the gtx.
- *
- *	 Revision 1.32	2001/03/30 01:19:55	tmbinc
- *	 Fixed multiple-section bug.
- *
- *	 Revision 1.31	2001/03/27 14:41:49	tmbinc
- *	 CRC check now optional.
- *
- *	 Revision 1.30	2001/03/21 15:30:25	tmbinc
- *	 Added SYNC-delay for avia, resulting in faster zap-time.
- *
- *	 Revision 1.29	2001/03/19 17:48:32	tmbinc
- *	 re-fixed a fixed fix by gillem.
- *
- *	 Revision 1.28	2001/03/19 16:24:32	tmbinc
- *	 fixed section parsing bugs.
- *
- *	 Revision 1.27	2001/03/16 19:50:28	gillem
- *	 - fix section parser
- *
- *	 Revision 1.26	2001/03/16 17:49:56	gillem
- *	 - fix section parser
- *
- *	 Revision 1.25	2001/03/15 15:56:26	gillem
- *	 - fix dprintk output
- *
- *	 Revision 1.24	2001/03/14 21:42:48	gillem
- *	 - fix bugs in section parsing
- *	 - add crc32 check in section parsing
- *
- *	 Revision 1.23	2001/03/12 22:32:01	gillem
- *	 - test only ... sections not work
- *
- *	 Revision 1.22	2001/03/11 22:58:09	gillem
- *	 - fix ts parser
- *
- *	 Revision 1.21	2001/03/11 21:34:29	gillem
- *	 - fix af parser
- *
- *	 Revision 1.20	2001/03/10 02:46:14	tmbinc
- *	 Fixed section support.
- *
- *	 Revision 1.19	2001/03/10 00:41:21	tmbinc
- *	 Fixed section handling.
- *
- *	 Revision 1.18	2001/03/09 22:10:20	tmbinc
- *	 Completed first table support (untested)
- *
- *	 Revision 1.17	2001/03/09 20:48:31	gillem
- *	 - add debug option
- *
- *	 Revision 1.16	2001/03/07 22:25:14	tmbinc
- *	 Tried to fix PCR.
- *
- *	 Revision 1.15	2001/03/04 14:15:42	tmbinc
- *	 fixed ucode-version autodetection.
- *
- *	 Revision 1.14	2001/03/04 13:03:17	tmbinc
- *	 Removed %188 bytes check (for PES)
- *
- *	 Revision 1.13	2001/02/27 14:15:22	tmbinc
- *	 added sections.
- *
- *	 Revision 1.12	2001/02/17 01:19:19	tmbinc
- *	 fixed DPCR
- *
- *	 Revision 1.11	2001/02/11 16:01:06	tmbinc
- *	 *** empty log message ***
- *
- *	 Revision 1.10	2001/02/11 15:53:25	tmbinc
- *	 section filtering (not yet working)
- *
- *	 Revision 1.9	2001/02/10 14:31:52	gillem
- *	 add GtxDmxCleanup function
- *
- *	 Revision 1.8	2001/01/31 17:17:46	tmbinc
- *	 Cleaned up avia drivers. - tmb
- *
- *	 last (old) Revision: 1.36
+ * $Id: avia_gt_napi.c,v 1.168 2003/01/02 05:26:43 obi Exp $
+ * 
+ * AViA GTX demux driver (dbox-II-project)
+ *
+ * Homepage: http://dbox2.elxsi.de
+ *
+ * Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -536,7 +45,66 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "../dvb-core/compat.h"
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+static
+u32 crc32_table[256] = {
+	0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
+	0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
+	0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
+	0x4593e01e, 0x4152fda9, 0x5f15adac, 0x5bd4b01b, 0x569796c2, 0x52568b75,
+	0x6a1936c8, 0x6ed82b7f, 0x639b0da6, 0x675a1011, 0x791d4014, 0x7ddc5da3,
+	0x709f7b7a, 0x745e66cd, 0x9823b6e0, 0x9ce2ab57, 0x91a18d8e, 0x95609039,
+	0x8b27c03c, 0x8fe6dd8b, 0x82a5fb52, 0x8664e6e5, 0xbe2b5b58, 0xbaea46ef,
+	0xb7a96036, 0xb3687d81, 0xad2f2d84, 0xa9ee3033, 0xa4ad16ea, 0xa06c0b5d,
+	0xd4326d90, 0xd0f37027, 0xddb056fe, 0xd9714b49, 0xc7361b4c, 0xc3f706fb,
+	0xceb42022, 0xca753d95, 0xf23a8028, 0xf6fb9d9f, 0xfbb8bb46, 0xff79a6f1,
+	0xe13ef6f4, 0xe5ffeb43, 0xe8bccd9a, 0xec7dd02d, 0x34867077, 0x30476dc0,
+	0x3d044b19, 0x39c556ae, 0x278206ab, 0x23431b1c, 0x2e003dc5, 0x2ac12072,
+	0x128e9dcf, 0x164f8078, 0x1b0ca6a1, 0x1fcdbb16, 0x018aeb13, 0x054bf6a4,
+	0x0808d07d, 0x0cc9cdca, 0x7897ab07, 0x7c56b6b0, 0x71159069, 0x75d48dde,
+	0x6b93dddb, 0x6f52c06c, 0x6211e6b5, 0x66d0fb02, 0x5e9f46bf, 0x5a5e5b08,
+	0x571d7dd1, 0x53dc6066, 0x4d9b3063, 0x495a2dd4, 0x44190b0d, 0x40d816ba,
+	0xaca5c697, 0xa864db20, 0xa527fdf9, 0xa1e6e04e, 0xbfa1b04b, 0xbb60adfc,
+	0xb6238b25, 0xb2e29692, 0x8aad2b2f, 0x8e6c3698, 0x832f1041, 0x87ee0df6,
+	0x99a95df3, 0x9d684044, 0x902b669d, 0x94ea7b2a, 0xe0b41de7, 0xe4750050,
+	0xe9362689, 0xedf73b3e, 0xf3b06b3b, 0xf771768c, 0xfa325055, 0xfef34de2,
+	0xc6bcf05f, 0xc27dede8, 0xcf3ecb31, 0xcbffd686, 0xd5b88683, 0xd1799b34,
+	0xdc3abded, 0xd8fba05a, 0x690ce0ee, 0x6dcdfd59, 0x608edb80, 0x644fc637,
+	0x7a089632, 0x7ec98b85, 0x738aad5c, 0x774bb0eb, 0x4f040d56, 0x4bc510e1,
+	0x46863638, 0x42472b8f, 0x5c007b8a, 0x58c1663d, 0x558240e4, 0x51435d53,
+	0x251d3b9e, 0x21dc2629, 0x2c9f00f0, 0x285e1d47, 0x36194d42, 0x32d850f5,
+	0x3f9b762c, 0x3b5a6b9b, 0x0315d626, 0x07d4cb91, 0x0a97ed48, 0x0e56f0ff,
+	0x1011a0fa, 0x14d0bd4d, 0x19939b94, 0x1d528623, 0xf12f560e, 0xf5ee4bb9,
+	0xf8ad6d60, 0xfc6c70d7, 0xe22b20d2, 0xe6ea3d65, 0xeba91bbc, 0xef68060b,
+	0xd727bbb6, 0xd3e6a601, 0xdea580d8, 0xda649d6f, 0xc423cd6a, 0xc0e2d0dd,
+	0xcda1f604, 0xc960ebb3, 0xbd3e8d7e, 0xb9ff90c9, 0xb4bcb610, 0xb07daba7,
+	0xae3afba2, 0xaafbe615, 0xa7b8c0cc, 0xa379dd7b, 0x9b3660c6, 0x9ff77d71,
+	0x92b45ba8, 0x9675461f, 0x8832161a, 0x8cf30bad, 0x81b02d74, 0x857130c3,
+	0x5d8a9099, 0x594b8d2e, 0x5408abf7, 0x50c9b640, 0x4e8ee645, 0x4a4ffbf2,
+	0x470cdd2b, 0x43cdc09c, 0x7b827d21, 0x7f436096, 0x7200464f, 0x76c15bf8,
+	0x68860bfd, 0x6c47164a, 0x61043093, 0x65c52d24, 0x119b4be9, 0x155a565e,
+	0x18197087, 0x1cd86d30, 0x029f3d35, 0x065e2082, 0x0b1d065b, 0x0fdc1bec,
+	0x3793a651, 0x3352bbe6, 0x3e119d3f, 0x3ad08088, 0x2497d08d, 0x2056cd3a,
+	0x2d15ebe3, 0x29d4f654, 0xc5a92679, 0xc1683bce, 0xcc2b1d17, 0xc8ea00a0,
+	0xd6ad50a5, 0xd26c4d12, 0xdf2f6bcb, 0xdbee767c, 0xe3a1cbc1, 0xe760d676,
+	0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
+	0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662,
+	0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
+	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
+
+static u32 crc32_le (u32 crc, unsigned char const *data, size_t len)
+{
+	int i;
+
+	for (i=0; i<len; i++)
+                crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ *data++) & 0xff];
+
+	return crc;
+}
+#else
+#include <linux/crc32.h>
+#endif
+
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvb_frontend.h"
@@ -560,14 +128,6 @@ static int hw_dmx_ts = 1;
 static int hw_dmx_pes = 1;
 static int hw_dmx_sec = 1;
 static int hw_sections = 0;
-
-#ifdef MODULE
-MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
-MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-#endif
 
 static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
@@ -915,7 +475,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.167 2002/12/20 21:27:41 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.168 2003/01/02 05:26:43 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -1053,7 +613,14 @@ void __exit avia_gt_napi_exit(void)
 
 }
 
-#ifdef MODULE
 module_init(avia_gt_napi_init);
 module_exit(avia_gt_napi_exit);
+
+#ifdef MODULE
+MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
 #endif
+#endif
+

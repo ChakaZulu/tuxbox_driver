@@ -1,23 +1,25 @@
 /*
- *   lirc_dbox2.c - lirc ir driver for AViA eNX/GTX (dbox-II-project)
+ * $Id: avia_gt_lirc.c,v 1.6 2003/01/02 05:26:43 obi Exp $
  *
- *   Homepage: http://dbox2.elxsi.de
+ * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
- *   Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
+ * Homepage: http://dbox2.elxsi.de
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Copyright (C) 2002 Florian Schirmer (jolt@tuxbox.org)
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -320,7 +322,7 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.5 2002/10/20 20:38:26 Jolt Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.6 2003/01/02 05:26:43 obi Exp $\n");
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 
@@ -346,7 +348,6 @@ static void __exit avia_gt_lirc_exit(void)
 
 }
 
-#ifdef MODULE
 module_init(avia_gt_lirc_init);
 module_exit(avia_gt_lirc_exit);
-#endif
+
