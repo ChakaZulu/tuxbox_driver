@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.65 2002/03/18 22:35:29 happydude Exp $
+ * $Id: dvb.c,v 1.66 2002/03/18 23:23:19 obi Exp $
  */
 
 #include <linux/config.h>
@@ -1292,6 +1292,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_OSTKBD:
 		{
+			return -EOPNOTSUPP;
 		}
 		case DVB_DEVICE_NET:
 		{
