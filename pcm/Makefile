@@ -1,6 +1,7 @@
 # currently running kernel
 CURRENT=$(shell uname -r)
 
+
 # where the kernel sources are located
 #KERNEL_LOCATION=/usr/src/kernel/2.0.35
 #KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
