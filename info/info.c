@@ -21,8 +21,8 @@
  *
  *
  *   $Log: info.c,v $
- *   Revision 1.7  2001/07/07 23:05:34  fnbrd
- *   Probe auf AT/VES1993 und kleine Fehler bei Philips behoben
+ *   Revision 1.8  2001/07/08 00:14:40  fnbrd
+ *   parameter fe gibts nicht mehr
  *
  *   Revision 1.6  2001/06/09 23:51:44  tmbinc
  *   added fe.
@@ -43,7 +43,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -73,7 +73,7 @@
 
 	/* ich weiss dass dieses programm suckt, aber was soll man machen ... */
 
-int fe=0;
+//int fe=0;
 static struct dbox_info_struct info;
 
 #ifdef CONFIG_PROC_FS
@@ -115,9 +115,11 @@ static struct i2c_client dummy_i2c_client = {
 };
 
 static u8 i2c_addr_of_device;
-static u8 i2c_device_addr_to_read;
+static u16 i2c_device_addr_to_read;
 static u8 i2c_should_value;
+static u8 i2c_should_mask;
 static int i2c_found;
+static int device_reg_addr_is_16bit;
 
 // k.A. ob das noch wer anders so (wegen Protokoll) gebrauchen kann,
 // deswegen lass ich das mal so hier drin
@@ -126,16 +128,25 @@ static int i2c_found;
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
         struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[1];
+        unsigned char mm1[2];
         unsigned char mm2[] = {0x00};
         struct i2c_msg msgs[2];
 
         msgs[0].flags=0;
         msgs[1].flags=I2C_M_RD;
         msgs[0].addr=msgs[1].addr=client->addr;
-        mm1[0]=reg;
-        msgs[0].len=1; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
+	if(device_reg_addr_is_16bit) {
+	  mm1[0]=0;
+	  mm1[1]=reg;
+          msgs[0].len=2;
+        }
+	else {
+          mm1[0]=reg;
+          msgs[0].len=1;
+        }
+	msgs[1].len=1;
+        msgs[0].buf=mm1;
+	msgs[1].buf=mm2;
         i2c_transfer(adap, msgs, 2);
 
         return mm2[0];
@@ -145,7 +156,7 @@ static int attach_dummy_adapter(struct i2c_adapter *adap)
 {
   dummy_i2c_client.adapter=adap;
   dummy_i2c_client.addr=i2c_addr_of_device;
-  if (readreg(&dummy_i2c_client, i2c_device_addr_to_read)!=i2c_should_value) {
+  if ( ( readreg(&dummy_i2c_client, i2c_device_addr_to_read) & i2c_should_mask ) != i2c_should_value ) {
 //    printk("device not found\n");
     i2c_found=0;
   }
@@ -167,6 +178,19 @@ static int checkForAT76C651(void)
   i2c_addr_of_device=0x0d; // =0x1a >> 1
   i2c_device_addr_to_read=0x0e;
   i2c_should_value=0x65;
+  i2c_should_mask=0xff;
+  device_reg_addr_is_16bit=0;
+  probeDevice();
+  return i2c_found;
+}
+
+static int checkForVES1820(void)
+{
+  i2c_addr_of_device=0x08; //0x10>>1
+  i2c_device_addr_to_read=0x1a;
+  i2c_should_value=0x70;
+  i2c_should_mask=0xf0;
+  device_reg_addr_is_16bit=1;
   probeDevice();
   return i2c_found;
 }
@@ -181,35 +205,37 @@ static int dbox_info_init(void)
 	}
 	memset(info.dsID, 0, 8);		// todo
 	info.mID=conf[0];
-	info.fe=fe;
+//	info.fe=fe;
 	if (info.mID==DBOX_MID_SAGEM)								// das suckt hier, aber ich kenn keinen besseren weg.
 	{
 		info.feID=0;
 		info.fpID=0x52;
 		info.enxID=3;
 		info.gtxID=-1;
-		info.hwREV=fe?0x21:0x41;
+		info.fe= checkForAT76C651() ? 0 : 1;
+		info.hwREV=info.fe?0x21:0x41;
 		info.fpREV=0x23;
-		info.demod= checkForAT76C651() ? DBOX_DEMOD_AT76C651 : DBOX_DEMOD_VES1993 ;
-//		info.demod=fe?DBOX_DEMOD_VES1993:DBOX_DEMOD_AT76C651;
+		info.demod=info.fe?DBOX_DEMOD_VES1993 : DBOX_DEMOD_AT76C651;
 	}	else if (info.mID==DBOX_MID_PHILIPS)		// never seen a cable-philips
 	{
+		info.fe=1;
 		info.feID=0;
 		info.fpID=0x52;
 		info.enxID=3;
 		info.gtxID=-1;
-		info.hwREV=fe?0x01:-1;
+		info.hwREV=info.fe?0x01:-1;
 		info.fpREV=0x30;
-		info.demod=fe?DBOX_DEMOD_TDA8044H:-1;
+		info.demod=info.fe?DBOX_DEMOD_TDA8044H:-1;
 	}	else if (info.mID==DBOX_MID_NOKIA)
 	{
-		info.feID=fe?0xdd:0x7a;
+		info.fe=checkForVES1820() ? 0 : 1;
+		info.feID=info.fe?0xdd:0x7a;
 		info.fpID=0x5a;
 		info.enxID=-1;
 		info.gtxID=0xB;
 		info.fpREV=0x81;
 		info.hwREV=0x5;
-		info.demod=fe?DBOX_DEMOD_VES1893:DBOX_DEMOD_VES1820;
+		info.demod=info.fe ? DBOX_DEMOD_VES1893 : DBOX_DEMOD_VES1820;
 	}
 	iounmap(conf);
 	printk(KERN_DEBUG "mID: %02x feID: %02x fpID: %02x enxID: %02x gtxID: %02x hwREV: %02x fpREV: %02x\n",
@@ -299,7 +325,7 @@ int info_proc_cleanup(void)
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("d-Box info");
-MODULE_PARM(fe, "i");
+//MODULE_PARM(fe, "i");
 EXPORT_SYMBOL(dbox_get_info);
 EXPORT_SYMBOL(dbox_get_info_ptr);
 
