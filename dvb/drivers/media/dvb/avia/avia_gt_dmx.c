@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.189 2003/10/25 15:45:34 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.190 2003/11/12 22:07:44 sepp776 Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -2007,10 +2007,17 @@ void avia_gt_dmx_set_ucode_info(void)
 	switch (version_no) {
 	case 0x0013:
 	case 0x0014:
- 		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
- 			AVIA_GT_UCODE_CAP_PES |
- 			AVIA_GT_UCODE_CAP_SEC |
- 			AVIA_GT_UCODE_CAP_TS);
+		if (avia_gt_chip(ENX)) 
+			ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+				AVIA_GT_UCODE_CAP_PES |
+				//AVIA_GT_UCODE_CAP_SEC |
+				AVIA_GT_UCODE_CAP_TS);
+		else
+			ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
+				AVIA_GT_UCODE_CAP_PES |
+				AVIA_GT_UCODE_CAP_SEC |
+				AVIA_GT_UCODE_CAP_TS);
+		
 		ucode_info.qid_offset = 1;
 		ucode_info.queue_mode_pes = 3;
  		break;
@@ -2052,7 +2059,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.189 2003/10/25 15:45:34 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.190 2003/11/12 22:07:44 sepp776 Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
