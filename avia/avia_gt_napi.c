@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.107 $
+ *   $Revision: 1.108 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.108  2002/09/05 11:57:44  Jolt
+ *   NAPI bugfix
+ *
  *   Revision 1.107  2002/09/05 09:40:32  Jolt
  *   - DMX/NAPI cleanup
  *   - Bugfixes (Thanks obi)
@@ -628,13 +631,15 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						b2l = wptr - queue->mem_addr;
 					}
 
+					if (gtxfeed->type != DMX_TYPE_MESSAGE) {
+					
 					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
 					{
 						int rlen=b1l+b2l;
 						if (*b1 != 0x47)
 						{
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
-							queue->read_pos = wptr;
+							gtx_reset_queue(queue_nr);
 							return;
 						}
 						rlen-=rlen%188;
@@ -656,7 +661,9 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 							queue->read_pos = queue->mem_addr + b2l;
 						}
 					} else
-						queue->read_pos = wptr;
+						gtx_reset_queue(queue_nr);
+
+					}
 
 					switch (gtxfeed->type)
 					{
@@ -1823,7 +1830,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.107 2002/09/05 09:40:32 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.108 2002/09/05 11:57:44 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
