@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.35 2003/12/16 19:43:58 zwen Exp $
+ * $Id: saa7126_core.c,v 1.36 2003/12/18 17:19:00 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -217,7 +217,7 @@ struct saa7126
 };
 
 
-static struct i2c_driver saa7126_driver;
+static struct i2c_driver i2c_driver_saa7126;
 
 
 static int
@@ -425,7 +425,7 @@ saa7126_detect_client(struct i2c_adapter *adapter, int address,
 	client->addr = address;
 	client->data = encoder;
 	client->adapter = adapter;
-	client->driver = &saa7126_driver;
+	client->driver = &i2c_driver_saa7126;
 	client->flags = 0;
 
 #if 0
