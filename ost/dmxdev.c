@@ -660,6 +660,7 @@ DmxDevTSCallback(__u8 *buffer1, size_t buffer1_len,
 		buffer=&dmxdevfilter->dev->dvr_buffer;
 	if (buffer->error)
 		return 0;
+	
 	ret=DmxDevBufferWrite(buffer, buffer1, buffer1_len);
 	if (ret==buffer1_len) 
 		ret=DmxDevBufferWrite(buffer, buffer2, buffer2_len);
@@ -781,14 +782,14 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 	int ret=0;
 
-	down_interruptible(&dmxdev->mutex);
+//	down_interruptible(&dmxdev->mutex);
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 		ret=DmxDevReadSec(dmxdevfilter, file, buf, count, ppos);
 	else
 		ret=DmxDevBufferRead(&dmxdevfilter->buffer, 
 				     file->f_flags&O_NONBLOCK, 
 				     buf, count, ppos);
-	up(&dmxdev->mutex);
+//	up(&dmxdev->mutex);
 	return ret;
 }
 
