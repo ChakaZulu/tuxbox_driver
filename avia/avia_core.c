@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.23  2001/12/19 22:02:34  gillem
+ *   - work on standby mode
+ *
  *   Revision 1.22  2001/12/19 21:26:05  gillem
  *   - work on timer stuff
  *   - remove some logs
@@ -119,7 +122,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -245,6 +248,9 @@ static void avia_event_cleanup();
 static void avia_event_func(unsigned long data);
 
 static u32 event_delay;
+
+
+static int avia_standby( int state );
 
 /* ---------------------------------------------------------------------- */
 u32
@@ -996,7 +1002,8 @@ static int init_avia(void)
         run_cmd = 0;
 
         /* remap avia memory */
-        aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
+	if(!aviamem)
+	        aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
 
         if (!aviamem)
         {
@@ -1187,8 +1194,6 @@ static int init_avia(void)
         }
 
 	avia_event_init();
-
-        avia_proc_init();
 
         avia_wait(avia_command(Abort, 0));
 
@@ -1400,6 +1405,34 @@ void avia_event_func(unsigned long data)
 
 /* ---------------------------------------------------------------------- */
 
+static int avia_standby( int state )
+{
+	if(state==0)
+	{
+		if ( init_avia() )
+			printk("avia wakeup ... error\n");
+		else
+			printk("avia wakeup ... ok\n");
+	}
+	else
+	{
+		avia_event_cleanup();
+
+		free_irq(AVIA_INTERRUPT, &dev);
+
+	        /* enable host access */
+        	wGB(0, 0x1000);
+	        /* cpu reset */
+        	wGB(0x39, 0xF00000);
+	        /* cpu reset by fp */
+	        fp_do_reset(0xBF & ~ (2));
+	}
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
 EXPORT_SYMBOL(avia_wait);
@@ -1418,21 +1451,32 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_core.c,v 1.22 2001/12/19 21:26:05 gillem Exp $\n");
-        return init_avia ();
+	int err;
+
+        dprintk ("AVIA: $Id: avia_core.c,v 1.23 2001/12/19 22:02:34 gillem Exp $\n");
+
+	aviamem = 0;
+
+	if ( !(err=init_avia()) )
+	{
+	        avia_proc_init();
+        }
+
+	return err;
 }
 
 void cleanup_module(void)
 {
         avia_proc_cleanup();
 
-        free_irq(AVIA_INTERRUPT, &dev);
+	avia_standby(1);
 
-	avia_event_cleanup();
+//	free_irq(AVIA_INTERRUPT, &dev);
+//	avia_event_cleanup();
 
-        if (aviamem)
-        {
-                iounmap((void*)aviamem);
-        }
+	if (aviamem)
+	{
+		iounmap((void*)aviamem);
+	}
 }
 #endif
