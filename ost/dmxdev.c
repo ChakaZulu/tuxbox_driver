@@ -38,7 +38,7 @@ static inline void
 DmxDevBufferInit(dmxdev_buffer_t *buffer) 
 {
         buffer->data=0;
-        buffer->size=8192;
+        buffer->size=1024*1024;
         buffer->pread=0;
         buffer->pwrite=0;
         buffer->error=0;

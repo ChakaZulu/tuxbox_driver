@@ -112,7 +112,7 @@ typedef struct dmxdev_s {
 
         //DVR
         dmxdev_buffer_t dvr_buffer;
-#define DVR_BUFFER_SIZE (256*1024)
+#define DVR_BUFFER_SIZE (1024*1024)
 } dmxdev_t;
 
 
