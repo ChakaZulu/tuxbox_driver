@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.9  2001/03/25 14:06:45  gillem
+ *   - update includes
+ *
  *   Revision 1.8  2001/03/22 21:11:36  gillem
  *   - add default values
  *
@@ -46,7 +49,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -64,7 +67,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 
-#include "avs_core.h"
+#include "dbox/avs_core.h"
 #include "cxa2126.h"
 
 /* ---------------------------------------------------------------------- */

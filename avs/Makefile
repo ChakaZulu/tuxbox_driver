@@ -8,7 +8,7 @@ AVS_OBJS     = cxa2092.o cxa2126.o avs_core.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=
+EXTRA_CFLAGS=-I../include
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

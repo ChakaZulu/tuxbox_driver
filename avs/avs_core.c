@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.7  2001/03/25 14:06:45  gillem
+ *   - update includes
+ *
  *   Revision 1.6  2001/03/16 20:49:21  gillem
  *   - fix errors
  *
@@ -40,7 +43,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -60,7 +63,7 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
-#include "avs_core.h"
+#include "dbox/avs_core.h"
 
 #include "cxa2092.h"
 #include "cxa2126.h"

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.17  2001/03/25 14:06:45  gillem
+ *   - update includes
+ *
  *   Revision 1.16  2001/03/22 21:11:36  gillem
  *   - add default values
  *
@@ -65,7 +68,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -82,7 +85,7 @@
 
 #include <linux/i2c.h>
 
-#include "avs_core.h"
+#include "dbox/avs_core.h"
 #include "cxa2092.h"
 
 /* ---------------------------------------------------------------------- */
