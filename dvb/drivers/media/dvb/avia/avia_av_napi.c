@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.11  2002/11/18 11:40:18  Jolt
+ *   Support for AC3 and non sync mode
+ *
  *   Revision 1.10  2002/11/16 16:53:15  Jolt
  *   AVIA API work
  *
@@ -56,7 +59,7 @@
  *
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -366,6 +369,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_SET_MUTE:
+		
 			if (arg) {
 				/*
 				 * mute av spdif (2) and analog audio (4) 
@@ -386,27 +390,29 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 //FIXME				avia_gt_pcm_set_mpeg_attenuation((audiostate.mixer_state.volume_left + 1) >> 1,
 //FIXME								(audiostate.mixer_state.volume_right + 1) >> 1);
 			}
+			
 			wDR(NEW_AUDIO_CONFIG, 1);
 			audiostate.mute_state = (arg != 0);
+			
 			break;
 
 		case AUDIO_SET_AV_SYNC:
-			wDR(AV_SYNC_MODE, arg ? 0x06 : 0x00);
-			audiostate.AV_sync_state = (arg != 0);
+		
+			if (arg)
+				avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_AV);
+			else
+				avia_av_sync_mode_set(AVIA_AV_SYNC_MODE_NONE);
+				
+			audiostate.AV_sync_state = arg;
+			
 			break;
 
 		case AUDIO_SET_BYPASS_MODE:
-			if (arg) {
-//FIXME				avia_command(SelectStream, 0x02, 0xffff);
-//FIXME				avia_command(SelectStream, 0x03, audio_pid);
-//FIXME				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 1);
-			} else {
-//FIXME				avia_command(SelectStream, 0x03, 0xffff);
-//FIXME				avia_command(SelectStream, 0x02, audio_pid);
-//FIXME				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
-			}
-//FIXME			wDR(NEW_AUDIO_CONFIG, 1);
-			audiostate.bypass_mode = (arg != 0);
+
+			avia_av_bypass_mode_set(!arg);
+			
+			audiostate.bypass_mode = arg;
+			
 			break;
 
 		case AUDIO_CHANNEL_SELECT:
@@ -546,7 +552,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.10 2002/11/16 16:53:15 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.11 2002/11/18 11:40:18 Jolt Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

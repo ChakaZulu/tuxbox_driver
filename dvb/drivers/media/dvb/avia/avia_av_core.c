@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.45  2002/11/18 11:40:18  Jolt
+ *   Support for AC3 and non sync mode
+ *
  *   Revision 1.44  2002/11/17 23:03:16  Jolt
  *   Audio fixes
  *
@@ -188,7 +191,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.44 $
+ *   $Revision: 1.45 $
  *
  */
 
@@ -234,8 +237,8 @@ static int debug = 0;
 
 #ifdef MODULE
 
-void avia_set_pcr   (u32 hi, u32 lo);
-void avia_flush_pcr (void);
+void avia_set_pcr(u32 hi, u32 lo);
+void avia_flush_pcr(void);
 
 volatile u8 *aviamem;
 int aviarev;
@@ -250,15 +253,15 @@ static spinlock_t avia_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
-static u16 sample_rate = 44100;
-
-static u16 pid_ac3 = 0xFFFF;
+static u8 bypass_mode = 0;
 static u16 pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
 static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
+static u16 sample_rate = 44100;
 static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
 static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
+static u8 sync_mode = AVIA_AV_SYNC_MODE_AV;
 
 /* finally i got them */
 #define UX_MAGIC			0x00
@@ -688,7 +691,10 @@ void avia_set_pcr(u32 hi, u32 lo)
 
 	wGB(0x02, timer_high);
 	wGB(0x03, timer_low);
-	wDR(AV_SYNC_MODE, 6);
+
+	if (sync_mode != AVIA_AV_SYNC_MODE_NONE)
+		wDR(AV_SYNC_MODE, sync_mode);
+
 }
 
 void avia_flush_pcr(void)
@@ -838,7 +844,7 @@ void avia_set_default(void)
 //	      dprintk("AVIA: eNX\n");
 	}
 
-	wDR(AV_SYNC_MODE, 0x00);
+	wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 
 	wDR(VIDEO_PTS_DELAY, 0);
 	wDR(VIDEO_PTS_SKIP_THRESHOLD, 0xE10);
@@ -867,13 +873,10 @@ void avia_set_default(void)
 
 	/* set pal or ntsc */
 	if (pal)
-	{
 		wDR(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
-	}
 	else
-	{
 		wDR(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
-	}
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1234,6 +1237,20 @@ u16 avia_get_sample_rate(void)
 
 }
 
+void avia_av_bypass_mode_set(u8 enable)
+{
+
+	if (enable)
+		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
+	else
+		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 1);
+
+	wDR(NEW_AUDIO_CONFIG, 1);
+
+	bypass_mode = enable;
+
+}
+
 int avia_av_pid_set(u8 type, u16 pid)
 {
 
@@ -1242,26 +1259,14 @@ int avia_av_pid_set(u8 type, u16 pid)
 		
 	switch(type) {
 	
-		case AVIA_AV_TYPE_AC3:
-
-			avia_command(SelectStream, 0x02, pid);
-			
-			pid_ac3 = pid;
-
-			break;
-			
 		case AVIA_AV_TYPE_AUDIO:
 
-			avia_command(SelectStream, 0x03, pid);
-			
 			pid_audio = pid;
 
 			break;
 	
 		case AVIA_AV_TYPE_VIDEO:
 
-			avia_command(SelectStream, 0x00, pid);
-			
 			pid_video = pid;
 
 			break;
@@ -1291,22 +1296,17 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
 				return -EINVAL;
 		
-//			avia_command(Pause, 0x01, 0x01);
+			avia_command(SelectStream, 0x02, 0xFFFF);
+			avia_command(SelectStream, 0x03, 0xFFFF);
 		
 			break;
 
 		case AVIA_AV_PLAY_STATE_PLAYING:
 
-			if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED) {
-			
-//				avia_command(Resume);
-				
-			} else {
-
-//				avia_command(SelectStream, 0x02, pid_audio);	//FIXME AC3
+			if (bypass_mode)
+				avia_command(SelectStream, 0x02, pid_audio);
+			else
 				avia_command(SelectStream, 0x03, pid_audio);
-
-			}
 		
 			break;
 
@@ -1320,7 +1320,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			avia_command(SelectStream, 0x03, 0xFFFF);
 		
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
-				wDR(AV_SYNC_MODE, 0x00);
+				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 			
 			break;
 			
@@ -1378,7 +1378,7 @@ int avia_av_play_state_set_video(u8 new_play_state)
 			avia_command(SelectStream, 0x00, 0xFFFF);
 				
 			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
-				wDR(AV_SYNC_MODE, 0x00);
+				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 
 			break;
 			
@@ -1398,6 +1398,9 @@ int avia_av_play_state_set_video(u8 new_play_state)
 
 int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 {
+
+	if ((play_state_video != AVIA_AV_PLAY_STATE_STOPPED) || (play_state_audio != AVIA_AV_PLAY_STATE_STOPPED))
+		return -EBUSY;
 
 	switch(new_stream_type_video) {
 	
@@ -1490,9 +1493,6 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 					
 						avia_command(Reset);				
 
-						avia_command(SelectStream, 0x00, pid_video);
-						avia_command(SelectStream, 0x03, pid_audio);
-						
 					} else {
 					
 						avia_command(SetStreamType, 0x10, pid_audio);
@@ -1527,6 +1527,24 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 	
 }	
 
+int avia_av_sync_mode_set(u8 new_sync_mode)
+{
+
+	if ((new_sync_mode != AVIA_AV_SYNC_MODE_NONE) &&
+		(new_sync_mode != AVIA_AV_SYNC_MODE_AUDIO) &&
+		(new_sync_mode != AVIA_AV_SYNC_MODE_VIDEO) &&
+		(new_sync_mode != AVIA_AV_SYNC_MODE_AV))
+		return -EINVAL;
+
+	if ((play_state_video != AVIA_AV_PLAY_STATE_STOPPED) || (play_state_audio != AVIA_AV_PLAY_STATE_STOPPED))
+		wDR(AV_SYNC_MODE, new_sync_mode);
+
+	sync_mode = new_sync_mode;
+
+	return 0;	
+
+}
+
 /* ---------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(avia_wr);
@@ -1537,9 +1555,11 @@ EXPORT_SYMBOL(avia_flush_pcr);
 EXPORT_SYMBOL(avia_standby);
 EXPORT_SYMBOL(avia_get_sample_rate);
 
+EXPORT_SYMBOL(avia_av_bypass_mode_set);
 EXPORT_SYMBOL(avia_av_pid_set);
 EXPORT_SYMBOL(avia_av_play_state_set_audio);
 EXPORT_SYMBOL(avia_av_play_state_set_video);
+EXPORT_SYMBOL(avia_av_sync_mode_set);
 
 /* ---------------------------------------------------------------------- */
 
@@ -1558,7 +1578,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.44 2002/11/17 23:03:16 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.45 2002/11/18 11:40:18 Jolt Exp $\n");
 
 	aviamem = 0;
 

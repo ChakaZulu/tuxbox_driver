@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av.h,v $
+ *   Revision 1.11  2002/11/18 11:40:18  Jolt
+ *   Support for AC3 and non sync mode
+ *
  *   Revision 1.10  2002/11/16 16:53:14  Jolt
  *   AVIA API work
  *
@@ -30,7 +33,7 @@
  *
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -46,9 +49,13 @@
 #define AVIA_AV_STREAM_TYPE_PES		0x02
 #define AVIA_AV_STREAM_TYPE_ES		0x03
 
+#define AVIA_AV_SYNC_MODE_NONE		0x00
+#define AVIA_AV_SYNC_MODE_AUDIO		0x04
+#define AVIA_AV_SYNC_MODE_VIDEO		0x05
+#define AVIA_AV_SYNC_MODE_AV		0x06
+
 #define AVIA_AV_TYPE_AUDIO			0x01
 #define AVIA_AV_TYPE_VIDEO			0x02
-#define AVIA_AV_TYPE_AC3			0x03
 
 #define TM_DRAM  0x00
 #define TM_GBUS  0x80
@@ -304,10 +311,12 @@ extern void avia_flush_pcr(void);
 #define PROC_STATE_FREEZE		0x0020
 #define PROC_STATE_NEWCHANNEL		0x0080
 
+void avia_av_bypass_mode_set(u8 enable);
 int avia_av_pid_set(u8 type, u16 pid);
 int avia_av_play_state_set_audio(u8 new_play_state);
 int avia_av_play_state_set_video(u8 new_play_state);
 int avia_av_stream_type_set_audio(u8 new_stream_type);
 int avia_av_stream_type_set_video(u8 new_stream_type);
+int avia_av_sync_mode_set(u8 new_sync_mode);
 
 #endif
