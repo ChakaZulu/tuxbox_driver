@@ -60,6 +60,7 @@ typedef enum {
 	DMXDEV_STATE_FREE,
 	DMXDEV_STATE_ALLOCATED,
 	DMXDEV_STATE_SET,
+	DMXDEV_STATE_READY,
 	DMXDEV_STATE_GO,
 	DMXDEV_STATE_DONE,
 	DMXDEV_STATE_TIMEDOUT
@@ -156,5 +157,4 @@ int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 		   unsigned int cmd, unsigned long arg);
 unsigned int DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait);
 
-void DmxNetSend(u8 *b1, size_t l_b1, u8 *b2, size_t l_b2, struct socket *s, dmxOutput_t otype, dmxdev_buffer_t *dvrbuf);
 #endif /* _DMXDEV_H_ */
