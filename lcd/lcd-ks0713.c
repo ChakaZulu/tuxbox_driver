@@ -21,6 +21,10 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.12  2001/11/25 21:11:39  gillem
+ *   - update reset function (test only!)
+ *   - add sirc
+ *
  *   Revision 1.11  2001/06/03 20:45:50  kwon
  *   indent
  *
@@ -45,7 +49,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -602,7 +606,8 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
 		case LCD_IOCTL_RESET:
 
-    			lcd_send_cmd( LCD_CMD_RESET, 0 );
+				lcd_reset();
+//    			lcd_send_cmd( LCD_CMD_RESET, 0 );
 				return 0;
 	}
 
@@ -684,6 +689,15 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					return -EINVAL;
 
 				lcd_send_cmd( LCD_CMD_SIR, 0x01 );
+				lcd_send_cmd( 0x00, val&0x03 );
+				break;
+
+    		case LCD_IOCTL_SIRC:
+
+				if ( (val > 0x03) || (val < 0) )
+					return -EINVAL;
+
+				lcd_send_cmd( LCD_CMD_SIR, 0x00 );
 				lcd_send_cmd( 0x00, val&0x03 );
 				break;
 
@@ -823,19 +837,22 @@ void lcd_clear(void)
 
 void lcd_reset(void)
 {
-    // TODO: not work :-/
+    // i hope it works now
     lcd_send_cmd( LCD_CMD_RESET, 0 );
+
     udelay(1000*100);
+
 	lcd_send_cmd( LCD_CMD_ON, 1 );
 	lcd_send_cmd( LCD_CMD_EON, 0 );
 	lcd_send_cmd( LCD_CMD_REVERSE, 0 );
 	lcd_send_cmd( LCD_CMD_BIAS, 1 );
-	lcd_send_cmd( LCD_CMD_ADC, 0 );
+	lcd_send_cmd( LCD_CMD_ADC, 1 );
 	lcd_send_cmd( LCD_CMD_SHL, 0 );
 	lcd_send_cmd( LCD_CMD_POWERC, 7 );
 	lcd_send_cmd( LCD_CMD_RES, 7 );
 	lcd_send_cmd( LCD_CMD_SIR, 3 );
-	lcd_send_cmd( LCD_CMD_SRV, 50 );
+	lcd_send_cmd( LCD_CMD_SRV, 0 );
+	lcd_send_cmd( 0x00, 0 );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
