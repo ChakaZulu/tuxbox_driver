@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.27  2001/04/26 16:56:58  Hunz
+ *   added breakcodes support
+ *
  *   Revision 1.26  2001/04/22 20:43:40  tmbinc
  *   fixed RC for new and old fp-code
  *
@@ -81,7 +84,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 
@@ -169,6 +172,7 @@ static unsigned short normal_i2c_range[] = { 0x60>>1, 0x60>>1, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 static int fp_id=0;
+static int rc_bcodes=0;
 
 struct fp_data
 {
@@ -281,7 +285,29 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 		}
 
 		case RC_MINOR:
-			return -EINVAL;
+		{
+			switch (cmd)
+			{
+				case RC_IOCTL_BCODES:
+					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
+                                        {
+                                                return -EFAULT;
+                                        }
+					if (val != 0)
+					{
+						rc_bcodes=1;
+						return fp_sendcmd(defdata->client, 0x26, 0x80);
+					}
+					else
+					{
+						rc_bcodes=0;
+						return fp_sendcmd(defdata->client, 0x26, 0);
+					}
+					break;
+				default:
+					return -EINVAL;
+			}
+		}
 
 		default:
 			return -EINVAL;
@@ -409,6 +435,8 @@ static int fp_release(struct inode *inode, struct file *file)
 	case FP_MINOR:
 		return 0;
 	case RC_MINOR:
+		if (rc_bcodes != 0)
+			fp_sendcmd(defdata->client, 0x26, 0);
 		up(&rc_open);
 		return 0;
 	}
