@@ -63,7 +63,8 @@ typedef enum {
 	FE_CAN_BANDWIDTH_AUTO         = 0x40000,
 	FE_CAN_GUARD_INTERVAL_AUTO    = 0x80000,
 	FE_CAN_HIERARCHY_AUTO         = 0x100000,
-	FE_CAN_MUTE_TS                = 0x80000000
+	FE_CAN_MUTE_TS                = 0x80000000,
+	FE_CAN_CLEAN_SETUP            = 0x40000000
 } fe_caps_t;
 
 
