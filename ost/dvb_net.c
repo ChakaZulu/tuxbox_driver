@@ -20,6 +20,9 @@
  *
  *
  *   $Log: dvb_net.c,v $
+ *   Revision 1.3  2001/06/25 20:31:48  gillem
+ *   - fix return value
+ *
  *   Revision 1.2  2001/06/25 20:23:39  gillem
  *   - bugfix (set pointer)
  *   - add debug output
@@ -374,7 +377,7 @@ dvb_net_get_stats(struct net_device *dev)
 	if (!dev)
 	{
 		printk("dvb_net: warning device null pointer\n");
-		return -1;
+		return 0;
 	}
 
 	printk("dvb_net: get_stats\n");
