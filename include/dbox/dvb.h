@@ -15,6 +15,7 @@
 #define I2C_DRIVERID_VES1893    32      /* DVB-S decoder                */
 #define I2C_DRIVERID_VES1820    33      /* DVB-C decoder                */
 #define I2C_DRIVERID_TDA8044H		34
+#define I2C_DRIVERID_VES1993    35      /* DVB-S decoder                */
 
 #define BASE_VIDIOCPRIVATE      192             /* 192-255 are private */
 
