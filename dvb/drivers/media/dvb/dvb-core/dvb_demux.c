@@ -523,33 +523,38 @@ static struct dvb_demux_feed * dvb_dmx_feed_alloc(struct dvb_demux *demux)
 	return &demux->feed[i];
 }
 
-
-static int dmx_pid_set (u16 pid, struct dvb_demux_feed *feed)
+static int dvb_demux_feed_find(struct dvb_demux_feed *feed)
 {
-	struct dvb_demux *demux = feed->demux;
-	struct list_head *pos, *n, *head=&demux->feed_list;
+	struct dvb_demux_feed *entry;
 
-	if (pid > DMX_MAX_PID)
-		return -EINVAL;
-
-	if (pid == feed->pid)
-		return 0;
-
-	if (feed->pid <= DMX_MAX_PID) {
-		list_for_each_safe(pos, n, head) {
-			if (DMX_FEED_ENTRY(pos)->pid == feed->pid) {
-				list_del(pos);
-				break;
-			}
-		}
-	}
-
-	list_add(&feed->list_head, head);
-	feed->pid = pid;
+	list_for_each_entry(entry, &feed->demux->feed_list, list_head)
+		if (entry == feed)
+			return 1;
 
 	return 0;
 }
 
+static void dvb_demux_feed_add(struct dvb_demux_feed *feed)
+{
+	if (dvb_demux_feed_find(feed)) {
+		printk(KERN_ERR "%s: feed already in list (type=%x state=%x pid=%x)\n",
+				__FUNCTION__, feed->type, feed->state, feed->pid);
+		return;
+	}
+
+	list_add(&feed->list_head, &feed->demux->feed_list);
+}
+
+static void dvb_demux_feed_del(struct dvb_demux_feed *feed)
+{
+	if (!(dvb_demux_feed_find(feed))) {
+		printk(KERN_ERR "%s: feed not in list (type=%x state=%x pid=%x)\n",
+				__FUNCTION__, feed->type, feed->state, feed->pid);
+		return;
+	}
+
+	list_del(&feed->list_head);
+}
 
 static int dmx_ts_feed_set (struct dmx_ts_feed* ts_feed, u16 pid, int ts_type, 
 		     enum dmx_ts_pes pes_type, size_t callback_length, 
@@ -558,8 +563,10 @@ static int dmx_ts_feed_set (struct dmx_ts_feed* ts_feed, u16 pid, int ts_type,
 {
 	struct dvb_demux_feed *feed = (struct dvb_demux_feed *) ts_feed;
 	struct dvb_demux *demux = feed->demux;
-	int ret;
-	
+
+	if (pid > DMX_MAX_PID)
+		return -EINVAL;
+
 	if (down_interruptible (&demux->mutex))
 		return -ERESTARTSYS;
 
@@ -575,26 +582,13 @@ static int dmx_ts_feed_set (struct dmx_ts_feed* ts_feed, u16 pid, int ts_type,
 			return -EINVAL;
 		}
 
-		if ((pes_type != DMX_TS_PES_PCR0) && 
-		    (pes_type != DMX_TS_PES_PCR1) && 
-		    (pes_type != DMX_TS_PES_PCR2) && 
-		    (pes_type != DMX_TS_PES_PCR3)) {
-			if ((ret = dmx_pid_set(pid, feed))<0) {
-				up(&demux->mutex);
-				return ret;
-			}
-		} else
-			feed->pid = pid;
-				
 		demux->pesfilter[pes_type] = feed;
-		demux->pids[pes_type] = feed->pid;
-	} else {
-		if ((ret = dmx_pid_set(pid, feed))<0) {
-			up(&demux->mutex);
-			return ret;
-		}
+		demux->pids[pes_type] = pid;
 	}
 
+	dvb_demux_feed_add(feed);
+
+	feed->pid = pid;
 	feed->buffer_size = circular_buffer_size;
 	feed->descramble = descramble;
 	feed->timeout = timeout;
@@ -738,7 +732,6 @@ static int dvbdmx_release_ts_feed(struct dmx_demux *dmx, struct dmx_ts_feed *ts_
 {
 	struct dvb_demux *demux = (struct dvb_demux *) dmx;
 	struct dvb_demux_feed *feed = (struct dvb_demux_feed *) ts_feed;
-	struct list_head *pos, *n, *head=&demux->feed_list;
 
 	if (down_interruptible (&demux->mutex))
 		return -ERESTARTSYS;
@@ -758,15 +751,10 @@ static int dvbdmx_release_ts_feed(struct dmx_demux *dmx, struct dmx_ts_feed *ts_
 	feed->state = DMX_STATE_FREE;
 	feed->filter->state = DMX_STATE_FREE;
 
-	if (feed->pid <= DMX_MAX_PID) {
-		list_for_each_safe(pos, n, head)
-			if (DMX_FEED_ENTRY(pos)->pid == feed->pid) {
-				list_del(pos);
-				break;
-			}
-		feed->pid = 0xffff;
-	}
-	
+	dvb_demux_feed_del(feed);
+
+	feed->pid = 0xffff;
+
 	if (feed->ts_type & TS_DECODER)
 		demux->pesfilter[feed->pes_type] = NULL;
 
@@ -817,7 +805,6 @@ static int dmx_section_feed_set(struct dmx_section_feed* feed,
 {
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) feed;
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct list_head *pos, *n, *head=&dvbdmx->feed_list;
 
 	if (pid > 0x1fff)
 		return -EINVAL;
@@ -825,16 +812,7 @@ static int dmx_section_feed_set(struct dmx_section_feed* feed,
 	if (down_interruptible (&dvbdmx->mutex))
 		return -ERESTARTSYS;
 	
-	if (dvbdmxfeed->pid <= DMX_MAX_PID) {
-		list_for_each_safe(pos, n, head) {
-			if (DMX_FEED_ENTRY(pos)->pid == dvbdmxfeed->pid) {
-				list_del(pos);
-				break;
-			}
-		}
-	}
-
-	list_add(&dvbdmxfeed->list_head, head);
+	dvb_demux_feed_add(dvbdmxfeed);
 
 	dvbdmxfeed->pid = pid;
 	dvbdmxfeed->buffer_size = circular_buffer_size;
@@ -1033,7 +1011,6 @@ static int dvbdmx_release_section_feed(struct dmx_demux *demux,
 {
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) feed;
 	struct dvb_demux *dvbdmx = (struct dvb_demux *) demux;
-	struct list_head *pos, *n, *head = &dvbdmx->feed_list;
 
 	if (down_interruptible (&dvbdmx->mutex))
 		return -ERESTARTSYS;
@@ -1050,15 +1027,9 @@ static int dvbdmx_release_section_feed(struct dmx_demux *demux,
 #endif
 	dvbdmxfeed->state=DMX_STATE_FREE;
 
-	if (dvbdmxfeed->pid <= DMX_MAX_PID) {
-		list_for_each_safe(pos, n, head) {
-			if (DMX_FEED_ENTRY(pos)->pid == dvbdmxfeed->pid) {
-				list_del(pos);
-				break;
-			}
-		}
-		dvbdmxfeed->pid = 0xffff;
-	}
+	dvb_demux_feed_del(dvbdmxfeed);
+
+	dvbdmxfeed->pid = 0xffff;
 
 	up(&dvbdmx->mutex);
 	return 0;
