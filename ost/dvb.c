@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.42 2001/07/14 23:00:08 TripleDES Exp $
+ * $Id: dvb.c,v 1.43 2001/07/15 14:13:01 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -1090,8 +1090,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					case 1:	
 					    printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
 					    avia_command(SelectStream,3,0);
-					    //wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)& ~1)|1);    //irgendwie suckt das?? :/
-					    //wDR(0x468,1);
+					    wDR(AUDIO_CONFIG,0xF);    //billig workaround ;)
+					    wDR(0x468,1);
 					    break;
 					case 0:
 					    printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
