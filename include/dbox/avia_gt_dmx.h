@@ -42,7 +42,7 @@ typedef struct {
 	u8 (*get_data8)(u8 queue_nr, u8 peek);
 	u16 (*get_data16)(u8 queue_nr, u8 peek);
 	u32 (*get_data32)(u8 queue_nr, u8 peek);
-	u32	(*put_data)(u8 queue_nr, void *src, u32 count);
+	u32	(*put_data)(u8 queue_nr, void *src, u32 count, u8 src_is_user_space);
 	u8 nr;
 
 } sAviaGtDmxQueueInfo;
@@ -53,6 +53,7 @@ typedef struct {
 
 	u8 busy;
 	AviaGtDmxQueueProc *cb_proc;
+	u32 hw_read_pos;
 	sAviaGtDmxQueueInfo info;
 	u32 irq_count;
 	AviaGtDmxQueueProc *irq_proc;
@@ -203,6 +204,7 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
+u32 avia_gt_dmx_queue_get_bytes_free(u8 queue_nr);
 u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
@@ -216,6 +218,7 @@ int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_f
 int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id);
 int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[], u8 param[], u8 not_flag, u8 not_flag_ver_id_byte);
 
+u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr);
 void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos);
 void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos);
 void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos);
