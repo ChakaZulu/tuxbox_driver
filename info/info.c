@@ -21,6 +21,10 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.19  2002/07/18 19:19:35  wjoost
+ *
+ *   AVIA-Erkennung gefixt. Hinweis auf Konfigurationsfalle eingebaut.
+ *
  *   Revision 1.18  2002/05/07 19:54:13  derget
  *   info.fe wieder eingebaut :)
  *
@@ -73,7 +77,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -128,7 +132,7 @@ static struct i2c_driver dummy_i2c_driver = {
 	"FOR_PROBE_ONLY",
 	I2C_DRIVERID_EXP2, // experimental use id
 	I2C_DF_NOTIFY,
-	&attach_dummy_adapter,
+	attach_dummy_adapter,
 	0,
 	0,
 	0,
@@ -150,6 +154,7 @@ static u16 i2c_device_addr_to_read;
 static u8 i2c_should_value;
 static u8 i2c_should_mask;
 static int i2c_found;
+static int i2c_attach_called;
 static int device_reg_addr_is_16bit;
 
 // k.A. ob das noch wer anders so (wegen Protokoll) gebrauchen kann,
@@ -186,14 +191,15 @@ static u8 readreg(struct i2c_client *client, u8 reg)
 
 static int attach_dummy_adapter(struct i2c_adapter *adap)
 {
+  i2c_attach_called = 1;
   dummy_i2c_client.adapter=adap;
   dummy_i2c_client.addr=i2c_addr_of_device;
   if ( ( readreg(&dummy_i2c_client, i2c_device_addr_to_read) & i2c_should_mask ) != i2c_should_value ) {
-    //printk("device not found\n");
+//    printk(KERN_INFO "device not found\n");
     i2c_found=0;
   }
   else {
-    //printk("device found\n");
+//    printk(KERN_INFO "device found\n");
     i2c_found=1;
   }
   return -1; // we don't need to attach, probing was done
@@ -201,13 +207,17 @@ static int attach_dummy_adapter(struct i2c_adapter *adap)
 
 static void probeDevice(void)
 {
+  i2c_attach_called = 0;
   i2c_add_driver(&dummy_i2c_driver); // fails allways
+  if (!i2c_attach_called) {
+    printk(KERN_ERR "info.o: cannot get enough information without i2c-adapter.\n");
+  }
   i2c_del_driver(&dummy_i2c_driver);
 }
 
 static int checkForAT76C651(void)
 {
-  i2c_addr_of_device=0x0d; // =0x1a >> 1
+  i2c_addr_of_device=0x0d;
   i2c_device_addr_to_read=0x0e;
   i2c_should_value=0x65;
   i2c_should_mask=0xff;
@@ -237,7 +247,6 @@ static int checkForVES1993(void)
   probeDevice();
   return i2c_found;
 }
-
 
 volatile cpm8xx_t *cpm;
 
@@ -336,12 +345,17 @@ static int aviatype(void)
 		printk("INFO: cannot remap avia-mem.\n");
 		return -1;
 	}
+	(void)aviamem[0];
+
 	aviamem[6] = 0x80;
 	aviamem[5] = 0;
 	aviamem[4] = 0;
-	aviarev=(aviamem[2] & 3);
+	aviarev = aviamem[3] << 24;
+	aviarev |= aviamem[2] << 16;
+	aviarev |= aviamem[1] << 8;
+	aviarev |= aviamem[0];
 
-	return aviarev ? 500:600;
+	return (aviarev & 0x0300) ? 500:600;
 }
 
 static int dbox_info_init(void)
