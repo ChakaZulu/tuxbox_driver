@@ -178,11 +178,14 @@ static ssize_t fp_read (struct file *file, char *buf, size_t count, loff_t *offs
     int i;
     DECLARE_WAITQUEUE(wait, current);
 
+    count&=~1;
+    read=0;
+
 again:
     if (rcbeg==rcend)
     {
       if (file->f_flags & O_NONBLOCK)
-        return count;
+        return read;
 
       add_wait_queue(&rcwait, &wait);
       set_current_state(TASK_INTERRUPTIBLE);
@@ -194,8 +197,6 @@ again:
       goto again;
     }
 
-    count&=~1;
-    read=0;
     for (i=0; i<count; i+=2)
     {
       if (rcbeg==rcend)
