@@ -21,6 +21,11 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.13  2001/07/03 19:55:05  gillem
+ *   - add ioctl to set rgb/fbas/svideo
+ *   - remove module option svideo
+ *   - add module option mode
+ *
  *   Revision 1.12  2001/07/03 19:23:56  gillem
  *   - change flags
  *
@@ -51,7 +56,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -212,6 +217,8 @@ static int saa7126_open (struct inode *inode, struct file *file);
 static int saa7126_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size);
 static int saa7126_sendcmd(struct i2c_client *client, u8 b0, u8 b1);
 
+static int saa7126_mode( int inp );
+
 static struct file_operations saa7126_fops = {
 	owner:		THIS_MODULE,
 	ioctl:		saa7126_ioctl,
@@ -225,13 +232,13 @@ static int saa7126_encoder( int inp );
 static int debug =  0; /* insmod parameter */
 static int addr  =  0;
 static int board = 	0;
-static int svideo= 	0;
+static int mode  = 	0;
 
 #if LINUX_VERSION_CODE > 0x020100
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
 MODULE_PARM(board,"i");
-MODULE_PARM(svideo,"i");
+MODULE_PARM(mode,"i");
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -340,20 +347,15 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 		i |= 0x80; // lumi -> G
 		i |= 0x20; // CVBS -> B
 
-		if (svideo)
-		{
-			i |= 0x10; // croma -> R
-			i |= 0x40; // lumi -> CVBS
-		}
-
-		config[0x2d] = i;
-
 		/* upload data */
 		for(i=0;i<0x80;i+=SAA_I2C_BLOCK_SIZE) {
 			buf[0] = i;
 			memcpy( buf+1, config+i,SAA_I2C_BLOCK_SIZE );
 			i2c_master_send( client, buf, SAA_I2C_BLOCK_SIZE );
 		}
+
+		/* set video mode */
+		saa7126_mode( mode );
 	}
 
 	//MOD_INC_USE_COUNT;
@@ -596,6 +598,35 @@ static int saa7126_encoder( int inp )
 
 /* ------------------------------------------------------------------------- */
 
+static int saa7126_mode( int inp )
+{
+	u8 b;
+
+	/* read status */
+	saa7126_cmd(&client_template,0x2d,&b,1);
+
+	switch(inp)
+	{
+		case SAA_MODE_RGB:
+		case SAA_MODE_FBAS:
+				b &= ~0x10;
+				b &= ~0x40;
+				break;
+		case SAA_MODE_SVIDEO:
+				b |= 0x10; // croma -> R
+				b |= 0x40; // lumi -> CVBS
+				break;
+		default:
+				return -EINVAL;
+	}
+
+	saa7126_sendcmd( &client_template, 0x2d, b );
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
@@ -628,6 +659,15 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 				}
 
 				saa7126_output_control(val);
+
+				break;
+
+		case SAAIOSMODE:
+				if ( copy_from_user( &val, (void*)arg, sizeof(val) ) ) {
+					return -EFAULT;
+				}
+
+				saa7126_mode(val);
 
 				break;
 

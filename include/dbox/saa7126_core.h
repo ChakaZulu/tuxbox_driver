@@ -21,6 +21,11 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.7  2001/07/03 19:55:05  gillem
+ *   - add ioctl to set rgb/fbas/svideo
+ *   - remove module option svideo
+ *   - add module option mode
+ *
  *   Revision 1.6  2001/05/16 22:12:48  gillem
  *   - add encoder setting
  *
@@ -40,14 +45,19 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
-#define SAAIOGREG		1 /* read registers			*/
-#define SAAIOSINP		2 /* input control			*/
-#define SAAIOSOUT		3 /* output control 		*/
-#define SAAIOSENC		4 /* set encoder (pal/ntsc)	*/
+#define SAAIOGREG		1 /* read registers				*/
+#define SAAIOSINP		2 /* input control				*/
+#define SAAIOSOUT		3 /* output control 			*/
+#define SAAIOSENC		4 /* set encoder (pal/ntsc)		*/
+#define SAAIOSMODE		5 /* set mode (rgb/fbas/svideo)	*/
+
+#define SAA_MODE_RGB	0
+#define SAA_MODE_FBAS	1
+#define SAA_MODE_SVIDEO	2
 
 // TODO: fix this table
 
