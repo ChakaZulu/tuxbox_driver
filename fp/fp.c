@@ -21,6 +21,16 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.45  2002/01/19 05:59:28  Hunz
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *   I will first look for bugs and then commit
+ *
  *   Revision 1.44  2002/01/19 05:54:46  Hunz
  *   keyboard might work now
  *
@@ -138,7 +148,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.44 $
+ *   $Revision: 1.45 $
  *
  */
 
@@ -855,9 +865,9 @@ int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
   if(scancode>255||keycode>127)
     return -EINVAL;
   if(scancode&0x80)
-    fn_keymap[scancode]=keycode;
+    fn_keymap[scancode&0x7f]=keycode;
   else
-    keymap[scancode]=keycode;
+    keymap[scancode&0x7f]=keycode;
   return 0;
 }
 
