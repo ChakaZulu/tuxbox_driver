@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.4  2001/02/02 16:42:50  gillem
+ *   - change some function to inline
+ *
  *   Revision 1.3  2001/01/31 18:06:12  gillem
  *   - patch from JeyCol
  *
@@ -31,7 +34,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -192,7 +195,7 @@ int avs_set()
 	return 0;
 }
 
-int avs_set_volume( int vol )
+inline int avs_set_volume( int vol )
 {
 	int c=0,f=0;
 
@@ -216,7 +219,7 @@ int avs_set_volume( int vol )
 	return avs_set();
 }
 
-int avs_set_mute( int type )
+inline int avs_set_mute( int type )
 {
 	if ((type<0) || (type>3))
 		return -EINVAL;
@@ -227,7 +230,7 @@ int avs_set_mute( int type )
 	return avs_set();
 }
 
-int avs_set_zcd( int type )
+inline int avs_set_zcd( int type )
 {
 	if ((type<0) || (type>1))
 		return -EINVAL;
@@ -237,7 +240,7 @@ int avs_set_zcd( int type )
 	return avs_set();
 }
 
-int avs_set_fblk( int type )
+inline int avs_set_fblk( int type )
 {
 	if (type<0 || type>3)
 		return -EINVAL;
@@ -247,7 +250,7 @@ int avs_set_fblk( int type )
 	return avs_set();
 }
 
-int avs_set_fnc( int type )
+inline int avs_set_fnc( int type )
 {
 	if (type<0 || type>3)
 		return -EINVAL;
@@ -257,7 +260,7 @@ int avs_set_fnc( int type )
 	return avs_set();
 }
 
-int avs_set_vsw( int sw, int type )
+inline int avs_set_vsw( int sw, int type )
 {
 	if (type<0 || type>7)
 		return -EINVAL;
@@ -279,7 +282,7 @@ int avs_set_vsw( int sw, int type )
 	return avs_set();
 }
 
-int avs_set_asw( int sw, int type )
+inline int avs_set_asw( int sw, int type )
 {
 	if (type<0 || type>7)
 		return -EINVAL;
@@ -301,32 +304,32 @@ int avs_set_asw( int sw, int type )
 	return avs_set();
 }
 
-int avs_get_volume(void)
+inline int avs_get_volume(void)
 {
     return ((avs_data.evc*8)+avs_data.evf);
 }
 
-int avs_get_mute(void)
+inline int avs_get_mute(void)
 {
     return avs_data.tvmute1;
 }
 
-int avs_get_zcd(void)
+inline int avs_get_zcd(void)
 {
     return avs_data.zcd;
 }
 
-int avs_get_fblk(void)
+inline int avs_get_fblk(void)
 {
     return avs_data.fblk;
 }
 
-int avs_get_fnc(void)
+inline int avs_get_fnc(void)
 {
     return avs_data.fnc;
 }
 
-int avs_get_vsw( int sw )
+inline int avs_get_vsw( int sw )
 {
     switch(sw) {
         case 0:
@@ -345,7 +348,7 @@ int avs_get_vsw( int sw )
     return -EINVAL;
 }
 
-int avs_get_asw( int sw )
+inline int avs_get_asw( int sw )
 {
     switch(sw) {
         case 0:
@@ -366,7 +369,7 @@ int avs_get_asw( int sw )
 
 /* ---------------------------------------------------------------------- */
 
-int avs_set_logic( int type )
+inline int avs_set_logic( int type )
 {
 	if(type<0 || type>1)
 		return -EINVAL;
@@ -376,7 +379,7 @@ int avs_set_logic( int type )
 	return avs_set();
 }
 
-int avs_get_logic(void)
+inline int avs_get_logic(void)
 {
     return avs_data.log;
 }
