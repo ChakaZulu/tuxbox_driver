@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.9  2001/05/07 02:17:52  DerSchrauber
+ *   Parameter svideo für saa7126 hinzugefügt. S-Video Ausgang jetzt möglich.
+ *
  *   Revision 1.8  2001/04/07 01:45:34  tmbinc
  *   added philips-support.
  *
@@ -39,7 +42,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -211,11 +214,13 @@ static struct file_operations saa7126_fops = {
 static int debug =  0; /* insmod parameter */
 static int addr  =  0;
 static int board = 	0;
+static int svideo= 	0;
 
 #if LINUX_VERSION_CODE > 0x020100
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
 MODULE_PARM(board,"i");
+MODULE_PARM(svideo,"i");
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -315,6 +320,11 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 	i2c_attach_client(client);
 
 	if (config) {
+		if (svideo)
+			config[0x2d]= ( config[0x2d] & 0x0f ) | 0x50;
+		else
+			config[0x2d]= ( config[0x2d] & 0x0f );
+			
 		/* upload data */
 		for(i=0;i<0x80;i+=SAA_I2C_BLOCK_SIZE) {
 			buf[0] = i;
