@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.12 2004/05/23 10:52:31 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.13 2004/05/28 17:06:28 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -871,7 +871,7 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 	case DMX_MESSAGE_INIT: /* init */
 		queue->get_data(queue,NULL,1,0);
 		queue->flush(queue);
-		dprintk (KERN_DEBUG "avia_gt_ucode: risc init/reset\n");
+		printk (KERN_INFO "avia_gt_ucode: risc init/reset\n");
 		return;
 
 	case DMX_MESSAGE_ADAPTATION: /* private data */
@@ -917,12 +917,12 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 	default:	/* print what we got */
 		queue->get_data(queue,NULL,1,0);
 		bytes_avail--;
-		dprintk (KERN_DEBUG "avia_gt_ucode: msgq received unknown: 0x%02x: ",cmd);
+		printk (KERN_INFO "avia_gt_ucode: msgq received unknown: 0x%02x: ",cmd);
 		while (bytes_avail--){
 			queue->get_data(queue,&byte,1,0);
-			dprintk (KERN_DEBUG "0x%02x ",byte);
+			printk (KERN_INFO "0x%02x ",byte);
 		}
-		dprintk (KERN_DEBUG "\n");
+		printk (KERN_INFO "\n");
 	}
 
 	return;
