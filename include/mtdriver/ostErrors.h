@@ -22,7 +22,7 @@
  *
  * \brief Error codes for OST
  *
- * \version $Id: ostErrors.h,v 1.2 2001/05/26 09:20:25 gillem Exp $
+ * \version $Id: ostErrors.h,v 1.3 2001/07/21 20:37:04 gillem Exp $
  *
  * \date <Add date>
  *
@@ -49,7 +49,7 @@ extern "C" {
  *      OST
  */
 
-/* $Id: ostErrors.h,v 1.2 2001/05/26 09:20:25 gillem Exp $ */
+/* $Id: ostErrors.h,v 1.3 2001/07/21 20:37:04 gillem Exp $ */
 
 /*
  * Defines and consts
@@ -59,7 +59,11 @@ extern "C" {
 
 #define OST_ERROR_BASE      800               /* Base for generic OST errors  */
 
+// nicht so sauber ... ist im dmx.h auch drin
+#ifndef EBUFFEROVERFLOW
 #define EBUFFEROVERFLOW   (OST_ERROR_BASE+0)  /* Buffer overflow           */
+#endif
+
 #define ECRC              (OST_ERROR_BASE+1)  /* CRC error                 */
 #define EINTERNAL         (OST_ERROR_BASE+2)  /* Unexpected internal error */
 #define ESTATE            (OST_ERROR_BASE+3)  /* Device not in correct state */
