@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.14 2001/03/10 18:53:25 gillem Exp $
+ * $Id: dvb.c,v 1.15 2001/03/11 18:31:17 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -363,6 +363,13 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
       return -EPERM;
     switch (cmd)
     {
+	case VIDEO_NEW_CHANNEL:
+	  /* TODO: check values */
+	  avia_wait(avia_command(NewChannel,\
+		((struct videoNewChannel*)parg)->fadetime,
+		((struct videoNewChannel*)parg)->vPid,
+		((struct videoNewChannel*)parg)->aPid));
+	  break;
 	case VIDEO_DIGEST:
 	  /* TODO: check values */
 	  avia_wait(avia_command(Digest,\
