@@ -25,7 +25,6 @@
 #define CAM_MINOR            2
 #define I2C_DRIVERID_CAM     0x6E
 
-#define USE_TASKLET
 #define CAM_INTERRUPT        SIU_IRQ3
 #define CAM_CODE_BASE        0xC000000
 #define CAM_CODE_SIZE        0x20000
@@ -37,9 +36,6 @@
 
 static DECLARE_MUTEX_LOCKED(cam_busy);
 
-#ifdef USE_TASKLET
-static int irqok=1;
-#endif
 static void cam_task(void *);
 
 static struct i2c_client *dclient;
@@ -309,7 +305,7 @@ int cam_init(void)
   
   up(&cam_busy);
 
-  if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, 0, "cam", THIS_MODULE) != 0)
+  if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
     panic("Could not allocate CAM IRQ!");
 
   return 0;
@@ -374,21 +370,17 @@ static void cam_task(void *data)
 {
   unsigned char buffer[130];
   int len, i;
-#ifdef USE_TASKLET  
   if (down_interruptible(&cam_busy))
   {
-    irqok=1;
+    enable_irq(CAM_INTERRUPT);
     return;
   }
-#endif
 
   if (i2c_master_recv(dclient, buffer, 2)!=2)
   {
     printk("i2c-CAM read error.\n");
-#ifdef USE_TASKLET
     up(&cam_busy);
-    irqok=1;
-#endif
+    enable_irq(CAM_INTERRUPT);
     return;
   }
 
@@ -396,10 +388,8 @@ static void cam_task(void *data)
   if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
   {
     printk("i2c-CAM read error.\n");
-#ifdef USE_TASKLET
     up(&cam_busy);
-    irqok=1;
-#endif
+    enable_irq(CAM_INTERRUPT);
     return;
   }
   
@@ -410,10 +400,8 @@ static void cam_task(void *data)
     if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
     {
       printk("i2c-CAM read error.\n");
-#ifdef USE_TASKLET
       up(&cam_busy);
-      irqok=1;
-#endif
+      enable_irq(CAM_INTERRUPT);
       return;
     }
   }
@@ -451,27 +439,13 @@ static void cam_task(void *data)
   
   wake_up(&queuewait);
   
-#ifdef USE_TASKLET
   up(&cam_busy);
-  irqok=1;
-#endif
+  enable_irq(CAM_INTERRUPT);
 }
 
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 {
-#ifdef USE_TASKLET
-  char dummy[2];
-  i2c_master_recv(dclient, (unsigned char*)dummy, 2);          // yo, we're reading.
-  printk("CAM\n");
-  if (irqok)
-  {
-    printk("cam_interrupt\n");
-    irqok=0;
-    schedule_task(&cam_tasklet);
-  }
-#else
-  cam_task(0);
-#endif
+  schedule_task(&cam_tasklet);
 }
 
 #ifdef MODULE
