@@ -310,7 +310,9 @@ int i2c_receive(unsigned char address,
   int i,j,ret;
 
   if( size_to_expect > I2C_RX_LEN )
-		return -1;  /* Expected to receive too much */
+	{
+		return -1;
+	}
 
 	ret = size_to_expect;
 
@@ -325,7 +327,7 @@ int i2c_receive(unsigned char address,
   if (!size_to_expect)
 	{
     txbd->length++;
-		txbuf[0] = 0;
+		txbuf[1] = 0;
 	}
 
   txbd->status |= TXBD_R | TXBD_W | TXBD_S | TXBD_L;
