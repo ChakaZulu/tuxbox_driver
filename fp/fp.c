@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.21  2001/04/01 01:54:25  tmbinc
+ *   added "poll"-support, blocks on open if already opened
+ *
  *   Revision 1.20  2001/03/18 21:28:24  tmbinc
  *   fixed again some bug.
  *
@@ -63,7 +66,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -81,6 +84,7 @@
 #include <linux/wait.h>
 #include <linux/tqueue.h>
 #include <linux/i2c.h>
+#include <linux/poll.h>
 #include <asm/irq.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
@@ -122,15 +126,6 @@ static int useimap=1;
 */
 
 /*
-   tut mir leid wenn der treiber an einigen stellen nicht so schön
-   ist wie er sein könnte, insbesondere im bezug auf mehrere
-   instanzen etc. (ja, ich weiss dass das argument "aber mehr als
-   einen FP gibts doch eh nicht?!" nicht gilt.)
-
-   auch wenn zweimal auf /dev/rc zugegriffen wird - SORRY.   
-*/
-
-/*
 fp:
  03  deep standby
  10 led on
@@ -166,10 +161,10 @@ struct fp_data
 
 struct fp_data *defdata=0;
 
-//static spinlock_t rc_lock=SPIN_LOCK_UNLOCKED;
 static u16 rcbuffer[RCBUFFERSIZE];
-static u16 rcbeg, rcend, rc_opened;
+static u16 rcbeg, rcend;
 static wait_queue_head_t rcwait;
+static DECLARE_MUTEX_LOCKED(rc_open);
 
 static void fp_task(void *);
 
@@ -183,6 +178,8 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 static int fp_open (struct inode *inode, struct file *file);
 static ssize_t fp_write (struct file *file, const char *buf, size_t count, loff_t *offset);
 static ssize_t fp_read (struct file *file, char *buf, size_t count, loff_t *offset);
+static int fp_release(struct inode *inode, struct file *file);
+static unsigned int fp_poll(struct file *file, poll_table *wait);
 
 static int fp_detach_client(struct i2c_client *client);
 static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned short flags, int kind);
@@ -217,6 +214,8 @@ static struct file_operations fp_fops = {
         write:          fp_write,
         ioctl:          fp_ioctl,
         open:           fp_open,
+				release:				fp_release,
+				poll:						fp_poll,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -364,15 +363,56 @@ static int fp_open (struct inode *inode, struct file *file)
 			return 0;
 
 		case RC_MINOR:
-			if (rc_opened)              // ich weiss, so macht man das nicht...
-				return -EAGAIN;
-//    rc_opened++;  later
+			if (file->f_flags & O_NONBLOCK)
+			{
+				if (down_trylock(&rc_open))
+					return -EAGAIN;
+			}	else
+			{
+				if (down_interruptible(&rc_open))
+					return -ERESTARTSYS;
+			}
 			return 0;
 
 		default:
 			return -ENODEV;
 	}
 
+	return -EINVAL;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static int fp_release(struct inode *inode, struct file *file)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	switch (minor)
+	{
+	case FP_MINOR:
+		return 0;
+	case RC_MINOR:
+		up(&rc_open);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static unsigned int fp_poll(struct file *file, poll_table *wait)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+	switch (minor)
+	{
+	case FP_MINOR:
+		return -EINVAL;
+	case RC_MINOR:
+		poll_wait(file, &rcwait, wait);
+		if (rcbeg!=rcend)
+			return POLLIN|POLLRDNORM;
+		return 0;
+	}
 	return -EINVAL;
 }
 
@@ -428,7 +468,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 		/* FP ID
 		 * NOKIA: 0x5A
 		 * SAGEM: 0x52 ???
-		 *
+		 * PHILIPS: 0x52
 		 */
 
 		fpid=fp_getid(new_client);
@@ -453,8 +493,9 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
     fp_sendcmd(new_client, 0x18, 0xb3);
-    fp_cmd(new_client, 0x1e, buf, 2);
-    fp_sendcmd(new_client, 0x26, 0x80); */
+    fp_cmd(new_client, 0x1e, buf, 2); */
+
+		fp_sendcmd(new_client, 0x26, 0x0);		// disable (non-working) break code
     
 		fp_cmd(new_client, 0x23, buf, 1);
 		fp_cmd(new_client, 0x20, buf, 1);
@@ -475,8 +516,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 		panic("Could not allocate FP IRQ!");
 	}
 
-	dprintk("fp.o: attached fp @%02x\n", address>>1);
-
+	up(&rc_open);
 	return 0;
 }
 
@@ -553,7 +593,9 @@ static int fp_getid(struct i2c_client *client)
 
 static void fp_add_event(int code)
 {
-//  spin_lock_irq(&rc_lock);
+	if (atomic_read(&rc_open.count)>=1)
+		return;
+
 	rcbuffer[rcend]=code;
 	rcend++;
   
@@ -569,7 +611,6 @@ static void fp_add_event(int code)
 	{
 		wake_up(&rcwait);
 	}
-//  spin_unlock_irq(&rc_lock);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -744,8 +785,6 @@ static void fp_check_queues(void)
 	u8 status;
 	int iwork=0;
   
-	dprintk("checking queues.\n");
-
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
 	if (status)
@@ -925,7 +964,7 @@ int fp_set_sec(int power,int tone)
       msg[1]|=0x01;
   }
   else if (power == -2)
-    msg[1]|=0x50; // activate loop-through // CHECK WETHER THAT's THE RIGHT BIT !!
+    msg[1]|=0x50; // activate loop-through // CHECK WHETHER THAT's THE RIGHT BIT !!
   
   dprintk("fp.o: fp_set_sec: %02X\n", msg[1]);
   sec_bus_status=-1;
