@@ -324,7 +324,7 @@ static int tda80xx_set_parameters(struct tda80xx *tda,
 	u8 buf[15];
 	u64 ratio;
 	u32 clk;
-	u32 k = (1 << 21);
+	u32 k;
 	u32 sr = symbol_rate;
 	u32 gcd;
 	u8 scd;
@@ -346,18 +346,31 @@ static int tda80xx_set_parameters(struct tda80xx *tda,
 	 * Spectral inversion unknown
 	 * QPSK modulation
 	 */
-	buf[0] = 0x00;
-
 	if (inversion == INVERSION_ON)
-		buf[0] |= 0x60;
+		buf[0] = 0x60;
 	else if (inversion == INVERSION_OFF)
-		buf[0] |= 0x20;
+		buf[0] = 0x20;
+	else
+		buf[0] = 0x00;
 
 	/*
 	 * CLK ratio:
-	 * system clock frequency is up to 96000000 Hz
-	 * formula: 2^21 * freq / symrate
+	 * system clock frequency is up to 64 or 96 MHz
+	 *
+	 * formula:
+	 * r = k * clk / symbol_rate
+	 *
+	 * k:	2^21 for caa 0..3,
+	 * 	2^20 for caa 4..5,
+	 * 	2^19 for caa 6..7
 	 */
+	if (symbol_rate <= (clk * 3) / 32)
+		k = (1 << 19);
+	else if (symbol_rate <= (clk * 3) / 16)
+		k = (1 << 20);
+	else
+		k = (1 << 21);
+
 	gcd = tda80xx_gcd(clk, sr);
 	clk /= gcd;
 	sr /= gcd;
