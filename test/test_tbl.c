@@ -15,16 +15,16 @@
 
 #define BSIZE 10000
 
-int main(int argc, char **argv)
+int main (int argc, char **argv)
 {
   int fd, r=BSIZE, i;
   struct dmxSctFilterParams flt; 
-  char buffer[BSIZE];
+  unsigned char buffer[BSIZE];
 
-  fd=open("/dev/ost/demux0", O_RDONLY);
-  if (fd<0)
+  fd=open ("/dev/ost/demux0", O_RDWR);
+  if (fd < 0)
   {
-    perror("/dev/ost/demux0");
+    perror ("/dev/ost/demux0");
     return -fd;
   }
 

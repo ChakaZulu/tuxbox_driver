@@ -25,7 +25,7 @@ int main(int argc, char **argv)
   
   printf("showing you: VPID %04x APID %04X PCRPID %04x ;)\n", vpid, apid, vpid);
 
-  video=open("/dev/ost/demux0", O_RDONLY);
+  video=open("/dev/ost/demux0", O_RDWR);
   if (video<0)
   {
     perror("/dev/ost/demux0");
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  audio=open("/dev/ost/demux0", O_RDONLY);
+  audio=open("/dev/ost/demux0", O_RDWR);
   if (video<0)
   {
     perror("/dev/ost/demux0");

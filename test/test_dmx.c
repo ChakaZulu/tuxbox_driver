@@ -29,7 +29,7 @@ int main(int argc, char **argv)
   for (i=1; i<argc; i++)
   {
     int pid, fd;
-    fd=open("/dev/ost/demux0", O_RDONLY);
+    fd=open("/dev/ost/demux0", O_RDWR);
     if (fd<0)
     {
       perror("/dev/ost/demux0");

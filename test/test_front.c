@@ -312,7 +312,7 @@ main(int argc, char **argv)
           parm.SymbolRate = atoi(argv[2]);
         if (argc >= 4)
           parm.FEC_inner = atoi(argv[3]);
-	if((fd = open("/dev/ost/qpskfe0",O_RDWR)) < 0){
+	if((fd = open("/dev/ost/qpskfe0", O_RDWR)) < 0){
 		perror("FRONTEND DEVICE: ");
 		return -1;
 	}
