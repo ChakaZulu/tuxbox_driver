@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.7 2003/03/04 23:05:30 waldi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.8 2003/03/04 23:07:27 waldi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -46,7 +46,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 			demod = 3;
 		else
 			demod = -1;
-		printk (KERN_ERR "dbox2_fp_napi_before_ioctl: find frontend: %d\n", demod);
+		printk (KERN_DEBUG "dbox2_fp_napi_before_ioctl: find frontend: %d\n", demod);
 	}
 
 	if (demod == -1)
