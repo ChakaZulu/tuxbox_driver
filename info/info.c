@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.17  2002/05/07 01:17:42  derget
+ *   bla
+ *
  *   Revision 1.16  2002/05/07 01:15:35  derget
  *   ves1993 detection für nokia
  *
@@ -67,7 +70,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -183,11 +186,11 @@ static int attach_dummy_adapter(struct i2c_adapter *adap)
   dummy_i2c_client.adapter=adap;
   dummy_i2c_client.addr=i2c_addr_of_device;
   if ( ( readreg(&dummy_i2c_client, i2c_device_addr_to_read) & i2c_should_mask ) != i2c_should_value ) {
-    printk("device not found\n");
+    //printk("device not found\n");
     i2c_found=0;
   }
   else {
-    printk("device found\n");
+    //printk("device found\n");
     i2c_found=1;
   }
   return -1; // we don't need to attach, probing was done
