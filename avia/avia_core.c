@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.26  2002/03/02 19:23:47  TripleDES
+ *   fixes
+ *
  *   Revision 1.25  2001/12/20 16:56:29  gillem
  *   - add host to decoder interrupt
  *
@@ -128,7 +131,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 
@@ -672,13 +675,6 @@ u32 avia_command(u32 command, ...)
 
 	// host-to-decoder interrupt
 	avia_htd_interrupt();
-
-	// READY
-	if ( !(state=avia_wait_command(100)) )
-	{
-		dprintk(KERN_ERR "AVIA: timeout.\n");
-		return -1;
-	}
 
 	spin_unlock_irq(&avia_lock);
 
@@ -1473,7 +1469,7 @@ init_module (void)
 {
 	int err;
 
-        dprintk ("AVIA: $Id: avia_core.c,v 1.25 2001/12/20 16:56:29 gillem Exp $\n");
+        dprintk ("AVIA: $Id: avia_core.c,v 1.26 2002/03/02 19:23:47 TripleDES Exp $\n");
 
 	aviamem = 0;
 
