@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.21  2002/10/29 11:21:24  Jolt
+ *   Pre NAPI changes
+ *
  *   Revision 1.20  2002/08/12 17:45:13  obi
  *   removed compiler warning
  *
@@ -47,7 +50,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -476,27 +479,20 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 	int i,last,ret;
 
 	/* HACK HACK HACK */
-	if ( in_interrupt() )
-	{
-	dprintk("[i2c-8xx]: Bad day for you.\n");
+	if (in_interrupt()) {
+	
+		dprintk("[i2c-8xx]: Bad day for you.\n");
+		
 		return -EREMOTEIO;
+		
 	}
+
+	if (num > (I2C_MAXBD*2))
+		return -EREMOTEIO;
 
 	down(&i2c_mutex);
 
 	ret = num;
-
-	if (i2c_adap==NULL)
-	{
-	dprintk("[i2c-8xx]: No i2c adapter.\n");
-		up(&i2c_mutex);
-		return -EREMOTEIO;
-	}
-
-	if ( num > (I2C_MAXBD*2) ) {
-		up(&i2c_mutex);
-		return -EREMOTEIO;
-	}
 
 	for(i=0;i<I2C_MAXBD;i++) {
 		I2CBD.rxbd[i].status = RXBD_E;
@@ -643,6 +639,22 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 
 /* ------------------------------------------------------------------------- */
 
+static int xfer_8xx_safe(struct i2c_adapter *i2c_adap,
+		    struct i2c_msg msgs[], int num)
+{
+
+	if (!i2c_adap)	{
+
+		dprintk("[i2c-8xx]: No i2c adapter.\n");
+
+		return -EREMOTEIO;
+
+	}
+	
+	return xfer_8xx(i2c_adap, msgs, num);
+	
+}
+
 static int algo_control(struct i2c_adapter *adapter,
 							unsigned int cmd, unsigned long arg)
 {
@@ -661,7 +673,7 @@ static u32 p8xx_func(struct i2c_adapter *adap)
 static struct i2c_algorithm i2c_8xx_algo = {
 	"PowerPC 8xx Algo",
 	I2C_ALGO_EXP,		/* vorerst */
-	xfer_8xx,
+	xfer_8xx_safe,
 	NULL,
 	NULL,				/* slave_xmit		*/
 	NULL,				/* slave_recv		*/
