@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.37  2001/12/02 10:33:01  TripleDES
+ *   added low-band support (never missed ;)
+ *
  *   Revision 1.36  2001/12/01 10:51:22  gillem
  *   - add vcr handling
  *   - todo: add event (tmbinc???)
@@ -114,7 +117,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.36 $
+ *   $Revision: 1.37 $
  *
  */
 
@@ -1051,6 +1054,7 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 {
 	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0};
 	unsigned char status_cmd;
+	unsigned char sagem_send[1]={0x22};
 	int c,sleep_perbyte,sleeptime;
 
 	if (sec_bus_status == -1)
@@ -1064,7 +1068,7 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 		status_cmd=0x2D;
 	break;
 	case 2: // SAGEM / PHILLIPS?
-		msg[1]=0x28;
+		msg[1]=0x25; //28
 
 	/* this values are measured/calculated for nokia
 	   dunno wether sagem needs longer or not */
@@ -1084,9 +1088,19 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 	  dprintk(" %02X",msg[2+c]);
 	}
 	dprintk("\n");
+	
+	if(style==2 && len>1)
+	{
+		i2c_master_send(defdata->client, msg, 2+len);
+		udelay(1000*100); 																 // <- ;)
+		return 0;
+	}	
+	
+	if(style==2) return 0;
+	
 	sec_bus_status=-2;
 	i2c_master_send(defdata->client, msg, 2+len);
-
+	
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((sleeptime+(len * sleep_perbyte))/HZ);
 	
@@ -1114,19 +1128,22 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 }
 
 /* ------------------------------------------------------------------------- */
-int fp_sagem_set_SECpower(int power)
+int fp_sagem_set_SECpower(int power,int tone)
 {
    char msg[2]={0x4,0x71};
    
    if (power > 0) { 
      if (power == 1)      // 13V
-       msg[1]=0x41;
+       msg[1]=0x50;
      else if (power == 2) // 14V
-       msg[1]=0x51;
+       msg[1]=0x50;
      else if (power == 3) // 18V
-       msg[1]=0x61;
+       msg[1]=0x60;
    }
    
+	 if(tone) msg[1]|=0x1;
+	 
+	 
    dprintk("fp.o: fp_set_SECpower: %02X\n", msg[1]);
    sec_bus_status=-1;
    if (i2c_master_send(defdata->client, msg, 2)!=2)
