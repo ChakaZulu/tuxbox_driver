@@ -1,5 +1,5 @@
 /*
- *   enx_pcm.c - AViA eNX pcm driver (dbox-II-project)
+ *   avia_gt_pcm.c - AViA eNX/GTX pcm driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.5  2002/04/10 21:53:31  Jolt
+ *   Further cleanups/bugfixes
+ *   More OSS API stuff
+ *
  *   Revision 1.4  2002/04/05 23:15:13  Jolt
  *   Improved buffer management - MP3 is rocking solid now
  *
@@ -35,7 +39,7 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -57,29 +61,32 @@
 #include <linux/init.h>
 #include <linux/byteorder/swab.h>
 
-#include <dbox/enx.h>
-#include <dbox/avia_pcm.h>
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_pcm.h>
 
-DECLARE_WAIT_QUEUE_HEAD(enx_pcm_wait);
+DECLARE_WAIT_QUEUE_HEAD(pcm_wait);
 
 typedef struct {
 
-    struct list_head List;
-    unsigned int Id;
-    unsigned int Offset;
-    unsigned int SampleCount;
-    unsigned char Queued;
+    struct list_head list;
+    unsigned int offset;
+    unsigned int sample_count;
+    unsigned char queued;
 		
 } sPcmBuffer;
 		
 LIST_HEAD(pcm_busy_buffer_list);
 LIST_HEAD(pcm_free_buffer_list);
+
+spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
+spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 		
 int swab_samples;
 sPcmBuffer pcm_buffer_array[ENX_PCM_BUFFER_COUNT];
+unsigned char swab_buffer[ENX_PCM_BUFFER_SIZE];
 
 // Warning - result is _per_ channel
-unsigned int enx_pcm_calc_sample_count(unsigned int buffer_size)
+unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
 {
 
     if (enx_reg_s(PCMC)->W)
@@ -93,7 +100,7 @@ unsigned int enx_pcm_calc_sample_count(unsigned int buffer_size)
 }
 
 // Warning - if stereo result is for _both_ channels
-unsigned int enx_pcm_calc_buffer_size(unsigned int sample_count)
+unsigned int avia_gt_pcm_calc_buffer_size(unsigned int sample_count)
 {
 
     if (enx_reg_s(PCMC)->W)
@@ -106,58 +113,89 @@ unsigned int enx_pcm_calc_buffer_size(unsigned int sample_count)
     
 }
 
-void enx_pcm_queue_buffer(void)
+void avia_gt_pcm_queue_buffer(void)
 {
 
+    unsigned long flags;
     sPcmBuffer *pcm_buffer;
     struct list_head *ptr;
 
     if (!enx_reg_s(PCMA)->W)
         return;
     
+    spin_lock_irqsave(&busy_buffer_lock, flags);
+    
     list_for_each(ptr, &pcm_busy_buffer_list) {
     
-	pcm_buffer = list_entry(ptr, sPcmBuffer, List);
+	pcm_buffer = list_entry(ptr, sPcmBuffer, list);
 	    
-	if (!pcm_buffer->Queued) {
+	if (!pcm_buffer->queued) {
 	
-    	    enx_reg_s(PCMS)->NSAMP = pcm_buffer->SampleCount;
-	    enx_reg_s(PCMA)->Addr = pcm_buffer->Offset >> 1;
+    	    enx_reg_s(PCMS)->NSAMP = pcm_buffer->sample_count;
+	    enx_reg_s(PCMA)->Addr = pcm_buffer->offset >> 1;
 	    enx_reg_s(PCMA)->W = 0;
 
-	    pcm_buffer->Queued = 1;
+	    pcm_buffer->queued = 1;
 
-	    return;
+	    break;	    
 
 	}
 
     }
 
+    spin_unlock_irqrestore(&busy_buffer_lock, flags);
+
 }
 
-static void enx_pcm_irq(int reg, int bit)
+static void avia_gt_pcm_irq(int reg, int bit)
 {
 
+    unsigned long flags;
     sPcmBuffer *pcm_buffer;
+//    int i = 0;
+//    struct list_head *ptr;
+
+    spin_lock_irqsave(&busy_buffer_lock, flags);
+    
+/*    if (bit == 4)
+	printk("X");
+
+    list_for_each(ptr, &pcm_busy_buffer_list) {
+	i++;
+    }
+    printk("%d ", i);*/
 
     if (!list_empty(&pcm_busy_buffer_list)) {
     
-	pcm_buffer = list_entry(pcm_busy_buffer_list.next, sPcmBuffer, List);
-	list_del(&pcm_buffer->List);
+	pcm_buffer = list_entry(pcm_busy_buffer_list.next, sPcmBuffer, list);
+	list_del(&pcm_buffer->list);
 	
-	pcm_buffer->Queued = 0;
+	pcm_buffer->queued = 0;
 	
-	list_add_tail(&pcm_buffer->List, &pcm_free_buffer_list);
+	spin_lock_irqsave(&free_buffer_lock, flags);
+	
+	list_add_tail(&pcm_buffer->list, &pcm_free_buffer_list);
+
+	spin_unlock_irqrestore(&free_buffer_lock, flags);
 
     }
 
-    enx_pcm_queue_buffer();
+    spin_unlock_irqrestore(&busy_buffer_lock, flags);
 
-    wake_up_interruptible(&enx_pcm_wait);
+    avia_gt_pcm_queue_buffer();
+
+    wake_up_interruptible(&pcm_wait);
 
 }
 
-void enx_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
+unsigned int avia_gt_pcm_get_block_size(void)
+{
+
+    return avia_gt_pcm_calc_buffer_size(ENX_PCM_MAX_SAMPLES);
+
+}
+
+void avia_gt_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
 {
 
     enx_reg_s(PCMN)->MPEGAL = left >> 1;
@@ -165,7 +203,7 @@ void enx_pcm_set_mpeg_attenuation(unsigned char left, unsigned char right)
     
 }
 
-void enx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
+void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 {
 
     enx_reg_s(PCMN)->PCMAL = left >> 1;
@@ -173,7 +211,7 @@ void enx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
     
 }
 
-int enx_pcm_set_rate(unsigned short rate)
+int avia_gt_pcm_set_rate(unsigned short rate)
 {
 
     switch(rate) {
@@ -209,7 +247,7 @@ int enx_pcm_set_rate(unsigned short rate)
     
 }
 
-int enx_pcm_set_width(unsigned char width)
+int avia_gt_pcm_set_width(unsigned char width)
 {
 
     if ((width == 8) || (width == 16))
@@ -221,7 +259,7 @@ int enx_pcm_set_width(unsigned char width)
     
 }
 
-int enx_pcm_set_channels(unsigned char channels)
+int avia_gt_pcm_set_channels(unsigned char channels)
 {
 
     if ((channels == 1) || (channels == 2))
@@ -233,7 +271,7 @@ int enx_pcm_set_channels(unsigned char channels)
     
 }
 
-int enx_pcm_set_signed(unsigned char signed_samples)
+int avia_gt_pcm_set_signed(unsigned char signed_samples)
 {
 
     if ((signed_samples == 0) || (signed_samples == 1))
@@ -245,7 +283,7 @@ int enx_pcm_set_signed(unsigned char signed_samples)
     
 }
 
-int enx_pcm_set_endian(unsigned char be)
+int avia_gt_pcm_set_endian(unsigned char be)
 {
 
     if ((be == 0) || (be == 1))
@@ -257,28 +295,29 @@ int enx_pcm_set_endian(unsigned char be)
     
 }
 
-int enx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
+int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
-    int i;
-    unsigned short *swab_target;
-    unsigned short swab_buffer[ENX_PCM_BUFFER_SIZE];
-    unsigned int SampleCount;
+    unsigned long flags;
+    unsigned int sample_nr;
+    unsigned short *swab_dest;
+    unsigned short *swab_src;
+    unsigned int sample_count;
     sPcmBuffer *pcm_buffer;
+    
+    sample_count = avia_gt_pcm_calc_sample_count(buffer_size);
 
-    SampleCount = enx_pcm_calc_sample_count(buffer_size);
-
-    if (SampleCount > ENX_PCM_MAX_SAMPLES)
-        SampleCount = ENX_PCM_MAX_SAMPLES;
+    if (sample_count > ENX_PCM_MAX_SAMPLES)
+        sample_count = ENX_PCM_MAX_SAMPLES;
 	
     // If 8-bit mono then sample count has to be even
     if ((!enx_reg_s(PCMC)->W) && (!enx_reg_s(PCMC)->C))
-	SampleCount &= ~1;
+	sample_count &= ~1;
 
     while (list_empty(&pcm_free_buffer_list)) {
 
 	if (block) {
 
-    	    if (wait_event_interruptible(enx_pcm_wait, !list_empty(&pcm_busy_buffer_list)))
+    	    if (wait_event_interruptible(pcm_wait, !list_empty(&pcm_free_buffer_list)))
 	    	return -ERESTARTSYS;
 
 	} else {
@@ -289,76 +328,70 @@ int enx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char bl
     
     }
 
-    pcm_buffer = list_entry(pcm_free_buffer_list.next, sPcmBuffer, List);
-    list_del(&pcm_buffer->List);
+    spin_lock_irqsave(&free_buffer_lock, flags);
+    
+    pcm_buffer = list_entry(pcm_free_buffer_list.next, sPcmBuffer, list);
+    list_del(&pcm_buffer->list);
 	    
+    spin_unlock_irqrestore(&free_buffer_lock, flags);
+    
     if ((enx_reg_s(PCMC)->W) && (swab_samples)) {
 
-	copy_from_user(swab_buffer, buffer, enx_pcm_calc_buffer_size(SampleCount));
-	swab_target = (unsigned short *)(enx_get_mem_addr() + pcm_buffer->Offset);
+	copy_from_user(swab_buffer, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
+
+	swab_dest = (unsigned short *)(enx_get_mem_addr() + pcm_buffer->offset);
+	swab_src = (unsigned short *)swab_buffer;
 	
-	for (i = 0; i < enx_pcm_calc_buffer_size(SampleCount) / 2; i++)
-	    swab_target[i] = swab16(swab_buffer[i]);
+	for (sample_nr = 0; sample_nr < avia_gt_pcm_calc_buffer_size(sample_count) / 2; sample_nr++)
+	    swab_dest[sample_nr] = swab16(swab_src[sample_nr]);
     
     } else {
     
-	copy_from_user(enx_get_mem_addr() + pcm_buffer->Offset, buffer, enx_pcm_calc_buffer_size(SampleCount));
+	copy_from_user(enx_get_mem_addr() + pcm_buffer->offset, buffer, avia_gt_pcm_calc_buffer_size(sample_count));
 	
     }
     
-    pcm_buffer->SampleCount = SampleCount;
-    
-    list_add_tail(&pcm_buffer->List, &pcm_busy_buffer_list);
-    
-    enx_pcm_queue_buffer();
+    pcm_buffer->sample_count = sample_count;
 
-    return enx_pcm_calc_buffer_size(SampleCount);
+    spin_lock_irqsave(&busy_buffer_lock, flags);
+    
+    list_add_tail(&pcm_buffer->list, &pcm_busy_buffer_list);
+
+    spin_unlock_irqrestore(&busy_buffer_lock, flags);
+    
+    avia_gt_pcm_queue_buffer();
+
+    return avia_gt_pcm_calc_buffer_size(sample_count);
 
 }
 
-void enx_pcm_stop(void)
+void avia_gt_pcm_stop(void)
 {
 
 //    enx_reg_s(PCMC)->T = 1;
 
 }
 
-static sAviaPcmOps enx_pcm_ops = {
-
-    name: "AViA eNX soundcore",
-    play_buffer: enx_pcm_play_buffer,
-    set_rate:  enx_pcm_set_rate,
-    set_width:  enx_pcm_set_width,
-    set_channels:  enx_pcm_set_channels,
-    set_signed:  enx_pcm_set_signed,
-    set_endian:  enx_pcm_set_endian,
-    set_mpeg_attenuation: enx_pcm_set_mpeg_attenuation,
-    set_pcm_attenuation: enx_pcm_set_pcm_attenuation,
-    stop: enx_pcm_stop,
-    
-};
-    
-static int __init enx_pcm_init(void)
+static int __init avia_gt_pcm_init(void)
 {
 
     unsigned char buf_nr;
 
-    printk("enx_pcm: $Id: avia_gt_pcm.c,v 1.4 2002/04/05 23:15:13 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.5 2002/04/10 21:53:31 Jolt Exp $\n");
 
     for (buf_nr = 0; buf_nr < ENX_PCM_BUFFER_COUNT; buf_nr++) {
     
-	pcm_buffer_array[buf_nr].Id = buf_nr + 1;
-	pcm_buffer_array[buf_nr].Offset = ENX_PCM_MEM_OFFSET + (ENX_PCM_BUFFER_SIZE * buf_nr);
-	pcm_buffer_array[buf_nr].Queued = 0;
+	pcm_buffer_array[buf_nr].offset = ENX_PCM_MEM_OFFSET + (ENX_PCM_BUFFER_SIZE * buf_nr);
+	pcm_buffer_array[buf_nr].queued = 0;
 	
-	list_add_tail(&pcm_buffer_array[buf_nr].List, &pcm_free_buffer_list);
+	list_add_tail(&pcm_buffer_array[buf_nr].list, &pcm_free_buffer_list);
 	
     }
     
     // Reset PCM module
     enx_reg_s(RSTR0)->PCM = 1;
     
-    if (enx_allocate_irq(ENX_IRQ_PCM_AD, enx_pcm_irq) != 0) {
+    if (enx_allocate_irq(ENX_IRQ_PCM_AD, avia_gt_pcm_irq) != 0) {
 
 	printk("enx_pcm: unable to get pcm-ad interrupt\n");
 	
@@ -366,7 +399,7 @@ static int __init enx_pcm_init(void)
 	
     }
 		
-    if (enx_allocate_irq(ENX_IRQ_PCM_PF, enx_pcm_irq) != 0) {
+    if (enx_allocate_irq(ENX_IRQ_PCM_PF, avia_gt_pcm_irq) != 0) {
 
 	printk("enx_pcm: unable to get pcm-pf interrupt\n");
 	
@@ -381,27 +414,23 @@ static int __init enx_pcm_init(void)
 
     // Use external clock from AViA 500/600
     enx_reg_s(PCMC)->I = 0;
+
+    // Pass through mpeg samples
+    avia_gt_pcm_set_mpeg_attenuation(0x80, 0x80);
     
     // Set a default mode
-    enx_pcm_set_rate(44100);
-    enx_pcm_set_width(16);
-    enx_pcm_set_channels(2);
-    enx_pcm_set_signed(1);
-    enx_pcm_set_endian(1);
+    avia_gt_pcm_set_rate(44100);
+    avia_gt_pcm_set_width(16);
+    avia_gt_pcm_set_channels(2);
+    avia_gt_pcm_set_signed(1);
+    avia_gt_pcm_set_endian(1);
     
-    // Enable inter_module access
-    inter_module_register(IM_AVIA_PCM_OPS, THIS_MODULE, &enx_pcm_ops);
-        
     return 0;
     
 }
 
-static void __exit enx_pcm_cleanup(void)
+static void __exit avia_gt_pcm_cleanup(void)
 {
-
-    printk("enx_pcm: cleanup\n");
-    
-    inter_module_unregister(IM_AVIA_PCM_OPS);
 
     enx_free_irq(ENX_IRQ_PCM_AD);
     enx_free_irq(ENX_IRQ_PCM_PF);
@@ -411,6 +440,6 @@ static void __exit enx_pcm_cleanup(void)
 }
 
 #ifdef MODULE
-module_init(enx_pcm_init);
-module_exit(enx_pcm_cleanup);
+module_init(avia_gt_pcm_init);
+module_exit(avia_gt_pcm_cleanup);
 #endif

@@ -1,5 +1,5 @@
 /*
- *   avia_oss.c - AViA GTX/eNX oss driver (dbox-II-project)
+ *   avia_gt_oss.c - AViA eNX/GTX oss driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.4  2002/04/10 21:53:31  Jolt
+ *   Further cleanups/bugfixes
+ *   More OSS API stuff
+ *
  *   Revision 1.3  2002/04/02 18:14:10  Jolt
  *   Further features/bugfixes. MP3 works very well now 8-)
  *
@@ -32,7 +36,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -52,13 +56,13 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
-#include <dbox/avia_pcm.h>
+#include <dbox/avia_gt_pcm.h>
 
 #define dprintk(...)
+//#define dprintk printk
 
 int dsp_dev;
 int mixer_dev;
-sAviaPcmOps *pcm_ops;
 
 static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -81,10 +85,64 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
     	    if (get_user(val, (int *)arg))
 		return -EFAULT;
 		
-	    return pcm_ops->set_channels(val);
-		
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_CHANNELS (arg=%d)\n", val);
+	    
+	    return avia_gt_pcm_set_channels(val);
+	    
+	break;
+
+	case SNDCTL_DSP_GETBLKSIZE:
+
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_GETBLKSIZE\n");
+	    
+	    val = avia_gt_pcm_get_block_size();
+	    
+	    return put_user(val, (int *)arg);
+	    
+	break;
+	
+	case SNDCTL_DSP_GETFMTS:
+
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_GETFMTS\n");
+	
+    	    return put_user(AFMT_U8 | AFMT_S8 | AFMT_S16_BE | AFMT_S16_LE | AFMT_U16_BE | AFMT_U16_LE, (int *)arg);
+	
+	break;
+	
+	case SNDCTL_DSP_MAPINBUF:
+
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_MAPINBUF\n");
+	
+    	    return -1;
+	
+	break;
+
+	case SNDCTL_DSP_NONBLOCK:
+        
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_NONBLOCK\n");
+	    
+	    file->f_flags |= O_NONBLOCK;                                                          
+	    
+	    return 0;						  	
+	    
+	break;
+	
+	case SNDCTL_DSP_RESET:
+
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_RESET\n");
+	
+    	    return 0;
+	
 	break;
 						  	
+	case SNDCTL_SEQ_GETTIME:
+
+	    printk("avia_oss: IOCTL: SNDCTL_SEQ_GETTIME\n");
+	
+    	    return -1;
+	
+	break;
+
 	case SNDCTL_DSP_SETFMT:
 	
 	    if (get_user(val, (int *)arg))
@@ -96,19 +154,19 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 
 		case AFMT_U8:
 
-		    if ((retval = pcm_ops->set_width(8)) < 0)
+		    if ((retval = avia_gt_pcm_set_width(8)) < 0)
 			return retval;
 			
-		    return pcm_ops->set_signed(0);
+		    return avia_gt_pcm_set_signed(0);
 		    
 		break;
 
 		case AFMT_S8:
 
-		    if ((retval = pcm_ops->set_width(8)) < 0)
+		    if ((retval = avia_gt_pcm_set_width(8)) < 0)
 			return retval;
 			
-		    return pcm_ops->set_signed(1);
+		    return avia_gt_pcm_set_signed(1);
 		
 		    return 0;
 		    
@@ -116,9 +174,9 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 
 		case AFMT_S16_BE:
 
-		    pcm_ops->set_width(16);
-		    pcm_ops->set_signed(1);
-		    pcm_ops->set_endian(1);
+		    avia_gt_pcm_set_width(16);
+		    avia_gt_pcm_set_signed(1);
+		    avia_gt_pcm_set_endian(1);
 		
 		    return 0;
 		    
@@ -126,9 +184,9 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		
 		case AFMT_S16_LE:
 
-		    pcm_ops->set_width(16);
-		    pcm_ops->set_signed(1);
-		    pcm_ops->set_endian(0);
+		    avia_gt_pcm_set_width(16);
+		    avia_gt_pcm_set_signed(1);
+		    avia_gt_pcm_set_endian(0);
 		
 		    return 0;
 		    
@@ -136,9 +194,9 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		
 		case AFMT_U16_BE:
 
-		    pcm_ops->set_width(16);
-		    pcm_ops->set_signed(0);
-		    pcm_ops->set_endian(1);
+		    avia_gt_pcm_set_width(16);
+		    avia_gt_pcm_set_signed(0);
+		    avia_gt_pcm_set_endian(1);
 
 		    return 0;
 		
@@ -146,9 +204,9 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		
 		case AFMT_U16_LE:
 
-		    pcm_ops->set_width(16);
-		    pcm_ops->set_signed(0);
-		    pcm_ops->set_endian(0);
+		    avia_gt_pcm_set_width(16);
+		    avia_gt_pcm_set_signed(0);
+		    avia_gt_pcm_set_endian(0);
 		
 		    return 0;
 		    
@@ -156,7 +214,7 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		
 		default:
 		
-		    printk("avia_oss: IOCTL: SNDCTL_DSP_SETFMT unkown fmt (arg=%d)\n", val);
+		    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SETFMT unkown fmt (arg=%d)\n", val);
 		    
 		    return -EINVAL;
 		
@@ -173,9 +231,23 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 		
 	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_SPEED (arg=%d)\n", val);
 	    
-	    return pcm_ops->set_rate(val);
+	    return avia_gt_pcm_set_rate(val);
 	    
 	break;
+
+	case SNDCTL_DSP_STEREO:
+
+	    if (get_user(val, (int *)arg))
+		return -EFAULT;
+	    
+	    dprintk("avia_oss: IOCTL: SNDCTL_DSP_STEREO (arg=%d)\n", val);
+	    
+	    if ((val == 0) || (val == 1))
+		return avia_gt_pcm_set_channels(val + 1);
+	    else
+	        return -EINVAL;
+	    
+	break;						
 	    
 	case SNDCTL_DSP_SYNC:
 	
@@ -184,6 +256,25 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 	    return 0;
 	    
 	break;						
+	
+	case  SOUND_PCM_WRITE_FILTER     : printk("IOC: 1\n"); return -1; break;
+	case  SNDCTL_DSP_POST            : printk("IOC: 2\n"); return -1; break;
+	case  SNDCTL_DSP_SUBDIVIDE       : printk("IOC: 3\n"); return -1; break;
+	case  SNDCTL_DSP_SETFRAGMENT: printk("IOC: 7\n"); return -1; break;
+	case  SNDCTL_DSP_GETOSPACE: printk("IOC: 8\n"); return -1; break;
+	case  SNDCTL_DSP_GETISPACE: printk("IOC: 9\n"); return -1; break;
+	case  SNDCTL_DSP_GETCAPS: printk("IOC: 10\n"); return -1; break;
+	case  SNDCTL_DSP_GETTRIGGER: printk("IOC: 11\n"); return -1; break;
+	case  SNDCTL_DSP_SETTRIGGER: printk("IOC: 12\n"); return -1; break;
+	case  SNDCTL_DSP_GETIPTR: printk("IOC: 13\n"); return -1; break;
+	case  SNDCTL_DSP_GETOPTR: printk("IOC: 14\n"); return -1; break;
+	case  SNDCTL_DSP_MAPOUTBUF: printk("IOC: 15\n"); return -1; break;
+	case  SNDCTL_DSP_SETSYNCRO: printk("IOC: 16\n"); return -1; break;
+	case  SNDCTL_DSP_SETDUPLEX: printk("IOC: 17\n"); return -1; break;
+	case  SNDCTL_DSP_GETODELAY: printk("IOC: 18\n"); return -1; break;
+	case  SNDCTL_DSP_GETCHANNELMASK: printk("IOC: 19\n"); return -1; break;
+	case  SNDCTL_DSP_BIND_CHANNEL: printk("IOC: 20\n"); return -1; break;
+	case  SNDCTL_DSP_PROFILE: printk("IOC: 21\n"); return -1; break;
 	
 	default:
 	    
@@ -202,10 +293,17 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-//    printk("avia_oss: dsp write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
+    int result;
 
-    return pcm_ops->play_buffer((void *)buf, count, 1);
-
+    dprintk("avia_oss: dsp write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
+    
+    return avia_gt_pcm_play_buffer((void *)buf, count, !(file->f_flags & O_NONBLOCK));
+    
+    if (result > 0)
+	*offset += result;
+    
+    return result;
+    
 }
 
 static struct file_operations dsp_fops = {
@@ -226,24 +324,15 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.3 2002/04/02 18:14:10 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.4 2002/04/10 21:53:31 Jolt Exp $\n");
     
-    if ((pcm_ops = (sAviaPcmOps *)inter_module_get(IM_AVIA_PCM_OPS)) == NULL) {
+    avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 
-        printk("avia_oss: error - no soundcore found\n");
-        return -EIO;
-	
-    }
-
-    printk("avia_oss: found %s\n", pcm_ops->name);
-    
-    pcm_ops->set_pcm_attenuation(0x80, 0x80);
-
-    pcm_ops->set_rate(44100);
-    pcm_ops->set_width(16);
-    pcm_ops->set_channels(2);
-    pcm_ops->set_signed(1);
-    pcm_ops->set_endian(1);
+    avia_gt_pcm_set_rate(44100);
+    avia_gt_pcm_set_width(16);
+    avia_gt_pcm_set_channels(2);
+    avia_gt_pcm_set_signed(1);
+    avia_gt_pcm_set_endian(0);
     
     dsp_dev = register_sound_dsp(&dsp_fops, -1);
     mixer_dev = register_sound_mixer(&mixer_fops, -1);
@@ -260,10 +349,8 @@ static void __exit avia_oss_cleanup(void)
     unregister_sound_mixer(mixer_dev);
     unregister_sound_dsp(dsp_dev);
 
-    pcm_ops->set_pcm_attenuation(0x00, 0x00);
-    pcm_ops->stop();
-    
-    inter_module_put(IM_AVIA_PCM_OPS);
+    avia_gt_pcm_set_pcm_attenuation(0x00, 0x00);
+    avia_gt_pcm_stop();
     
 }
 
