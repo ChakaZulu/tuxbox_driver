@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.159 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.160 2003/01/12 00:50:28 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1312,6 +1312,7 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 {
 
 	u32 pos;
+	//u32 flags;
 
 	if (count & 1) {
 
@@ -1329,48 +1330,35 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 
 	}
 
-//	if (count & 2) {
+	//local_irq_save(flags);
 
-		for (pos = 0; pos < count; pos += 2) {
+	for (pos = 0; pos < count; pos += 2) {
 
-			if (avia_gt_chip(ENX)) {
+		if (avia_gt_chip(ENX)) {
 
-				if ((enx_reg_16n(TDP_INSTR_RAM + offset + pos)) != (((u16 *)src)[pos / 2])) {
+			if ((enx_reg_16n(TDP_INSTR_RAM + offset + pos)) != (((u16 *)src)[pos / 2])) {
 
-					enx_reg_16n(TDP_INSTR_RAM + offset + pos) = ((u16 *)src)[pos / 2];
+				enx_reg_16n(TDP_INSTR_RAM + offset + pos) = ((u16 *)src)[pos / 2];
 
-					mb();
+				mb();
 
-				}
+			}
 
-			} else if (avia_gt_chip(GTX)) {
+		} else if (avia_gt_chip(GTX)) {
 
-				if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) != (((u16 *)src)[pos / 2])) {
+			if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) != (((u16 *)src)[pos / 2])) {
 
-					gtx_reg_16n(GTX_REG_RISC + offset + pos) = ((u16 *)src)[pos / 2];
+				gtx_reg_16n(GTX_REG_RISC + offset + pos) = ((u16 *)src)[pos / 2];
 
-					mb();
-
-				}
+				mb();
 
 			}
 
 		}
 
-/*	} else {
+	}
 
-		for (pos = 0; pos < count; pos += 4) {
-
-			if (avia_gt_chip(ENX))
-				enx_reg_32n(TDP_INSTR_RAM + offset + pos) = ((u32 *)src)[pos / 4];
-			else if (avia_gt_chip(GTX))
-				gtx_reg_32n(GTX_REG_RISC + offset + pos) = ((u32 *)src)[pos / 4];
-
-			mb();
-
-		}
-
-	}*/
+	//local_irq_restore(flags);
 
 }
 
@@ -2046,7 +2034,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.159 2003/01/11 22:45:16 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.160 2003/01/12 00:50:28 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
