@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.4  2002/05/07 17:03:48  Jolt
+ *   Small fix
+ *
  *   Revision 1.3  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -132,7 +135,7 @@ void avia_gt_ir_reset(unsigned char reenable)
 int __init avia_gt_ir_init(void)
 {
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.3 2002/05/07 16:59:19 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.4 2002/05/07 17:03:48 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		
@@ -169,7 +172,7 @@ int __init avia_gt_ir_init(void)
     
 }
 
-void __exit avia_gt_ir_cleanup(void)
+void __exit avia_gt_ir_exit(void)
 {
 
 	if (avia_gt_chip(ENX))
