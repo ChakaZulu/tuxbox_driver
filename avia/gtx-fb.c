@@ -36,7 +36,7 @@ static void InitGraphics(int pal)
           (0<<27)|                 // disable cursor
           (0<<26)|                 // interlace
           (3<<24)|                 // filter chroma
-          (4<<20)|                 // transparency level                HACK!
+          (8<<20)|                 // transparency level                HACK!
           (0<<16)|                 // "            "
           (RES_X*2);               // stride: RES_X*2 bytes
 
