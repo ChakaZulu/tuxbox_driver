@@ -610,15 +610,19 @@ int dvb_frontend_open (struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if ((ret = dvb_generic_open (inode, file)) < 0)
-		return ret;
+	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
+		if ((ret = dvb_generic_open (inode, file)) < 0)
+			return ret;
 
-	dvb_frontend_start (fe);
+		dvb_frontend_start (fe);
 
-	/*  empty event queue */
-	fe->events.eventr = fe->events.eventw;
+		/*  empty event queue */
+		fe->events.eventr = fe->events.eventw;
 	
-	return ret;
+		return ret;
+	}
+	else
+		return 0;
 }
 
 
@@ -630,9 +634,13 @@ int dvb_frontend_release (struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	fe->release_jiffies = jiffies;
+	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
+		fe->release_jiffies = jiffies;
 
-	return dvb_generic_release (inode, file);
+		return dvb_generic_release (inode, file);
+	}
+	else
+		return 0;
 }
 
 
@@ -848,7 +856,7 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 	struct list_head *entry;
 	struct dvb_frontend_data *fe;
 	static const struct dvb_device dvbdev_template = {
-		.users = 1,
+		.users = ~0,
 		.writers = 1,
 		.fops = &dvb_frontend_fops,
 		.kernel_ioctl = dvb_frontend_ioctl
