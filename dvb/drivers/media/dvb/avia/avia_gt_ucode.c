@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.10 2004/05/21 12:23:55 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.11 2004/05/21 13:40:40 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -863,16 +863,18 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 	u8 feedidx;
 	u32 flags;
 	u32 bytes_avail = queue->bytes_avail(queue);
+
 	if (!bytes_avail) return;
-	
 	queue->get_data(queue,&cmd,1,1);
+
 	switch (cmd){
-	case 0xdd: /* init */
+	case DMX_MESSAGE_INIT: /* init */
 		queue->get_data(queue,NULL,1,0);
 		queue->flush(queue);
 		printk (KERN_INFO "avia_gt_ucode: risc init/reset\n");
 		return;
-	case 0xfc: /* private data */
+
+	case DMX_MESSAGE_ADAPTATION: /* private data */
 		{sPRIVATE_ADAPTATION_MESSAGE priv;
 		if (bytes_avail<5) return;
 		queue->get_data(queue,&priv,5,1);
@@ -880,13 +882,15 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 		queue->get_data(queue,NULL,5+priv.length,0);
 		return;
 		}
-	case 0xfd:	/* complete sync was lost */
+
+	case DMX_MESSAGE_SYNC_LOSS:
 		queue->get_data(queue,NULL,1,0);
 		avia_gt_dmx_risc_reset(1);
 		queue->flush(queue);
 		printk (KERN_INFO "avia_gt_ucode: framer error\n");
 		return;
-	case 0xfe: /* CC was lost, restart feed */
+
+	case DMX_MESSAGE_CC_ERROR: /* CC was lost, restart feed */
 		// CC_exp CC_rec PID_H PID_L
 		{sCC_ERROR_MESSAGE ccerr;
 		if (bytes_avail<5) return;
@@ -900,29 +904,29 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 			ucode_info.start_feed(feedidx);
 		}
 		local_irq_restore(flags);
-		dprintk (KERN_DEBUG "avia_gt_ucode: sync 0x%04x %d\n",ccerr.pid,feedidx);
+		dprintk (KERN_DEBUG "avia_gt_ucode: ccerr: pid 0x%04x in %d\n",ccerr.pid,feedidx);
 		return;}
 	
-	case 0xce: /* section finished, consume */
+	case DMX_MESSAGE_SECTION_COMPLETED: /* section finished, consume */
 		{sSECTION_COMPLETED_MESSAGE comp;
 		if (bytes_avail<4) return;
 		queue->get_data(queue,&comp,4,0);
 		//printk ("sect: 0x%04x\n",comp.pid);
 		return;}
+
 	default:	/* print what we got */
 		queue->get_data(queue,NULL,1,0);
 		bytes_avail--;
-		dprintk (KERN_DEBUG "cmd 0x%02x: ",cmd);
+		dprintk (KERN_DEBUG "avia_gt_ucode: msgq received unknown: 0x%02x: ",cmd);
 		while (bytes_avail--){
 			queue->get_data(queue,&byte,1,0);
-			printk ("0x%02x ",byte);
+			dprintk (KERN_DEBUG "0x%02x ",byte);
 		}
 		dprintk (KERN_DEBUG "\n");
 	}
 
 	return;
 }
-
 
 // static void set_ucode_info(u8 ucode_flags)
 void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
@@ -948,7 +952,7 @@ void avia_gt_dmx_set_ucode_info(u8 ucode_flags)
 		ucode_info.qid_offset = 0;
 		ucode_info.queue_mode[PES] = 5;
 		break;
-        case 0x00F0:
+ 	case 0x00F0:
 	case 0x00F1:
 	case 0x00F2:
 	case 0x00F3:
