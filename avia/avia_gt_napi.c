@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.127 $
+ *   $Revision: 1.128 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.128  2002/09/18 09:57:42  Jolt
+ *   Queue handling changes
+ *
  *   Revision 1.127  2002/09/16 21:41:37  wjoost
  *   noch was vergessen
  *
@@ -1233,19 +1236,19 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 
 		case DMX_TS_PES_VIDEO:
 
-			queue_nr = avia_gt_dmx_alloc_queue_video(avia_gt_napi_queue_callback, gtx);
+			queue_nr = avia_gt_dmx_alloc_queue_video(NULL, avia_gt_napi_queue_callback, gtx);
 
 		break;
 
 		case DMX_TS_PES_AUDIO:
 
-			queue_nr = avia_gt_dmx_alloc_queue_audio(avia_gt_napi_queue_callback, gtx);
+			queue_nr = avia_gt_dmx_alloc_queue_audio(NULL, avia_gt_napi_queue_callback, gtx);
 
 		break;
 
 		case DMX_TS_PES_TELETEXT:
 
-			queue_nr = avia_gt_dmx_alloc_queue_teletext(avia_gt_napi_queue_callback, gtx);
+			queue_nr = avia_gt_dmx_alloc_queue_teletext(NULL, avia_gt_napi_queue_callback, gtx);
 
 		break;
 
@@ -1258,7 +1261,7 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 
 		case DMX_TS_PES_OTHER:
 
-			queue_nr = avia_gt_dmx_alloc_queue_user(avia_gt_napi_queue_callback, gtx);
+			queue_nr = avia_gt_dmx_alloc_queue_user(NULL, avia_gt_napi_queue_callback, gtx);
 
 		break;
 
@@ -1902,7 +1905,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
-		avia_gt_dmx_alloc_queue_message(avia_gt_napi_message_callback, gtxdemux);
+		avia_gt_dmx_alloc_queue_message(NULL, avia_gt_napi_message_callback, gtxdemux);
 		avia_gt_dmx_queue_reset(MESSAGE_QUEUE);
 
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
@@ -1941,7 +1944,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.127 2002/09/16 21:41:37 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.128 2002/09/18 09:57:42 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

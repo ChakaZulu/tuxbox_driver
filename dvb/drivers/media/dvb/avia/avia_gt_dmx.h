@@ -42,19 +42,21 @@ typedef struct {
 	u16 (*get_data16)(u8 queue_nr, u8 peek);
 	u32 (*get_data32)(u8 queue_nr, u8 peek);
 	u32	(*move_data)(u8 queue_nr, void *dest, u32 count, u8 peek);
+	u8 nr;
 
 } sAviaGtDmxQueueInfo;
 
-typedef void (AviaGtDmxQueueProc)(u8 queue_nr, void *cb_data);
+typedef void (AviaGtDmxQueueProc)(u8 queue_nr, void *priv_data);
 
 typedef struct {
 
 	u8 busy;
-	void *cb_data;
 	AviaGtDmxQueueProc *cb_proc;
 	sAviaGtDmxQueueInfo info;
 	u32 irq_count;
+	AviaGtDmxQueueProc *irq_proc;
 	u32 mem_addr;
+	void *priv_data;
 	u32 read_pos;
 	u32 size;
 	u32 write_pos;
@@ -187,11 +189,11 @@ typedef struct {
 #define DMX_MESSAGE_ADAPTION			0xFC
 #define DMX_MESSAGE_SECTION_COMPLETED	0xCE
 
-s32 avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *cb_proc, void *cb_data);
-s32 avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *cb_proc, void *cb_data);
-s32 avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *cb_proc, void *cb_data);
-s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *cb_proc, void *cb_data);
-s32 avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *cb_data);
 void avia_gt_dmx_fake_queue_irq(u8 queue_nr);
 s32 avia_gt_dmx_free_queue(u8 queue_nr);
 void avia_gt_dmx_force_discontinuity(void);
