@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.28 2001/04/27 19:29:44 tmbinc Exp $
+ * $Id: dvb.c,v 1.29 2001/05/25 23:18:11 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -52,6 +52,8 @@
 // #include <dbox/fp.h>
 #include <dbox/avia.h>
 #include <dbox/cam.h>
+
+#include <mtdriver/scartApi.h>
 
 #include "dvbdev.h"
 #include "dmxdev.h"
@@ -319,7 +321,9 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 			return -ENOENT;
 		return DmxDevDVROpen(&dvb->dmxdev, file);
 	case DVB_DEVICE_CA:
-	break;
+		break;
+	case DVB_DEVICE_SCART:
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -347,7 +351,9 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
 	case DVB_DEVICE_DVR:
 		return DmxDevDVRClose(&dvb->dmxdev, file);
 	case DVB_DEVICE_CA:
-	break;
+		break;
+	case DVB_DEVICE_SCART:
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -368,7 +374,9 @@ ssize_t dvb_read(struct dvb_device *dvbdev, int type, struct file *file, char *b
 	case DVB_DEVICE_DVR:
 		return DmxDevDVRRead(&dvb->dmxdev, file, buf, count, ppos);
 	case DVB_DEVICE_CA:
-	break;
+		break;
+	case DVB_DEVICE_SCART:
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -387,6 +395,8 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
 	case DVB_DEVICE_DVR:
 		return DmxDevDVRWrite(&dvb->dmxdev, file, buf, count, ppos);
 	case DVB_DEVICE_CA:
+		return -ENOSYS;
+	case DVB_DEVICE_SCART:
 		return -ENOSYS;
 	default:
 		return -EOPNOTSUPP;
@@ -832,9 +842,37 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 	}
 
+	case DVB_DEVICE_SCART:
+	{
+		switch (cmd)
+		{
+			case SCART_VOLUME_SET:
+			case SCART_VOLUME_GET:
+			case SCART_MUTE_SET:
+			case SCART_MUTE_GET:
+			case SCART_AUD_FORMAT_SET:
+			case SCART_AUD_FORMAT_GET:
+			case SCART_VID_FORMAT_SET:
+			case SCART_VID_FORMAT_GET:
+			case SCART_VID_FORMAT_INPUT_GET:
+			case SCART_SLOW_SWITCH_SET:
+			case SCART_SLOW_SWITCH_GET:
+			case SCART_RGB_LEVEL_SET:
+			case SCART_RGB_LEVEL_GET:
+			case SCART_RGB_SWITCH_SET:
+			case SCART_RGB_SWITCH_GET:
+			case SCART_BYPASS_SET:
+			case SCART_BYPASS_GET:
+				return -EOPNOTSUPP;
+			default:
+				return -EOPNOTSUPP;
+		}
+	}
+
 	default:
 		return -EOPNOTSUPP;
 	}
+
 	return 0;
 }
 

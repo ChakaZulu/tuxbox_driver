@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.h,v 1.5 2001/04/23 18:33:48 tmbinc Exp $
+ * $Id: dvbdev.h,v 1.6 2001/05/25 23:18:11 gillem Exp $
  */
 
 #ifndef _DVBDEV_H_
@@ -36,7 +36,7 @@
 
 #define DVB_DEVICES_NUM         1
 
-#define DVB_SUBDEVICES_NUM      7
+#define DVB_SUBDEVICES_NUM      8
 
 #define DVB_DEVICE_VIDEO        0
 #define DVB_DEVICE_AUDIO        1
@@ -45,13 +45,14 @@
 #define DVB_DEVICE_DEMUX        4
 #define DVB_DEVICE_DVR          5
 #define DVB_DEVICE_CA           6
+#define DVB_DEVICE_SCART        7
 
 #define DVB_DEVFSDIRS_NUM       2
 
 #define DVB_DEVFSDIR_DVB        0
 #define DVB_DEVFSDIR_OST        1
 
-const char * subdevice_names[] = { "video", "audio", "sec", "qpskfe", "demux", "dvr", "ca" };
+const char * subdevice_names[] = { "video", "audio", "sec", "qpskfe", "demux", "dvr", "ca", "scart" };
 
 struct dvbdev_devfsinfo
 {
