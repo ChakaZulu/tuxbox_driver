@@ -42,6 +42,7 @@ DFB_GRAPHICS_DRIVER( gtx );
 typedef struct {
   /* misc stuff */
   long  mem_offset;
+  __u16 orig_tcr;
 
   /* state validation */
   int   v_color;
@@ -60,7 +61,6 @@ typedef struct {
   volatile __u8 *mmio_base;
 } GTXDriverData;
 
-static __u16 orig_tcr;
 
 static inline void
 gtx_validate_color (GTXDriverData *gdrv,
@@ -71,6 +71,9 @@ gtx_validate_color (GTXDriverData *gdrv,
 
   switch (state->destination->format)
     {
+    case DSPF_LUT8:
+      gtx_out16 (gdrv->mmio_base, BCLR, state->color_index);
+      break;
     case DSPF_RGB332:
       gtx_out16 (gdrv->mmio_base, BCLR, PIXEL_RGB332 (state->color.r,
                                                       state->color.g,
@@ -81,6 +84,11 @@ gtx_validate_color (GTXDriverData *gdrv,
       							state->color.r,
                                                         state->color.g,
                                                         state->color.b));
+      break;
+    case DSPF_RGB16:
+      gtx_out16 (gdrv->mmio_base, BCLR, PIXEL_RGB16 (state->color.r,
+                                                     state->color.g,
+                                                     state->color.b));
       break;
     default:
       BUG ("unexpected pixelformat");
@@ -132,8 +140,10 @@ gtxCheckState (void *drv, void *dev,
 {
   switch (state->destination->format)
     {
+    case DSPF_LUT8:
     case DSPF_RGB332:
     case DSPF_ARGB1555:
+    case DSPF_RGB16:
       break;
     default:
       return;
@@ -384,7 +394,7 @@ driver_init_device( GraphicsDevice     *device,
   device_info->limits.surface_pixelpitch_alignment = 2;
 
   /* set color key of graphics layer to DirectFB's standard bg color */
-  orig_tcr = gtx_in16 (gdrv->mmio_base, TCR);
+  gdev->orig_tcr = gtx_in16 (gdrv->mmio_base, TCR);
   gtx_out16 (gdrv->mmio_base, TCR, 0x9153);
 
   return DFB_OK;
@@ -402,7 +412,7 @@ driver_close_device (GraphicsDevice *device,
   (void) gdev;
   
   /*restore TCR */
-  gtx_out16 (gdrv->mmio_base, TCR, orig_tcr);
+  gtx_out16 (gdrv->mmio_base, TCR, gdev->orig_tcr);
 }
 
 static void
