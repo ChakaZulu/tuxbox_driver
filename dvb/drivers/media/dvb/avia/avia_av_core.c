@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.84 2003/12/19 21:30:29 obi Exp $
+ * $Id: avia_av_core.c,v 1.85 2003/12/24 14:42:47 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -299,10 +299,9 @@ int avia_av_load_microcode(u32 *microcode)
 static
 int avia_av_wait(u32 reg, u32 val, u32 ms)
 {
-	int tries = 20;
+	int tries = 10;
 
 	while ((avia_av_dram_read(reg) != val) && (--tries)) {
-		printk(KERN_DEBUG "avia_av: reg %08x != %08x (%d tries left)\n", reg, val, tries);
 		if (in_interrupt()) {
 			mdelay(ms);
 		}
@@ -1419,7 +1418,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.84 2003/12/19 21:30:29 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.85 2003/12/24 14:42:47 obi Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
