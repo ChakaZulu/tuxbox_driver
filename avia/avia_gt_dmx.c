@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.132  2002/09/18 15:57:24  Jolt
+ *   Queue handling changes #3
+ *
  *   Revision 1.131  2002/09/18 14:13:58  obi
  *   enable hw sections for ucode_0013
  *
@@ -203,7 +206,7 @@
  *
  *
  *
- *   $Revision: 1.131 $
+ *   $Revision: 1.132 $
  *
  */
 
@@ -319,8 +322,8 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmx
 	queue_list[queue_nr].cb_proc = cb_proc;
 	queue_list[queue_nr].irq_proc = irq_proc;
 	queue_list[queue_nr].priv_data = priv_data;
-	queue_list[queue_nr].read_pos = queue_list[queue_nr].mem_addr;
-	queue_list[queue_nr].write_pos = queue_list[queue_nr].mem_addr;
+	queue_list[queue_nr].read_pos = 0;
+	queue_list[queue_nr].write_pos = 0;
 	
 	return queue_nr;
 
@@ -388,6 +391,8 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 		return -EFAULT;
     
 	}
+	
+	avia_gt_dmx_queue_irq_disable(queue_nr);
     
 	queue_list[queue_nr].busy = 0;
 	queue_list[queue_nr].cb_proc = NULL;
@@ -402,19 +407,24 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
 
-	printk("avia_gt_dmx: hw_sections=%d\n", hw_sections);
-
-	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00))
+	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00)) {
+	
 		switch (risc_mem_map->Version_no[1]) {
-		case 0x13:
-		case 0x14:
-			return 1;
-		default:
-			return 0;
+		
+			case 0x13:
+			case 0x14:
+			
+				return 1;
+			
+			break;
+			
 		}
-
-	else if (hw_sections == 2)
+		
+	} else if (hw_sections == 2) {
+	
 		return 1;
+		
+	}
 
 	return 0;
 
@@ -495,8 +505,8 @@ int avia_gt_dmx_compress_filter_parameter_table(gtx_demux_t *gtx)
 		if ( (e.type == 4) && (f.VALID == 0) ) {
 			valid[i] = 0;
 			avia_gt_dmx_start_stop_feed(i,1);
-			queue_list[i].read_pos = avia_gt_dmx_get_queue_write_pointer(gtx->feed[i].index);
-			avia_gt_dmx_set_queue_write_pointer(gtx->feed[i].index, queue_list[i].read_pos);
+			queue_list[i].read_pos = avia_gt_dmx_queue_get_write_pos(gtx->feed[i].index);
+			avia_gt_dmx_queue_set_write_pos(gtx->feed[i].index, queue_list[i].read_pos);
 			gtx->feed[i].sec_len = 0;
 			gtx->feed[i].sec_recv = 0;
 		}
@@ -962,7 +972,7 @@ u32 avia_gt_dmx_get_queue_bytes_avail(u8 queue_nr)
 	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
 		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
 	else
-		return ((queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos) + (queue_list[queue_nr].write_pos - queue_list[queue_nr].mem_addr));
+		return (queue_list[queue_nr].size - queue_list[queue_nr].read_pos + queue_list[queue_nr].write_pos);
 
 }
 
@@ -993,63 +1003,6 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 	}
 	
 	return 0;
-
-}
-
-unsigned char avia_gt_dmx_get_queue_size(unsigned char queue_nr)
-{
-
-	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
-		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
-
-		return 0;
-
-	}
-
-	queue_nr = avia_gt_dmx_map_queue(queue_nr);
-
-	if (avia_gt_chip(ENX))
-		return enx_reg_so(QWPnH, 4 * queue_nr)->Q_Size;
-	else if (avia_gt_chip(GTX))
-		return gtx_reg_so(QWPnH, 4 * queue_nr)->Q_Size;
-
-	return 0;
-
-}
-
-unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr)
-{
-
-	unsigned int previous_write_pointer;
-	unsigned int write_pointer = 0xFFFFFFFF;
-
-	queue_nr = avia_gt_dmx_map_queue(queue_nr);
-
-    /*
-     *
-     * CAUTION: The correct sequence for accessing Queue
-     * Pointer registers is as follows:
-     * For reads,
-     * Read low word
-     * Read high word
-     * CAUTION: Not following these sequences will yield
-     * invalid data.
-     *
-     */
-
-	do {
-
-		previous_write_pointer = write_pointer;
-
-		if (avia_gt_chip(ENX))
-			write_pointer = ((enx_reg_so(QWPnL, 4 * queue_nr)->Queue_n_Write_Pointer) | (enx_reg_so(QWPnH, 4 * queue_nr)->Queue_n_Write_Pointer << 16));
-		else if (avia_gt_chip(GTX))
-			write_pointer = ((gtx_reg_so(QWPnL, 4 * queue_nr)->Queue_n_Write_Pointer) | (gtx_reg_so(QWPnH, 4 * queue_nr)->Upper_WD_n << 16));
-
-	} while (previous_write_pointer != write_pointer);
-
-	return write_pointer;
 
 }
 
@@ -1140,21 +1093,21 @@ u32 avia_gt_dmx_queue_crc32(u8 queue_nr, u32 count, u32 seed)
 
 	}
 
-	if ((queue_list[queue_nr].read_pos + count) > (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
+	if ((queue_list[queue_nr].read_pos + count) > queue_list[queue_nr].size) {
 	
-		chunk1_size = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
+		chunk1_size = queue_list[queue_nr].size - queue_list[queue_nr].read_pos;
 		
 		// FIXME
 		if ((avia_gt_chip(GTX)) && (chunk1_size <= 4))
 			return 0; 
 		
-		crc = avia_gt_accel_crc32(queue_list[queue_nr].read_pos, chunk1_size, seed);
+		crc = avia_gt_accel_crc32(queue_list[queue_nr].mem_addr + queue_list[queue_nr].read_pos, chunk1_size, seed);
 		
 		return avia_gt_accel_crc32(queue_list[queue_nr].mem_addr, count - chunk1_size, crc);
 	
 	} else {
 	
-		return avia_gt_accel_crc32(queue_list[queue_nr].read_pos, count, seed);
+		return avia_gt_accel_crc32(queue_list[queue_nr].mem_addr + queue_list[queue_nr].read_pos, count, seed);
 	
 	}
 	
@@ -1186,19 +1139,19 @@ u32 avia_gt_dmx_queue_data_get(u8 queue_nr, void *dest, u32 count, u8 peek)
 	read_pos = queue_list[queue_nr].read_pos;
 
 	if ((read_pos > queue_list[queue_nr].write_pos) && 
-		(count >= (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - read_pos))) {
+		(count >= (queue_list[queue_nr].size - read_pos))) {
 
-		done = queue_list[queue_nr].mem_addr + queue_list[queue_nr].size - read_pos;
+		done = queue_list[queue_nr].size - read_pos;
 
 		if (dest)
-			memcpy(dest, gt_info->mem_addr + read_pos, done);
+			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].mem_addr + read_pos, done);
 
-		read_pos = queue_list[queue_nr].mem_addr;
+		read_pos = 0;
 
 	}
 
 	if ((dest) && (count - done))
-		memcpy(((u8 *)dest) + done, gt_info->mem_addr + read_pos, count - done);
+		memcpy(((u8 *)dest) + done, gt_info->mem_addr + queue_list[queue_nr].mem_addr + read_pos, count - done);
 
 	if (!peek)
 		queue_list[queue_nr].read_pos = read_pos + (count - done);
@@ -1263,10 +1216,59 @@ u32 avia_gt_dmx_queue_data_put(u8 queue_nr, void *src, u32 count)
 		
 	}
 	
-	memcpy(gt_info->mem_addr + queue_list[queue_nr].mem_addr + queue_list[queue_nr].write_pos, ((u8 *)src) + done, count - done);
-	queue_list[queue_nr].write_pos += (count - done);
+	if (count - done) {
+	
+		memcpy(gt_info->mem_addr + queue_list[queue_nr].mem_addr + queue_list[queue_nr].write_pos, ((u8 *)src) + done, count - done);
+		
+		queue_list[queue_nr].write_pos += (count - done);
+		
+	}
 	
 	return count;
+
+}
+
+u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
+{
+
+	u8 mapped_queue_nr;
+	u32 previous_write_pointer;
+	u32 write_pointer = 0xFFFFFFFF;
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: queue_get_write_pos: queue %d out of bounce\n", queue_nr);
+
+		return 0;
+
+	}
+
+	mapped_queue_nr = avia_gt_dmx_map_queue(queue_nr);
+
+    /*
+     *
+     * CAUTION: The correct sequence for accessing Queue
+     * Pointer registers is as follows:
+     * For reads,
+     * Read low word
+     * Read high word
+     * CAUTION: Not following these sequences will yield
+     * invalid data.
+     *
+     */
+
+	do {
+
+		previous_write_pointer = write_pointer;
+
+		if (avia_gt_chip(ENX))
+			write_pointer = ((enx_reg_so(QWPnL, 4 * mapped_queue_nr)->Queue_n_Write_Pointer) | (enx_reg_so(QWPnH, 4 * mapped_queue_nr)->Queue_n_Write_Pointer << 16));
+		else if (avia_gt_chip(GTX))
+			write_pointer = ((gtx_reg_so(QWPnL, 4 * mapped_queue_nr)->Queue_n_Write_Pointer) | (gtx_reg_so(QWPnH, 4 * mapped_queue_nr)->Upper_WD_n << 16));
+
+	} while (previous_write_pointer != write_pointer);
+
+	return (write_pointer - queue_list[queue_nr].mem_addr);
 
 }
 
@@ -1343,42 +1345,39 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr)
 
 	}
 
-	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+	queue_list[queue_nr].write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 	queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
-	avia_gt_dmx_set_queue_write_pointer(queue_nr, queue_list[queue_nr].read_pos);
+	
+	avia_gt_dmx_queue_set_write_pos(queue_nr, queue_list[queue_nr].read_pos);
 
 	return 0;
 
 }
 
-void avia_gt_dmx_queue_set_read_pointer(u8 queue_nr, u32 read_pos)
+void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 {
 
-	int	base;
+	u8 mapped_queue_nr;
 
-	if ((queue_nr != AVIA_GT_DMX_QUEUE_VIDEO) &&
-		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
-		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
+	if (queue_nr > 30) {
 
-		printk("avia_gt_dmx: queue_set_read_pointer: queue %d out of bounce\n", queue_nr);
+		printk("avia_gt_dmx: set_queue queue (%d) out of bounce\n", queue_nr);
 
 		return;
 
 	}
 
+	mapped_queue_nr = avia_gt_dmx_map_queue(queue_nr);
+
 	if (avia_gt_chip(ENX)) {
 
-		base = queue_system_map[queue_nr] * 8 + 0x8E0;
-
-		enx_reg_16n(base) = read_pos & 0xFFFF;
-		enx_reg_16n(base + 2) = (read_pos >> 16) & 63;
+		enx_reg_16(QWPnL + 4 * mapped_queue_nr) = (queue_list[queue_nr].mem_addr + write_pos) & 0xFFFF;
+		enx_reg_16(QWPnH + 4 * mapped_queue_nr) = (((queue_list[queue_nr].mem_addr + write_pos) >> 16) & 0x3F) | (queue_size_table[queue_nr] << 6);
 
 	} else if (avia_gt_chip(GTX)) {
 
-		base = queue_system_map[queue_nr] * 8 + 0x1E0;
-
-		gtx_reg_16n(base) = read_pos & 0xFFFF;
-		gtx_reg_16n(base + 2) = (read_pos >> 16) & 63;
+		gtx_reg_16(QWPnL + 4 * mapped_queue_nr) = (queue_list[queue_nr].mem_addr + write_pos) & 0xFFFF;
+		gtx_reg_16(QWPnH + 4 * mapped_queue_nr) = (((queue_list[queue_nr].mem_addr + write_pos) >> 16) & 0x3F) | (queue_size_table[queue_nr] << 6);
 
 	}
 
@@ -1391,24 +1390,12 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 	for (queue_nr = 31; queue_nr >= 0; queue_nr--) {	// msg queue must have priority
 
-		queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+		queue_list[queue_nr].write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 
 		if (queue_list[queue_nr].write_pos == queue_list[queue_nr].read_pos)
 			continue;
 
-		if (queue_list[queue_nr].write_pos < queue_list[queue_nr].mem_addr)	{
-		
-			printk(KERN_CRIT "avia_gt_dmx: write_pos < base (is: %x, base is %x, queue %d)!\n", queue_list[queue_nr].write_pos, queue_list[queue_nr].mem_addr, queue_nr);
-
-#ifdef DEBUG
-			BUG();
-#endif
-
-			continue;
-
-		}
-
-		if (queue_list[queue_nr].write_pos >= (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
+		if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].size) {
 		
 			printk(KERN_CRIT "avia_gt_napi: write_pos out of bounds! (is %x)\n", queue_list[queue_nr].write_pos);
 			
@@ -1522,40 +1509,6 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 
 }
 
-void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size)
-{
-
-	queue_nr = avia_gt_dmx_map_queue(queue_nr);
-
-	if (queue_nr > 30) {
-
-		printk("avia_gt_dmx: set_queue queue (%d) out of bounce\n", queue_nr);
-
-		return;
-
-	}
-
-	if (avia_gt_chip(ENX)) {
-
-		enx_reg_16(QWPnL + 4 * queue_nr) = write_pointer & 0xFFFF;
-		enx_reg_16(QWPnH + 4 * queue_nr) = ((write_pointer >> 16) & 0x3F) | (size << 6);
-
-	} else if (avia_gt_chip(GTX)) {
-
-		gtx_reg_16(QWPnL + 4 * queue_nr) = write_pointer & 0xFFFF;
-		gtx_reg_16(QWPnH + 4 * queue_nr) = ((write_pointer >> 16) & 0x3F) | (size << 6);
-
-	}
-
-}
-
-void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer)
-{
-
-	avia_gt_dmx_set_queue(queue_nr, write_pointer, avia_gt_dmx_get_queue_size(queue_nr));
-
-}
-
 void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr)
 {
 
@@ -1571,7 +1524,7 @@ void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsign
 
 }
 
-void avia_gt_dmx_system_queue_set_pointer(u8 queue_nr, u32 read_pos, u32 write_pos)
+void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos)
 {
 
 	int	base;
@@ -1591,7 +1544,7 @@ void avia_gt_dmx_system_queue_set_pointer(u8 queue_nr, u32 read_pos, u32 write_p
 		base = queue_system_map[queue_nr] * 8 + 0x8E0;
 
 		enx_reg_16n(base + 0) = (queue_list[queue_nr].mem_addr + read_pos) & 0xFFFF;
-		avia_gt_dmx_system_queue_set_write_pointer(queue_nr, write_pos);
+		avia_gt_dmx_system_queue_set_write_pos(queue_nr, write_pos);
 		enx_reg_16n(base + 2) = ((queue_list[queue_nr].mem_addr + read_pos) >> 16) & 63;
 
 	} else if (avia_gt_chip(GTX)) {
@@ -1599,14 +1552,47 @@ void avia_gt_dmx_system_queue_set_pointer(u8 queue_nr, u32 read_pos, u32 write_p
 		base = queue_system_map[queue_nr] * 8 + 0x1E0;
 
 		gtx_reg_16n(base + 0) = (queue_list[queue_nr].mem_addr + read_pos) & 0xFFFF;
-		avia_gt_dmx_system_queue_set_write_pointer(queue_nr, write_pos);
+		avia_gt_dmx_system_queue_set_write_pos(queue_nr, write_pos);
 		gtx_reg_16n(base + 2) = ((queue_list[queue_nr].mem_addr + read_pos) >> 16) & 63;
 
 	}
 
 }
 
-void avia_gt_dmx_system_queue_set_write_pointer(u8 queue_nr, u32 write_pos)
+void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos)
+{
+
+	int	base;
+
+	if ((queue_nr != AVIA_GT_DMX_QUEUE_VIDEO) &&
+		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
+		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
+
+		printk("avia_gt_dmx: system_queue_set_read_pos: queue %d out of bounce\n", queue_nr);
+
+		return;
+
+	}
+
+	if (avia_gt_chip(ENX)) {
+
+		base = queue_system_map[queue_nr] * 8 + 0x8E0;
+
+		enx_reg_16n(base) = (queue_list[queue_nr].mem_addr + read_pos) & 0xFFFF;
+		enx_reg_16n(base + 2) = ((queue_list[queue_nr].mem_addr + read_pos) >> 16) & 63;
+
+	} else if (avia_gt_chip(GTX)) {
+
+		base = queue_system_map[queue_nr] * 8 + 0x1E0;
+
+		gtx_reg_16n(base) = (queue_list[queue_nr].mem_addr + read_pos) & 0xFFFF;
+		gtx_reg_16n(base + 2) = ((queue_list[queue_nr].mem_addr + read_pos) >> 16) & 63;
+
+	}
+
+}
+
+void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 {
 
 	int	base;
@@ -1828,7 +1814,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.131 2002/09/18 14:13:58 obi Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.132 2002/09/18 15:57:24 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1931,12 +1917,13 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].info.get_data8 = avia_gt_dmx_queue_data_get8;
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;
+		queue_list[queue_nr].info.nr = queue_nr;
 		queue_list[queue_nr].info.put_data = avia_gt_dmx_queue_data_put;
 
 		if ((queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) || (queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) || (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT))
-			avia_gt_dmx_system_queue_set_pointer(queue_nr, 0, 0);
+			avia_gt_dmx_system_queue_set_pos(queue_nr, 0, 0);
 
-		avia_gt_dmx_set_queue(queue_nr, queue_list[queue_nr].mem_addr, queue_size_table[queue_nr]);    
+		avia_gt_dmx_queue_set_write_pos(queue_nr, 0);    
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 		avia_gt_dmx_queue_irq_disable(queue_nr);
 
@@ -1970,20 +1957,20 @@ EXPORT_SYMBOL(avia_gt_dmx_fake_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_free_queue);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_info);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
-EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
-EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
+EXPORT_SYMBOL(avia_gt_dmx_set_queue_irq);
+
+EXPORT_SYMBOL(avia_gt_dmx_queue_get_write_pos);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_reset);
-EXPORT_SYMBOL(avia_gt_dmx_queue_set_read_pointer);
+EXPORT_SYMBOL(avia_gt_dmx_queue_set_write_pos);
+EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_pos);
+EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_read_pos);
+EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_write_pos);
+
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
-EXPORT_SYMBOL(avia_gt_dmx_set_queue);
-EXPORT_SYMBOL(avia_gt_dmx_set_queue_irq);
-EXPORT_SYMBOL(avia_gt_dmx_set_queue_write_pointer);
-EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_pointer);
-EXPORT_SYMBOL(avia_gt_dmx_system_queue_set_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
 EXPORT_SYMBOL(avia_gt_dmx_set_section_filter);
 EXPORT_SYMBOL(avia_gt_dmx_release_section_filter);

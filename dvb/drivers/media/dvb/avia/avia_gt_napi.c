@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.129 $
+ *   $Revision: 1.130 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.130  2002/09/18 15:57:24  Jolt
+ *   Queue handling changes #3
+ *
  *   Revision 1.129  2002/09/18 12:13:20  Jolt
  *   Queue handling changes #2
  *
@@ -682,14 +685,14 @@ static int avia_gt_napi_handle_section(gtx_demux_feed_t *gtxfeed, u8 queue_nr, u
 
 			if (!copied)
 			{
-				if ((queue->read_pos + sec_len) > (queue->mem_addr + queue->size))
+				if ((queue->read_pos + sec_len) > (queue->size))
 				{
-					chunk1 = queue->mem_addr + queue->size - queue->read_pos;
-					gtxfeed->cb.sec(gt_info->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, sec_len - chunk1, &secfilter->filter, 0);
+					chunk1 = queue->size - queue->read_pos;
+					gtxfeed->cb.sec(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, sec_len - chunk1, &secfilter->filter, 0);
 
 				} else
 				{
-					gtxfeed->cb.sec(gt_info->mem_addr + queue->read_pos, sec_len, NULL, 0, &secfilter->filter, 0);
+					gtxfeed->cb.sec(gt_info->mem_addr + queue->mem_addr + queue->read_pos, sec_len, NULL, 0, &secfilter->filter, 0);
 				}
 			}
 			else
@@ -920,14 +923,14 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						buf_len -= buf_len % 188;
 
-						if ((queue->read_pos + buf_len) > (queue->mem_addr + queue->size)) {
+						if ((queue->read_pos + buf_len) > queue->size) {
 
-							chunk1 = queue->mem_addr + queue->size - queue->read_pos;
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
+							chunk1 = queue->size - queue->read_pos;
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
 
 						} else {
 
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
 
 						}
 
@@ -1947,7 +1950,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.129 2002/09/18 12:13:20 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.130 2002/09/18 15:57:24 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

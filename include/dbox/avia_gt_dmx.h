@@ -203,11 +203,11 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
-unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr);
+u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 s32 avia_gt_dmx_queue_reset(u8 queue_nr);
-void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer);
+void avia_gt_dmx_queue_set_write_pos(unsigned char queue_nr, unsigned int write_pointer);
 void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt);
@@ -215,8 +215,11 @@ int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what);
 int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_filters, void *v_secfilter);
 int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id);
 int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[], u8 param[], u8 not_flag, u8 not_flag_ver_id_byte);
-void avia_gt_dmx_system_queue_set_pointer(u8 queue_nr, u32 read_pos, u32 write_pos);
-void avia_gt_dmx_system_queue_set_write_pointer(u8 queue_nr, u32 write_pos);
+
+void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos);
+void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos);
+void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos);
+
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void);
 void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry);
 int avia_gt_dmx_init(void);
