@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.18 2001/03/15 22:20:23 Hunz Exp $
+ * $Id: dvb.c,v 1.19 2001/03/17 07:28:48 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -287,9 +287,15 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 	  }
         }
         
-	// TODO: MINI-DiSEqC
-        //if (burst!=-1)
-        //        SendDiSEqCMsg(dvb, 0, msg, burst);
+	if (burst != -1) {
+	  if (burst==0)
+	    msg[0]=0;
+	  else if (burst == 1)
+	    msg[0]=0xFF;
+	  ret=fp_send_diseqc(msg,1);
+	  if (ret < 0)
+	    return -EINTERNAL;
+	}
 
 	old_volt=dvb->front.volt;
 	old_tone=dvb->front.ttk;
