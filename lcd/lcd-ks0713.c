@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.20  2002/03/21 19:26:31  obi
+ *   compilable with kernels >= 2.4.10
+ *
  *   Revision 1.19  2002/03/03 09:32:33  gillem
  *   - add lcd defines
  *   - boxtype output
@@ -70,7 +73,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -94,7 +97,11 @@
 #include <asm/io.h>
 
 /* HACK HACK HACK */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)
+#include <asm/commproc.h>
+#else
 #include <commproc.h>
+#endif
 
 #include "dbox/info.h"
 #include "lcd-ks0713.h"

@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.18  2002/03/21 19:26:31  obi
+ *   compilable with kernels >= 2.4.10
+ *
  *   Revision 1.17  2001/12/01 06:52:39  gillem
  *   - malloc.h -> slab.h
  *
@@ -38,7 +41,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -62,7 +65,11 @@
 #include <linux/i2c.h>
 
 /* HACK HACK HACK */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)
+#include <asm/commproc.h>
+#else
 #include <commproc.h>
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -682,7 +689,7 @@ static int __init i2c_algo_8xx_init (void)
 
 /* ------------------------------------------------------------------------- */
 
-static int i2c_8xx_del_bus(struct i2c_adapter *adap)
+int i2c_8xx_del_bus(struct i2c_adapter *adap)
 {
 	int res;
 
