@@ -542,9 +542,10 @@ dmx_ts_feed_set(struct dmx_ts_feed_s* feed,
 			if ((ret=dmx_pid_set(pid, dvbdmxfeed))<0) {
 				up(&dvbdmx->mutex);
 				return ret;
-			} else
-				dvbdmxfeed->pid=pid;
-		}
+			}
+		} else
+			dvbdmxfeed->pid=pid;
+				
                 dvbdmx->pesfilter[pes_type]=dvbdmxfeed;
 	        dvbdmx->pids[pes_type]=dvbdmxfeed->pid;
         } else
