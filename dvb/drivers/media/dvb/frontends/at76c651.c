@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.20 2001/08/17 17:18:55 fnbrd Exp $
+    $Id: at76c651.c,v 1.21 2001/08/22 07:30:35 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.21  2001/08/22 07:30:35  fnbrd
+    Fixed one frequency
+
     Revision 1.20  2001/08/17 17:18:55  fnbrd
     Removed one warning with gcc 3.0
 
@@ -352,7 +355,7 @@ static int tuner_set_freq(int freq)
     case 338000000:
       dw=0x17628e06;
       break;
-    case 333000000:
+    case 330000000:
       dw=0x16e28e06;
       break;
     default:
@@ -824,7 +827,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.20 2001/08/17 17:18:55 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.21 2001/08/22 07:30:35 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
