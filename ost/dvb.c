@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.46 2001/07/25 04:43:26 tmbinc Exp $
+ * $Id: dvb.c,v 1.47 2001/07/30 19:12:29 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -1155,7 +1155,13 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 							dvb->front.power=old;
 						return res;
 					}	else
-						return -ENOSYS;
+					{
+						if(pwr == OST_POWER_OFF)
+							dvb->front.power=OST_POWER_OFF;
+						else
+							dvb->front.power=OST_POWER_ON;
+						return 0;
+					}
 					break;
 				}
 				case OST_GET_POWER_STATE:
