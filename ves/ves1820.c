@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.26 2002/06/28 01:07:56 Homar Exp $
+   $Id: ves1820.c,v 1.27 2002/06/29 21:47:17 Homar Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -22,6 +22,9 @@
 
 
     $Log: ves1820.c,v $
+    Revision 1.27  2002/06/29 21:47:17  Homar
+    VHF-L-Scan gefixt
+
     Revision 1.26  2002/06/28 01:07:56  Homar
     UHF-Scan gefixt
 
@@ -470,7 +473,7 @@ int attach_adapter(struct i2c_adapter *adap)
         init(client);
 
         printk("VES1820: attached to adapter %s\n\n", adap->name);
-        printk("$Id: ves1820.c,v 1.26 2002/06/28 01:07:56 Homar Exp $\n");
+        printk("$Id: ves1820.c,v 1.27 2002/06/29 21:47:17 Homar Exp $\n");
 //	MOD_INC_USE_COUNT;
 		ves->frontend.type=DVB_C;
 		ves->frontend.capabilities=0; // kann auch nix
@@ -665,7 +668,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				buffer[0]=(freq>>8) & 0x7F;
 				buffer[1]=freq & 0xFF;
 				buffer[2]=0x80 | (((freq>>15)&3)<<6) | 4;
-				buffer[3]=(uint)freq>4050?4:1;
+				buffer[3]=(uint)freq>4017?4:(uint)freq<2737?2:1;
 				printk ("SETFREQ: Frequenz = %u %u %u %u \n",freq<<16, (uint)freq,(*(u32*)buffer),(*(u32*)arg));
 
 				fp_set_tuner_dword(T_QAM, *((u32*)buffer));
