@@ -7,15 +7,16 @@ CURRENT=$(shell uname -r)
 #KERNEL_LOCATION=/usr/src/kernel/vger
 KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
+MODULE_DEST=/LinuxPPC/lib/modules/2.4.2/misc/
+BIN_DEST=/LinuxPPC/bin
 
-export CURRENT KERNEL_LOCATION MODULE_DEST
+export CURRENT KERNEL_LOCATION MODULE_DEST BIN_DEST
 
 #################################################
 
-mod-subdirs := nokia cxa2092 cxa2126 lcd saa7126 pcm
+mod-subdirs := nokia avs cxa2092 cxa2126 lcd saa7126 pcm
 
-subdir-y := nokia cxa2092 cxa2126 lcd saa7126 pcm
+subdir-y := nokia avs cxa2092 cxa2126 lcd saa7126 pcm
 
 subdir-m :=	$(subdir-y)
 
