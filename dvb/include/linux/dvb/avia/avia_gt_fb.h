@@ -17,5 +17,6 @@ typedef struct {
 #define AVIA_GT_GV_HIDE		2	/* hide framebuffer */
 #define AVIA_GT_GV_SHOW		3	/* show framebuffer */
 #define AVIA_GT_GV_COPYAREA	4	/* copy area */
+#define AVIA_GT_GV_GET_BLEV	5	/* blend level */
 
 #endif /* __FB_H__ */

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.37 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_gt_gv.c,v 1.38 2004/03/17 18:42:18 zwen Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -197,6 +197,18 @@ void avia_gt_gv_set_blevel(u8 class0, u8 class1)
 	else if (avia_gt_chip(GTX)) {
 		gtx_reg_set(GMR, BLEV0, class0);
 		gtx_reg_set(GMR, BLEV1, class1);
+	}
+}
+
+void avia_gt_gv_get_blevel(u8* class0, u8* class1)
+{
+	if (avia_gt_chip(ENX)) {
+		*class0 = (enx_reg_16(GBLEV1) & 0xFF) >> 4;
+		*class1 = enx_reg_16(GBLEV1) >> 12;
+	}
+	else if (avia_gt_chip(GTX)) {
+		*class0 = gtx_reg_16(GMR) & 0x0F;
+		*class1 = (gtx_reg_16(GMR) & 0xF0) >> 4;
 	}
 }
 
@@ -433,7 +445,7 @@ int avia_gt_gv_show(void)
 
 int avia_gt_gv_init(void)
 {
-	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.37 2003/09/30 05:45:35 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.38 2004/03/17 18:42:18 zwen Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -566,6 +578,7 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(avia_gt_gv_copyarea);
 EXPORT_SYMBOL(avia_gt_gv_get_clut);
+EXPORT_SYMBOL(avia_gt_gv_get_blevel);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
 EXPORT_SYMBOL(avia_gt_gv_set_blevel);
 EXPORT_SYMBOL(avia_gt_gv_set_clut);

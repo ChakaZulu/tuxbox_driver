@@ -38,6 +38,7 @@ u16 avia_gt_gv_get_stride(void);
 void avia_gt_gv_get_info(u8 **gv_mem_phys, u8 **gv_mem_lin, u32 *gv_mem_size);
 void avia_gt_gv_hide(void);
 void avia_gt_gv_set_blevel(u8 class0, u8 class1);
+void avia_gt_gv_get_blevel(u8 *class0, u8 *class1);
 void avia_gt_gv_set_clut(u8 clut_nr, u32 transparency, u32 red, u32 green, u32 blue);
 int avia_gt_gv_set_input_mode(u8 mode);
 int avia_gt_gv_set_input_size(u16 width, u16 height);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.53 2003/12/22 04:02:05 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.54 2004/03/17 18:42:18 zwen Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -450,6 +450,8 @@ struct fbgen_hwswitch avia_gt_fb_switch = {
 static int avia_gt_fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
 {
 	fb_copyarea copyarea;
+	unsigned int val;
+	u8 blev0, blev1;
 
 	switch (cmd) {
 	case AVIA_GT_GV_COPYAREA:
@@ -461,6 +463,13 @@ static int avia_gt_fb_ioctl(struct inode *inode, struct file *file, unsigned int
 
 	case AVIA_GT_GV_SET_BLEV:
 		avia_gt_gv_set_blevel((arg >> 8) & 0xFF, arg & 0xFF);
+		break;
+
+	case AVIA_GT_GV_GET_BLEV:
+		avia_gt_gv_get_blevel(&blev0, &blev1);
+		val = (blev0 << 8) | blev1;
+		if (copy_to_user((void *) arg, &val, sizeof(val)))
+			return -EFAULT;
 		break;
 
 	case AVIA_GT_GV_SET_POS:
@@ -499,7 +508,7 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.53 2003/12/22 04:02:05 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.54 2004/03/17 18:42:18 zwen Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
