@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.88 $
+ *   $Revision: 1.89 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.89  2002/06/11 20:35:43  Jolt
+ *   Sections cleanup
+ *
  *   Revision 1.88  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -312,7 +315,10 @@
 static sAviaGtInfo *gt_info;
 static unsigned char auto_pcr_pid = 0;
 
-// #undef GTX_SECTIONS
+//#define GTX_SECTIONS
+//#undef dprintk
+//#define dprintk printk
+
 
 #ifdef MODULE
 MODULE_PARM(auto_pcr_pid, "i");
@@ -351,9 +357,6 @@ const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 #if 0
 static unsigned short rb[4096], rrb[32];
 #endif
-
-void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid);
-void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec);
 
 #if 0
 		/* hehe da kapiert ja eh niemand was das soll, ausser willid und TripleDES vielleicht, also kanns hier auch bleiben :) */
@@ -395,111 +398,6 @@ void enx_tdp_trace(void)
 		enx_reg_16(EC) = 0x03;			// und wieder nen stueck...
 	}
 	enx_reg_16(EC)=0;
-}
-#endif
-
-void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
-{
-
-	if (avia_gt_chip(ENX))
-		enx_reg_16n(TDP_INSTR_RAM + 0x700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
-	else if (avia_gt_chip(GTX))
-		gtx_reg_16n(GTX_REG_RISC + 0x700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
-
-}
-
-void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec)
-{
-
-    u8 w[4];
-    w[0] = type << 5;
-
-    if (avia_gt_chip(ENX)) {
-
-	if ((enx_reg_16n(TDP_INSTR_RAM + 0x7FE) & 0xFF00) >= 0xA000)
-	    w[0] |= (queue) & 31;
-	else
-	    w[0] |= (queue + 1) & 31;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	if ((gtx_reg_16n(GTX_REG_RISC + 0x7FE) & 0xFF00) >= 0xA000)
-		w[0] |= (queue) & 31;
-	else
-		w[0] |= (queue + 1) & 31;
-
-    }
-
-    w[1] = (!!fork) << 7;
-    w[1] |= cw_offset << 4;
-    w[1] |= cc;
-    w[2] = (!!start_up) << 6;
-    w[2] |= (!!pec) << 5;
-    w[3] = 0;
-
-    if (avia_gt_chip(ENX))
-	enx_reg_32n(TDP_INSTR_RAM + 0x740 + entry * 4) = *(u32*)w;
-    else if (avia_gt_chip(GTX))
-	gtx_reg_32n(GTX_REG_RISC + 0x740 + entry * 4) = *(u32*)w;
-
-}
-
-#ifdef GTX_SECTIONS
-void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec, int filt_tab_idx, int no_of_filters)
-{
-#error please fix driver first! (enx support!)
-	u8 w[4];
-	w[0]=type<<5;
-	if ((rh(RISC+0x7FE)&0xFF00)==0xB100)
-		w[0]|=(queue)&31;
-	else
-		w[0]|=(queue+1)&31;
-	w[1]=(!!fork)<<7;
-	w[1]|=cw_offset<<4;
-	w[1]|=cc;
-	w[2]=1<<7;
-	w[2]|=(!!start_up)<<6;
-	w[2]|=(!!pec)<<5;
-	w[2]|=filt_tab_idx;
-	w[3]=no_of_filters;
-	dprintk("avia_gt_napi: no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
-	rw(RISC+0x740+entry*4)=*(u32*)w;
-	udelay(1000*1000);
-	dprintk("avia_gt_napi: read %08x\n", rw(RISC+0x740+entry*4));
-}
-
-void gtx_set_filter_definition_table(int entry, int and_or_flag, int filter_param_id)
-{
-	u8 w[4]={0, 0};
-	w[0]=(!!and_or_flag)<<7;
-	w[0]|=filter_param_id<<6;
-	*((char*)&rh(RISC+0x7C0+entry))=w[0];
-}
-
-void gtx_set_filter_parameter_table(int entry, u8 mask[8], u8 param[8], int not_flag, int not_flag_ver_id_byte)
-{
-	u8 w[18];
-	int i=0;
-
-	for (; i<8; i++)
-	{
-		w[i*2]=mask[i];
-		w[i*2+1]=param[i];
-	}
-	w[16]=(!!not_flag)<<4;
-	w[16]|=(!!not_flag_ver_id_byte)<<1;
-	w[17]=0;
-	rh(RISC+0x400+entry*6)=*(u16*)w;
-	rh(RISC+0x400+entry*6+2)=*(u16*)(w+2);
-	rh(RISC+0x400+entry*6+4)=*(u16*)(w+4);
-
-	rh(RISC+0x500+entry*6)=*(u16*)(w+6);
-	rh(RISC+0x500+entry*6+2)=*(u16*)(w+8);
-	rh(RISC+0x500+entry*6+4)=*(u16*)(w+10);
-
-	rh(RISC+0x600+entry*6)=*(u16*)(w+12);
-	rh(RISC+0x600+entry*6+2)=*(u16*)(w+14);
-	rh(RISC+0x600+entry*6+4)=*(u16*)(w+16);
 }
 #endif
 
@@ -997,14 +895,14 @@ static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
-	gtx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
-#if GTX_SECTIONS
-	if (filter->type==GTX_FILTER_PID)
+	avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
+#ifdef GTX_SECTIONS
+	if (filter->type == GTX_FILTER_PID)
 #endif
-		gtx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec);
-#if GTX_SECTIONS
+		avia_gt_dmx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, 0, 0);
+#ifdef GTX_SECTIONS
 	else
-		gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
+		avia_gt_dmx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
 #endif
 }
 
@@ -1349,11 +1247,11 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 	gtx_demux_filter_t *filter=gtxfeed->filter;
 	gtx_demux_secfilter_t *secfilter;
 
-	gtx_set_filter_definition_table(gtxfeed->secfilter->index, 0, gtxfeed->secfilter->index);
+	avia_gt_dmx_set_filter_definition_table(gtxfeed->secfilter->index, 0, gtxfeed->secfilter->index);
 	for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
 	{
 		int i;
-		gtx_set_filter_parameter_table(secfilter->index, secfilter->filter.filter_mask, secfilter->filter.filter_value, 0, 0);
+		avia_gt_dmx_set_filter_parameter_table(secfilter->index, secfilter->filter.filter_mask, secfilter->filter.filter_value, 0, 0);
 		for (i=0; i<DMX_MAX_FILTER_SIZE; i++)
 			dprintk("gtx_dmx: %02x ", secfilter->filter.filter_mask[i]);
 		dprintk("\n");
@@ -1521,7 +1419,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 			&gtxdemux->frontend_list;
 
 	for (i=0; i<NUM_PID_FILTER; i++)			// disable all pid filters
-		gtx_set_pid_table(i, 0, 1, 0);
+		avia_gt_dmx_set_pid_table(i, 0, 1, 0);
 
 	for (i=0; i<NUM_QUEUES; i++)
 		avia_gt_dmx_set_queue_irq(i, 0, 0);
@@ -1616,7 +1514,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.88 2002/05/07 16:59:19 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.89 2002/06/11 20:35:43 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -1625,9 +1523,9 @@ int __init avia_gt_napi_init(void)
 		printk("avia_gt_napi: Unsupported chip type\n");
 
 		return -EIO;
-
-	}
-
+    
+    }
+	
 	GtxDmxInit(&gtx);
 	register_demux(&gtx.dmx);
 

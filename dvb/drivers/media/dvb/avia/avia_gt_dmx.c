@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.89  2002/06/11 20:35:43  Jolt
+ *   Sections cleanup
+ *
  *   Revision 1.88  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -64,7 +67,7 @@
  *
  *
  *
- *   $Revision: 1.88 $
+ *   $Revision: 1.89 $
  *
  */
 
@@ -102,6 +105,7 @@
 
 static int errno;
 static sAviaGtInfo *gt_info;
+static sRISC_MEM_MAP *risc_mem_map;
 static char *ucode = NULL;
 static int discont=1, large_delta_count, deltaClk_max, deltaClk_min, deltaPCR_AVERAGE;
 static Pcr_t oldClk;
@@ -204,7 +208,6 @@ int avia_gt_dmx_load_ucode(void)
 	int fd;
 	loff_t file_size;
 	mm_segment_t fs;
-	void *risc_ram;
 
 	fs = get_fs();
 	set_fs(get_ds());
@@ -234,12 +237,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	lseek(fd, 0L, 0);
 
-	if (avia_gt_chip(ENX))
-		risc_ram = enx_reg_o(TDP_INSTR_RAM);
-	else if (avia_gt_chip(GTX))
-		risc_ram = gtx_reg_o(GTX_REG_RISC);
-
-	if (read(fd, risc_ram, file_size) != file_size) {
+	if (read(fd, (void *)risc_mem_map, file_size) != file_size) {
 
 		printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
 
@@ -252,10 +250,66 @@ int avia_gt_dmx_load_ucode(void)
 
 	close(fd);
 	set_fs(fs);
+	
+	printk("avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
+	printk("avia_gt_dmx: RISC mem map size: %d\n", sizeof(sRISC_MEM_MAP));
 
 	return 0;
 
 }
+
+int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id)
+{
+
+	if (entry > 31) {
+	
+		printk("avia_gt_napi: pid control table entry out of bounce (entry=%d)!\n", entry);
+		
+		return -EINVAL;
+	
+	}
+
+	risc_mem_map->Filter_Definition_Table[entry].and_or_flag = !!and_or_flag;
+	risc_mem_map->Filter_Definition_Table[entry].filter_param_id = filter_param_id;
+	
+	return 0;
+	
+}
+
+int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[8], u8 param[8], u8 not_flag, u8 not_flag_ver_id_byte)
+{
+
+	if (entry > 31) {
+	
+		printk("avia_gt_napi: pid control table entry out of bounce (entry=%d)!\n", entry);
+		
+		return -EINVAL;
+	
+	}
+
+	risc_mem_map->Filter_Parameter_Table1[entry].mask_0 = mask[0];
+	risc_mem_map->Filter_Parameter_Table1[entry].param_0 = param[0];
+	risc_mem_map->Filter_Parameter_Table1[entry].mask_1 = mask[1];
+	risc_mem_map->Filter_Parameter_Table1[entry].param_1 = param[1];
+	risc_mem_map->Filter_Parameter_Table1[entry].mask_2 = mask[2];
+	risc_mem_map->Filter_Parameter_Table1[entry].param_2 = param[2];
+	risc_mem_map->Filter_Parameter_Table2[entry].mask_3 = mask[3];
+	risc_mem_map->Filter_Parameter_Table2[entry].param_3 = param[3];
+	risc_mem_map->Filter_Parameter_Table2[entry].mask_4 = mask[4];
+	risc_mem_map->Filter_Parameter_Table2[entry].param_4 = param[4];
+	risc_mem_map->Filter_Parameter_Table2[entry].mask_5 = mask[5];
+	risc_mem_map->Filter_Parameter_Table2[entry].param_5 = param[5];
+	risc_mem_map->Filter_Parameter_Table3[entry].mask_6 = mask[6];
+	risc_mem_map->Filter_Parameter_Table3[entry].param_6 = param[6];
+	risc_mem_map->Filter_Parameter_Table3[entry].mask_7 = mask[7];
+	risc_mem_map->Filter_Parameter_Table3[entry].param_7 = param[7];
+	risc_mem_map->Filter_Parameter_Table3[entry].not_flag = !!not_flag;
+	risc_mem_map->Filter_Parameter_Table3[entry].not_flag_ver_id_byte = !!not_flag_ver_id_byte;
+	
+	return 0;
+	
+}
+
 
 void avia_gt_dmx_set_pcr_pid(u16 pid)
 {
@@ -280,6 +334,53 @@ void avia_gt_dmx_set_pcr_pid(u16 pid)
 	}
 
 	avia_gt_dmx_force_discontinuity();
+
+}
+
+int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 no_of_filter)
+{
+
+	if (entry > 31) {
+	
+		printk("avia_gt_dmx: pid control table entry out of bounce (entry=%d)!\n", entry);
+		
+		return -EINVAL;
+	
+	}
+
+	if (risc_mem_map->Version_no[0] < 0xA0)
+		queue++;
+
+	risc_mem_map->PID_Parsing_Control_Table[entry].type = type;
+	risc_mem_map->PID_Parsing_Control_Table[entry].QID = queue;
+	risc_mem_map->PID_Parsing_Control_Table[entry].fork = !!fork;
+	risc_mem_map->PID_Parsing_Control_Table[entry].CW_offset = cw_offset;
+	risc_mem_map->PID_Parsing_Control_Table[entry].CC = cc;
+	risc_mem_map->PID_Parsing_Control_Table[entry].start_up = !!start_up;
+	risc_mem_map->PID_Parsing_Control_Table[entry].PEC = pec;
+	risc_mem_map->PID_Parsing_Control_Table[entry].filt_tab_idx = filt_tab_idx;
+	risc_mem_map->PID_Parsing_Control_Table[entry].no_of_filter = no_of_filter;
+
+	return 0;
+	
+}
+
+int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
+{
+
+	if (entry > 31) {
+	
+		printk("avia_gt_dmx: pid search table entry out of bounce (entry=%d)!\n", entry);
+		
+		return -EINVAL;
+	
+	}
+
+	risc_mem_map->PID_Search_Table[entry].wait_pusi = wait_pusi;
+	risc_mem_map->PID_Search_Table[entry].VALID = !!valid;			// 0 = VALID, 1 = INVALID
+	risc_mem_map->PID_Search_Table[entry].PID = pid;
+	
+	return 0;
 
 }
 
@@ -672,7 +773,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.88 2002/06/07 18:06:03 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.89 2002/06/11 20:35:43 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -691,8 +792,11 @@ int __init avia_gt_dmx_init(void)
 
 		enx_reg_32(RSTR0)|=(1<<31)|(1<<23)|(1<<22);
 
+		risc_mem_map = (sRISC_MEM_MAP *)enx_reg_o(TDP_INSTR_RAM);
+
 	} else if (avia_gt_chip(GTX)) {
 
+		risc_mem_map = (sRISC_MEM_MAP *)gtx_reg_o(GTX_REG_RISC);
 
 	}
 
@@ -765,7 +869,11 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
+EXPORT_SYMBOL(avia_gt_dmx_set_filter_definition_table);
+EXPORT_SYMBOL(avia_gt_dmx_set_filter_parameter_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
+EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
+EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_set_queue_write_pointer);

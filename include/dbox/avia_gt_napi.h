@@ -36,9 +36,6 @@ typedef struct Pcr_s
 #define MAX_DAC 0x7FFF                  /*#define MAX_DAC 0x1FFF*/  /* maximum DAC range (+/-) */
 #define LARGE_POSITIVE_NUMBER 32760
 #define AV_SYNC_DELAY 1000
-                             
-
-void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid);
 
                         // nokia api stuff
 #define GTX_OUTPUT_TS           0
