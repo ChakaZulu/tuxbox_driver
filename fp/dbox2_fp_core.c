@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.26  2001/04/22 20:43:40  tmbinc
+ *   fixed RC for new and old fp-code
+ *
  *   Revision 1.25  2001/04/09 22:58:22  tmbinc
  *   added philips-support.
  *
@@ -78,7 +81,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 
@@ -106,6 +109,7 @@
 #include <asm/signal.h>
 
 #include "dbox/fp.h"
+#include "dbox/info.h"
 
 #include <linux/devfs_fs_kernel.h>
 
@@ -117,6 +121,7 @@
 
 static devfs_handle_t devfs_handle[2];
 static int sec_bus_status=0;
+static struct dbox_info_struct info;
 /* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
@@ -679,8 +684,7 @@ static int fp_init(void)
 {
 	int res;
 
-	printk("fp.o: DBox2 FP driver v0.1\n");
-
+	dbox_get_info(&info);
 	init_waitqueue_head(&rcwait);
 
 	if ((res=i2c_add_driver(&fp_driver)))
@@ -840,11 +844,13 @@ static void fp_check_queues(void)
 		fp_cmd(defdata->client, 0x20, &status, 1);
   
 		/* remote control */
-		if (status&1)
-			fp_handle_rc(defdata);
-
-		if (status&8)
-			fp_handle_new_rc(defdata);
+		if (status&9)
+		{
+			if (info.fpREV>=0x80)
+				fp_handle_rc(defdata);
+			else
+				fp_handle_new_rc(defdata);
+		}
   
 		/* front button */
 		if (status&0x10)
