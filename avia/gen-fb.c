@@ -1,9 +1,9 @@
 /*
- *   gtp-fb.c - AViA framebuffer driver (dbox-II-project)
+ *   gen-fb.c - AViA GTX framebuffer driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Florian Schirmer (jolt@tuxbox.org)
+ *   Copyright (C) 2000-2001 Felix "tmbinc" Domke (tmbinc@gmx.net)
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,18 +20,39 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Log: gtp-fb.c,v $
- *   Revision 1.2  2001/04/19 23:32:27  Jolt
- *   Merge Part II
+ *   $Log: gen-fb.c,v $
+ *   Revision 1.1  2001/04/20 01:21:33  Jolt
+ *   Final Merge :-)
  *
- *   Revision 1.1  2001/04/17 22:57:34  Jolt
- *   Merged framebuffer
+ *   Revision 1.11  2001/03/23 08:00:30  gillem
+ *   - adjust xpos of fb
  *
- *   Revision 1.0  2001/04/17 08:00:30  Jolt
- *   - initial import
+ *   Revision 1.10  2001/03/08 01:15:14  tmbinc
+ *   smem_length 1MB now, transparent color, defaults to dynaclut.
  *
- *   $Revision: 1.2 $
+ *   Revision 1.9  2001/02/11 16:32:08  tmbinc
+ *   fixed viewport position
  *
+ *   Revision 1.8  2001/02/04 20:46:14  tmbinc
+ *   improved framebuffer.
+ *
+ *   Revision 1.7  2001/01/31 17:17:46  tmbinc
+ *   Cleaned up avia drivers. - tmb
+ *
+ *   $Revision: 1.1 $
+ *
+ */
+
+ /*
+    This is the improved FB.
+    Report bugs as usual.
+    
+    CLUTs completely untested. (just saw: they work.)
+    
+    There were other attempts to rewrite this driver, but i don't
+    know the state of this work.
+    
+    roh suxx.
  */
 
 #include <linux/module.h>
@@ -55,11 +76,19 @@
 #include <video/fbcon.h>
 #include <video/fbcon-cfb16.h>
 
-#include "gtp-core.h"
-#include "gtp-fb.h"
+#ifdef GTX
+#include "dbox/gtx.h"
+#endif // GTX
+
+#ifdef ENX
+#include "dbox/enx.h"
+#endif // ENX
 
 #define RES_X           720
 #define RES_Y           576
+
+static unsigned char* gtxmem;
+static unsigned char* gtxreg;
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
@@ -78,15 +107,16 @@ static struct fb_var_screeninfo default_var = {
     FB_VMODE_INTERLACED
 };
 
-struct gtp_fb_info
+struct gtxfb_info
 {
   struct fb_info_gen gen;
 
-  sGtpDev gtp_dev;
-  u32 videosize;
+  void *videobase;
+  int offset;
+  u32 videosize, pvideobase;
 };
 
-struct gtp_fb_par
+struct gtxfb_par
 {
   int pal;              // 1 - PAL, 0 - NTSC
   int bpp;              // 4, 8, 16
@@ -96,8 +126,8 @@ struct gtp_fb_par
   int stride;
 };
 
-static struct gtp_fb_info fb_info;
-static struct gtp_fb_par current_par;
+static struct gtxfb_info fb_info;
+static struct gtxfb_par current_par;
 static int current_par_valid=0;
 static struct display disp;
 
@@ -142,10 +172,8 @@ static void gtx_detect(void)
 static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
                           struct fb_info_gen *info)
 {
-
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
-  
-  strcpy(fix->id, "AViA Framebuffer");
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+  strcpy(fix->id, "AViA eNX/GTX Framebuffer");
   fix->type=FB_TYPE_PACKED_PIXELS;
   fix->type_aux=0;
   
@@ -155,9 +183,9 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
     fix->visual=FB_VISUAL_TRUECOLOR;
 
   fix->line_length=par->stride;
-  fix->smem_start=(unsigned long)fb_info.gtp_dev.fb_mem_phys;
+  fix->smem_start=(unsigned long)fb_info.pvideobase;
   fix->smem_len=1024*1024;                            // fix->line_length*par->yres;
-  fix->mmio_start=(unsigned long)fb_info.gtp_dev.fb_mem_lin; 
+  fix->mmio_start=(unsigned long)fb_info.pvideobase;  // gtxmem;
   fix->mmio_len=0x410000;
   
   fix->xpanstep=0;
@@ -172,7 +200,7 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
 static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
                           struct fb_info_gen *info)
 {
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
   int yres;
   
   if ((var->bits_per_pixel != 4) && (var->bits_per_pixel != 8) && (var->bits_per_pixel != 16))
@@ -228,30 +256,23 @@ static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par,
 static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
                            struct fb_info_gen *info)
 {
-
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
-
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
   var->xres=par->xres;
   var->yres=par->yres;
   var->bits_per_pixel=par->bpp;
-  
   if (par->pal==0)              // ob man sich auf diese timing values sooo verlassen sollte ;)
   {
-  
     var->left_margin=116;
     var->right_margin=21;
     var->upper_margin=18;
     var->lower_margin=5;
-    
-  } else  {
-  
+  } else
+  {
     var->left_margin=126;
     var->right_margin=18;
     var->upper_margin=21;
     var->lower_margin=5;
-    
   }
-  
   var->hsync_len=var->vsync_len=0;              // TODO
   var->sync=0;      
   
@@ -274,53 +295,258 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par,
   var->activate=0;
   var->height=var->width-1;
   var->accel_flags=0;
-
   return 0;
-  
 }
 
 static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 {
-
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
-  
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
   if (current_par_valid)
     *par=current_par;
   else
     gtx_decode_var(&default_var, par, info);
-    
 }
 
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+  int val;
+	int div,rem;
 
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
+#ifdef GTX
 
-  fb_info.gtp_dev.fb_param_set(par->pal, par->bpp, par->lowres, par->interlaced, par->xres, par->yres, par->stride);
+  rh(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
+  rh(VHT)=par->pal?858:852;
+  rh(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+
+  switch (par->bpp)
+  {
+  case 4:
+    val=1<<30; break;
+  case 8:
+    val=2<<30; break;
+  case 16:
+    val=3<<30; break;
+  }
+  
+  if (par->lowres)
+    val|=1<<29;
+
+  if (!par->pal)
+    val|=1<<28;                         // NTSC square filter. TODO: do we need this?
+
+                // TODO: cursor
+  if (!par->interlaced)
+    val|=1<<26;
+  
+  val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
+  val|=0<<20;                           // BLEV1 = 8/8
+  val|=2<<16;                           // BLEV2 = 6/8
+  val|=par->stride;
+
+  rw(GMR)=val;
+  
+  rh(CCR)=0x7FFF;                  // white cursor
+  rw(GVSA)=fb_info.offset;                      // dram start address
+  rh(GVP)=0;
+
+  VCR_SET_HP(2);
+  VCR_SET_FP(0);
+  val=par->pal?127:117;
+  val*=8;
+
+  if (par->lowres)
+	{
+		if (rw(GMR)&(1<<28))
+			div=18;
+		else
+			div=16;
+	}
+	else
+	{
+		if (rw(GMR)&(1<<28))
+			div=9;
+		else
+			div=8;
+	}
+
+	rem = val-((val/div)*div);
+	val/=div;
+
+	// ???
+  val-=(3+20);
+  GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
+
+	/* set SPP */
+	rw(GVP) |= (rem<<27);
+
+  rh(GFUNC)=0x10;			// enable dynamic clut
+  rh(TCR)=0xFC0F;                       // ekelhaftes rosa als transparent
+  
+                                        // DEBUG: TODO: das ist nen kleiner hack hier.
+/*  if (par->lowres)
+    GVS_SET_XSZ(par->xres*2);
+  else */
+	GVS_SET_XSZ(par->xres);
+
+  if (par->interlaced)
+    GVS_SET_YSZ(par->yres);
+  else
+    GVS_SET_YSZ(par->yres*2);
+
+//	rw(GVS)|=(0<<27);
+
+  rw(VBR)=0;                       // disable background..
+  
+#endif // GTX
+
+#ifdef ENX
+
+#define ENX_VCR_SET_HP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<10))) | ((X&3)<<10))
+#define ENX_VCR_SET_FP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
+#define ENX_GVP_SET_SPP(X)   enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
+#define ENX_GVP_SET_X(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define ENX_GVP_SET_Y(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~0x3FF))|(X&0x3FF))
+#define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
+
+#define ENX_GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define ENX_GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
+
+
+  enx_reg_w(VBR)=0;
+	
+  enx_reg_h(VCR)=0x040|(1<<13);
+  enx_reg_h(BALP)=0x7F7F;
+  enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
+  enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+  enx_reg_h(VAS)=par->pal?63:58;
+
+	val=0;
+	if (par->lowres)
+		val|=1<<31;
+
+	if (!par->pal)
+		val|=1<<30;                         // NTSC square filter. TODO: do we need this?
+
+	if (!par->interlaced)
+		val|=1<<29;
+
+	val|=1<<28;
+
+  val|=1<<26;                           // chroma filter. evtl. average oder decimate, bei text
+  		// TCR noch setzen!
+  switch (par->bpp)
+  {
+	case 4:
+		val|=2<<20; break;
+	case 8:
+		val|=6<<20; break;
+	case 16:
+		val|=3<<20; break;
+	case 32:
+		val|=7<<20; break;
+  }
+	
+  val|=par->stride;
+
+	enx_reg_h(P1VPSA)=0;
+	enx_reg_h(P2VPSA)=0;
+	enx_reg_h(P1VPSO)=0;
+	enx_reg_h(P2VPSO)=0;
+	enx_reg_h(VMCR)=0;
+	enx_reg_h(G1CFR)=1;
+	enx_reg_h(G2CFR)=1;
+		
+	enx_reg_w(GMR1)=val;
+	enx_reg_w(GMR2)=0;
+	printk("GMR1: %08x\n", val);
+  enx_reg_h(GBLEV1)=0x0000;
+  enx_reg_h(GBLEV2)=0;
+//JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
+	enx_reg_w(GVSA1)= fb_info.offset; 	// dram start address
+	enx_reg_h(GVP1)=0;
+
+  ENX_GVP_SET_COORD(70,43);                 // TODO: NTSC?
+  for (val=0; val<576; val++)
+  {
+  	int x;
+	  for (x=0; x<720; x++)
+	  {
+	  	((__u16*)gtxmem)[val*720+x]=0x7FFF;
+	  }
+  }
+
+                                        // DEBUG: TODO: das ist nen kleiner hack hier.
+/*  if (lowres)
+    ENX_GVS_SET_XSZ(xres);
+  else
+    ENX_GVS_SET_XSZ(xres*2);*/
+
+  ENX_GVS_SET_XSZ(720);
+  ENX_GVS_SET_YSZ(576);
+
+/*  if (interlaced)
+    ENX_GVS_SET_YSZ(yres);
+  else
+    ENX_GVS_SET_YSZ(yres*2);*/
+    
+#endif // ENX
   
   current_par = *par;
   current_par_valid=1;
-  
 }
 
 
 static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
                 u_int *transp, struct fb_info *info)
 {
-
-  if (regno > 255)
+  u16 val;
+  if (regno>255)
     return 1;
+    
+#ifdef GTX
+    
+  rh(CLTA)=regno;
+  mb();
+  // ARRR RRGG GGGB BBBB
+  // 8000 i
+  // 7c00 r
+  // 03e0 g
+  // 001F b
+  val=rh(CLTD);
+  *red=((val&0x7C00)>>10)<<19;
+  *green=((val&0x3E0)>>5)<<19;
+  *blue=(val&0x1F)       <<19;
+  *transp=(val&0x8000)>>15;
+  
+#endif
 
-  fb_info.gtp_dev.fb_clut_get(regno, red, green, blue, transp);
+#ifdef ENX
+
+  enx_reg_h(CLUTA)=regno;
+  mb();
+  val=enx_reg_h(CLUTD);
+
+  if (transp)    
+    *transp = ((val & 0xFF000000) >> 24);
+
+  if (red)
+    *red = ((val & 0x00FF0000) >> 16);
+    
+  if (green)    
+    *green = ((val & 0x0000FF00) >> 8);
+    
+  if (blue)    
+    *blue = (val & 0x000000FF);
+
+#endif  
   
   return 0;
-  
 }
 
 static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
                 u_int transp, struct fb_info *info)
 {
-
   if (regno>255)
     return 0;
   
@@ -328,16 +554,28 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   green>>=11;
   blue>>=11;
   transp=!!transp;
-  
-  fb_info.gtp_dev.fb_clut_set(regno, red, green, blue, transp);
 
+#ifdef GTX
+  
+  rh(CLTA)=regno;
+  mb();
+  rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
+  
+#endif // GTX
+
+#ifdef ENX
+
+  enx_reg_h(CLUTA) = regno;
+  mb();
+  enx_reg_w(CLUTD) = ((transp << 24) | (red << 16) | (green << 8) | (blue));
+
+#endif // ENX
+  
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
     fbcon_cfb16_cmap[regno]=(transp<<15)|(red<<10)|(green<<5)|(blue);
 #endif
-
   return 0;
-  
 }
 
 static int gtx_blank(int blank, struct fb_info_gen *info)
@@ -349,9 +587,9 @@ static int gtx_blank(int blank, struct fb_info_gen *info)
 static void gtx_set_disp(const void *fb_par, struct display *disp,
                          struct fb_info_gen *info)
 {
-  struct gtp_fb_par *par=(struct gtp_fb_par *)fb_par;
+  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
    
-  disp->screen_base=(char*)fb_info.gtp_dev.fb_mem_lin;
+  disp->screen_base=(char*)fb_info.videobase;
   switch (par->bpp)
   {
 #if 1
@@ -407,10 +645,31 @@ static struct fb_ops gtxfb_ops = {
      *  Initialization
      */
 
-int gtp_attach(sGtpDev *gtp_dev)
+int __init gtxfb_init(void)
 {
+#ifdef GTX
+  gtxmem=gtx_get_mem();
+  gtxreg=gtx_get_reg();
 
-  memcpy(&fb_info.gtp_dev, gtp_dev, sizeof(sGtpDev));
+  fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
+//  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
+
+  fb_info.offset=1*1024*1024;
+  fb_info.videobase=gtxmem+fb_info.offset;
+  fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
+#endif  
+
+#ifdef ENX
+  gtxmem=enx_get_mem_addr();
+  gtxreg=enx_get_reg_addr();
+
+  fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
+//  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
+
+  fb_info.offset=ENX_FB_OFFSET;
+  fb_info.videobase=gtxmem+fb_info.offset;
+  fb_info.pvideobase=ENX_MEM_BASE+fb_info.offset;
+#endif
 
   fb_info.gen.info.node = -1;
   fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -421,11 +680,11 @@ int gtp_attach(sGtpDev *gtp_dev)
   fb_info.gen.info.updatevar = &fbgen_update_var;
   fb_info.gen.info.blank = &fbgen_blank;
   strcpy(fb_info.gen.info.fontname, default_fontname);
-  fb_info.gen.parsize=sizeof(struct gtp_fb_par);
+  fb_info.gen.parsize=sizeof(struct gtxfb_par);
   fb_info.gen.fbhw=&gtx_switch;
   fb_info.gen.fbhw->detect();
 
-  strcpy(fb_info.gen.info.modename, "GTP Framebuffer");
+  strcpy(fb_info.gen.info.modename, "AViA eNX/GTX Framebuffer");
 
   fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
   disp.var.activate = FB_ACTIVATE_NOW;
@@ -439,44 +698,27 @@ int gtp_attach(sGtpDev *gtp_dev)
   printk(KERN_INFO "fb%d: %s frame buffer device\n", 
          GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
-
-// Ummm .... :-?
-
-//#ifdef MODULE
-//  atomic_set(&THIS_MODULE->uc.usecount, 1);
-//#endif
-
+#ifdef MODULE
+  atomic_set(&THIS_MODULE->uc.usecount, 1);
+#endif
   return 0;
 }
 
-void gtp_detach(sGtpDev *gtp_dev)
+void gtxfb_close(void)
 {
   unregister_framebuffer((struct fb_info*)&fb_info);
 }
-
-sGtpFb gtp_fb;
-int gtp_fb_nr;
 
 #ifdef MODULE
 
 int init_module(void)
 {
-
-  gtp_fb.name = "GTP Generic Framebuffer";
-  gtp_fb.attach = gtp_attach;
-  gtp_fb.detach = gtp_detach;
-
-  gtp_fb_nr = gtp_fb_register(&gtp_fb);
-
-  return (gtp_fb_nr <= 0);
-  
+  return gtxfb_init();
 }
-
 void cleanup_module(void)
 {
-
-  gtp_fb_release(gtp_fb_nr);
-
+  gtxfb_close();
 }
+EXPORT_SYMBOL(cleanup_module);
 
 #endif

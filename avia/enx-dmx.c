@@ -1,2 +1,2 @@
 #define ENX
-#include "gtx-dmx.c"
+#include "gen-dmx.c"
