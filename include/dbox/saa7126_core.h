@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.11  2002/08/12 17:08:44  wjoost
+ *   SAA_WSS_OFF hinzugefügt
+ *
  *   Revision 1.10  2002/08/04 12:14:21  wjoost
  *   wide screen signaling
  *
@@ -55,7 +58,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -95,6 +98,7 @@
 #define SAA_WSS_GT169C	5	/* box > 16:9 center */
 #define SAA_WSS_43_149C	6	/* full format 4:3 with 14:9 center letterbox content */
 #define SAA_WSS_169F	7	/* full format 16:9 (anamorphic) */
+#define SAA_WSS_OFF		8	/* no wide screen signaling */
 
 // TODO: fix this table
 

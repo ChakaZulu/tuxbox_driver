@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.24  2002/08/12 17:08:44  wjoost
+ *   SAA_WSS_OFF hinzugefügt
+ *
  *   Revision 1.23  2002/08/04 12:14:21  wjoost
  *   wide screen signaling
  *
@@ -87,7 +90,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -775,7 +778,7 @@ static int saa7126_wss_get(void)
 		}
 	}
 
-	return -EINVAL;
+	return SAA_WSS_OFF;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -783,6 +786,11 @@ static int saa7126_wss_get(void)
 static int saa7126_wss_set(int i)
 {
 	u8 b[3];
+
+	if (i == SAA_WSS_OFF) {
+		saa7126_sendcmd(&client_template,0x27,0x00);
+		return 0;
+	}
 
 	if (i > 7)
 	{
