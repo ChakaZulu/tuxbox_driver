@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia.c,v $
+ *   Revision 1.13  2001/02/13 23:46:30  gillem
+ *   -fix the interrupt problem (ppc i like you)
+ *
  *   Revision 1.12  2001/02/03 16:39:17  tmbinc
  *   sound fixes
  *
@@ -36,7 +39,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -232,12 +235,65 @@ static int intmask;
 
 void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
-  int status=rDR(0x2AC);
-  
-  printk("avia_interrupt %x\n", status);
-  
-  wGB(0, rGB(0)&~1);
-  wDR(0x2AC, 0); // ACK
+	u32 status=rDR(0x2AC);
+
+/* debug stuff ...
+	if(status&(1<<23))
+		printk("AVIA INTR: 23\n");
+	if(status&(1<<22))
+		printk("AVIA INTR: 22\n");
+	if(status&(1<<21))
+		printk("AVIA INTR: 21\n");
+	if(status&(1<<20))
+		printk("AVIA INTR: 20\n");
+	if(status&(1<<19))
+		printk("AVIA INTR: 19\n");
+	if(status&(1<<18))
+		printk("AVIA INTR: 18\n");
+	if(status&(1<<17))
+		printk("AVIA INTR: 17\n");
+	if(status&(1<<16))
+		printk("AVIA INTR: 16\n");
+	if(status&(1<<15))
+		printk("AVIA INTR: 15\n");
+	if(status&(1<<14))
+		printk("AVIA INTR: 14\n");
+	if(status&(1<<13))
+		printk("AVIA INTR: 13\n");
+	if(status&(1<<12))
+		printk("AVIA INTR: 12\n");
+	if(status&(1<<11))
+		printk("AVIA INTR: 11\n");
+	if(status&(1<<10))
+		printk("AVIA INTR: 10\n");
+	if(status&(1<<9))
+		printk("AVIA INTR: 9\n");
+	if(status&(1<<8))
+		printk("AVIA INTR: 8\n");
+	if(status&(1<<7))
+		printk("AVIA INTR: 7\n");
+	if(status&(1<<6))
+		printk("AVIA INTR: 6\n");
+	if(status&(1<<5))
+		printk("AVIA INTR: 5\n");
+	if(status&(1<<4))
+		printk("AVIA INTR: 4\n");
+	if(status&(1<<3))
+		printk("AVIA INTR: 3\n");
+	if(status&(1<<2))
+		printk("AVIA INTR: 2\n");
+	if(status&(1))
+		printk("AVIA INTR: 1\n");
+*/
+
+  /* ack ;-) */
+  wGB(0,  ((rGB(0) & (~1))|2));
+
+  /* clear flags */
+  wDR(0x2B4, 0);
+  wDR(0x2B8, 0);
+  wDR(0x2C4, 0);
+  wDR(0x2AC, 0);
 }
 
 u32 avia_command(u32 command, ...)
@@ -296,15 +352,55 @@ static void avia_audio_init(void);
 int init_module(void)
 {
   int pal=1, tries;
+  immap_t *immap;
+  sysconf8xx_t * sys_conf;
+
+  immap = (immap_t *)IMAP_ADDR;
+
+  if (!immap) {
+    printk("get immap failed\n");
+    return -1;
+  }
+
+  sys_conf = (sysconf8xx_t *)&immap->im_siu_conf;
+
+  if (!sys_conf) {
+    printk("get sys_conf failed\n");
+    return -1;
+  }
+
   aviamem=(unsigned char*)ioremap(0xA000000, 0x200);
-  if (!aviamem)
-  {
+
+  if (!aviamem) {
     printk("failed to remap memory.\n");
     return -1;
   }
+
+  /* check ppc ;-) */
+  if ( sys_conf->sc_siumcr && (3<<10) ) {
+	printk("change siucmr %08X, avia hate speaker ;-)\n",sys_conf->sc_siumcr);
+	cli();
+	sys_conf->sc_siumcr &= ~(3<<10);
+	sti();
+  }
+
   (void)aviamem[0];
 
   printk("AViA x00 Driver: ");
+
+  /* enable decoder2host interrupt */
+  wGB(0, rGB(0)|(1<<1));
+  wGB(0, rGB(0)&~1);
+
+  /* clear int. flags */
+  wDR(0x2B4, 0);
+  wDR(0x2B8, 0);
+  wDR(0x2C4, 0);
+  wDR(0x2AC, 0);
+
+  /* enable all interrupts (later...) */
+  wDR(0x200, 0);       // all (aber es kommt nix :)
+  // ... jetzt schon ;-)
 
   if (request_8xxirq(AVIA_INTERRUPT, avia_interrupt, 0, "avia", &dev) != 0)
     panic("Could not allocate AViA IRQ!");
@@ -393,11 +489,17 @@ int init_module(void)
   FinalGBus();
 
   // mpg_enAViAIntr aus der BN:
+  wGB(0, rGB(0)|(1<<7));  	// enable interrupts
+  wGB(0, rGB(0)&~(1<<6));
+  wGB(0, rGB(0)|(1<<1));  	// enable interrupts
+  wGB(0, rGB(0)&~1);
+
+  wDR(0x2B8, 0);
+  wDR(0x2C4, 0);
   wDR(0x2AC, 0);
-  wGB(0, rGB(0)|0x80);  // enable interrupts
-  wGB(0, (rGB(0)&~1)|2);  // enable interrupts
-                // ...
-//  wDR(0x200, 0xFFFFFFFF);       // all (aber es kommt nix :)
+               // ...
+  wDR(0x200, 0xFFFFFFFF);       // all (aber es kommt nix :)
+
   tries=20;
   
   while ((rDR(0x2A0)!=0x2))
