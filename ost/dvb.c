@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.59 2002/02/01 08:06:48 gillem Exp $
+ * $Id: dvb.c,v 1.60 2002/02/01 08:18:43 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -81,6 +81,7 @@ typedef struct dvb_struct
 #define TRICK_FAST   1
 #define TRICK_SLOW   2
 #define TRICK_FREEZE 3
+        struct audioStatus      audiostate;
 
         /* Recording and playback flags */
 
@@ -1185,33 +1186,115 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_AUDIO:
 		{
+	                if (((file->f_flags&O_ACCMODE)==O_RDONLY) &&
+        	            (cmd!=AUDIO_GET_STATUS))
+                	        return -EPERM;
+
 			switch (cmd)
 			{
+				case AUDIO_STOP:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_PLAY:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_PAUSE:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_CONTINUE:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SELECT_SOURCE:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SET_MUTE:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SET_AV_SYNC:
+				{
+					return -ENOTSUPP;
+				}
 			        case AUDIO_SET_BYPASS_MODE:
-				    
-				    switch(arg)
-				    {
-					case 1:	
-					    printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
-					    avia_command(SelectStream,2,0x1FFF);
-					    avia_command(SelectStream,3,0);
-					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
-					    wDR(0x468,0xFFFF);
-					    
-					    break;
-					case 0:
-					    printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
-					    avia_command(SelectStream,3,0x1FFF);
-					    avia_command(SelectStream,2,0);
-					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
-					    wDR(0x468,0xFFFF);
-					    
-					    break;
-				    }
-				    break;	
+				{
+					switch(arg)
+					{
+						case 1:	
+							printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
+							avia_command(SelectStream,2,0x1FFF);
+							avia_command(SelectStream,3,0);
+							wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
+							wDR(0x468,0xFFFF);
+							break;
+
+						case 0:
+							printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
+							avia_command(SelectStream,3,0x1FFF);
+							avia_command(SelectStream,2,0);
+							wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
+							wDR(0x468,0xFFFF);
+							break;
+
+						default:
+							return -ENOTSUPP;
+					}
+				}
+				case AUDIO_CHANNEL_SELECT:
+				{
+					dvb->audiostate.channelSelect=(audioChannelSelect_t) arg;
+
+					switch(dvb->audiostate.channelSelect) {
+						case AUDIO_STEREO:
+							break;
+
+						case AUDIO_MONO_LEFT:
+							break;
+
+						case AUDIO_MONO_RIGHT:
+							break;
+
+						default:
+							return -EINVAL;
+					}
+				}
+				case AUDIO_GET_STATUS:
+				{
+					if(copy_to_user(parg, &dvb->audiostate,
+						sizeof(struct audioStatus)))
+						return -EFAULT;
+					break;
+				}
+				case AUDIO_GET_CAPABILITIES:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_CLEAR_BUFFER:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SET_ID:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SET_MIXER:
+				{
+					return -ENOTSUPP;
+				}
+				case AUDIO_SET_STREAMTYPE:
+				{
+					return -ENOTSUPP;
+				}
 				default:
+				{
 					return -ENOIOCTLCMD;
-			}
+				}
+                        }
+
 			return 0;
 		}
 		case DVB_DEVICE_FRONTEND:
