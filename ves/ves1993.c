@@ -21,7 +21,7 @@
 
 
 #include <linux/module.h>
-//#include <linux/delay.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <asm/io.h>
@@ -35,6 +35,9 @@
 MODULE_PARM(debug,"i");
 #endif
 
+static struct i2c_driver dvbt_driver;
+static struct i2c_client client_template, *dclient;
+
 static void ves_write_reg(int reg, int val);
 static void ves_init(void);
 static void ves_set_frontend(struct frontend *front);
@@ -45,9 +48,6 @@ static int mitel_set_freq(int freq);
 static int ves_set_sec(int power,int tone);
 static int ves_get_unc_packet(u32 *uncp);
 static int ves_send_diseqc(u8 *cmd, unsigned int len);
-//static int fp_set_sec(void);
-//static int fp_sec_status(void);
-
 
 struct demod_function_struct ves1993={
 		write_reg:		ves_write_reg, 
@@ -170,7 +170,7 @@ static int tuner_init(void)
 		return -EBUSY;
 	}
 	ves_write_reg(0x00,0x01);  //disable tuner access on ves1993
-	//mitel_set_freq(1198000000);
+	mitel_set_freq(2099000000);
 	
 	return 0;
 }
@@ -206,11 +206,10 @@ int set_tuner_dword(u32 tw)
 
 }
 
-static int mitel_set_freq(int freq)		/* NOT SURE */
+static int mitel_set_freq(int freq)		
 {
-
-	u8 buffer[4]={0x25,0x70,0x92,0x40}; //95
-
+	u8 buffer[4]={0x25,0x70,0x92,0x40}; 
+		
 	dprintk("SET:%x\n",freq);
 	freq/=125000*8;
 	
@@ -225,8 +224,6 @@ static int mitel_set_freq(int freq)		/* NOT SURE */
 
 //----------------------------------------------------------------------------
 
-static struct i2c_driver dvbt_driver;
-static struct i2c_client client_template, *dclient;
 
 static u8 Init1993Tab[] =
 {
@@ -276,64 +273,59 @@ static int ves_get_unc_packet(u32 *uncp)
 
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
-        struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[] = {0x00, 0x1e};
-        unsigned char mm2[] = {0x00};
-        struct i2c_msg msgs[2];
+	struct i2c_adapter *adap=client->adapter;
+	unsigned char mm1[] = {0x00, 0x1e};
+	unsigned char mm2[] = {0x00};
+	struct i2c_msg msgs[2];
         
-        msgs[0].flags=0;
-        msgs[1].flags=I2C_M_RD;
-        msgs[0].addr=msgs[1].addr=client->addr;
-        mm1[1]=reg;
-        msgs[0].len=2; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
+	msgs[0].flags=0;
+	msgs[1].flags=I2C_M_RD;
+	msgs[0].addr=msgs[1].addr=client->addr;
+	mm1[1]=reg;
+	msgs[0].len=2; msgs[1].len=1;
+	msgs[0].buf=mm1; msgs[1].buf=mm2;
 	i2c_transfer(adap, msgs, 2);
         
-        return mm2[0];
+	return mm2[0];
 }
 
 
 static int dump(struct i2c_client *client)
 {
-        int i;
+	int i;
         
-        printk("ves1993: DUMP\n");
+	printk("ves1993: DUMP\n");
         
-        for (i=0; i<54; i++) 
-        {
-                dprintk("%02x ", readreg(client, i));
-                if ((i&7)==7)
-                        dprintk("\n");
-        }
-        dprintk("\n");
-        return 0;
+	for (i=0; i<0x3c; i++) 
+		printk("%02x - %02x \n", i,readreg(client, i));
+    
+	printk("\n");
+	return 0;
 }
 
 static int ves_set_sec(int power, int tone){
      
-     dprintk("VES1993: Set SEC\n"); 
-     
-     fp_sagem_set_SECpower(power);
+	dprintk("VES1993: Set SEC\n"); 
+	fp_sagem_set_SECpower(power);
 
-     return 0;
+	return 0;
 }
 static int init(struct i2c_client *client)
 {
-        struct ves1993 *ves=(struct ves1993 *) client->data;
+	struct ves1993 *ves=(struct ves1993 *) client->data;
 	int i;
 	        
-        dprintk("ves1993: init chip\n");
+	dprintk("ves1993: init chip\n");
 
-        if (writereg(client, 0, 0)<0)
-                dprintk("ves1993: send error\n");
+	if (writereg(client, 0, 0)<0)
+		dprintk("ves1993: send error\n");
 		
 	//Init fuer VES1993
 	writereg(client,0x3a, 0x0c);	
 
-        for (i=0; i<0x3d; i++)
-                if (Init1993WTab[i])
-        	    writereg(client, i, Init1993Tab[i]);
-		    
+	for (i=0; i<0x3d; i++)
+		if (Init1993WTab[i])
+		writereg(client, i, Init1993Tab[i]);
 		    
 	writereg(client,0x3a, 0x0e);
 	writereg(client,0x21, 0x81);
@@ -347,13 +339,12 @@ static int init(struct i2c_client *client)
 	writereg(client,0x00, 0x01);
 	writereg(client,0x0d, 0x0a);
 	    
-		    
-        ves->ctr=Init1993Tab[0x1f];
-        ves->srate=0;
-        ves->fec=9;
-        ves->inv=0;
+	ves->ctr=Init1993Tab[0x1f];
+	ves->srate=0;
+	ves->fec=9;
+	ves->inv=0;
 	
-        return 0;
+	return 0;
 }
 
 static inline void ddelay(int i) 
@@ -365,40 +356,38 @@ static inline void ddelay(int i)
 static void ClrBit1893(struct i2c_client *client)
 {
         dprintk("VES_clrbit1893\n");
-        //ddelay(2);
         writereg(client, 0, 0);
         writereg(client, 0, 1);
 }
 
 static int SetFEC(struct i2c_client *client, u8 fec)
 {
-        struct ves1993 *ves=(struct ves1993 *) client->data;
+	struct ves1993 *ves=(struct ves1993 *) client->data;
         
-        if (fec>=8) 
-                fec=8;
-        if (ves->fec==fec)
-                return 0;
-        ves->fec=fec;
-	//return writereg(client, 0x0d, ves->fec);
-	return writereg(client, 0x0d, 0x08);
-	 
+	if (fec>=8) 
+		fec=8;
+	if (ves->fec==fec)
+		return 0;
+	ves->fec=fec;
+	return writereg(client, 0x0d, 8);
 }
 
 static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 {
-        struct ves1993 *ves=(struct ves1993 *) client->data;
-        u32 BDR;
-        u32 ratio;
-  	u8  ADCONF, FCONF, FNR;
+	struct ves1993 *ves=(struct ves1993 *) client->data;
+	u32 BDR;
+	u32 ratio;
+	u8  ADCONF, FCONF, FNR;
 	u32 BDRI;
 	u32 tmp;
         
-        if (ves->srate==srate) {
-                if (doclr)
-                        ClrBit1893(client);
-                return 0;
-        }
-        dprintk("VES_setsymbolrate %d\n", srate);
+	if (ves->srate==srate) 
+	{
+		if (doclr)
+			ClrBit1893(client);
+		return 0;
+	}
+	dprintk("VES_setsymbolrate %d\n", srate);
 
 #define XIN (92160000UL) // 3des sagem dbox Crystal ist 92,16 MHz !!
 
@@ -454,24 +443,23 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	if (BDRI > 0xFF)
 	        BDRI = 0xFF;
 
-        writereg(client, 6, 0xff&BDR);
-	writereg(client, 7, 0xff&(BDR>>8));
-	writereg(client, 8, 0x0f&(BDR>>16));
-
-	writereg(client, 9, BDRI);
 	writereg(client, 0x20, ADCONF);
 	writereg(client, 0x21, FCONF);
 
-        if (srate<6000000) 
-                writereg(client, 5, Init1993Tab[0x05] | 0x80);
-        else
-                writereg(client, 5, Init1993Tab[0x05] & 0x7f);
+	if (srate<6000000) 
+		writereg(client, 5, Init1993Tab[0x05] | 0x80);
+	else
+		writereg(client, 5, Init1993Tab[0x05] & 0x7f);
 
-	//writereg(client, 0, 0);
-	//writereg(client, 0, 1);
+	ves_write_reg(0x00,0x00);
+  writereg(client, 6, 0xff&BDR);
+	writereg(client, 7, 0xff&(BDR>>8));
+	writereg(client, 8, 0x0f&(BDR>>16));
+  writereg(client, 9, BDRI);
+	ves_write_reg(0x20,0x81);
+	ves_write_reg(0x21,0x80);
+	ves_write_reg(0x00,0x01);
 
-	if (doclr)
-	  ClrBit1893(client);
 	return 0;
 }
 
@@ -481,11 +469,6 @@ static int attach_adapter(struct i2c_adapter *adap)
         struct i2c_client *client;
         
         client_template.adapter=adap;
-
-// siehe ves1820.c ... TODO: check ...
-//        if (i2c_master_send(&client_template,NULL,0))
-//                return -1;
-        
         client_template.adapter=adap;
         
         dprintk("readreg\n");
@@ -548,6 +531,11 @@ void ves_reset(void)
 
 void ves_set_frontend(struct frontend *front)
 {
+	int afc=0,agc=0,snr=0,sync=0;
+	unsigned int i;
+	u32 a;
+	u32 sr;
+	
   struct ves1993 *ves=(struct ves1993 *) dclient->data;
   if (ves->inv!=front->inv)
   {
@@ -558,6 +546,7 @@ void ves_set_frontend(struct frontend *front)
   SetFEC(dclient, front->fec);              
   SetSymbolrate(dclient, front->srate, 1);
   dprintk("sync: %x\n", readreg(dclient, 0x0E));
+
 }
 
 void ves_get_frontend(struct frontend *front)
@@ -616,7 +605,7 @@ static struct i2c_client client_template = {
 
 int ves_send_diseqc(u8 *cmd, unsigned int len)
 {
-        //return fp_send_diseqc(2,cmd,len);
+  //return fp_send_diseqc(2,cmd,len);
 	return 0;
 }
 
@@ -624,64 +613,37 @@ int ves_send_diseqc(u8 *cmd, unsigned int len)
 
 #ifdef MODULE
 int init_module(void) {
-        int res;
+	int res;
         	
-        if ((res = i2c_add_driver(&dvbt_driver))) 
-        {
-                printk("ves1993: Driver registration failed, module not inserted.\n");
-                return res;
-        }
-        if (!dclient)
-        {
-                printk("ves1993: not found.\n");
-                i2c_del_driver(&dvbt_driver);
-                return -EBUSY;
-        }
+	if ((res = i2c_add_driver(&dvbt_driver))) 
+	{
+		printk("ves1993: Driver registration failed, module not inserted.\n");
+		return res;
+	}
+	if (!dclient)
+	{
+		printk("ves1993: not found.\n");
+		i2c_del_driver(&dvbt_driver);
+		return -EBUSY;
+	}
         
-        dprintk("ves1993: init_module\n");
-		
-	
-	ves_write_reg(0x3A,0x0E);
-	ves_write_reg(0x21,0x00);
-//	ves_write_reg(0x00,0x00);
-	ves_write_reg(0x06,0x72);
-	ves_write_reg(0x07,0x8C);
-	ves_write_reg(0x08,0x09);
-	ves_write_reg(0x09,0x6B);
-	ves_write_reg(0x20,0x81);
-	ves_write_reg(0x21,0x80);
-//	ves_write_reg(0x00,0x01);
-	ves_write_reg(0x0D,0x0A);
-	ves_write_reg(0x05,0xAB); 
-	ves_write_reg(0x00,0x00);
-	ves_write_reg(0x00,0x01);
+	dprintk("ves1993: init_module\n");
 
 	tuner_init();
+	ves_set_sec(2,0);                    //switch to highband
 	
-	ves_set_sec(3,0);                    //switch to highband
-
-        //mitel_set_freq(1198000000);          
-		
-        //SetSymbolrate(dclient, 27500000 , 1);
-	//SetFEC(dclient,2);
-
-	
-        return 0;
+	return 0;
 }
 
 void cleanup_module(void)
 {
-        int res;
+	int res;
         
-        if ((res = i2c_del_driver(&dvbt_driver))) 
-        {
-                printk("dvb-tuner: Driver deregistration failed, "
-                       "module not removed.\n");
-        }
-        dprintk("ves1993: cleanup\n");
-	
+	if ((res = i2c_del_driver(&dvbt_driver))) 
+	{
+		printk("dvb-tuner: Driver deregistration failed, module not removed.\n");
+	}
+	dprintk("ves1993: cleanup\n");
 	tuner_close();
-	
-	
 }
 #endif
