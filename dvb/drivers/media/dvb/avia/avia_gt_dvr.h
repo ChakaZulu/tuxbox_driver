@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dvr.h,v 1.1 2003/04/12 10:57:11 alexw Exp $
+ * $Id: avia_gt_dvr.h,v 1.2 2003/04/12 11:08:50 alexw Exp $
  *
  * (C) 2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -28,6 +28,6 @@ void avia_gt_dvr_enable(void);
 void avia_gt_dvr_disable(void);
 
 extern int avia_gt_dvr_module_init(void);
-extern void avia_gt_accel_exit(void);
+extern void avia_gt_dvr_module_exit(void);
 	    
 #endif
