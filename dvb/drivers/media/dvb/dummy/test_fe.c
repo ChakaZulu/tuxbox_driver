@@ -14,6 +14,37 @@
 
 #define FRONT "/dev/dvb/adapter0/frontend0"
 
+int FEDumpParameters(int fd, struct dvb_frontend_parameters *parameters);
+int FEDumpStatus(fe_status_t *stat);
+
+int FEGetEvent(int fd)
+{
+
+	struct dvb_frontend_event event;
+	int result; 
+	
+	if ((result = ioctl(fd, FE_GET_EVENT, &event) < 0)) { 
+
+		perror("FE_GET_EVENT");
+		
+		return result;
+		
+	} 
+
+	printf("FE Event Status:");
+	
+	FEDumpStatus(&event.status);
+	
+	printf("\n");
+
+	printf("FE Event Parameters:\n");
+
+	FEDumpParameters(fd, &event.parameters);
+
+	return 0;
+
+}
+
 int FEGetInfo(int fd, struct dvb_frontend_info *info)
 {
 
@@ -92,6 +123,54 @@ int FEDumpInfo(struct dvb_frontend_info *info)
 
 }
 
+int FEDumpParameters(int fd, struct dvb_frontend_parameters *parameters)
+{
+
+	struct dvb_frontend_info info;
+	int result; 
+
+	if (!parameters)
+		return -EINVAL;
+
+	if ((result = FEGetInfo(fd, &info)) < 0)
+		return result;
+
+	printf("   frequency: %d\n", parameters->frequency);
+	printf("   inversion: %d\n", parameters->inversion);
+
+	if (info.type == FE_QAM) {
+
+		printf("   u.qam.symbol_rate: %d\n", parameters->u.qam.symbol_rate);
+		printf("   u.qam.fec_inner: %d\n", parameters->u.qam.fec_inner);
+		printf("   u.qam.modulation: %d\n", parameters->u.qam.modulation);
+
+	} else if (info.type == FE_QPSK) {
+
+		printf("   u.qpsk.symbol_rate: %d\n", parameters->u.qpsk.symbol_rate);
+		printf("   u.qpsk.fec_inner: %d\n", parameters->u.qpsk.fec_inner);
+
+	} else if (info.type == FE_OFDM) {
+
+		printf("   u.ofdm.bandwidth: %d\n", parameters->u.ofdm.bandwidth);
+		printf("   u.ofdm.code_rate_HP: %d\n", parameters->u.ofdm.code_rate_HP);
+		printf("   u.ofdm.code_rate_HP: %d\n", parameters->u.ofdm.code_rate_LP);
+		printf("   u.ofdm.constellation: %d\n", parameters->u.ofdm.constellation);
+		printf("   u.ofdm.transmission_mode: %d\n", parameters->u.ofdm.transmission_mode);
+		printf("   u.ofdm.guard_interval: %d\n", parameters->u.ofdm.guard_interval);
+		printf("   u.ofdm.hierarchy_information: %d\n", parameters->u.ofdm.hierarchy_information);
+		
+	} else {
+
+		printf("   invalid info.type\n");
+		
+		return -1;
+
+	}
+
+	return 0;
+	
+}
+
 int FEDumpSignalStrength(int fd)
 { 
 
@@ -132,11 +211,62 @@ int FEDumpSNR(int fd)
 		
 }
 
-int FEDumpStatus(int fd)
+int FEDumpStatus(fe_status_t *stat)
 { 
 
-	fe_status_t stat;
+	if ((*stat) & FE_HAS_SIGNAL)
+		printf(" FE_HAS_SIGNAL");
+
+	if ((*stat) & FE_HAS_VITERBI)
+		printf(" FE_HAS_VITERBI");
+
+	if ((*stat) & FE_HAS_SYNC)
+		printf(" FE_HAS_SYNC");
+
+	if ((*stat) & FE_HAS_CARRIER)
+		printf(" FE_HAS_CARRIER");
+
+	if ((*stat) & FE_HAS_LOCK)
+		printf(" FE_HAS_LOCK");
+		
+	if ((*stat) & FE_TIMEDOUT)
+		printf(" FE_TIMEDOUT");
+		
+	if ((*stat) & FE_REINIT)
+		printf(" FE_REINIT");
+		
+	return 0;
+	
+}
+
+int FEGetFrontend(int fd)
+{
+
+	struct dvb_frontend_info info;
+	struct dvb_frontend_parameters parameters;
 	int result; 
+
+	if ((result = ioctl(fd, FE_GET_FRONTEND, &parameters)) < 0) { 
+
+		perror("FE_GET_FRONTEND");
+		
+		return result;
+		
+	} 
+
+	printf("FE Parameters:\n");
+
+	FEDumpParameters(fd, &parameters);
+
+	return 0;
+	
+}
+
+int FEGetStatus(int fd)
+{ 
+
+	int result; 
+	fe_status_t stat;
 	
 	if ((result = ioctl(fd, FE_READ_STATUS, &stat) < 0)) { 
 
@@ -148,23 +278,10 @@ int FEDumpStatus(int fd)
 	
 	printf("FE Status:");
 	
-	if (stat & FE_HAS_SIGNAL)
-		printf(" FE_HAS_SIGNAL");
+	FEDumpStatus(&stat);
 
-	if (stat & FE_HAS_VITERBI)
-		printf(" FE_HAS_VITERBI");
-
-	if (stat & FE_HAS_SYNC)
-		printf(" FE_HAS_SYNC");
-
-	if (stat & FE_HAS_CARRIER)
-		printf(" FE_HAS_CARRIER");
-
-	if (stat & FE_HAS_LOCK)
-		printf(" FE_HAS_LOCK");
-		
 	printf("\n");
-		
+	
 	return 0;
 	
 }
@@ -240,11 +357,12 @@ int main (void)
 
 	FEGetInfo(fe_fd, &fe_info);
 	FEDumpInfo(&fe_info);
-	FEDumpStatus(fe_fd);
+	FEGetStatus(fe_fd);
 	
 	if (fe_info.type == FE_QAM) {
 
 		fe_param.frequency = 394000000;
+		fe_param.frequency = 458000000;
 		fe_param.inversion = INVERSION_OFF;
 		fe_param.u.qam.symbol_rate = 6900000;
 		fe_param.u.qam.fec_inner = FEC_AUTO;
@@ -281,12 +399,14 @@ int main (void)
 		return -1;
 
 	}
-		
 	
 	FESetFrontend(fe_fd, &fe_param);
 	FEDumpBER(fe_fd);
 	FEDumpSNR(fe_fd);
 	FEDumpSignalStrength(fe_fd);
+	FEGetFrontend(fe_fd);
+	FEGetStatus(fe_fd);
+	FEGetEvent(fe_fd);
 
 	close(fe_fd);
 
