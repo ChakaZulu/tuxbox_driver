@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.4  2003/01/01 22:44:41  Jolt
+ *   Typo
+ *
  *   Revision 1.3  2002/12/31 21:24:55  obi
  *   mid is stored in the bmon area, not in the dallas chip
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -87,7 +90,7 @@ static int read_manufacturer_id(void)
 		manufacturer = TUXBOX_MANUFACTURER_PHILIPS;
 		break;
 	default:
-		manufacturer = TUXBOX_MANUFACTURER_UNKOWN;
+		manufacturer = TUXBOX_MANUFACTURER_UNKNOWN;
 		break;
 	}
 
