@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.13  2002/03/06 09:02:44  gillem
+ *   - fix output
+ *
  *   Revision 1.12  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
@@ -75,7 +78,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -718,86 +721,88 @@ static struct fb_ops gtxfb_ops = {
         fb_set_cmap:    fbgen_set_cmap,
 };
 
-    /*
-     *  Initialization
-     */
-
+/*
+ *  Initialization
+ */
 int __init gtxfb_init(void)
 {
 #ifdef GTX
-  gtxmem=gtx_get_mem();
-  gtxreg=gtx_get_reg();
+	gtxmem=gtx_get_mem();
+	gtxreg=gtx_get_reg();
 
-  fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
-//  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
-
-  fb_info.offset=1*1024*1024;
-  fb_info.videobase=gtxmem+fb_info.offset;
-  fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
+	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
+	fb_info.offset=1*1024*1024;
+	fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
 #endif
 
 #ifdef ENX
-  gtxmem=enx_get_mem_addr();
-  gtxreg=enx_get_reg_addr();
+	gtxmem=enx_get_mem_addr();
+	gtxreg=enx_get_reg_addr();
 
-  fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
-//  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
-
-  fb_info.offset=ENX_FB_OFFSET;
-  fb_info.videobase=gtxmem+fb_info.offset;
-  fb_info.pvideobase=ENX_MEM_BASE+fb_info.offset;
+	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
+	fb_info.offset=ENX_FB_OFFSET;
+	fb_info.pvideobase=ENX_MEM_BASE+fb_info.offset;
 #endif
 
-  fb_info.gen.info.node = -1;
-  fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
-  fb_info.gen.info.fbops = &gtxfb_ops;
-  fb_info.gen.info.disp = &disp;
-  fb_info.gen.info.changevar = NULL;
-  fb_info.gen.info.switch_con = &fbgen_switch;
-  fb_info.gen.info.updatevar = &fbgen_update_var;
-  fb_info.gen.info.blank = &fbgen_blank;
-  strcpy(fb_info.gen.info.fontname, default_fontname);
-  fb_info.gen.parsize=sizeof(struct gtxfb_par);
-  fb_info.gen.fbhw=&gtx_switch;
-  fb_info.gen.fbhw->detect();
+	fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
+	fb_info.videobase=gtxmem+fb_info.offset;
 
-  strcpy(fb_info.gen.info.modename, "AViA eNX/GTX Framebuffer");
+	fb_info.gen.info.node = -1;
+	fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
+	fb_info.gen.info.fbops = &gtxfb_ops;
+	fb_info.gen.info.disp = &disp;
+	fb_info.gen.info.changevar = NULL;
+	fb_info.gen.info.switch_con = &fbgen_switch;
+	fb_info.gen.info.updatevar = &fbgen_update_var;
+	fb_info.gen.info.blank = &fbgen_blank;
+	strcpy(fb_info.gen.info.fontname, default_fontname);
+	fb_info.gen.parsize=sizeof(struct gtxfb_par);
+	fb_info.gen.fbhw=&gtx_switch;
+	fb_info.gen.fbhw->detect();
 
-  fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
-  disp.var.activate = FB_ACTIVATE_NOW;
-  fbgen_do_set_var(&disp.var, 1, &fb_info.gen);
-  fbgen_set_disp(-1, &fb_info.gen);
-  fbgen_install_cmap(0, &fb_info.gen);
+	strcpy(fb_info.gen.info.modename, "AViA eNX/GTX Framebuffer");
 
-  if (register_framebuffer(&fb_info.gen.info) < 0)
-    return -EINVAL;
+	fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
+	disp.var.activate = FB_ACTIVATE_NOW;
+	fbgen_do_set_var(&disp.var, 1, &fb_info.gen);
+	fbgen_set_disp(-1, &fb_info.gen);
+	fbgen_install_cmap(0, &fb_info.gen);
 
-  printk(KERN_INFO "fb%d: %s frame buffer device\n", 
-         GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
+	if (register_framebuffer(&fb_info.gen.info) < 0)
+	{
+		return -EINVAL;
+	}
+
+	printk(KERN_INFO "fb%d: %s frame buffer device\n",
+		GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
 #ifdef MODULE
-  atomic_set(&THIS_MODULE->uc.usecount, 1);
+	atomic_set(&THIS_MODULE->uc.usecount, 1);
 #endif
-  return 0;
+	return 0;
 }
 
 void gtxfb_close(void)
 {
-  unregister_framebuffer((struct fb_info*)&fb_info);
+	printk(KERN_INFO "Framebuffer: cleanup frame buffer device\n" );
+
+	unregister_framebuffer((struct fb_info*)&fb_info);
+}
+
+int __init fb_init(void)
+{
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.13 2002/03/06 09:02:44 gillem Exp $\n");
+
+	return gtxfb_init();
+}
+
+static void __exit fb_cleanup(void)
+{
+	gtxfb_close();
 }
 
 #ifdef MODULE
-
-int init_module(void)
-{
-  dprintk("Framebuffer: $Id: gen-fb.c,v 1.12 2001/12/01 06:37:06 gillem Exp $\n");
-  return gtxfb_init();
-}
-void cleanup_module(void)
-{
-  gtxfb_close();
-}
-EXPORT_SYMBOL(cleanup_module);
-
+module_init(fb_init);
+//EXPORT_SYMBOL(cleanup_module);
 #endif
-
+module_exit(fb_cleanup);

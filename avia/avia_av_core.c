@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.27  2002/03/06 09:01:55  gillem
+ *   - fix output
+ *
  *   Revision 1.26  2002/03/02 19:23:47  TripleDES
  *   fixes
  *
@@ -131,7 +134,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 
@@ -1423,9 +1426,9 @@ static int avia_standby( int state )
 	if(state==0)
 	{
 		if ( init_avia() )
-			printk("avia wakeup ... error\n");
+			printk("AVIA: wakeup ... error\n");
 		else
-			printk("avia wakeup ... ok\n");
+			printk("AVIA: wakeup ... ok\n");
 	}
 	else
 	{
@@ -1469,7 +1472,7 @@ init_module (void)
 {
 	int err;
 
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.26 2002/03/02 19:23:47 TripleDES Exp $\n");
+        printk ("AVIA: $Id: avia_av_core.c,v 1.27 2002/03/06 09:01:55 gillem Exp $\n");
 
 	aviamem = 0;
 
@@ -1483,12 +1486,11 @@ init_module (void)
 
 void cleanup_module(void)
 {
+	printk("AVIA: cleanup and standby\n");
+
         avia_proc_cleanup();
 
 	avia_standby(1);
-
-//	free_irq(AVIA_INTERRUPT, &dev);
-//	avia_event_cleanup();
 
 	if (aviamem)
 	{
