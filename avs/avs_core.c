@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.15  2001/07/03 19:24:09  gillem
+ *   - add stv6412
+ *
  *   Revision 1.14  2001/06/24 08:24:24  gillem
  *   - some changes in nokia ostnet scart api
  *
@@ -61,7 +64,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -417,6 +420,9 @@ static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
 		case CXA2126:
 			return cxa2126_command(client, cmd, arg );
 			break;
+		case STV6412:
+			return stv6412_command(client, cmd, arg );
+			break;
 		default:
 			return -EINVAL;
 	}
@@ -443,7 +449,8 @@ int scart_command( unsigned int cmd, void *arg )
 			}
 
 			// ??? curVol ??? i'm not sure
-			return avs_command( &client_template, AVSIOSVOL, &sVolume.curVol );
+			printk("vol: %d\n",sVolume.curVol);
+			return avs_command( &client_template, AVSIOSVOL, &((scartVolume*)arg)->curVol );
 		}
 		case SCART_VOLUME_GET:
 		{
