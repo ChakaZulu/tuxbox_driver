@@ -1,7 +1,7 @@
 /*
  * at76c651.c
  * 
- * Atmel DVB-C Frontend Driver (at76c651/dat7021)
+ * Atmel DVB-C Frontend Driver (at76c651/dat7021(tua6010xs))
  *
  * Copyright (C) 2001 fnbrd <fnbrd@gmx.de>
  *             & 2002 Andreas Oberritter <obi@linuxtv.org>
@@ -60,11 +60,13 @@ static unsigned char at76c651_proc_registered = 0;
  * Output Frequency (IF): 36 MHz
  *
  * (see http://www.atmel.com/atmel/acrobat/doc1320.pdf)
+ * 
+ * as pll is a TUA 6010 XS used 
  */
 
 static struct dvb_frontend_info at76c651_info = {
 
-	.name = "Atmel AT76C651(B) with DAT7021",
+	.name = "Atmel AT76C651(B) with DAT7021(TUA6010XS)",
 	.type = FE_QAM,
 	.frequency_min = 48250000,
 	.frequency_max = 863250000,
@@ -261,8 +263,12 @@ static int dat7021_set_tv_freq(struct dvb_i2c_bus *i2c, u32 freq)
 
 	if (freq > 394000)
 		dw += 0x4E28E85;
-	else
-		dw += 0x4E28E06;
+	else {
+		if (freq > 200000)
+			dw += 0x4E28E06;
+		else
+			dw += 0x4E28E03;
+	}
 
 	return dat7021_write(i2c, dw);
 
@@ -581,11 +587,11 @@ static int at76c651_attach(struct dvb_i2c_bus *i2c, void **data)
 	if (at76c651_revision == 0x10)
 	{
 		dprintk("AT76C651A found\n");
-		strcpy(at76c651_info.name,"Atmel AT76C651A with DAT7021");
+		strcpy(at76c651_info.name,"Atmel AT76C651A with DAT7021(TUA6010XS)");
 	}
 	else
 	{
-		strcpy(at76c651_info.name,"Atmel AT76C651B with DAT7021");
+		strcpy(at76c651_info.name,"Atmel AT76C651B with DAT7021(TUA6010XS)");
 		dprintk("AT76C651B found\n");
 	}
 
@@ -628,7 +634,7 @@ static void __exit at76c651_exit(void)
 module_init(at76c651_init);
 module_exit(at76c651_exit);
 
-MODULE_DESCRIPTION("at76c651/dat7021 dvb-c frontend driver");
+MODULE_DESCRIPTION("at76c651/dat7021(tua6010xs) dvb-c frontend driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");
 MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
