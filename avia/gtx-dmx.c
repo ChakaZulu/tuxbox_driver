@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.15  2001/03/04 14:15:42  tmbinc
+ *   fixed ucode-version autodetection.
+ *
  *   Revision 1.14  2001/03/04 13:03:17  tmbinc
  *   Removed %188 bytes check (for PES)
  *
@@ -42,7 +45,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -115,7 +118,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
 {
   u8 w[4];
   w[0]=type<<5;
-  if (rh(RISC+0x7FE)&0xFF00)
+  if ((rh(RISC+0x7FE)&0xFF00)==0xB100)
     w[0]|=(queue)&31;
   else
     w[0]|=(queue+1)&31;
@@ -133,7 +136,10 @@ void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork,
 {
   u8 w[4];
   w[0]=type<<5;
-  w[0]|=(queue)&31;
+  if ((rh(RISC+0x7FE)&0xFF00)==0xB100)
+    w[0]|=(queue)&31;
+  else
+    w[0]|=(queue+1)&31;
   w[1]=(!!fork)<<7;
   w[1]|=cw_offset<<4;
   w[1]|=cc;
