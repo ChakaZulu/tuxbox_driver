@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS       = decode test_dmx test_front
+M_OBJS       = decode test_dmx test_front test_sec
 #scan_cable
 
 # 2.4.0 Kernel Option
@@ -31,5 +31,8 @@ test_front:
 
 scan_cable:
 	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o scan_cable scan_cable.c
+
+test_sec:
+	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o test_sec test_sec.c
 
 include $(KERNEL_LOCATION)/Rules.make
