@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx-core.c,v $
+ *   Revision 1.2  2001/10/23 08:40:58  Jolt
+ *   eNX capture and pig driver
+ *
  *   Revision 1.1  2001/10/15 20:47:46  tmbinc
  *   re-added enx-core
  *
@@ -82,7 +85,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -146,15 +149,15 @@ int enx_allocate_irq(int reg, int bit, void (*isro)(int, int))
 		return -1;
 	}
 	enx_irq[nr]=isro;
-	enx_reg_h(imr[reg])=(1<<bit)|1;
-	enx_reg_h(isr[reg])=(1<<bit);		// clear isr status
+	enx_reg_16n(imr[reg])=(1<<bit)|1;
+	enx_reg_16n(isr[reg])=(1<<bit);		// clear isr status
 	return 0;
 }
 
 void enx_free_irq(int reg, int bit)
 {
 	dprintk("enx_core: free_irq reg %d bit %d\n", reg, bit);
-	enx_reg_h(imr[reg])=1<<bit;
+	enx_reg_16n(imr[reg])=1<<bit;
 	enx_irq[reg*16+bit]=0;
 }
 
@@ -181,7 +184,7 @@ static void enx_irq_handler(int irq, void *dev, struct pt_regs *regs)
   
   for (i=0; i<6; i++)
   {
-    int rn=enx_reg_h(isr[i]);
+    int rn=enx_reg_16n(isr[i]);
     for (j=1; j<16; j++)
     {
       if (rn&(1<<j))
@@ -192,14 +195,14 @@ static void enx_irq_handler(int irq, void *dev, struct pt_regs *regs)
 					enx_irq[nr](i, j);
         else
         {
-          if (enx_reg_h(imr[i])&(1<<j))
+          if (enx_reg_16n(imr[i])&(1<<j))
           {
             printk("enx_core: masking unhandled enx irq %d/%d\n", i, j);
-            enx_reg_h(imr[i]) = 1<<j;                 // disable IMR bit
+            enx_reg_16n(imr[i]) = 1<<j;                 // disable IMR bit
           }
         }
 //	printk("enx_core: clear status register:%x , %x \n",isr[i],j);
-        enx_reg_h(isr[i]) = 1<<j;            // clear ISR bits
+        enx_reg_16n(isr[i]) = 1<<j;            // clear ISR bits
       }
     }
   }
@@ -265,7 +268,7 @@ void enx_sdram_ctrl_init(void) {
   enx_reg_w(SCSC) = 0x00000000;		// Set sd-ram start address
   enx_reg_w(RSTR0) &= ~(1 << 12);	// Get sd-ram controller out of reset state
   enx_reg_w(MC) = 0x00001011;		// Write memory configuration
-	enx_reg_w(0x88)|=0x3E<<4;
+  enx_reg_32n(0x88)|=0x3E<<4;
 }
 
 void enx_tdp_start(void) {
@@ -357,9 +360,9 @@ static int enx_init(void)
 
 
   //printk(KERN_NOTICE "enx-core: MEM: 0x%X->0x%X REG: 0x%X->0x%X\n", ENX_MEM_BASE, (unsigned int)enx_mem_addr, ENX_REG_BASE, (unsigned int)enx_reg_addr);
-  //printk(KERN_NOTICE "enx-core: ARCH_ID: 0x%X API_VERSION: 0x%X\n", enx_reg_s(CRR)->F_ARCH_ID, enx_reg_s(CRR)->F_API_VERSION);
-  //printk(KERN_NOTICE "enx-core: VERSION: 0x%X REVISION: 0x%X\n", enx_reg_s(CRR)->F_VERSION, enx_reg_s(CRR)->F_REVISION);
-  //printk(KERN_NOTICE "enx-core: BRD_ID: 0x%X BIU_SEL: 0x%X\n", enx_reg_s(CFGR0)->F_BRD_ID, enx_reg_s(CFGR0)->F_BIU_SEL);
+  //printk(KERN_NOTICE "enx-core: ARCH_ID: 0x%X API_VERSION: 0x%X\n", enx_reg_s(CRR)->ARCH_ID, enx_reg_s(CRR)->API_VERSION);
+  //printk(KERN_NOTICE "enx-core: VERSION: 0x%X REVISION: 0x%X\n", enx_reg_s(CRR)->VERSION, enx_reg_s(CRR)->REVISION);
+  //printk(KERN_NOTICE "enx-core: BRD_ID: 0x%X BIU_SEL: 0x%X\n", enx_reg_s(CFGR0)->BRD_ID, enx_reg_s(CFGR0)->BIU_SEL);
   printk(KERN_NOTICE "enx-core: Loaded AViA eNX core driver\n");
 
   enx_reset();
