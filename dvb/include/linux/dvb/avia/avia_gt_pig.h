@@ -32,5 +32,5 @@
 #define avia_pig_set_pos(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_POS, (x | (y << 16)))
 #define avia_pig_set_source(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_SOURCE, (x | (y << 16)))
 #define avia_pig_set_size(fd, x, y) 	ioctl(fd, AVIA_PIG_SET_SIZE, (x | (y << 16)))
-#define avia_pig_set_stack(fd, order) 	ioctl(fd, AVIA_PIG_SET_SIZE, order)
+#define avia_pig_set_stack(fd, order) 	ioctl(fd, AVIA_PIG_SET_STACK, order)
 #define avia_pig_show(fd) 		ioctl(fd, AVIA_PIG_SHOW, 0)
