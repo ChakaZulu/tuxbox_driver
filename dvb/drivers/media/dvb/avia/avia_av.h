@@ -300,7 +300,7 @@ int avia_av_pid_set(const u8 type, const u16 pid);
 int avia_av_play_state_set_audio(const u8 new_play_state);
 int avia_av_play_state_set_video(const u8 new_play_state);
 void avia_av_set_audio_attenuation(const u8 att);
-void avia_av_set_pcr(const u32 hi, const u32 lo);
+void avia_av_set_stc(const u32 hi, const u32 lo);
 int avia_av_standby(const int state);
 int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_type_audio);
 int avia_av_sync_mode_set(const u8 new_sync_mode);

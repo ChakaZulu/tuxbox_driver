@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.61 2003/04/17 07:29:47 obi Exp $
+ * $Id: avia_av_core.c,v 1.62 2003/05/11 02:42:58 obi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -547,7 +547,7 @@ u32 avia_av_cmd(u32 command, ...)
 
 }
 
-void avia_av_set_pcr(const u32 hi, const u32 lo)
+void avia_av_set_stc(const u32 hi, const u32 lo)
 {
 	u32 data1 = (hi >> 16) & 0xFFFF;
 	u32 data2 = hi & 0xFFFF;
@@ -1318,7 +1318,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.61 2003/04/17 07:29:47 obi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.62 2003/05/11 02:42:58 obi Exp $\n");
 
 	if (!(err = init_avia()))
 		avia_av_proc_init();
@@ -1356,7 +1356,7 @@ EXPORT_SYMBOL(avia_av_read);
 EXPORT_SYMBOL(avia_av_write);
 EXPORT_SYMBOL(avia_av_dram_memcpy32);
 EXPORT_SYMBOL(avia_av_cmd);
-EXPORT_SYMBOL(avia_av_set_pcr);
+EXPORT_SYMBOL(avia_av_set_stc);
 EXPORT_SYMBOL(avia_av_set_audio_attenuation);
 EXPORT_SYMBOL(avia_av_standby);
 EXPORT_SYMBOL(avia_av_get_sample_rate);

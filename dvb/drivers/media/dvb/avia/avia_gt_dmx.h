@@ -248,6 +248,11 @@ void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos);
 void avia_gt_dmx_free_section_filter(u8 index);
 int avia_gt_dmx_alloc_section_filter(void *f);
 
+void avia_gt_dmx_enable_framer(void);
+void avia_gt_dmx_disable_framer(void);
+void avia_gt_dmx_enable_clip_mode(void);
+void avia_gt_dmx_disable_clip_mode(void);
+
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void);
 int avia_gt_dmx_init(void);
 void avia_gt_dmx_exit(void);

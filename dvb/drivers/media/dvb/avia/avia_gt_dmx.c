@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.172 2003/05/03 07:28:03 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.173 2003/05/11 02:42:59 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1637,7 +1637,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	if (force_stc_reload)
 	{
 		stc = avia_gt_dmx_get_stc_base();
-		avia_av_set_pcr(stc >> 1,(stc & 1) << 15);
+		avia_av_set_stc(stc >> 1,(stc & 1) << 15);
 		force_stc_reload = 0;
 		last_pcr = pcr;
 		last_lstc = pcr;
@@ -2313,45 +2313,89 @@ next_check:
 
 }
 
+void avia_gt_dmx_enable_framer(void)
+{
+	if (avia_gt_chip(ENX)) {
+		enx_reg_set(FC, FE, 1);
+		enx_reg_set(FC, FH, 1);
+	}
+	else if (avia_gt_chip(GTX)) {
+		gtx_reg_set(FCR, FE, 1);
+		gtx_reg_set(FCR, FH, 1);
+	}
+}
+
+void avia_gt_dmx_disable_framer(void)
+{
+	if (avia_gt_chip(ENX))
+		enx_reg_set(FC, FE, 0);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(FCR, FE, 0);
+}
+
+void avia_gt_dmx_enable_clip_mode(void)
+{
+	avia_gt_dmx_disable_framer();
+
+	/* enable clip mode on all system queues */
+	if (avia_gt_chip(ENX)) {
+		enx_reg_set(CFGR0, VCP, 1);
+		enx_reg_set(CFGR0, ACP, 1);
+		enx_reg_set(CFGR0, TCP, 1);
+	}
+	else if (avia_gt_chip(GTX)) {
+		gtx_reg_set(CR1, VCP, 1);
+		gtx_reg_set(CR1, ACP, 1);
+		gtx_reg_set(CR1, TCP, 1);
+	}
+}
+
+void avia_gt_dmx_disable_clip_mode(void)
+{
+	/* disable clip mode on all system queues */
+	if (avia_gt_chip(ENX)) {
+		enx_reg_set(CFGR0, VCP, 0);
+		enx_reg_set(CFGR0, ACP, 0);
+		enx_reg_set(CFGR0, TCP, 0);
+	}
+	else if (avia_gt_chip(GTX)) {
+		gtx_reg_set(CR1, VCP, 0);
+		gtx_reg_set(CR1, ACP, 0);
+		gtx_reg_set(CR1, TCP, 0);
+	}
+
+	avia_gt_dmx_enable_framer();
+}
+
 int __init avia_gt_dmx_init(void)
 {
-
 	int result;
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.172 2003/05/03 07:28:03 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.173 2003/05/11 02:42:59 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
 	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
-
 		printk(KERN_ERR "avia_gt_dmx: Unsupported chip type\n");
-
 		return -EIO;
-
 	}
 
 //	avia_gt_dmx_reset(1);
 
-
 	if (avia_gt_chip(ENX)) {
-
 		enx_reg_32(RSTR0)|=(1<<31)|(1<<23)|(1<<22);
-
 		risc_mem_map = (sRISC_MEM_MAP *)enx_reg_o(TDP_INSTR_RAM);
-
-	} else if (avia_gt_chip(GTX)) {
-
+	}
+	else if (avia_gt_chip(GTX)) {
 		risc_mem_map = (sRISC_MEM_MAP *)gtx_reg_o(GTX_REG_RISC);
-
 	}
 
 	if ((result = avia_gt_dmx_risc_init()))
 		return result;
 
 	if (avia_gt_chip(ENX)) {
-
 		enx_reg_32(RSTR0) &= ~(1 << 27);
 		enx_reg_32(RSTR0) &= ~(1 << 13);
 		enx_reg_32(RSTR0) &= ~(1 << 11);
@@ -2367,29 +2411,34 @@ int __init avia_gt_dmx_init(void)
 		enx_reg_16(SYNC_HYST) = 0x21;
 		enx_reg_16(BQ) = 0x00BC;
 
-		enx_reg_32(CFGR0) |= 1 << 24;		// enable dac output
+		/* enable dac output */
+		enx_reg_32(CFGR0) |= 1 << 24;
 
-		enx_reg_16(AVI_0) = 0xF;					// 0x6CF geht nicht (ordentlich)
+		/* 0x6CF geht nicht (ordentlich) */
+		enx_reg_16(AVI_0) = 0xF;
 		enx_reg_16(AVI_1) = 0xA;
 
-		enx_reg_32(CFGR0) &= ~3;				// disable clip mode
+		/* disable clip mode */
+		enx_reg_32(CFGR0) &= ~3;
+	}
+	else if (avia_gt_chip(GTX)) {
+		// take framer, ci, avi module out of reset
+		//rh(RR1)&=~0x1C;
 
-	} else if (avia_gt_chip(GTX)) {
-
-	//	rh(RR1)&=~0x1C;							 // take framer, ci, avi module out of reset
 		gtx_reg_set(RR1, DAC, 1);
 		gtx_reg_set(RR1, DAC, 0);
 
-		gtx_reg_16(RR0) = 0;						// autsch, das muss so. kann das mal wer überprüfen?
+		/* autsch, das muss so. kann das mal wer überprüfen? */
+		gtx_reg_16(RR0) = 0;
 		gtx_reg_16(RR1) = 0;
 		gtx_reg_16(RISCCON) = 0;
 
-		gtx_reg_16(FCR) = 0x9147;							 // byte wide input
+		/* byte wide input */
+		gtx_reg_16(FCR) = 0x9147;
 		gtx_reg_16(SYNCH) = 0x21;
 
 		gtx_reg_16(AVI) = 0x71F;
 		gtx_reg_16(AVI+2) = 0xF;
-
 	}
 
 	memset(queue_list, 0, sizeof(queue_list));
@@ -2397,16 +2446,12 @@ int __init avia_gt_dmx_init(void)
 	queue_addr = AVIA_GT_MEM_DMX_OFFS;
 
 	for (queue_nr = 0; queue_nr < AVIA_GT_DMX_QUEUE_COUNT; queue_nr++) {
-
 		queue_list[queue_nr].size = (1 << queue_size_table[queue_nr]) * 64;
 
 		if (queue_addr & (queue_list[queue_nr].size - 1)) {
-
 			printk(KERN_WARNING "avia_gt_dmx: warning, misaligned queue %d (is 0x%X, size %d), aligning...\n", queue_nr, queue_addr, queue_list[queue_nr].size);
-
 			queue_addr += queue_list[queue_nr].size;
 			queue_addr &= ~(queue_list[queue_nr].size - 1);
-
 		}
 
 		queue_list[queue_nr].mem_addr = queue_addr;
@@ -2436,11 +2481,9 @@ int __init avia_gt_dmx_init(void)
 		avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
 		avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
 		avia_gt_dmx_queue_irq_disable(queue_nr);
-
 	}
 
-	for (queue_nr = 0; queue_nr < 32; queue_nr++)
-	{
+	for (queue_nr = 0; queue_nr < 32; queue_nr++) {
 		section_filter_umap[queue_nr] = -1;
 		filter_definition_table[queue_nr].and_or_flag = 0;
 		filter_definition_table[queue_nr].filter_param_id = queue_nr;
@@ -2448,7 +2491,6 @@ int __init avia_gt_dmx_init(void)
 	}
 
 	return 0;
-
 }
 
 void __exit avia_gt_dmx_exit(void)
@@ -2498,3 +2540,8 @@ EXPORT_SYMBOL(avia_gt_dmx_get_hw_sec_filt_avail);
 
 EXPORT_SYMBOL(avia_gt_dmx_free_section_filter);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_section_filter);
+
+EXPORT_SYMBOL(avia_gt_dmx_enable_framer);
+EXPORT_SYMBOL(avia_gt_dmx_disable_framer);
+EXPORT_SYMBOL(avia_gt_dmx_enable_clip_mode);
+EXPORT_SYMBOL(avia_gt_dmx_disable_clip_mode);
