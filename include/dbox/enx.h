@@ -273,6 +273,7 @@
 #define ENX_REG_SPR_2			0x075C			// Scratch Pad Register
 #define ENX_REG_QWPnL			0x0880
 #define ENX_REG_QWPnH			0x0882
+#define ENX_REG_QnINT			0x08C0
 
 #define ENX_IRQ_REG_ISR0		0
 #define ENX_IRQ_REG_ISR1		1

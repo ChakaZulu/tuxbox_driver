@@ -1,5 +1,5 @@
 /*
- *   enx-dvr.c - Queue-Insertion driver (dbox-II-project)
+ *   avia_gt_dvr.c - Queue-Insertion driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -19,6 +19,12 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
+ *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.2  2002/06/11 22:12:52  Jolt
+ *   DVR merge
+ *
+ *   Revision 1.1  2002/11/06 22:09:18  TripleDES   
+ *   DVR driver added
  *
  *   Revision 1.0  2001/31/07 00:37:12  TripleDES
  *   - initial release
@@ -43,14 +49,12 @@
 #include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
 
-#include "dbox/gtx.h"
-#include "dbox/enx.h"
 #include "dbox/avia.h"
+#include "dbox/avia_gt.h"
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
-static unsigned char* enxmem;
-static unsigned char* gtxreg;
+static sAviaGtInfo *gt_info;
 
 static unsigned int vpointer=0;
 static unsigned int apointer=0;
@@ -186,29 +190,29 @@ static int getQ_Size(unsigned int Bytes)
 	for(i=0;i<17;i++) if((Bytes/64 >> i)==1) break;
 	return i;
 }
-static void videoint(int x,int y)
+static void videoint(u16 irq)
 {
-	unsigned int vqpoint;
+//	unsigned int vqpoint;
 
 	if(vstate)
 		wake_up(&frame_wait);
 
-//	vqpoint=rh(VQRPH)<<16;
-//	vqpoint|=rh(VQRPL);
+//	vqpoint=gtx_reg_16(VQRPH)<<16;
+//	vqpoint|=gtx_reg_16(VQRPL);
 		
 //	printk("VINT:%d\n",vqpoint);	
 
 		
 }
 
-static void audioint(int x,int y)
+static void audioint(u16 irq)
 {
-	unsigned int vqpoint;
+//	unsigned int vqpoint;
 	if(astate)
 		wake_up(&aframe_wait);
 		
-//	vqpoint=rh(AQRPH)<<16;
-//	vqpoint|=rh(AQRPL);
+//	vqpoint=gtx_reg_16(AQRPH)<<16;
+//	vqpoint|=gtx_reg_16(AQRPL);
 		
 //	printk("AINT:%d\n",vqpoint);	
 }
@@ -220,24 +224,28 @@ static ssize_t iframe_write (struct file *file, const char *buf, size_t count,lo
 		if((vpointer + count) >= vqsize)
 		{
 			write=((vqsize)-vpointer);
-			memcpy(enxmem+vpointer,buf,write);
+			memcpy(gt_info->mem_addr+vpointer,buf,write);
 			vpointer=0;
-			memcpy(enxmem+vpointer,buf+write,count-write);
+			memcpy(gt_info->mem_addr+vpointer,buf+write,count-write);
 			vpointer=count-write;
 		}	
 		else
 		{
-			memcpy(enxmem+vpointer,buf,count);
+			memcpy(gt_info->mem_addr+vpointer,buf,count);
 			vpointer+=count;
 		}	
 
-#ifdef ENX		
-		enx_reg_h(VQWPL)=vpointer & 0xffff; 
-		enx_reg_h(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
-#else
-		rh(VQWPL)=vpointer & 0xffff;
-		rh(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
-#endif		
+    if (avia_gt_chip(ENX)) {
+	
+		enx_reg_16(VQWPL)=vpointer & 0xffff; 
+		enx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
+		
+    } else if (avia_gt_chip(GTX)) {
+	
+		gtx_reg_16(VQWPL)=vpointer & 0xffff;
+		gtx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|(vpointer >> 16); 
+		
+	}
 		
 		if(vpointer >= vqsize) vpointer=0;
 		
@@ -261,7 +269,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 		int write=count;
 		int i;
 		u32 ptc=0;
-		unsigned char *buffer=buf;
+		unsigned char *buffer= (unsigned char *)buf;
 		
 		if(start)
 		for(i=0;i<count-13;i++)
@@ -290,24 +298,28 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 		if((apointer + count) >= aqsize)
 		{
 			write=((aqsize)-apointer);
-			memcpy(enxmem+vqsize+apointer,buf,write);
+			memcpy(gt_info->mem_addr+vqsize+apointer,buf,write);
 			apointer=0;
-			memcpy(enxmem+vqsize+apointer,buf+write,count-write);
+			memcpy(gt_info->mem_addr+vqsize+apointer,buf+write,count-write);
 			apointer=count-write;
 		}	
 		else
 		{
-			memcpy(enxmem+vqsize+apointer,buf,count);
+			memcpy(gt_info->mem_addr+vqsize+apointer,buf,count);
 			apointer+=count;
 		}	
 
-#ifdef ENX
-		enx_reg_h(AQWPL)= apointer & 0xffff; 
-		enx_reg_h(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
-#else
-		rh(AQWPL)= apointer & 0xffff; 
-		rh(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
-#endif		
+    if (avia_gt_chip(ENX)) {
+	
+		enx_reg_16(AQWPL)= apointer & 0xffff; 
+		enx_reg_16(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
+
+    } else if (avia_gt_chip(GTX)) {
+
+		gtx_reg_16(AQWPL)= apointer & 0xffff; 
+		gtx_reg_16(AQWPH)= (getQ_Size(aqsize)<<6)|(4+((apointer >> 16) & 0x3f));
+
+	}
 		
 		if(apointer >= aqsize) apointer=0;
 		
@@ -337,93 +349,104 @@ static int enx_iframe_init(void)
     adevfs_handle = devfs_register(NULL,"dvra",DEVFS_FL_DEFAULT,0,0,S_IFCHR|
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
 				  &aiframe_fops,NULL);
-		
-#ifdef ENX		
-		enxmem=enx_get_mem_addr();	
-#else		
-		enxmem=gtx_get_mem();
-		gtxreg=gtx_get_reg();
-#endif
 
-		memset(enxmem,0,1024*1024*2);
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.2 2002/06/11 22:12:52 Jolt Exp $\n");
+	
+    gt_info = avia_gt_get_info();
 		
-#ifdef ENX				
-		enx_reg_w(CFGR0) |= 3;
+    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+		
+        printk("avia_gt_dvr: Unsupported chip type\n");
+					
+        return -EIO;
+							
+    }
+										
+		memset(gt_info->mem_addr,0,1024*1024*2);
+		
+    if (avia_gt_chip(ENX)) {
 
-		enx_reg_w(CFGR0)&=~0x10;
+		enx_reg_32(CFGR0) |= 3;
+
+		enx_reg_32(CFGR0)&=~0x10;
 		for(i=0;i<16;i++)
 		{
-			oldQWPL[i]=enx_reg_h(QWPnL+(i*4));
-			oldQWPH[i]=enx_reg_h(QWPnH+(i*4));
-			enx_reg_h(QWPnL+(i*4))=0;
-			enx_reg_h(QWPnH+(i*4))=8;
+			oldQWPL[i]=enx_reg_16(QWPnL+(i*4));
+			oldQWPH[i]=enx_reg_16(QWPnH+(i*4));
+			enx_reg_16(QWPnL+(i*4))=0;
+			enx_reg_16(QWPnH+(i*4))=8;
 		}	
-		enx_reg_w(CFGR0)|=0x10;
+		enx_reg_32(CFGR0)|=0x10;
 		for(i=0;i<16;i++)
 		{
-			oldQWPL[16+i]=enx_reg_h(QWPnL+(i*4));
-			oldQWPH[16+i]=enx_reg_h(QWPnH+(i*4));
-			enx_reg_h(QWPnL+(i*4))=0;
-			enx_reg_h(QWPnH+(i*4))=8;
+			oldQWPL[16+i]=enx_reg_16(QWPnL+(i*4));
+			oldQWPH[16+i]=enx_reg_16(QWPnH+(i*4));
+			enx_reg_16(QWPnL+(i*4))=0;
+			enx_reg_16(QWPnH+(i*4))=8;
 		}	
-		enx_reg_h(TQRPL)=0; 
-		enx_reg_h(TQRPH)=8; 
-		enx_reg_h(TQWPL)=0; 
-		enx_reg_h(TQWPH)=8; 
-#else
-		rh(CR1) |= 3;
+		enx_reg_16(TQRPL)=0; 
+		enx_reg_16(TQRPH)=8; 
+		enx_reg_16(TQWPL)=0; 
+		enx_reg_16(TQWPH)=8; 
+		
+    } else if (avia_gt_chip(GTX)) {
+	
+		gtx_reg_16(CR1) |= 3;
 
 #if 1
-		rh(CR1)&=~(1<<4);
+		gtx_reg_16(CR1)&=~(1<<4);
 		for(i=0;i<16;i++)
 		{
-			oldQWPL[i]=rh(QWPnL+(i*4));
-			oldQWPH[i]=rh(QWPnH+(i*4));
-			rh(QWPnL+(i*4))=0;
+			oldQWPL[i]=gtx_reg_16(QWPnL+(i*4));
+			oldQWPH[i]=gtx_reg_16(QWPnH+(i*4));
+			gtx_reg_16(QWPnL+(i*4))=0;
 		
-			rh(QWPnH+(i*4))=10;
+			gtx_reg_16(QWPnH+(i*4))=10;
 		}	
-		rw(CR1)|=(1<<4);
+		gtx_reg_32(CR1)|=(1<<4);
 		for(i=0;i<16;i++)
 		{
-			oldQWPL[16+i]=rh(QWPnL+(i*4));
-			oldQWPH[16+i]=rh(QWPnH+(i*4));
-			rh(QWPnL+(i*4))=0;
-			rh(QWPnH+(i*4))=10;
+			oldQWPL[16+i]=gtx_reg_16(QWPnL+(i*4));
+			oldQWPH[16+i]=gtx_reg_16(QWPnH+(i*4));
+			gtx_reg_16(QWPnL+(i*4))=0;
+			gtx_reg_16(QWPnH+(i*4))=10;
 		}
-		rh(TQRPL)=0; 
-		rh(TQRPH)=10; 
-		rh(TQWPL)=0; 
-		rh(TQWPH)=10; 
+		gtx_reg_16(TQRPL)=0; 
+		gtx_reg_16(TQRPH)=10; 
+		gtx_reg_16(TQWPL)=0; 
+		gtx_reg_16(TQWPH)=10; 
 #endif			
 
+	}
+		
+		memset(gt_info->mem_addr,0,vqsize+aqsize);
 
-#endif				
+    if (avia_gt_chip(ENX)) {
 
-		memset(enxmem,0,vqsize+aqsize);
+		enx_reg_16(VQRPL)=0; 
+		enx_reg_16(VQRPH)=0; 
+		enx_reg_16(VQWPL)=0; 
+		enx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
 
-#ifdef ENX
-		enx_reg_h(VQRPL)=0; 
-		enx_reg_h(VQRPH)=0; 
-		enx_reg_h(VQWPL)=0; 
-		enx_reg_h(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
+		enx_reg_16(AQRPL)=0; 
+		enx_reg_16(AQRPH)=4; 
+		enx_reg_16(AQWPL)=0; 
+		enx_reg_16(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
 
-		enx_reg_h(AQRPL)=0; 
-		enx_reg_h(AQRPH)=4; 
-		enx_reg_h(AQWPL)=0; 
-		enx_reg_h(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
-#else
-		rh(VQRPL)=0; 
-		rh(VQWPL)=0; 
-		rh(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
-		rh(VQRPH)=0; 
+    } else if (avia_gt_chip(GTX)) {
 
-		rh(AQRPL)=0; 
-		rh(AQWPL)=0; 
-		rh(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
-		rh(AQRPH)=4; 
-#endif		
-	
+		gtx_reg_16(VQRPL)=0; 
+		gtx_reg_16(VQWPL)=0; 
+		gtx_reg_16(VQWPH)=(getQ_Size(vqsize)<<6)|0; 
+		gtx_reg_16(VQRPH)=0; 
+
+		gtx_reg_16(AQRPL)=0; 
+		gtx_reg_16(AQWPL)=0; 
+		gtx_reg_16(AQWPH)=(getQ_Size(aqsize)<<6)|4; 
+		gtx_reg_16(AQRPH)=4; 
+
+	}
+		
 		printk("AQRPL:%d\n",vqsize & 0xffff);
 		printk("AQRPH:%d\n",(vqsize & 0xff0000)>>16);
 		printk("AQWPL:%d\n",vqsize & 0xff);
@@ -442,40 +465,46 @@ static int enx_iframe_init(void)
 		avia_command(SetStreamType,0xB);
 	  avia_command(NewChannel,0,0,0);        
 
-#ifdef ENX		
-		enx_reg_w(CFGR0)&=~0x10;
-		enx_reg_h(QnINT) = (1<<15)|(1<<14); //14
-		enx_reg_h(QnINT+2) = (1<<15)|(1<<13);
-		enx_reg_h(QnINT+4) = (1<<15)|(1<<13);
-#else
-		rh(CR1)&=~(1<<4);
-		rh(QI0) = (1<<15)|(1<<14); //14
-		rh(QI0+2) = (1<<15)|(1<<14);
-		rh(QI0+4) = (1<<15)|(1<<14);
+    if (avia_gt_chip(ENX)) {
 
-		rh(CR1)&=~(1<<4);
-		rh(QI0) = (1<<14); //14
-		rh(QI0+2) = (1<<11);
-		rh(QI0+4) = (1<<10);
+		enx_reg_32(CFGR0)&=~0x10;
+		enx_reg_16(QnINT) = (1<<15)|(1<<14); //14
+		enx_reg_16(QnINT+2) = (1<<15)|(1<<13);
+		enx_reg_16(QnINT+4) = (1<<15)|(1<<13);
+
+    } else if (avia_gt_chip(GTX)) {
+
+		gtx_reg_16(CR1)&=~(1<<4);
+		gtx_reg_16(QI0) = (1<<15)|(1<<14); //14
+		gtx_reg_16(QI0+2) = (1<<15)|(1<<14);
+		gtx_reg_16(QI0+4) = (1<<15)|(1<<14);
+
+		gtx_reg_16(CR1)&=~(1<<4);
+		gtx_reg_16(QI0) = (1<<14); //14
+		gtx_reg_16(QI0+2) = (1<<11);
+		gtx_reg_16(QI0+4) = (1<<10);
 		
-		rh(CR0) &= ~(1<<8);
-#endif	
+		gtx_reg_16(CR0) &= ~(1<<8);
 
+	}
 
-#ifdef ENX		
-		enx_free_irq(5,6);			
-		enx_free_irq(5,7);			
+    if (avia_gt_chip(ENX)) {
 
-		enx_allocate_irq(5,6,videoint);
-		enx_allocate_irq(5,7,audioint);
-#else
-		gtx_free_irq(2,0);			
-		gtx_free_irq(2,1);			
+		avia_gt_free_irq(AVIA_GT_IRQ(5, 6));			
+		avia_gt_free_irq(AVIA_GT_IRQ(5, 7));			
 
-		gtx_allocate_irq(2,0,videoint);
-		gtx_allocate_irq(2,1,audioint);
+		avia_gt_alloc_irq(AVIA_GT_IRQ(5, 6), videoint);
+		avia_gt_alloc_irq(AVIA_GT_IRQ(5, 7), audioint);
 
-#endif		
+    } else if (avia_gt_chip(GTX)) {
+	
+		avia_gt_free_irq(AVIA_GT_IRQ(2, 0));			
+		avia_gt_free_irq(AVIA_GT_IRQ(2, 1));			
+
+		avia_gt_alloc_irq(AVIA_GT_IRQ(2, 0), videoint);
+		avia_gt_alloc_irq(AVIA_GT_IRQ(2, 1), audioint);
+
+	}
 		
 		init_waitqueue_head(&frame_wait);
 		init_waitqueue_head(&aframe_wait);
@@ -487,31 +516,35 @@ static int enx_iframe_init(void)
 
 static void enx_close(void)
 {
-	int i;
+//	int i;
 	
-#ifdef ENX	
-	enx_free_irq(5,6);			
-	enx_free_irq(5,7);
-	enx_reg_w(CFGR0) &= ~3;
-#else
-	gtx_free_irq(2,0);			
-	gtx_free_irq(2,1);
-	rw(CR1) &= ~3;
-#endif	
+    if (avia_gt_chip(ENX)) {
+
+		avia_gt_free_irq(AVIA_GT_IRQ(5, 6));			
+		avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
+		enx_reg_32(CFGR0) &= ~3;
+
+    } else if (avia_gt_chip(GTX)) {
+
+		avia_gt_free_irq(AVIA_GT_IRQ(2, 0));			
+		avia_gt_free_irq(AVIA_GT_IRQ(2, 1));
+		gtx_reg_32(CR1) &= ~3;
+
+	}
 
 #if 0
-	enx_reg_w(CFGR0)&=~0x10;
+	enx_reg_32(CFGR0)&=~0x10;
 
 	for(i=0;i<16;i++)
 	{
-		enx_reg_h(QWPnL+(i*4))=oldQWPL[i];
-		enx_reg_h(QWPnH+(i*4))=oldQWPH[i];
+		enx_reg_16(QWPnL+(i*4))=oldQWPL[i];
+		enx_reg_16(QWPnH+(i*4))=oldQWPH[i];
 	}	
-	enx_reg_w(CFGR0)|=0x10;
+	enx_reg_32(CFGR0)|=0x10;
 	for(i=0;i<16;i++)
 	{
-		enx_reg_h(QWPnL+(i*4))=oldQWPL[16+i];
-		enx_reg_h(QWPnH+(i*4))=oldQWPH[16+i];
+		enx_reg_16(QWPnL+(i*4))=oldQWPL[16+i];
+		enx_reg_16(QWPnH+(i*4))=oldQWPH[16+i];
 	}	
 #endif		
 	
