@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.82 2002/10/03 11:12:42 thegoodguy Exp $
+ * $Id: dvb.c,v 1.83 2002/10/03 12:47:58 Jolt Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -35,7 +35,7 @@
 #include <asm/system.h>
 #include <linux/kmod.h>
 
-#include <dbox/avia.h>
+#include <dbox/avia_av.h>
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_pcm.h>
 #include <dbox/cam.h>

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.36  2002/10/03 12:47:57  Jolt
+ *   AViA AV cleanups
+ *
  *   Revision 1.35  2002/10/01 20:22:59  Jolt
  *   Cleanups
  *
@@ -161,7 +164,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.35 $
+ *   $Revision: 1.36 $
  *
  */
 
@@ -190,7 +193,7 @@
 #include <asm/uaccess.h>
 
 #include <dbox/fp.h>
-#include <dbox/avia.h>
+#include <dbox/avia_av.h>
 #include <dbox/avia_av_event.h>
 #include <dbox/avia_av_proc.h>
 #include <dbox/info.h>
@@ -224,6 +227,11 @@ static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
 static u16 sample_rate = 44100;
+
+static u16 pid_audio = 0xFFFF;
+static u16 pid_video = 0xFFFF;
+static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
+static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
 
 /* finally i got them */
 #define UX_MAGIC			0x00
@@ -749,7 +757,8 @@ static int new_audio_sequence( u32 val )
 
 static void avia_audio_init(void)
 {
-	u32 val	= (u32)0;
+
+	u32 val;
 
 	/* AUDIO_CONFIG
 	 *
@@ -1257,6 +1266,197 @@ u16 avia_get_sample_rate(void)
 
 }
 
+int avia_av_pid_set_audio(u16 pid)
+{
+
+	pid_audio = pid;
+
+	avia_command(SelectStream, 0x03, pid_audio);
+	
+	return 0;	
+
+}
+
+
+int avia_av_pid_set_video(u16 pid)
+{
+
+	pid_video = pid;
+
+	avia_command(SelectStream, 0x03, pid_video);
+	
+	return 0;	
+
+}
+
+int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
+{
+
+	switch(new_stream_type_video) {
+	
+		case AVIA_AV_STREAM_TYPE_ES:
+
+			switch(new_stream_type_audio) {
+	
+				case AVIA_AV_STREAM_TYPE_ES:
+		
+					avia_command(SetStreamType, 0x08, 0x0000);
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_PES:
+
+					avia_command(SetStreamType, 0x0A, 0x0000);
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_SPTS:
+				
+					printk("avia_av: video ES with audio SPTS stream type is not supported\n");
+				
+					return -EINVAL;
+				
+				break;
+			
+				default:
+
+					printk("avia_av: invalid audio stream type\n");
+		
+					return -EINVAL;
+			
+				break;
+		
+			}
+			
+		break;
+			
+		case AVIA_AV_STREAM_TYPE_PES:
+
+			switch(new_stream_type_audio) {
+	
+				case AVIA_AV_STREAM_TYPE_ES:
+		
+					avia_command(SetStreamType, 0x09, 0x0000);
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_PES:
+
+					avia_command(SetStreamType, 0x0B, 0x0000);
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_SPTS:
+				
+					printk("avia_av: video PES with audio SPTS stream type is not supported\n");
+				
+					return -EINVAL;
+				
+				break;
+			
+				default:
+
+					printk("avia_av: invalid audio stream type\n");
+		
+					return -EINVAL;
+			
+				break;
+		
+			}
+			
+		break;
+		
+		case AVIA_AV_STREAM_TYPE_SPTS:
+
+			switch(new_stream_type_audio) {
+	
+				case AVIA_AV_STREAM_TYPE_ES:
+		
+					printk("avia_av: video SPTS with audio ES stream type is not supported\n");
+					
+					return -EINVAL;
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_PES:
+
+					printk("avia_av: video SPTS with audio PES stream type is not supported\n");
+					
+					return -EINVAL;
+					
+				break;
+			
+				case AVIA_AV_STREAM_TYPE_SPTS:
+
+					// AViA 500 doesn't support SetStreamType 0x10/0x11
+					// So we Reset the AViA 500 back to SPTS mode
+					
+//FIXME				if (avia 500) {
+					
+						avia_command(Reset);				
+
+						avia_command(SelectStream, 0x00, pid_video);
+						avia_command(SelectStream, 0x03, pid_audio);
+						
+//FIXME				} else {
+					
+						avia_command(SetStreamType, 0x10, pid_audio);
+						avia_command(SetStreamType, 0x11, pid_video);
+						
+//FIXME				}
+					
+				break;
+			
+				default:
+
+					printk("avia_av: invalid audio stream type\n");
+		
+					return -EINVAL;
+			
+				break;
+		
+			}
+		break;
+		
+		default:
+		
+			printk("avia_av: invalid video stream type\n");
+			
+			return -EINVAL;
+			
+		break;
+		
+	}
+
+	stream_type_audio = new_stream_type_audio;
+	stream_type_video = new_stream_type_video;
+
+	return 0;
+	
+}	
+
+int avia_av_stream_type_set_audio(u8 stream_type)
+{
+	
+	// SPTS is only supported if both video and audio are in SPTS mode
+	if ((stream_type != AVIA_AV_STREAM_TYPE_SPTS) && (stream_type_video == AVIA_AV_STREAM_TYPE_SPTS))
+		stream_type_video = stream_type;
+		
+	return avia_av_stream_type_set(stream_type_video, stream_type);
+
+}
+
+int avia_av_stream_type_set_video(u8 stream_type)
+{
+	
+	// SPTS is only supported if both video and audio are in SPTS mode
+	if ((stream_type != AVIA_AV_STREAM_TYPE_SPTS) && (stream_type_audio == AVIA_AV_STREAM_TYPE_SPTS))
+		stream_type_audio = stream_type;
+		
+	return avia_av_stream_type_set(stream_type, stream_type_audio);
+
+}
+
 /* ---------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(avia_wr);
@@ -1284,7 +1484,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.35 2002/10/01 20:22:59 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.36 2002/10/03 12:47:57 Jolt Exp $\n");
 
 	aviamem = 0;
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.14  2002/10/03 12:47:57  Jolt
+ *   AViA AV cleanups
+ *
  *   Revision 1.13  2002/10/01 20:22:59  Jolt
  *   Cleanups
  *
@@ -63,7 +66,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -86,8 +89,8 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/avia.h"
-#include "dbox/avia_osd.h"
+#include <dbox/avia_av.h>
+#include <dbox/avia_av_osd.h>
 
 #include <linux/devfs_fs_kernel.h>
 
