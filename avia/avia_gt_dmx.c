@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.116  2002/09/05 18:16:13  Jolt
+ *   Fixes
+ *
  *   Revision 1.115  2002/09/05 17:08:08  Jolt
  *   DMX fix
  *
@@ -152,7 +155,7 @@
  *
  *
  *
- *   $Revision: 1.115 $
+ *   $Revision: 1.116 $
  *
  */
 
@@ -1182,7 +1185,7 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	}
 
 	queue_list[queue_nr].info.irq_count++;
-	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
+//	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 	
 	schedule_task(&avia_gt_dmx_queue_tasklet);
 
@@ -1208,6 +1211,8 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 	s8 queue_nr;
 
 	for (queue_nr = 31; queue_nr >= 0; queue_nr--) {	// msg queue must have priority
+
+		queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 
 		// can happen if a queue has been reset but an interrupt is pending
 		if (queue_list[queue_nr].write_pos == queue_list[queue_nr].read_pos)
@@ -1237,7 +1242,7 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 			
 		}
 
-		if ((queue_list[queue_nr].info.irq_count) && (queue_list[queue_nr].cb_proc))
+		if (queue_list[queue_nr].cb_proc)
 			queue_list[queue_nr].cb_proc(queue_nr, &queue_list[queue_nr].info, queue_list[queue_nr].cb_data, &queue_list[queue_nr]);
 
 		queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
@@ -1631,7 +1636,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.115 2002/09/05 17:08:08 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.116 2002/09/05 18:16:13 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
