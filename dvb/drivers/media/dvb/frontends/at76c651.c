@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.5 2001/03/16 13:04:16 fnbrd Exp $
+    $Id: at76c651.c,v 1.6 2001/03/20 15:10:29 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,6 +33,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.6  2001/03/20 15:10:29  fnbrd
+    Kleine Aenderung bzgl. Berechnung der Symbolrate
+
     Revision 1.5  2001/03/16 13:04:16  fnbrd
     Alle Interrupt-Routinen auskommentiert (task), da sie auch beim alten Treiber
     anscheinend nichts gemacht habe.
@@ -256,6 +259,7 @@ void SetPWM(struct i2c_client* client)
 	return;
 }
 
+// Meine Box hat einen Quartz mit 28.9
 // Tabelle zum Berechnen des Exponenten zur gegebenen Symbolrate (fref=69.6 MHz)
 u32 expTab[] = {
   67969, 135938, 271875, 543750,
@@ -276,7 +280,8 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
         u32 mantisse;
         u8 exp;
 	int i;
-
+        u32 tmp;
+	u32 fref;
         if (Symbolrate > FREF/2)
                 Symbolrate=FREF/2;
         if (Symbolrate < 500000)
@@ -284,13 +289,27 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 
         ves->srate=Symbolrate;
 	dprintk("AT76C651: SetSymbolrate\n");
-	dprintk("exp: %02x mantisse: %x\n", exp, mantisse);
 
-        for(i=7; i>0; i--)
-          if(Symbolrate>expTab[i-1])
+        for(i=6; i>2; i--)
+          if(Symbolrate>=expTab[i])
             break;
         exp=i;
-  	mantisse= ((float)Symbolrate/FREF)*(1<<(30-exp));
+        // Ich Kernel-Dummy, Kernel nix float -> haendisch div.
+        // Wenn's nur nicht so lange her waere
+//  	mantisse= ((float)Symbolrate/FREF)*(1<<(30-exp));
+	// Achtung: stimmt momentan nur wenn exp=6 d.h. Symbolrate >= 4350000
+        // fuer kleinere Symbolraten muss ich's nochmal durchrechnen.
+  	tmp=Symbolrate;
+        fref=FREF;
+  	mantisse=tmp/fref;
+  	tmp=(tmp%fref)<<8;
+  	mantisse=(mantisse<<8)+tmp/fref;
+  	tmp=(tmp%fref)<<8;
+  	mantisse=(mantisse<<8)+tmp/fref;
+  	tmp=(tmp%fref)<<8;
+  	mantisse=(mantisse<<8)+tmp/fref;
+
+	dprintk("exp: %02x mantisse: %x\n", exp, mantisse);
         // Exponent und Mantisse Bits 0-4 setzen
         writereg(client, 0x02, ((mantisse&0x0000001f)<<3)|exp);
         mantisse>>=5;
