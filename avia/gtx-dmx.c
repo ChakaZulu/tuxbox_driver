@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.35  2001/04/09 23:26:42  TripleDES
+ *   some changes
+ *
  *   Revision 1.34  2001/04/08 22:22:29  TripleDES
  *   added eNX support
  *   -every register/ucode access is temporarily duplicated for eNX testing - will be cleared soon ;)
@@ -109,7 +112,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.34 $
+ *   $Revision: 1.35 $
  *
  */
 
@@ -153,7 +156,7 @@
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
 
-//#define enx_dmx   /uncomment for enx-support
+#define enx_dmx   /uncomment for enx-support
         // #undef GTX_SECTIONS
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
