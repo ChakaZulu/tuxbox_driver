@@ -261,8 +261,12 @@ fe_complete(dvb_front_t *fe)
 	memcpy (&ev.u.completionEvent, &fe->param,
 		sizeof(FrontendParameters));
 	
+	ev.u.completionEvent.Frequency=fe->curfreq;
+
+#if 0	
         if (fe->type==DVB_S)
                 ev.u.completionEvent.Frequency=fe->param.Frequency/1000;
+#endif
 
 	fe_add_event(&fe->events, &ev);
 
