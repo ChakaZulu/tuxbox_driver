@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.21  2002/05/29 13:21:41  derget
+ *   test
+ *
  *   Revision 1.20  2002/05/29 12:49:10  derget
  *   pic position auf nokia gefixxt und getestet :)
  *
@@ -63,7 +66,7 @@
  *
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 	
@@ -198,7 +201,7 @@ int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y
 	
     } else if (avia_gt_chip(GTX)) {
     
-        gtx_reg_s(VPP)->HPOS = 61 + (x / 2) - (gtx_reg_s(VPS)->S ? 3 : 0);
+        gtx_reg_s(VPP)->HPOS = 61 + (x / 2); //- (gtx_reg_s(VPS)->S ? 3 : 0);
 		gtx_reg_s(VPP)->VPOS = 10 + (y / 2);
 	
     }
@@ -325,7 +328,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.20 2002/05/29 12:49:10 derget Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.21 2002/05/29 13:21:41 derget Exp $\n");
 
     gt_info = avia_gt_get_info();
     
