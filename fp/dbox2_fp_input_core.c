@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_input_core.c,v 1.1 2002/12/27 17:32:44 Jolt Exp $
+ * $Id: dbox2_fp_input_core.c,v 1.2 2002/12/28 10:44:49 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -44,7 +44,7 @@ int __init dbox2_fp_input_init(void)
 	
 	dbox2_fp_rc_init(&input_dev);
 	dbox2_fp_keyboard_init(&input_dev);
-//	dbox2_fp_mouse_init(&input_dev);
+	dbox2_fp_mouse_init(&input_dev);
 	dbox2_fp_button_init(&input_dev);
 
 	input_register_device(&input_dev);
@@ -57,7 +57,7 @@ void __exit dbox2_fp_input_exit(void)
 {
 
 	dbox2_fp_button_exit();
-//	dbox2_fp_mouse_exit();
+	dbox2_fp_mouse_exit();
 	dbox2_fp_keyboard_exit();
 	dbox2_fp_rc_exit();
 

@@ -4,7 +4,7 @@
 
 M_OBJS  = dbox2_fp.o dbox2_fp_napi.o dbox2_fp_input.o
 FP_OBJS	= dbox2_fp_core.o dbox2_fp_sec.o dbox2_fp_timer.o dbox2_fp_tuner.o dbox2_fp_reset.o
-INPUT_OBJS	= dbox2_fp_input_core.o dbox2_fp_rc.o dbox2_fp_keyboard.o dbox2_fp_button.o
+INPUT_OBJS	= dbox2_fp_input_core.o dbox2_fp_rc.o dbox2_fp_keyboard.o dbox2_fp_button.o dbox2_fp_mouse.o
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)

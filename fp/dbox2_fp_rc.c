@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.8 2002/12/27 17:32:44 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.9 2002/12/28 10:44:49 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -32,7 +32,7 @@
 
 #define UP_TIMEOUT (HZ/2)
 
-#define OLD_INTERFACE
+//#define OLD_INTERFACE
 
 #ifdef OLD_INTERFACE
 #include <dbox/fp.h>
