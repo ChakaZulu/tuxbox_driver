@@ -19,6 +19,9 @@
  *
  *
  *   $Log: i2c-8xx.c,v $
+ *   Revision 1.15  2001/02/18 13:18:02  gillem
+ *   - more debug output
+ *
  *   Revision 1.14  2001/02/11 18:04:02  gillem
  *   - add noint option
  *   - bugfix
@@ -29,7 +32,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -98,6 +101,8 @@ static wait_queue_head_t i2c_wait;
 
 #define I2C_PPC_MASTER	 1
 #define I2C_PPC_SLAVE	 0
+
+#define I2C_INTR_TIMOUT  500
 
 #define MAXBD 4
 
@@ -198,7 +203,7 @@ static int i2c_setrate (int hz, int speed)
 
 /* ------------------------------------------------------------------------- */
 
-int i2c_init(int speed)
+static int i2c_init(int speed)
 {
 	cpic8xx_t *cpic;
 	int i;
@@ -235,7 +240,7 @@ int i2c_init(int speed)
      * and current CPU rate (we assume sccr dfbgr field is 0;
      * divide BRGCLK by 1)
      */
-  	i2c_setrate (66*1024*1024, speed) ;
+  	i2c_setrate (66*1024*1024, speed);
   
   	/* Set I2C controller in master mode */
   	i2c->i2c_i2com = I2C_PPC_MASTER;
@@ -256,7 +261,20 @@ int i2c_init(int speed)
 
 	for(i=0;i<MAXBD;i++) {
 	  	I2CBD.rxbuf[i] = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
+		if (I2CBD.rxbuf[i]==NULL)
+		{
+		  	dprintk("[i2c-8xx]: No more mem available ! Restart Kernel !\n");
+			return -1;
+		}		
+
 	  	I2CBD.txbuf[i] = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
+		if (I2CBD.txbuf[i]==NULL)
+		{
+		  	dprintk("[i2c-8xx]: No more mem available ! Restart Kernel !\n");
+			return -1;
+		}		
+
+
 	  	I2CBD.rxbd[i].addr = (unsigned char*)__pa(I2CBD.rxbuf[i]);
 	  	I2CBD.txbd[i].addr = (unsigned char*)__pa(I2CBD.txbuf[i]);
 
@@ -323,6 +341,9 @@ int i2c_init(int speed)
 
 //	cpic->cpic_cicr |= 0x8080;
 
+	/* XPC823ZT66B2 bugfix (read errata) */
+  	i2c->i2c_i2add = 0;
+
 	return ret;
 }
 
@@ -357,6 +378,13 @@ static int parse_send_msg( unsigned char address, unsigned short size,
 
 	/* Trying to send message larger than BD */
   	if( size > I2C_BUF_LEN ) {
+		dprintk("[i2c-8xx]: size > maxsize (SEND)\n");
+		return -1;
+    }
+
+	if (dataout==NULL)
+	{
+		dprintk("[i2c-8xx]: NULL POINTER DETECT (SEND)\n");
 		return -1;
     }
 
@@ -398,8 +426,15 @@ static int parse_recv_msg( unsigned char address, unsigned short size,
 {
 	/* Trying to send message larger than BD */
   	if( size > I2C_BUF_LEN ) {
+		dprintk("[i2c-8xx]: size > maxsize (RECV)\n");
 		return -1;
 	}
+
+	if (datain==NULL)
+	{
+		dprintk("[i2c-8xx]: NULL POINTER DETECT (RECV)\n");
+		return -1;
+    }
 
   	if(size==0) {
 		dprintk("[i2c-8xx]: ZERO BYTE WRITE (RECV)\n");
@@ -439,6 +474,13 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 	down(&i2c_mutex);
 
 	ret = num;
+
+	if (i2c_adap==NULL)
+	{
+    	dprintk("[i2c-8xx]: No i2c adapter.\n");	
+		up(&i2c_mutex);
+		return -EREMOTEIO;
+	}
 
 	if ( num > (MAXBD*2) ) {
 		up(&i2c_mutex);
@@ -496,10 +538,22 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		cli();
 	}
 
+    /* Clear interrupt. */
   	i2c->i2c_i2cer = 0xff;
+
+  	/* Transmit disable */
+  	i2c->i2c_i2com &= ~0x80;
 
   	/* Enable I2C */
   	i2c->i2c_i2mod |= 1;
+
+  	dprintk("[i2c-8xx]: ON  MOD: %04X CER: %04X COM: %04X ADD: %04X BRG: %04X CMR: %04X\n",\
+		i2c->i2c_i2mod,\
+		i2c->i2c_i2cer,\
+		i2c->i2c_i2com,\
+		i2c->i2c_i2add,\
+		i2c->i2c_i2brg,\
+		i2c->i2c_i2cmr);
 
   	/* Transmit */
   	i2c->i2c_i2com |= 0x80;
@@ -510,12 +564,22 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		udelay(1000*10);
 	  	dprintk("[i2c-8xx]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
 	} else {
-		i=interruptible_sleep_on_timeout(&i2c_wait,500);
-		dprintk("[i2c-8xx]: intrspeed:=%d\n",500-i);
+		i=interruptible_sleep_on_timeout(&i2c_wait,I2C_INTR_TIMOUT);
+		dprintk("[i2c-8xx]: intrspeed:=%d\n",I2C_INTR_TIMOUT-i);
 		restore_flags(flags);
 	}
 
 	/* TODO: i=0 : TIMEOUT no INTR !!!! */
+	if ( (!in_interrupt()) && (!noint) && (i==0)) {
+	}
+
+  	dprintk("[i2c-8xx]: OFF MOD: %04X CER: %04X COM: %04X ADD: %04X BRG: %04X CMR: %04X\n", \
+		i2c->i2c_i2mod,\
+		i2c->i2c_i2cer,\
+		i2c->i2c_i2com,\
+		i2c->i2c_i2add,\
+		i2c->i2c_i2brg,\
+		i2c->i2c_i2cmr);
 
 	/* copy rx-buffer */
 	I2CBD.rxnum = 0;
@@ -567,8 +631,12 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 		}
 	}
 
+  	/* Transmit disable */
+  	i2c->i2c_i2com &= ~0x80;
+
 	/* Turn off I2C */
 	i2c->i2c_i2mod&=(~1);
+
     up(&i2c_mutex);
 
   	return ret;
@@ -632,7 +700,7 @@ static int __init i2c_algo_8xx_init (void)
 
 /* ------------------------------------------------------------------------- */
 
-int i2c_8xx_del_bus(struct i2c_adapter *adap)
+static int i2c_8xx_del_bus(struct i2c_adapter *adap)
 {
 	int res;
 
