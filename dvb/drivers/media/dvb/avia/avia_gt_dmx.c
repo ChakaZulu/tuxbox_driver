@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.139  2002/10/09 20:58:31  Jolt
+ *   Fix
+ *
  *   Revision 1.138  2002/10/09 20:20:36  Jolt
  *   DMX & Section fixes
  *
@@ -224,7 +227,7 @@
  *
  *
  *
- *   $Revision: 1.138 $
+ *   $Revision: 1.139 $
  *
  */
 
@@ -338,9 +341,9 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmx
 
 	queue_list[queue_nr].busy = 1;
 	queue_list[queue_nr].cb_proc = cb_proc;
-	queue_list[queue_nr].hw_read_pos = 0;
+//	queue_list[queue_nr].hw_read_pos = 0;
 //	queue_list[queue_nr].hw_write_pos = 0;
-	queue_list[queue_nr].irq_count = 0;
+//	queue_list[queue_nr].irq_count = 0;
 	queue_list[queue_nr].irq_proc = irq_proc;
 	queue_list[queue_nr].priv_data = priv_data;
 	queue_list[queue_nr].read_pos = 0;
@@ -1994,7 +1997,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.138 2002/10/09 20:20:36 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.139 2002/10/09 20:58:31 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
