@@ -21,10 +21,13 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.9  2001/02/10 14:31:52  gillem
+ *   add GtxDmxCleanup function
+ *
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -380,6 +383,7 @@ void gtx_dmx_close(void)
   for (j=0; j<2; j++)
     for (i=0; i<16; i++)
       gtx_free_irq(j+2, i);
+
   gtx_free_irq(0, 8);           // PCR
 }
                 // nokia api
@@ -895,9 +899,21 @@ int GtxDmxInit(gtx_demux_t *gtxdemux, void *priv, char *id, char *vendor, char *
 
   if (dmx_register_demux(dmx)<0)
     return -1;
+
   if (dmx->open(dmx)<0)
     return -1;
+
   return 0;
+}
+
+int GtxDmxCleanup(gtx_demux_t *gtxdemux, void *priv, char *id )
+{
+  dmx_demux_t *dmx=&gtxdemux->dmx;
+
+  if (dmx_unregister_demux(dmx)<0)
+    return -1;
+
+	return 0;
 }
 
 #ifdef MODULE
@@ -915,5 +931,6 @@ void cleanup_module(void)
 
 EXPORT_SYMBOL(cleanup_module);
 EXPORT_SYMBOL(GtxDmxInit);
+EXPORT_SYMBOL(GtxDmxCleanup);
 
 #endif
