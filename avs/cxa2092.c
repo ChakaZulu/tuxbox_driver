@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.13  2001/03/03 11:02:57  gillem
+ *   - cleanup
+ *
  *   Revision 1.12  2001/02/02 16:42:30  gillem
  *   - change some function to inline
  *
@@ -53,7 +56,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -69,25 +72,9 @@
 #include <linux/types.h>
 
 #include <linux/i2c.h>
+
+#include "avs_core.h"
 #include "cxa2092.h"
-
-/* ---------------------------------------------------------------------- */
-
-/* Addresses to scan */
-static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x90>>1,I2C_CLIENT_END};
-static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2]       		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] 		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
-
-static struct i2c_client_address_data addr_data = {
-	normal_i2c, normal_i2c_range, 
-	probe, probe_range, 
-	ignore, ignore_range, 
-	force
-};
 
 /* ---------------------------------------------------------------------- */
 
@@ -97,7 +84,7 @@ static struct i2c_client_address_data addr_data = {
  *
  */
 
-typedef struct s_avs_data {
+typedef struct s_cxa2092_data {
  /* Data 1 */
  unsigned char evc : 3;
  unsigned char evf : 3;
@@ -123,243 +110,195 @@ typedef struct s_avs_data {
  unsigned char log2 : 1;
  unsigned char log3 : 1;
  unsigned char log4 : 1;
-} s_avs_data;
+} s_cxa2092_data;
 
-#define AVS_DATA_SIZE 5
-
-/* ---------------------------------------------------------------------- */
-
-static int avs_ioctl (struct inode *inode, struct file *file,
-                         unsigned int cmd, unsigned long arg);
-static int avs_open (struct inode *inode, struct file *file);
-
-static int avs_set(void);
+#define CXA2092_DATA_SIZE sizeof(s_cxa2092_data)
 
 /* ---------------------------------------------------------------------- */
-
-static struct file_operations avs_fops = {
-	owner:		THIS_MODULE,
-	ioctl:		avs_ioctl,
-	open:		avs_open,
-};
-
-/* ---------------------------------------------------------------------- */
-
-#define AVS_COUNT			1
-#define I2C_DRIVERID_AVS	1
-#define AVS_MAJOR 			40
-
-static int debug =  0; /* insmod parameter */
-static int type  =  -1;
-static int addr  =  0;
-
-static int this_adap;
 
 #define dprintk     if (debug) printk
 
-#if LINUX_VERSION_CODE > 0x020100
-MODULE_PARM(debug,"i");
-MODULE_PARM(type,"i");
-MODULE_PARM(addr,"i");
-#endif
-
-#if LINUX_VERSION_CODE < 0x02017f
-void schedule_timeout(int j)
-{
-	current->state   = TASK_INTERRUPTIBLE;
-	current->timeout = jiffies + j;
-	schedule();
-}
-#endif
-
-struct avs
-{
-	int type;           		/* chip type */
-};
-
-static struct i2c_driver driver;
-static struct i2c_client client_template;
-
-//static int avs_status;	/* current status */
-//static unsigned char avs_data[5];	/* current settings */
-static struct s_avs_data avs_data;
+static struct s_cxa2092_data cxa2092_data;
 
 /* ---------------------------------------------------------------------- */
 
-struct avs_type
+int cxa2092_set(struct i2c_client *client)
 {
-	char *name;
-	u8 Vendor;
-	u8 Type;
-};
-
-static struct avs_type avs_types[] = {
-	{"CXA2092", 0, 0 }
-};
-
-/* ---------------------------------------------------------------------- */
-
-int avs_set()
-{
-	if ( AVS_DATA_SIZE != i2c_master_send(&client_template, (char*)&avs_data, AVS_DATA_SIZE)) {
+	if ( CXA2092_DATA_SIZE != i2c_master_send(client, (char*)&cxa2092_data, CXA2092_DATA_SIZE))
+	{
 		return -EFAULT;
     }
 
 	return 0;
 }
 
-inline int avs_set_volume( int vol )
+/* ---------------------------------------------------------------------- */
+
+inline int cxa2092_set_volume( struct i2c_client *client, int vol )
 {
 	int c=0,f=0;
 
-	if ( vol<=63 ) {
-        if (vol) {
+	if ( vol<=63 )
+	{
+        if (vol)
+		{
     		c = vol/8;
 
             // check round :-/
-            if ( (c*8) > vol ) {
+            if ( (c*8) > vol )
+			{
                 c--;
             }
 
     		f = vol-(c*8);
         }
-	} else {
+	} else
+	{
 		return -EINVAL;
 	}
 
-    avs_data.evc = c;
-    avs_data.evf = f;
+    cxa2092_data.evc = c;
+    cxa2092_data.evf = f;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_mute( int type )
+inline int cxa2092_set_mute( struct i2c_client *client, int type )
 {
-	if ((type<0) || (type>3)) {
+	if ((type<0) || (type>3))
+	{
 		return -EINVAL;
     }
 
-    avs_data.tvmute1 = (type>>1)&1;
-    avs_data.zcd     = type&1;
+    cxa2092_data.tvmute1 = (type>>1)&1;
+    cxa2092_data.zcd     = type&1;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_zcd( int type )
+inline int cxa2092_set_zcd( struct i2c_client *client, int type )
 {
-	if ((type<0) || (type>1)) {
+	if ((type<0) || (type>1))
+	{
 		return -EINVAL;
     }
 
-    avs_data.zcd = type&1;
+    cxa2092_data.zcd = type&1;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_fblk( int type )
+inline int cxa2092_set_fblk( struct i2c_client *client, int type )
 {
-	if (type<0 || type>3) {
+	if (type<0 || type>3)
+	{
 		return -EINVAL;
     }
 
-    avs_data.fblk = type;
+    cxa2092_data.fblk = type;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_fnc( int type )
+inline int cxa2092_set_fnc( struct i2c_client *client, int type )
 {
-	if (type<0 || type>3) {
+	if (type<0 || type>3)
+	{
 		return -EINVAL;
     }
 
-    avs_data.fnc = type;
+    cxa2092_data.fnc = type;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_vsw( int sw, int type )
+inline int cxa2092_set_vsw( struct i2c_client *client, int sw, int type )
 {
-	if (type<0 || type>7) {
+	if (type<0 || type>7)
+	{
 		return -EINVAL;
     }
 
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            avs_data.vsw1 = type;
+            cxa2092_data.vsw1 = type;
             break;
         case 1:
-            avs_data.vsw2 = type;
+            cxa2092_data.vsw2 = type;
             break;
         case 2:
-            avs_data.vsw3 = type;
+            cxa2092_data.vsw3 = type;
             break;
         default:
     		return -EINVAL;
     }
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_asw( int sw, int type )
+inline int cxa2092_set_asw( struct i2c_client *client, int sw, int type )
 {
-	if (type<0 || type>7) {
+	if (type<0 || type>7)
+	{
 		return -EINVAL;
     }
 
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            avs_data.asw1 = type;
+            cxa2092_data.asw1 = type;
             break;
         case 1:
-            avs_data.asw2 = type;
+            cxa2092_data.asw2 = type;
             break;
         case 2:
-            avs_data.asw3 = type;
+            cxa2092_data.asw3 = type;
             break;
         default:
     		return -EINVAL;
     }
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_get_volume(void)
+inline int cxa2092_get_volume(void)
 {
-    return ((avs_data.evc*8)+avs_data.evf);
+    return ((cxa2092_data.evc*8)+cxa2092_data.evf);
 }
 
-inline int avs_get_mute(void)
+inline int cxa2092_get_mute(void)
 {
-    return avs_data.tvmute1;
+    return cxa2092_data.tvmute1;
 }
 
-inline int avs_get_zcd(void)
+inline int cxa2092_get_zcd(void)
 {
-    return avs_data.zcd;
+    return cxa2092_data.zcd;
 }
 
-inline int avs_get_fblk(void)
+inline int cxa2092_get_fblk(void)
 {
-    return avs_data.fblk;
+    return cxa2092_data.fblk;
 }
 
-inline int avs_get_fnc(void)
+inline int cxa2092_get_fnc(void)
 {
-    return avs_data.fnc;
+    return cxa2092_data.fnc;
 }
 
-inline int avs_get_vsw( int sw )
+inline int cxa2092_get_vsw( int sw )
 {
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            return avs_data.vsw1;
+            return cxa2092_data.vsw1;
             break;
         case 1:
-            return avs_data.vsw2;
+            return cxa2092_data.vsw2;
             break;
         case 2:
-            return avs_data.vsw3;
+            return cxa2092_data.vsw3;
             break;
         default:
             return -EINVAL;
@@ -368,17 +307,18 @@ inline int avs_get_vsw( int sw )
     return -EINVAL;
 }
 
-inline int avs_get_asw( int sw )
+inline int cxa2092_get_asw( int sw )
 {
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            return avs_data.asw1;
+            return cxa2092_data.asw1;
             break;
         case 1:
-            return avs_data.asw2;
+            return cxa2092_data.asw2;
             break;
         case 2:
-            return avs_data.asw3;
+            return cxa2092_data.asw3;
             break;
         default:
             return -EINVAL;
@@ -389,62 +329,66 @@ inline int avs_get_asw( int sw )
 
 /* ---------------------------------------------------------------------- */
 
-inline int avs_set_ycm( int type )
+inline int cxa2092_set_ycm( struct i2c_client *client, int type )
 {
-	if (type<0 || type>1) {
+	if (type<0 || type>1)
+	{
 		return -EINVAL;
     }
 
-    avs_data.ycm = type;
+    cxa2092_data.ycm = type;
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_set_logic( int sw, int type )
+inline int cxa2092_set_logic( struct i2c_client *client, int sw, int type )
 {
-	if(type<0 || type>1) {
+	if(type<0 || type>1)
+	{
 		return -EINVAL;
     }
 
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            avs_data.log1 = type;
+            cxa2092_data.log1 = type;
             break;
         case 1:
-            avs_data.log2 = type;
+            cxa2092_data.log2 = type;
             break;
         case 2:
-            avs_data.log3 = type;
+            cxa2092_data.log3 = type;
             break;
         case 3:
-            avs_data.log4 = type;
+            cxa2092_data.log4 = type;
             break;
         default:
             return -EINVAL;
     }
 
-	return avs_set();
+	return cxa2092_set(client);
 }
 
-inline int avs_get_ycm(void)
+inline int cxa2092_get_ycm(void)
 {
-    return avs_data.ycm;
+    return cxa2092_data.ycm;
 }
 
-inline int avs_get_logic( int sw )
+inline int cxa2092_get_logic( int sw )
 {
-    switch(sw) {
+    switch(sw)
+	{
         case 0:
-            return avs_data.log1;
+            return cxa2092_data.log1;
             break;
         case 1:
-            return avs_data.log2;
+            return cxa2092_data.log2;
             break;
         case 2:
-            return avs_data.log3;
+            return cxa2092_data.log3;
             break;
         case 3:
-            return avs_data.log4;
+            return cxa2092_data.log4;
             break;
         default:
             return -EINVAL;
@@ -455,11 +399,14 @@ inline int avs_get_logic( int sw )
 
 /* ---------------------------------------------------------------------- */
 
-static int avs_getstatus(struct i2c_client *c)
+static int cxa2092_getstatus(struct i2c_client *client)
 {
 	unsigned char byte;
 
-	if (1 != i2c_master_recv(c,&byte,1)) {
+	byte = 0;
+
+	if (1 != i2c_master_recv(client,&byte,1))
+	{
 		return -1;
     }
 
@@ -468,196 +415,110 @@ static int avs_getstatus(struct i2c_client *c)
 
 /* ---------------------------------------------------------------------- */
 
-static int avs_attach(struct i2c_adapter *adap, int addr,
-			unsigned short flags, int kind)
-{
-    struct avs *t;
-    struct i2c_client *client;
-
-    dprintk("[AVS]: attach\n");
-
-    if (this_adap > 0) {
-        return -1;
-    }
-
-    this_adap++;
-	
-    client_template.adapter = adap;
-    client_template.addr = addr;
-
-    dprintk("[AVS]: chip found @ 0x%x\n",addr);
-
-    if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
-        return -ENOMEM;
-    }
-
-    memcpy(client,&client_template,sizeof(struct i2c_client));
-    client->data = t = kmalloc(sizeof(struct avs),GFP_KERNEL);
-
-    if (NULL == t) {
-        kfree(client);
-        return -ENOMEM;
-    }
-
-    memset(t,0,sizeof(struct avs));
-
-    if (type >= 0 && type < AVS_COUNT) {
-	    t->type = type;
-	    strncpy(client->name, avs_types[t->type].name, sizeof(client->name));
-    } else {
-	    t->type = -1;
-    }
-
-    i2c_attach_client(client);
-
-    //MOD_INC_USE_COUNT;
-
-    return 0;
-}
-
-static int avs_probe(struct i2c_adapter *adap)
-{
-	int ret=0;
-
-	dprintk("[AVS]: probe\n");
-
-	if (0 != addr) {
-		normal_i2c_range[0] = addr;
-		normal_i2c_range[1] = addr;
-	}
-
-	this_adap = 0;
-	
-	if (1) {
-		ret = i2c_probe(adap, &addr_data, avs_attach );
-    }
-
-	dprintk("[AVS]: probe end %d\n",ret);
-
-	return ret;
-}
-
-static int avs_detach(struct i2c_client *client)
-{
-	struct avs *t = (struct avs*)client->data;
-
-	dprintk("[AVS]: detach\n");
-
-	i2c_detach_client(client);
-
-	kfree(t);
-	kfree(client);
-	return 0;
-}
-
-static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
-{
-	dprintk("[AVS]: command\n");
-	return 0;
-}
-///////////////////////////////////////////////////////////////////////////////
-
-int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	int val;
-	dprintk("[AVS]: IOCTL\n");
+	dprintk("[AVS]: command\n");
 	
-	if (cmd&AVSIOSET) {
-		if ( get_user(val,(int*)arg) ) {
+	if (cmd&AVSIOSET)
+	{
+		if ( get_user(val,(int*)arg) )
+		{
 			return -EFAULT;
         }
 
     	switch (cmd) {
 			/* set video */
-			case AVSIOSVSW1:	return avs_set_vsw(0,val);
-			case AVSIOSVSW2:	return avs_set_vsw(1,val);
-			case AVSIOSVSW3:	return avs_set_vsw(2,val);
+			case AVSIOSVSW1:	return cxa2092_set_vsw(client,0,val);
+			case AVSIOSVSW2:	return cxa2092_set_vsw(client,1,val);
+			case AVSIOSVSW3:	return cxa2092_set_vsw(client,2,val);
 			/* set audio */
-			case AVSIOSASW1:	return avs_set_asw(0,val);
-			case AVSIOSASW2:	return avs_set_asw(1,val);
-			case AVSIOSASW3:	return avs_set_asw(2,val);
+			case AVSIOSASW1:	return cxa2092_set_asw(client,0,val);
+			case AVSIOSASW2:	return cxa2092_set_asw(client,1,val);
+			case AVSIOSASW3:	return cxa2092_set_asw(client,2,val);
 			/* set vol & mute */
-			case AVSIOSVOL:		return avs_set_volume(val);
-			case AVSIOSMUTE:	return avs_set_mute(val);
+			case AVSIOSVOL:		return cxa2092_set_volume(client,val);
+			case AVSIOSMUTE:	return cxa2092_set_mute(client,val);
 			/* set video fast blanking */
-			case AVSIOSFBLK:	return avs_set_fblk(val);
+			case AVSIOSFBLK:	return cxa2092_set_fblk(client,val);
 			/* set video function switch control */
-			case AVSIOSFNC:		return avs_set_fnc(val);
+			case AVSIOSFNC:		return cxa2092_set_fnc(client,val);
 			/* set output throgh vout 8 */
-			case AVSIOSYCM:		return avs_set_ycm(val);
+			case AVSIOSYCM:		return cxa2092_set_ycm(client,val);
 			/* set zero cross detector */
-			case AVSIOSZCD:		return avs_set_zcd(val);
+			case AVSIOSZCD:		return cxa2092_set_zcd(client,val);
 			/* set logic outputs */
-			case AVSIOSLOG1:	return avs_set_logic(1,val);
-			case AVSIOSLOG2:	return avs_set_logic(2,val);
-			case AVSIOSLOG3:	return avs_set_logic(3,val);
-			case AVSIOSLOG4:	return avs_set_logic(4,val);
+			case AVSIOSLOG1:	return cxa2092_set_logic(client,1,val);
+			case AVSIOSLOG2:	return cxa2092_set_logic(client,2,val);
+			case AVSIOSLOG3:	return cxa2092_set_logic(client,3,val);
+			case AVSIOSLOG4:	return cxa2092_set_logic(client,4,val);
 
 			default:            return -EINVAL;
 		}
-	} else {
-		switch (cmd) {
+	} else
+	{
+		switch (cmd)
+		{
 			/* get video */
 			case AVSIOGVSW1:
-                                val = avs_get_vsw(0);
+                                val = cxa2092_get_vsw(0);
                                 break;
 			case AVSIOGVSW2:
-                                val = avs_get_vsw(1);
+                                val = cxa2092_get_vsw(1);
                                 break;
 			case AVSIOGVSW3:
-                                val = avs_get_vsw(2);
+                                val = cxa2092_get_vsw(2);
                                 break;
 			/* get audio */
 			case AVSIOGASW1:
-                                val = avs_get_asw(0);
+                                val = cxa2092_get_asw(0);
                                 break;
 			case AVSIOGASW2:
-                                val = avs_get_asw(1);
+                                val = cxa2092_get_asw(1);
                                 break;
 			case AVSIOGASW3:
-                                val = avs_get_asw(2);
+                                val = cxa2092_get_asw(2);
                                 break;
 			/* get vol & mute */
 			case AVSIOGVOL:
-                                val = avs_get_volume();
+                                val = cxa2092_get_volume();
                                 break;
 			case AVSIOGMUTE:
-                                val = avs_get_mute();
+                                val = cxa2092_get_mute();
                                 break;
 			/* get video fast blanking */
 			case AVSIOGFBLK:
-                                val = avs_get_fblk();
+                                val = cxa2092_get_fblk();
                                 break;
 			/* get video function switch control */
 			case AVSIOGFNC:
-                                val = avs_get_fnc();
+                                val = cxa2092_get_fnc();
                                 break;
 			/* get output throgh vout 8 */
 			case AVSIOGYCM:
-                                val = avs_get_ycm();
+                                val = cxa2092_get_ycm();
                                 break;
 			/* get zero cross detector */
 			case AVSIOGZCD:
-                                val = avs_get_zcd();
+                                val = cxa2092_get_zcd();
                                 break;
 			/* get logic outputs */
 			case AVSIOGLOG1:
-                                val = avs_get_logic(1);
+                                val = cxa2092_get_logic(1);
                                 break;
 			case AVSIOGLOG2:
-                                val = avs_get_logic(2);
+                                val = cxa2092_get_logic(2);
                                 break;
 			case AVSIOGLOG3:
-                                val = avs_get_logic(3);
+                                val = cxa2092_get_logic(3);
                                 break;
 			case AVSIOGLOG4:
-                                val = avs_get_logic(4);
+                                val = cxa2092_get_logic(4);
                                 break;
 
             case AVSIOGSTATUS:
                                 // TODO: error handling
-                                val = avs_getstatus(&client_template);
+                                val = cxa2092_getstatus(client);
                                 break;
 
 			default:
@@ -670,81 +531,13 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	return 0;
 }
 
-///////////////////////////////////////////////////////////////////////////////
+/* ---------------------------------------------------------------------- */
 
-int avs_open (struct inode *inode, struct file *file)
+int cxa2092_init(struct i2c_client *client)
 {
-	return 0;
+	memset((void*)&cxa2092_data,0,CXA2092_DATA_SIZE);
+
+	return cxa2092_set(client);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
-void inc_use (struct i2c_client *client)
-{
-#ifdef MODULE
-        MOD_INC_USE_COUNT;
-#endif
-}
-
-void dec_use (struct i2c_client *client)
-{
-#ifdef MODULE
-        MOD_DEC_USE_COUNT;
-#endif
-}
-
-static struct i2c_driver driver = {
-        "i2c audio/video switch driver",
-        I2C_DRIVERID_AVS,
-        I2C_DF_NOTIFY,
-        avs_probe,
-        avs_detach,
-        avs_command,
-        inc_use,
-        dec_use,
-};
-
-static struct i2c_client client_template =
-{
-        "i2c audio/video switch chip",          /* name       */
-        I2C_DRIVERID_AVS,           /* ID         */
-        0,
-				0, /* interpret as 7Bit-Adr */
-        NULL,
-        &driver
-};
-
-EXPORT_NO_SYMBOLS;
-
-#ifdef MODULE
-int init_module(void)
-#else
-int i2c_avs_init(void)
-#endif
-{
-	i2c_add_driver(&driver);
-
-	if (register_chrdev(AVS_MAJOR,"avs",&avs_fops)) {
-		printk("cxa2092.o: unable to get major %d\n", AVS_MAJOR);
-		return -EIO;
-	}
-
-	memset((void*)&avs_data,0,AVS_DATA_SIZE);
-
-	if ( AVS_DATA_SIZE != i2c_master_send(&client_template, (char*)&avs_data, AVS_DATA_SIZE)) {
-		return -EFAULT;
-    }
-
-	return 0;
-}
-
-#ifdef MODULE
-void cleanup_module(void)
-{
-	i2c_del_driver(&driver);
-
-	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
-		printk("cxa2092.o: unable to release major %d\n", AVS_MAJOR);
-	}
-}
-#endif
+/* ---------------------------------------------------------------------- */

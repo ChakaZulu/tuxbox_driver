@@ -21,11 +21,14 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.2  2001/03/03 11:02:57  gillem
+ *   - cleanup
+ *
  *   Revision 1.1  2001/03/03 09:38:58  gillem
  *   - initial release
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -220,19 +223,26 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 {
 	dprintk("[AVS]: IOCTL\n");
 
-	switch (type)
+	if ( cmd == AVSIOGTYPE )
 	{
-		case CXA2092:
-			return cxa2092_ioctl( inode, file, cmd, arg );
-			break;
-		case CXA2126:
-			return cxa2126_ioctl( inode, file, cmd, arg );
-			break;
-		default:
-			return -EINVAL;
+		return put_user(type,(int*)arg);
+	}
+	else
+	{
+		switch (type)
+		{
+			case CXA2092:
+				return cxa2092_command(&client_template, cmd, (void*)arg );
+				break;
+			case CXA2126:
+				return cxa2092_command(&client_template, cmd, (void*)arg );
+				break;
+			default:
+				return -EINVAL;
+		}
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -257,5 +267,75 @@ void dec_use (struct i2c_client *client)
 	MOD_DEC_USE_COUNT;
 #endif
 }
+
+/* ---------------------------------------------------------------------- */
+
+static struct i2c_driver driver = {
+        "i2c audio/video switch driver",
+        I2C_DRIVERID_AVS,
+        I2C_DF_NOTIFY,
+        avs_probe,
+        avs_detach,
+        avs_command,
+        inc_use,
+        dec_use,
+};
+
+static struct i2c_client client_template =
+{
+        "i2c audio/video switch chip",          /* name       */
+        I2C_DRIVERID_AVS,           /* ID         */
+        0,
+				0, /* interpret as 7Bit-Adr */
+        NULL,
+        &driver
+};
+
+EXPORT_NO_SYMBOLS;
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef MODULE
+int init_module(void)
+#else
+int i2c_avs_init(void)
+#endif
+{
+	i2c_add_driver(&driver);
+
+	switch(type)
+	{
+		case CXA2092:
+			cxa2092_init(&client_template);
+			break;
+		case CXA2126:
+			cxa2126_init(&client_template);
+			break;
+		default:
+			printk("[AVS]: wrong type %d\n", type);
+			i2c_del_driver(&driver);
+			return -EIO;
+	}
+
+	if (register_chrdev(AVS_MAJOR,"avs",&avs_fops))
+	{
+		printk("[AVS]: unable to get major %d\n", AVS_MAJOR);
+		i2c_del_driver(&driver);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+#ifdef MODULE
+void cleanup_module(void)
+{
+	i2c_del_driver(&driver);
+
+	if ((unregister_chrdev(AVS_MAJOR,"avs"))) {
+		printk("[AVS]: unable to release major %d\n", AVS_MAJOR);
+	}
+}
+#endif
 
 /* ---------------------------------------------------------------------- */
