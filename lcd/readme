@@ -5,4 +5,7 @@ KS0713
 SSD1815
 SED1530
 
-Major: 156
+Device
+------
+
+/dev/dbox/lcd0
