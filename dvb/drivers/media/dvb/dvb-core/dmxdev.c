@@ -109,7 +109,8 @@ dvb_dmxdev_buffer_read(dmxdev_buffer_t *src, int non_blocking,
 	        return 0;
 
 	if ((error=src->error)) {
-	        src->error=0;
+		src->pwrite=src->pread;
+		src->error=0;
 		return error; 
 	}
 
@@ -126,6 +127,7 @@ dvb_dmxdev_buffer_read(dmxdev_buffer_t *src, int non_blocking,
 		        return count-todo;
 
 		if ((error=src->error)) {
+			src->pwrite=src->pread;
 		        src->error=0;
 			return error; 
 		}
@@ -567,6 +569,8 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
                         return -ENOMEM;
 	}
 
+	dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread=0;
+
 	switch (dmxdevfilter->type) {
 	case DMXDEV_TYPE_SEC:
 	{
@@ -589,10 +593,9 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
 
 		/* if no feed found, try to allocate new one */ 
 		if (!*secfeed) {
-			ret=dmxdev->demux->
-				allocate_section_feed(dmxdev->demux, 
-						      secfeed, 
-						      dvb_dmxdev_section_callback);
+			ret=dmxdev->demux->allocate_section_feed(dmxdev->demux, 
+								 secfeed, 
+					           dvb_dmxdev_section_callback);
 			if (ret<0) {
 				printk ("DVB (%s): could not alloc feed\n",
 					__FUNCTION__);
@@ -615,8 +618,7 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
 		ret=(*secfeed)->allocate_filter(*secfeed, secfilter);
 		if (ret<0) {
 			dvb_dmxdev_feed_restart(dmxdevfilter);
-			dmxdevfilter->feed.sec->
-				start_filtering(*secfeed);
+			dmxdevfilter->feed.sec->start_filtering(*secfeed);
 			dprintk ("could not get filter\n");
 			return ret;
 		}
@@ -637,15 +639,14 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
 		(*secfilter)->filter_mask[2]=0;
 		
 	        dmxdevfilter->todo=0;
-	        dmxdevfilter->feed.sec->
-			start_filtering(dmxdevfilter->feed.sec);
+	        dmxdevfilter->feed.sec->start_filtering(dmxdevfilter->feed.sec);
 	        dvb_dmxdev_filter_timer(dmxdevfilter);
 		break;
 	}
 
 	case DMXDEV_TYPE_PES: 
 	{
-		struct timespec timeout = {0 };
+		struct timespec timeout = { 0 };
 		struct dmx_pes_filter_params *para=&dmxdevfilter->params.pes;
 		dmx_output_t otype;
 		int ret;
@@ -678,12 +679,10 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
 		(*tsfeed)->priv=(void *) dmxdevfilter;
 		ret=(*tsfeed)->set(*tsfeed, para->pid, ts_type, ts_pes, 188, 32768, 0, timeout);
 		if (ret<0) {
-			dmxdev->demux->
-				release_ts_feed(dmxdev->demux, *tsfeed);
+			dmxdev->demux->release_ts_feed(dmxdev->demux, *tsfeed);
 			return ret;
 		}
-	        dmxdevfilter->feed.ts->
-			start_filtering(dmxdevfilter->feed.ts);
+	        dmxdevfilter->feed.ts->start_filtering(dmxdevfilter->feed.ts);
 		break;
 	}
 	default:

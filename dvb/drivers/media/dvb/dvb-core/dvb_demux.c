@@ -377,7 +377,7 @@ dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf)
         }
 }
 
-void inline
+void
 dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf)
 {
         struct dvb_demux_feed *dvbdmxfeed;

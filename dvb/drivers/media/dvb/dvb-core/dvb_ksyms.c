@@ -13,6 +13,7 @@ EXPORT_SYMBOL(dvb_dmxdev_init);
 EXPORT_SYMBOL(dvb_dmxdev_release);
 EXPORT_SYMBOL(dvb_dmx_init);
 EXPORT_SYMBOL(dvb_dmx_release);
+EXPORT_SYMBOL(dvb_dmx_swfilter_packet);
 EXPORT_SYMBOL(dvb_dmx_swfilter_packets);
 
 EXPORT_SYMBOL(dvb_register_frontend);
