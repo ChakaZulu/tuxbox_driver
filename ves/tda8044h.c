@@ -1,5 +1,5 @@
 /* 
- *   $Id: tda8044h.c,v 1.10 2002/05/18 21:01:48 derget Exp $
+ *   $Id: tda8044h.c,v 1.11 2002/08/11 19:48:15 happydude Exp $
  *   
  *   tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -23,6 +23,9 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.11  2002/08/11 19:48:15  happydude
+ *   disable debug messages
+ *
  *   Revision 1.10  2002/05/18 21:01:48  derget
  *   fixx wegem lock problem von zapit (untested)
  *   sync wurde nie richtig gelesen !
@@ -62,7 +65,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -97,7 +100,7 @@ static int tda_set_freq(struct i2c_client *client, int freq);
 static int tda_send_diseqc(struct i2c_client *client, u8 *cmd,unsigned int len);
 
 
-static int debug = 1;
+static int debug = 0;
 #define dprintk	if (debug) printk
 
 static int instances=0;
@@ -284,7 +287,7 @@ static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
 	
 	srate[6]=0;									// sigma delta
 	if (FEC)
-		printk("fec: %02x\n", FEC);
+		dprintk("fec: %02x\n", FEC);
 	switch (FEC)
 	{
 	case FEC_AUTO:
@@ -319,12 +322,12 @@ static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
 		printk("tda8044h.o: writeregs failed!\n");
 
 	for (i=0; i<16; i++)
-		printk("%02x ", srate[i]);
-	printk("\n");
+		dprintk("%02x ", srate[i]);
+	dprintk("\n");
 	i2c_master_send(client, "\x17\x68\x9a", 3);
-	printk("17 68 9a\n");
+	dprintk("17 68 9a\n");
 	i2c_master_send(client, "\x22\xf9", 2);				// SCPC
-	printk("22 f9\n");
+	dprintk("22 f9\n");
 	tda->loopopen=1;
 }
 
@@ -496,10 +499,10 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		// param->Inversion);
 		tda->srate=param->u.qpsk.SymbolRate;
-		printk("setting symbolrate: %d\n", tda->srate);
+		dprintk("setting symbolrate: %d\n", tda->srate);
 		tda->fec=param->u.qpsk.FEC_inner;
 		SetSymbolrate(client, tda->srate, tda->fec);
-		printk("0b 68 70\n");
+		dprintk("0b 68 70\n");
 		i2c_master_send(client, "\x0b\x68\x70", 3);		// stop sweep, close loop
 		break;
 	}
@@ -601,7 +604,7 @@ static int tda_set_freq(struct i2c_client *client, int freq)
 	int tries=10;
 	u8 msg[4]={0, 0, 0x81, 0x60};
 	
-	printk("setting freq %d\n", freq);
+	dprintk("setting freq %d\n", freq);
 		// semaphore, irgendwie
 	writereg(client, 0x1C, 0x80);
 	
@@ -624,7 +627,7 @@ static int tda_set_freq(struct i2c_client *client, int freq)
 		writereg(client, 0x1C, 0x0);
 		if (msg[0]&0x40)		// in-lock flag
 		{
-			printk("tuner locked\n");
+			dprintk("tuner locked\n");
 			return 0;
 		}
 	}
@@ -695,13 +698,13 @@ static void tda_task(void *data)
 	
 	if (tda->loopopen && (sync&2) && (!(tda->sync&2)))
 	{
-		printk("loop open, lock acquired, closing loop.\n");
+		dprintk("loop open, lock acquired, closing loop.\n");
 		// i2c_master_send(client, "\x0b\x68\x70", 3);		// stop sweep, close loop
 		tda->loopopen=0;
 	}
 	
 	if (sync != lastsync);
-		printk("sync: %02x\n", sync);
+		dprintk("sync: %02x\n", sync);
 	lastsync=sync;
 	
 	if ((sync == 0x1F) && (tda->sync != 0x1F))
@@ -709,7 +712,7 @@ static void tda_task(void *data)
 		int val=readreg(client, 0xE);
 		tda->inversion=!!(val&0x80);
 		tda->fec=val&7;
-		printk("acquired full sync, found FEC: %d/%d, %sspectral inversion\n", tda->fec, tda->fec+1, tda->inversion?"":"no ");
+		dprintk("acquired full sync, found FEC: %d/%d, %sspectral inversion\n", tda->fec, tda->fec+1, tda->inversion?"":"no ");
 	}
 
 	if (sync&0x20)
