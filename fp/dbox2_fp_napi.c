@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.8 2003/03/04 23:07:27 waldi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.9 2003/05/25 23:42:20 obi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -105,6 +105,7 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 
 	case FE_SET_FRONTEND:
 	{
+		u32 freq = ((struct dvb_frontend_parameters *) arg)->frequency;
 		u32 div;
 		u8 buf[4];
 
@@ -115,12 +116,13 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				 * mitel sp5659
 				 * http://assets.zarlink.com/products/datasheets/zarlink_SP5659_MAY_02.pdf
 				 */
-				
-				div = (((struct dvb_frontend_parameters *) arg)->frequency + 36125000) / 125000;
+
+				div = (freq + 36125000 + 31250) / 62500;
 				buf[0] = (div >> 8) & 0x7f;
 				buf[1] = div & 0xff;
-				buf[2] = 0x80 | (((div >> 15) & 0x03) << 6) | 0x04;
-				buf[3] = div > 4017 ? 0x04 : div < 2737 ? 0x02 : 0x01;
+				buf[2] = 0x85 | ((div >> 10) & 0x60);
+				buf[3] = (freq < 174000000 ? 0x02 :
+					  freq < 470000000 ? 0x01 : 0x04);
 
 				if (dbox2_fp_tuner_write_qam(buf, sizeof(buf)))
 					return 0;
@@ -144,8 +146,9 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 				 */
 
 				static const u32 ratio[] = { 2000000, 1000000, 500000, 250000, 125000, 62500, 31250, 15625 };
-				u32 freq = (((struct dvb_frontend_parameters *) arg)->frequency + 479500) * 1000;
 				u8 sel, pe;
+
+				freq = (freq + 479500) * 1000;
 
 				if (freq >= 2000000000)
 					pe = 1;
