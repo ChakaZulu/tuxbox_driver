@@ -78,26 +78,28 @@ static ssize_t gtx_fwrite (struct file *file, const char *buf, size_t count, lof
   return -EINVAL;
 }                             
 
+
 static ssize_t gtx_fread (struct file *file, char *buf, size_t count, loff_t *offset)
 {
   user_dmx_filter_t *flt=(user_dmx_filter_t*)file->private_data;
   int read=0;
 //  printk("gtx_fread\n");
-  while (read<count)
+  while (count)
   {
     DECLARE_WAITQUEUE(wait, current);
     int i, numwc=0, ok=0;
 
     for (i=0; i<32; i++)
+    {
       if (flt->uqueue[i])
       {
 //        printk("%d, rptr: %d wptr %d\n", flt->queue[i].gtxqueue->quid, flt->queue[i].readptr, gtx_get_queue_wptr(flt->queue[i].gtxqueue->quid));
-        if (flt->queue[i].readptr!=gtx_get_queue_wptr(flt->queue[i].gtxqueue->quid))
+        if (flt->queue[i].readptr!=gtx_get_queue_wptr(flt->queue[i].gtxqueue->quid))            // daten da?
         {
-          int nrb=gtx_get_queue_wptr(flt->queue[i].gtxqueue->quid)-flt->queue[i].readptr;
+          int nrb=gtx_get_queue_wptr(flt->queue[i].gtxqueue->quid)-flt->queue[i].readptr;       // und zwar bis zum wp
 //          printk("data inside.\n");
-          if (nrb<0)
-            nrb+=flt->queue[i].gtxqueue->size;
+          if (nrb<0)                                                                            // wrap around?
+            nrb+=flt->queue[i].gtxqueue->size;                                                  // add size to unwrap
 //          printk("%d bytes in queue %d\n", nrb, flt->queue[i].gtxqueue->quid);
           if (nrb>count)
             nrb=count;
@@ -114,6 +116,7 @@ static ssize_t gtx_fread (struct file *file, char *buf, size_t count, loff_t *of
           buf+=nrb;
 //          printk("so we're reading %d bytes\n", nrb);
           read+=nrb;
+          count-=nrb;
           flt->queue[i].readptr+=nrb;
           if (flt->queue[i].readptr>flt->queue[i].gtxqueue->end)
             flt->queue[i].readptr-=flt->queue[i].gtxqueue->size;
@@ -122,7 +125,7 @@ static ssize_t gtx_fread (struct file *file, char *buf, size_t count, loff_t *of
         add_wait_queue(&flt->queue[i].gtxqueue->wait, &wait);
         numwc++;
       }
-
+    }
 //    printk("no data but %d queues left.\n", numwc);
     if (!numwc)
       return -EIO;
@@ -137,7 +140,6 @@ static ssize_t gtx_fread (struct file *file, char *buf, size_t count, loff_t *of
         remove_wait_queue(&flt->queue[i].gtxqueue->wait, &wait);
     if (signal_pending(current))
       return -ERESTARTSYS;
-    continue;
   }
   return read;
 }
@@ -146,7 +148,6 @@ static int gtx_fopen (struct inode *inode, struct file *file)
 {
 // unsigned int minor=MINOR (file->f_dentry->d_inode->i_rdev);
   user_dmx_filter_t *flt;
-  printk("gtx_fopen\n");
     
   file->private_data=kmalloc(sizeof(user_dmx_filter_t), GFP_KERNEL);
   if (!file->private_data)
@@ -155,10 +156,12 @@ static int gtx_fopen (struct inode *inode, struct file *file)
   memset(flt->uqueue, 0, sizeof(int)*32);
   
 // hack hack hack
-  flt->queue[0].gtxqueue=&gtx_queue[1];
-  flt->queue[0].readptr=gtx_get_queue_wptr(1);
+  flt->queue[0].gtxqueue=&gtx_queue[0];
+  flt->queue[0].readptr=gtx_get_queue_wptr(0);
   flt->uqueue[0]=1;
-  printk("done.\n");
+  flt->queue[1].gtxqueue=&gtx_queue[1];
+  flt->queue[1].readptr=gtx_get_queue_wptr(1);
+  flt->uqueue[1]=1;
   return 0;
 }
 
@@ -243,18 +246,16 @@ static void gtx_queue_interrupt(int nr, int bit)
 
 #define d udelay(1000*1000);
 
-#define PID_A   0x00FF 
-#define PID_V   0x0100
+#define PID_A   0x0FF
+#define PID_V   0x100
 
 void gtx_dmx_init(void)
 {
   int i;
   printk("initializing gtx_dmx_init\n");
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
-  rh(RR0)=0;               // take framer, ci, avi module out of reset
-  rh(RR1)=0;               // take framer, ci, avi module out of reset
-  udelay(1000*1000);
-//  rh(RISCCON)&=0xFFFD;
+  rh(RR0)=0;            // autsch, das muss so. kann das mal wer überprüfen?
+  rh(RR1)=0;
   rh(RISCCON)=0;
 
   rh(FCR)=0x9147;               // byte wide input
@@ -282,8 +283,8 @@ void gtx_dmx_init(void)
   gtx_set_pid_table(1, 0, 0, PID_A);     // audio
 
   // we want a dual PES stream!
-  gtx_set_pid_control_table(0, 2, VIDEO_QUEUE, 1, 0, 0, 1, 0); 
-  gtx_set_pid_control_table(1, 2, AUDIO_QUEUE, 1, 0, 0, 1, 0);
+  gtx_set_pid_control_table(0, 3, VIDEO_QUEUE, 1, 0, 0, 1, 0); 
+  gtx_set_pid_control_table(1, 3, AUDIO_QUEUE, 1, 0, 0, 1, 0);
   
   for (i=0; i<NUM_QUEUES; i++)
   {
