@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.61 $
+ *   $Revision: 1.62 $
  *   $Log: gen-dmx.c,v $
+ *   Revision 1.62  2001/12/17 19:29:51  gillem
+ *   - sync with includes
+ *
  *   Revision 1.61  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
@@ -1328,6 +1331,8 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
   
   switch (type)
   {
+  case DMX_TS_PES_USER:
+    return 0;
   case DMX_TS_PES_VIDEO:
     i=VIDEO_QUEUE;
     break;
@@ -1988,7 +1993,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.61 2001/12/01 06:37:06 gillem Exp $\n");
+	dprintk("gtx_dmx: $Id: gen-dmx.c,v 1.62 2001/12/17 19:29:51 gillem Exp $\n");
 
 	return gtx_dmx_init();
 }
