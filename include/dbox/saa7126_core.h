@@ -35,7 +35,14 @@
 #define SAA_READREG	12	/* read single register */
 #define SAA_WRITEREG	13	/* write single register */
 #define SAAIOSCSYNC  14 /* set sync correction in rgb mode */
-#define SAAIOGCSYNC  15 /* set sync correction in rgb mode */
+#define SAAIOGCSYNC  15 /* get sync correction in rgb mode */
+#define SAAIOSTTX	16	/* 	setup teletext data reinsertion (1=on,0=off) 
+							NB: this seems to shut down the TTX interface which
+							obviously annoys the demux so after turning reinsertion
+							on again it's necessary to restart the teletext PID
+							(f.ex. by switching channels)	*/
+#define SAAIOGTTX	17	/* get teletext data reinsertion (1=on,0=off) */
+#define SAAIOGMODE	18	/* get mode */
 
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1
