@@ -3,6 +3,15 @@
 
 #include <linux/types.h>
 #include <ost/frontend.h>
+
+/* remove wrong ids from kernel includes */
+#ifdef I2C_DRIVERID_VES1893
+#undef I2C_DRIVERID_VES1893
+#endif
+#ifdef I2C_DRIVERID_VES1820
+#undef I2C_DRIVERID_VES1820
+#endif
+
 #define I2C_DRIVERID_VES1893    32      /* DVB-S decoder                */
 #define I2C_DRIVERID_VES1820    33      /* DVB-C decoder                */
 
