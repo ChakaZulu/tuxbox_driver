@@ -1,7 +1,24 @@
 #
-# README.firmware
+# $Id: README.firmware,v 1.6 2003/09/30 07:05:56 obi Exp $
+#
+# This document describes the binary firmware (so called microcode) which
+# is needed to have a functional MPEG2 chipset in a dbox2.
+#
+# Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
+#
+# Permission is granted to copy, distribute and/or modify this document
+# under the terms of the GNU Free Documentation License, Version 1.2
+# or any later version published by the Free Software Foundation;
+# with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+# A copy of the license is included in common-licenses/FDL-1.2
+#
+# This document is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 
+Introduction:
+-------------
 Some drivers need to load binary firmware for the chips to operate.
 
 Those are:
@@ -57,12 +74,16 @@ Extraction:
    various versions of the dbox2. Some of them offer the possibility to perform
    software updates using a serial interface. For those, manufacturers provide
    updates to be downloaded via internet. Examples are:
-   
+
+   -------------------------------------------------------------------------
+ 
    http://www.media-com.com/downloads/vortec/downloadfiles/VS96PL500.exe
    (avia500v093, ucode_0014)
    
    http://www.media-com.com/downloads/vortec/downloadfiles/VS96PL600.exe
    (avia600vb017, ucode_0014)
+ 
+   -------------------------------------------------------------------------
 
    http://www.micronik.de/software/MK12133.zip
    http://www.micronik.de/software/MK13133.zip
@@ -72,16 +93,30 @@ Extraction:
    http://www.micronik.de/software/v13-111.zip
    (avia500v093, avia600vb022, ucode_001A)
 
+   These links are dead at the moment, but they are still on their web site,
+   so maybe they will be working again in the future.
+
+   You can still get the files from www.dvb-portal.de -> Downloads ->
+   Micronik -> Firmware. Newer versions, at least up to 1.52a, contain the
+   same microcodes as 1.33 does.
+
+   -------------------------------------------------------------------------
+
    http://eubnet.de/sat/firmware/Radix/3ci17b.zip
    (avia500v083, ucode_0014)
 
    http://eubnet.de/sat/firmware/Radix/fta2ad38.zip
    (avia500v083, ucode_0013)
+
+   -------------------------------------------------------------------------
    
    http://www.freesat.co.kr/service/service.html#direct
-   (There are some receivers which also use the AViA mpeg chipset. I do not
-    remember which of them use it and my extraction utility fails. Detailed
-    information and bugfixes are welcome.)
+ 
+   There are some receivers which also use the AViA mpeg chipset. I do not
+   remember which of them use it and my extraction utility fails. Detailed
+   information and bugfixes are welcome.
+
+   -------------------------------------------------------------------------
 
    You can extract the zip or exe archives using "unzip". Usually they
    contain files with the extesion bin or hex. Just run "ucodex" to extract
@@ -99,6 +134,10 @@ avia_av:
 avia_gt:
    ucode_0013, ucode_0014:
    Known to work and hardware section filtering is supported.
+   Special thanks go to PentaMedia (www.pentamedia.com) for providing a GPL
+   driver for the GTX chipset including almost no source code. They use ucode
+   version 0014 which is therefore now built into our driver, too. It is used
+   if no other firmware is provided on the filesystem.
 
    ucode_001A, ucode_B102, ucode_B107, ucode_B121:
    Known to work but hardware section filtering is not supported by the driver.
@@ -111,8 +150,19 @@ cam:
    handling is done in userspace, thus userspace applications might need to
    change some bits depending on the used firmware version.
    Version strings usually have one of three suffixes: D, E or F.
-   Each suffix matches one series of smart cards:
-   cam_xx_yy_zzD: S/N D .... .... ... Z
-   cam_xx_yy_zzE: S/N C .... .... ... Z
-   cam_xx_yy_zzF: S/N F .... .... ... Z
+   Each suffix matches special series of smart cards:
+
+   cam_xx_yy_zzD: betacrypt D .... .... ... Z,
+                  Nagravision K02
+
+   cam_xx_yy_zzE: betacrypt C .... .... ... Z,
+                  Nagravision A02,
+                  Nagravision S02,
+                  Nagravision P02
+
+   cam_xx_yy_zzF: betacrypt F .... .... ... Z
+
+betacrypt is a trademark of BetaResearch GmbH Germany. Nagravision is a
+trademark of Kudelski S.A. Switzerland. The names of actual companies and
+products mentioned herein may be the trademarks of their respective owners.
 
