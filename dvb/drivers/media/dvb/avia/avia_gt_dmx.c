@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.160 2003/01/12 00:50:28 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.161 2003/01/17 20:07:21 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -214,12 +214,12 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
-	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00)) {
+	if (hw_sections == 1) {
 
-		switch (risc_mem_map->Version_no[1]) {
+		switch (risc_mem_map->Version_no) {
 
-			case 0x13:
-			case 0x14:
+			case 0x0013:
+			case 0x0014:
 
 				return 1;
 
@@ -370,16 +370,15 @@ int avia_gt_dmx_load_ucode(void)
 	set_fs(fs);
 
 	/* queues should be stopped */
-
-	for (fd = 0x700; fd < 0x740;)
-	{
-		ucode_buf[fd++] = 0xDF;
-		ucode_buf[fd++] = 0xFF;
-	}
+	if (file_size > 0x400)
+		for (fd = 0x700; fd < 0x740;) {
+			ucode_buf[fd++] = 0xDF;
+			ucode_buf[fd++] = 0xFF;
+		}
 
 	avia_gt_dmx_risc_write(ucode_buf, risc_mem_map, file_size);
 
-	printk(KERN_INFO "avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
+	printk(KERN_INFO "avia_gt_dmx: Successfully loaded ucode v%04X\n", risc_mem_map->Version_no);
 
 	return 0;
 
@@ -1015,7 +1014,7 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 	else
 		target_queue_nr = queue_nr;
 
-	if (risc_mem_map->Version_no[0] < 0xA0)
+	if (risc_mem_map->Version_no < 0xA000)
 		target_queue_nr++;
 
 	ppc_entry.type = type;
@@ -2034,7 +2033,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.160 2003/01/12 00:50:28 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.161 2003/01/17 20:07:21 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

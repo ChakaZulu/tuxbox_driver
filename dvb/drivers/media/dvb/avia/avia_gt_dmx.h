@@ -172,7 +172,7 @@ typedef struct {
     sPID_Parsing_Control_Entry PID_Parsing_Control_Table[32];
     sFilter_Definition_Entry Filter_Definition_Table[32];
     u8 Reserved4[30];
-    u8 Version_no[2];
+    u16 Version_no;
 
 } sRISC_MEM_MAP;
 
