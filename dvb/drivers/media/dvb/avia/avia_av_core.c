@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.24  2001/12/20 15:31:34  derget
+ *   New sample freq output rausgeschmissen
+ *
  *   Revision 1.23  2001/12/19 22:02:34  gillem
  *   - work on standby mode
  *
@@ -122,7 +125,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -505,8 +508,8 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
                                 break;
                         }
 
-                        dprintk (KERN_INFO "%s: %s: New sample freq: %d.\n",
-                                __FILE__, __FUNCTION__, sem & 7);
+                        //dprintk (KERN_INFO "%s: %s: New sample freq: %d.\n",
+                        //        __FILE__, __FUNCTION__, sem & 7);
                 }
 
                 /* reserved */
@@ -1453,7 +1456,7 @@ init_module (void)
 {
 	int err;
 
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.23 2001/12/19 22:02:34 gillem Exp $\n");
+        dprintk ("AVIA: $Id: avia_av_core.c,v 1.24 2001/12/20 15:31:34 derget Exp $\n");
 
 	aviamem = 0;
 
