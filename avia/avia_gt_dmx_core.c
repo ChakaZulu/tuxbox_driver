@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.45 $
+ *   $Revision: 1.46 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.46  2001/06/18 20:30:59  tmbinc
+ *   decent buffersizes. change for your needs.
+ *
  *   Revision 1.45  2001/06/18 20:14:08  tmbinc
  *   fixed state sets in sections, now it works as expected (multiple filter on one pid)
  *
@@ -203,7 +206,11 @@ static unsigned char* gtxreg;
         // #undef GTX_SECTIONS
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
+#ifdef ENX
 MODULE_DESCRIPTION("Avia GTX demux driver");
+#else
+MODULE_DESCRIPTION("Avia eNX demux driver");
+#endif
 #endif
 
 /* parameter stuff */
@@ -232,6 +239,16 @@ struct tq_struct gtx_tasklet=
   routine: gtx_task,
   data: 0
 };
+
+const int buffersize[32]=		// sizes are 1<<x*64bytes
+	{10,	// video
+	8,	// audio
+	8,	// teletext
+	10, 8, 8, 8, 8,		// user 3..7
+	8, 8, 8, 8, 8, 8, 8, 8,	// user 8..15
+	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
+	7, 7, 7, 7, 7, 7, 7, 7	// user 24..31
+	};		// 512kb total
 
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
@@ -1626,7 +1643,7 @@ static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
   dmx_demux_t *dmx=&gtxdemux->dmx;
-  int i;
+  int i, ptr;
   gtxdemux->users=0;
   
   gtxdemux->frontend_list.next=
@@ -1639,17 +1656,19 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	for (i=0; i<NUM_QUEUES; i++)
 		set_queue_interrupt_address(i, -1);
 
-  for (i=0; i<NUM_QUEUES; i++)
-  {
-    gtxdemux->feed[i].size=64*1024;             // geht atm nicht anders
-    gtxdemux->feed[i].base=i*0x10000;
-    gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
-    //    gtx_queue[i].base=gtx_allocate_dram(gtx_queue[i].size, gtx_queue[i].size);
-    gtx_set_queue(i, gtxdemux->feed[i].base, 10);
-
-    gtxdemux->feed[i].index=i;
-    gtxdemux->feed[i].state=DMX_STATE_FREE;
-  }
+	ptr=0;
+	for (i=0; i<NUM_QUEUES; i++)
+	{
+		gtxdemux->feed[i].size=(1<<buffersize[i])*64;
+		gtxdemux->feed[i].base=ptr;
+		ptr+=gtxdemux->feed[i].size;
+		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
+		//    gtx_queue[i].base=gtx_allocate_dram(gtx_queue[i].size, gtx_queue[i].size);
+		gtx_set_queue(i, gtxdemux->feed[i].base, buffersize[i]);
+		gtxdemux->feed[i].index=i;
+		gtxdemux->feed[i].state=DMX_STATE_FREE;
+	}
+	dprintk("%dkb ram used for queues\n", ptr/1024);
 
   for (i=0; i<32; i++)
   {
@@ -1721,7 +1740,7 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
-  dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.45 2001/06/18 20:14:08 tmbinc Exp $\n");
+  dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.46 2001/06/18 20:30:59 tmbinc Exp $\n");
   return gtx_dmx_init();
 }
 
