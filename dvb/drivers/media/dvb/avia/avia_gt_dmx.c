@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.173 2003/05/11 02:42:59 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.174 2003/05/25 23:54:25 woglinde Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1658,7 +1658,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 	}
 	else
 	{
-		pcr_diff = pcr + 0x200000000 - last_pcr;
+		pcr_diff = pcr + 0x200000000ULL - last_pcr;
 	}
 
 	if (pcr_diff > MAX_PCR_DIFF)
@@ -1688,14 +1688,14 @@ static void gtx_pcr_interrupt(unsigned short irq)
 		}
 		else				/* kein Überlauf STC */
 		{
-			pcr_lstc_diff = lstc - pcr - 0x200000000;
+			pcr_lstc_diff = lstc - pcr - 0x200000000ULL;
 		}
 	}
 	else					/* kein Überlauf PCR */
 	{
 		if (lstc < last_lstc)	/* Überlauf STC */
 		{
-			pcr_lstc_diff = lstc + 0x200000000 - pcr;
+			pcr_lstc_diff = lstc + 0x200000000ULL - pcr;
 		}
 		else				/* kein Überlauf STC */
 		{
@@ -2373,7 +2373,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.173 2003/05/11 02:42:59 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.174 2003/05/25 23:54:25 woglinde Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
