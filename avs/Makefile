@@ -12,13 +12,12 @@ EXTRA_CFLAGS=
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-	cp $(M_OBJS) $(MODULE_DEST)
 
 install:
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(APPL) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) $(AVS_OBJS) .*.o.flags *~
 
 avs.o:	$(AVS_OBJS)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVS_OBJS)

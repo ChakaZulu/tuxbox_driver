@@ -11,12 +11,11 @@ EXTRA_CFLAGS=-I../../include
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-	cp $(M_OBJS) $(MODULE_DEST)
 
 install:
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(GTX_FB) $(GTX_DMX) $(GTX_CORE) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
 
 include $(KERNEL_LOCATION)/Rules.make

@@ -11,10 +11,9 @@ EXTRA_CFLAGS=-I../nokia/include/dbox
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-	cp $(M_OBJS) $(MODULE_DEST)
 
 install:
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~

@@ -3,9 +3,9 @@
 # when compiling module(s)
 
 M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o enx_fb.o
-obj-m  = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o enx_fb.o
+obj-m    = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o enx_fb.o
 AVIA_OBJS = avia_core.o
-AVIA_OSD = avia_osd.o
+AVIA_OSD  = avia_osd.o
 GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o
 GTX_CORE  = gtx-core.o
@@ -19,13 +19,14 @@ AFLAGS=
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-	cp $(M_OBJS) $(MODULE_DEST)
 
 install:
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(GTX_FB) $(GTX_DMX) $(GTX_CORE) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(AVIA_OSD)	\
+		$(GTX_FB) $(GTX_DMX) $(GTX_CORE) 		\
+		$(ENX_FB) $(ENX_CORE) .*.o.flags *~
 
 gtx_core.o: $(GTX_CORE)
 	$(LD) -m elf32ppclinux -r -o $@ $(GTX_CORE)
