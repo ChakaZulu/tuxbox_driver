@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.88  2002/06/07 18:06:03  Jolt
+ *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
+ *
  *   Revision 1.87  2002/06/07 17:53:45  Jolt
  *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
  *
@@ -61,7 +64,7 @@
  *
  *
  *
- *   $Revision: 1.87 $
+ *   $Revision: 1.88 $
  *
  */
 
@@ -122,9 +125,9 @@ unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
 	} else if (avia_gt_chip(GTX)) {
 
 		if (queue_nr >= 16)
-			gtx_reg_s(CR1)->UPQ = 1;
+			gtx_reg_set(CR1, UPQ, 1);
 		else
-			gtx_reg_s(CR1)->UPQ = 0;
+			gtx_reg_set(CR1, UPQ, 0);
 
 	}
 
@@ -392,7 +395,7 @@ void avia_gt_dmx_reset(unsigned char reenable)
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(RR1)->RISC = 1;
+		gtx_reg_set(RR1, RISC, 1);
 
 	}
 
@@ -404,7 +407,7 @@ void avia_gt_dmx_reset(unsigned char reenable)
 
 		} else if (avia_gt_chip(GTX)) {
 
-			gtx_reg_s(RR1)->RISC = 0;
+			gtx_reg_set(RR1, RISC, 0);
 
 		}
 
@@ -669,7 +672,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.87 2002/06/07 17:53:45 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.88 2002/06/07 18:06:03 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -728,8 +731,8 @@ int __init avia_gt_dmx_init(void)
 	} else if (avia_gt_chip(GTX)) {
 
 	//	rh(RR1)&=~0x1C;							 // take framer, ci, avi module out of reset
-		gtx_reg_s(RR1)->DAC = 1;
-		gtx_reg_s(RR1)->DAC = 0;
+		gtx_reg_set(RR1, DAC, 1);
+		gtx_reg_set(RR1, DAC, 0);
 
 		gtx_reg_16(RR0) = 0;						// autsch, das muss so. kann das mal wer überprüfen?
 		gtx_reg_16(RR1) = 0;

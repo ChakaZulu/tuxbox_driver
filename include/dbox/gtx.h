@@ -1822,4 +1822,10 @@ extern void avia_gt_gtx_exit(void);
 #define gtx_reg_32s(register) ((sGTX_REG_##register *)(&gtx_reg_32(register)))
 #define gtx_reg_16s(register) ((sGTX_REG_##register *)(&gtx_reg_16(register)))
 
+#define gtx_reg_set_32s(register, field, value) { u32 tmp_reg_val = gtx_reg_32(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_32(register) = tmp_reg_val; }
+#define gtx_reg_set_16s(register, field, value) { u16 tmp_reg_val = gtx_reg_16(register); ((sGTX_REG_##register *)&tmp_reg_val)->field = value; gtx_reg_16(register) = tmp_reg_val; }
+#define gtx_reg_set(register, field, value) do { if (sizeof(sGTX_REG_##register) == 4) gtx_reg_set_32s(register, field, value) else if (sizeof(sGTX_REG_##register ) == 2) gtx_reg_set_16s(register, field, value) else printk("ERROR: struct size is %d\n", sizeof(sGTX_REG_##register)); } while(0)
+#define gtx_reg_set_bit(register, bit) gtx_reg_set(register, bit, 1)
+#define gtx_reg_clear_bit(register, bit) gtx_reg_set(register, bit, 0)
+
 #endif /* __GTX_H__ */

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.20  2002/06/07 18:06:03  Jolt
+ *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
+ *
  *   Revision 1.19  2002/06/07 17:53:45  Jolt
  *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
  *
@@ -80,7 +83,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -115,7 +118,7 @@ void avia_gt_gv_cursor_hide(void)
 	if (avia_gt_chip(ENX))
 		enx_reg_set(GMR1, C, 0);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(GMR)->C = 0;
+		gtx_reg_set(GMR, C, 0);
 
 }
 
@@ -125,7 +128,7 @@ void avia_gt_gv_cursor_show(void)
 	if (avia_gt_chip(ENX))
 		enx_reg_set(GMR1, C, 1);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(GMR)->C = 1;
+		gtx_reg_set(GMR, C, 1);
 
 }
 
@@ -156,7 +159,7 @@ void avia_gt_gv_get_clut(unsigned char clut_nr, unsigned int *transparency, unsi
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(CLTA)->Addr = clut_nr;
+		gtx_reg_set(CLTA, Addr, clut_nr);
 
 		mb();
 
@@ -241,7 +244,7 @@ void avia_gt_gv_hide(void)
 	if (avia_gt_chip(ENX))
 		enx_reg_set(GMR1, GMD, AVIA_GT_GV_INPUT_MODE_OFF);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(GMR)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
+		gtx_reg_set(GMR, GMD, AVIA_GT_GV_INPUT_MODE_OFF);
 
 }
 
@@ -268,8 +271,8 @@ void avia_gt_gv_set_blevel(unsigned char class0, unsigned char class1)
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(GMR)->BLEV0 = class0;
-		gtx_reg_s(GMR)->BLEV1 = class1;
+		gtx_reg_set(GMR, BLEV0, class0);
+		gtx_reg_set(GMR, BLEV1, class1);
 
 	}
 
@@ -351,8 +354,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		} else if (avia_gt_chip(GTX)) {
 
-			 gtx_reg_s(GMR)->L = 0;
-			 gtx_reg_s(GMR)->F = 0;
+			 gtx_reg_set(GMR, L, 0);
+			 gtx_reg_set(GMR, F, 0);
 
 		}
 
@@ -371,8 +374,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		} else if (avia_gt_chip(GTX)) {
 
-			gtx_reg_s(GMR)->L = 0;
-			gtx_reg_s(GMR)->F = 0;
+			gtx_reg_set(GMR, L, 0);
+			gtx_reg_set(GMR, F, 0);
 
 		}
 
@@ -385,8 +388,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		} else if (avia_gt_chip(GTX)) {
 
-			gtx_reg_s(GMR)->L = 1;
-			gtx_reg_s(GMR)->F = 0;
+			gtx_reg_set(GMR, L, 1);
+			gtx_reg_set(GMR, F, 0);
 
 		}
 
@@ -399,8 +402,8 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 		} else if (avia_gt_chip(GTX)) {
 
-			gtx_reg_s(GMR)->L = 1;
-			gtx_reg_s(GMR)->F = 1;
+			gtx_reg_set(GMR, L, 1);
+			gtx_reg_set(GMR, F, 1);
 
 		}
 
@@ -415,14 +418,14 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 		if (avia_gt_chip(ENX))
 			enx_reg_set(GMR1, I, 0);
 		else if (avia_gt_chip(GTX))
-			gtx_reg_s(GMR)->I = 0;
+			gtx_reg_set(GMR, I, 0);
 
 	} else if ((height == 288) || (height == 240)) {
 
 		if (avia_gt_chip(ENX))
 			enx_reg_set(GMR1, I, 1);
 		else if (avia_gt_chip(GTX))
-			gtx_reg_s(GMR)->I = 1;
+			gtx_reg_set(GMR, I, 1);
 
 	} else {
 
@@ -469,10 +472,10 @@ int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(GVP)->SPP = (((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) % input_div;
-		//gtx_reg_s(GVP)->XPOS = ((((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY;
-		gtx_reg_s(GVP)->XPOS = ((((BLANK_TIME - GTX_VID_PIPEDELAY - 55) + x) * 8) / input_div) - GFX_PIPEDELAY;	//FIXME
-		gtx_reg_s(GVP)->YPOS = 42 + y;
+		gtx_reg_set(GVP, SPP, (((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) % input_div);
+		//gtx_reg_set(GVP, XPOS, ((((BLANK_TIME - GTX_VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY);
+		gtx_reg_set(GVP, XPOS, ((((BLANK_TIME - GTX_VID_PIPEDELAY - 55) + x) * 8) / input_div) - GFX_PIPEDELAY);	//FIXME
+		gtx_reg_set(GVP, YPOS, 42 + y);
 
 	}
 
@@ -493,9 +496,9 @@ void avia_gt_gv_set_size(unsigned short width, unsigned short height) {
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(GVS)->IPS = 0;
-		gtx_reg_s(GVS)->XSZ = width;
-		gtx_reg_s(GVS)->YSZ = height;
+		gtx_reg_set(GVS, IPS, 0);
+		gtx_reg_set(GVS, XSZ, width);
+		gtx_reg_set(GVS, YSZ, height);
 
 	}
 
@@ -533,7 +536,7 @@ void avia_gt_gv_set_stride(void) {
 	if (avia_gt_chip(ENX))
 		enx_reg_set(GMR1, STRIDE, ((input_width * input_bpp) + 3) >> 2);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(GMR)->STRIDE = ((input_width * input_bpp) + 1) >> 1;
+		gtx_reg_set(GMR, STRIDE, ((input_width * input_bpp) + 1) >> 1);
 
 }
 
@@ -546,7 +549,7 @@ int avia_gt_gv_show(void) {
 			if (avia_gt_chip(ENX))
 				enx_reg_set(GMR1, GMD, 0x00);
 			else if (avia_gt_chip(GTX))
-				gtx_reg_s(GMR)->GMD = 0x00;
+				gtx_reg_set(GMR, GMD, 0x00);
 
 		break;
 		case AVIA_GT_GV_INPUT_MODE_RGB4:
@@ -554,7 +557,7 @@ int avia_gt_gv_show(void) {
 			if (avia_gt_chip(ENX))
 				enx_reg_set(GMR1, GMD, 0x02);
 			else if (avia_gt_chip(GTX))
-				gtx_reg_s(GMR)->GMD = 0x01;
+				gtx_reg_set(GMR, GMD, 0x01);
 
 		break;
 		case AVIA_GT_GV_INPUT_MODE_RGB8:
@@ -562,7 +565,7 @@ int avia_gt_gv_show(void) {
 			if (avia_gt_chip(ENX))
 				enx_reg_set(GMR1, GMD, 0x06);
 			else if (avia_gt_chip(GTX))
-				gtx_reg_s(GMR)->GMD = 0x02;
+				gtx_reg_set(GMR, GMD, 0x02);
 
 		break;
 		case AVIA_GT_GV_INPUT_MODE_RGB16:
@@ -570,7 +573,7 @@ int avia_gt_gv_show(void) {
 			if (avia_gt_chip(ENX))
 				enx_reg_set(GMR1, GMD, 0x03);
 			else if (avia_gt_chip(GTX))
-				gtx_reg_s(GMR)->GMD = 0x03;
+				gtx_reg_set(GMR, GMD, 0x03);
 
 		break;
 		case AVIA_GT_GV_INPUT_MODE_RGB32:
@@ -596,7 +599,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.19 2002/06/07 17:53:45 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.20 2002/06/07 18:06:03 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -615,8 +618,8 @@ int avia_gt_gv_init(void)
 
 	} else if (avia_gt_chip(GTX)) {
 
-		gtx_reg_s(RR0)->GV = 1;
-		gtx_reg_s(RR0)->GV = 0;
+		gtx_reg_set(RR0, GV, 1);
+		gtx_reg_set(RR0, GV, 0);
 
 	}
 
@@ -669,40 +672,40 @@ int avia_gt_gv_init(void)
 	} else if (avia_gt_chip(GTX)) {
 
 		// chroma filter. evtl. average oder decimate, bei text
-		gtx_reg_s(GMR)->CFT = 0x3;
-		gtx_reg_s(GMR)->BLEV1 = 0x00;
-		gtx_reg_s(GMR)->BLEV0 = 0x02;
+		gtx_reg_set(GMR, CFT, 0x3);
+		gtx_reg_set(GMR, BLEV1, 0x00);
+		gtx_reg_set(GMR, BLEV0, 0x02);
 
 		// ekelhaftes rosa als transparent
-		gtx_reg_s(TCR)->E = 0x1;
-		gtx_reg_s(TCR)->R = 0x1F;
-		gtx_reg_s(TCR)->G = 0x00;
-		gtx_reg_s(TCR)->B = 0x0F;
+		gtx_reg_set(TCR, E, 0x1);
+		gtx_reg_set(TCR, R, 0x1F);
+		gtx_reg_set(TCR, G, 0x00);
+		gtx_reg_set(TCR, B, 0x0F);
 
-		gtx_reg_s(VHT)->Width = 858;
-		gtx_reg_s(VLT)->VBI = 21; // NTSC = 18, PAL = 21
-		gtx_reg_s(VLT)->Lines = 623;
+		gtx_reg_set(VHT, Width, 858);
+		gtx_reg_set(VLT, VBI, 21); // NTSC = 18, PAL = 21
+		gtx_reg_set(VLT, Lines, 623);
 
 		// white cursor
-		gtx_reg_s(CCR)->R = 0x1F;
-		gtx_reg_s(CCR)->G = 0x1F;
-		gtx_reg_s(CCR)->B = 0x1F;
+		gtx_reg_set(CCR, R, 0x1F);
+		gtx_reg_set(CCR, G, 0x1F);
+		gtx_reg_set(CCR, B, 0x1F);
 
 		// decoder sync. HSYNC polarity einstellen? low vs. high active?
-		gtx_reg_s(VCR)->HP = 0x2;
-		gtx_reg_s(VCR)->FP = 0x0;
-		gtx_reg_s(VCR)->D = 0x1;
+		gtx_reg_set(VCR, HP, 0x2);
+		gtx_reg_set(VCR, FP, 0x0);
+		gtx_reg_set(VCR, D, 0x1);
 
 		// enable dynamic clut
-		gtx_reg_s(GFUNC)->D = 0x1;
+		gtx_reg_set(GFUNC, D, 0x1);
 
 		// disable background
-		gtx_reg_s(VBR)->E = 0x0;
-		gtx_reg_s(VBR)->Y = 0x00;
-		gtx_reg_s(VBR)->Cr = 0x00;
-		gtx_reg_s(VBR)->Cb = 0x00;
+		gtx_reg_set(VBR, E, 0x0);
+		gtx_reg_set(VBR, Y, 0x00);
+		gtx_reg_set(VBR, Cr, 0x00);
+		gtx_reg_set(VBR, Cb, 0x00);
 
-		gtx_reg_s(GVSA)->Addr = AVIA_GT_MEM_GV_OFFS >> 1;
+		gtx_reg_set(GVSA, Addr, AVIA_GT_MEM_GV_OFFS >> 1);
 
 	}
 
@@ -718,7 +721,7 @@ void __exit avia_gt_gv_exit(void)
 	if (avia_gt_chip(ENX))
 		enx_reg_set(RSTR0, GFIX, 1);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(RR0)->GV = 1;
+		gtx_reg_set(RR0, GV, 1);
 
 }
 

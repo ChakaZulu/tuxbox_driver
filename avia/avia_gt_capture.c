@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.20  2002/06/07 18:06:03  Jolt
+ *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
+ *
  *   Revision 1.19  2002/06/07 17:53:45  Jolt
  *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
  *
@@ -68,7 +71,7 @@
  *
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -260,15 +263,15 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
     } else if (avia_gt_chip(GTX)) {
 
-//		gtx_reg_s(VCSP)->HPOS = ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x) / 2; // Verify VIDCAP_PIPEDELAY for GTX
-		gtx_reg_s(VCSP)->HPOS = (96 + input_x) / 2; 
-		gtx_reg_s(VCSP)->OVOFFS = (scale_y - 1) / 2;
-		gtx_reg_s(VCSP)->EVPOS = 21 + (input_y / 2);
+//		gtx_reg_set(VCSP, HPOS, ((BLANK_TIME - VIDCAP_PIPEDELAY) + input_x) / 2); // Verify VIDCAP_PIPEDELAY for GTX
+		gtx_reg_set(VCSP, HPOS, (96 + input_x) / 2); 
+		gtx_reg_set(VCSP, OVOFFS, (scale_y - 1) / 2);
+		gtx_reg_set(VCSP, EVPOS, 21 + (input_y / 2));
 	
-		gtx_reg_s(VCS)->HDEC = scale_x - 1;
-		gtx_reg_s(VCS)->HSIZE = input_width / 2;
-		gtx_reg_s(VCS)->VDEC = scale_y - 1;
-		gtx_reg_s(VCS)->VSIZE = input_height / 2;
+		gtx_reg_set(VCS, HDEC, scale_x - 1);
+		gtx_reg_set(VCS, HSIZE, input_width / 2);
+		gtx_reg_set(VCS, VDEC, scale_y - 1);
+		gtx_reg_set(VCS, VSIZE, input_height / 2);
 
     }
     
@@ -283,7 +286,7 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
 		} else if (avia_gt_chip(GTX)) {
 
-    	    gtx_reg_s(VCS)->B = 0;                                  // Even-only fields
+    	    gtx_reg_set(VCS, B, 0);                                  // Even-only fields
 			
 		}
 	
@@ -296,7 +299,7 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 	    
 		} else if (avia_gt_chip(GTX)) {
 	
-			gtx_reg_s(VCS)->B = 1;                                  // Both fields
+			gtx_reg_set(VCS, B, 1);                                  // Both fields
 		
 		}
     
@@ -317,11 +320,11 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
     } else if (avia_gt_chip(GTX)) {    
     
-		gtx_reg_s(VCSA)->Addr = capt_buf_addr >> 1;
-	//gtx_reg_s(VPSA)->Addr = (capt_buf_addr + (capture_width * capture_height)) >> 1;
+		gtx_reg_set(VCSA, Addr, capt_buf_addr >> 1);
+	//gtx_reg_set(VPSA, Addr, (capt_buf_addr + (capture_width * capture_height)) >> 1);
 
 //        rw(VSCP)=(48<<17)|(22<<1);
-		gtx_reg_s(VCSA)->E = 1;
+		gtx_reg_set(VCSA, E, 1);
 	    
 		dprintk("gtx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", gtx_reg_s(VCS)->HDEC, gtx_reg_s(VCS)->HSIZE, gtx_reg_s(VCS)->VDEC, gtx_reg_s(VCS)->VSIZE, gtx_reg_s(VCS)->B, line_stride / 4);
 		dprintk("gtx_capture: HPOS=%d, OVOFFS=%d, EVPOS=%d\n", gtx_reg_s(VCSP)->HPOS, gtx_reg_s(VCSP)->OVOFFS, gtx_reg_s(VCSP)->EVPOS);
@@ -352,7 +355,7 @@ void avia_gt_capture_stop(void)
 		if (avia_gt_chip(ENX))
 			enx_reg_set(VCSA1, E, 0);
 		else if (avia_gt_chip(GTX))
-			gtx_reg_s(VCSA)->E = 0;
+			gtx_reg_set(VCSA, E, 0);
 
 		avia_gt_free_irq(capture_irq);
     
@@ -407,14 +410,14 @@ void avia_gt_capture_reset(unsigned char reenable)
 	if (avia_gt_chip(ENX))
 		enx_reg_set(RSTR0, VIDC, 1);		
 	else if (avia_gt_chip(GTX))
-		gtx_reg_s(RR0)->VCAP = 1;
+		gtx_reg_set(RR0, VCAP, 1);
 
     if (reenable) {
 
 		if (avia_gt_chip(ENX))
 			enx_reg_set(RSTR0, VIDC, 0);		
 		else if (avia_gt_chip(GTX))
-			gtx_reg_s(RR0)->VCAP = 0;
+			gtx_reg_set(RR0, VCAP, 0);
 
 	}
     
@@ -423,7 +426,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.19 2002/06/07 17:53:45 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.20 2002/06/07 18:06:03 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 
@@ -461,12 +464,12 @@ int __init avia_gt_capture_init(void)
     
     } else if (avia_gt_chip(GTX)) {
     
-		gtx_reg_s(VCS)->B = 0;                              	// Hardware double buffering
-        gtx_reg_s(VCS)->F = 1;                              	// Filter
+		gtx_reg_set(VCS, B, 0);                              	// Hardware double buffering
+        gtx_reg_set(VCS, F, 1);                              	// Filter
 
-		gtx_reg_s(VLI1)->F = 1;	
-		gtx_reg_s(VLI1)->E = 1;	
-		gtx_reg_s(VLI1)->LINE = 0;
+		gtx_reg_set(VLI1, F, 1);	
+		gtx_reg_set(VLI1, E, 1);	
+		gtx_reg_set(VLI1, LINE, 0);
 
     }
 

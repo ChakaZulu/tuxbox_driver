@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.14  2002/06/07 18:06:03  Jolt
+ *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
+ *
  *   Revision 1.13  2002/05/09 22:25:23  obi
  *   cleanup, use structs
  *
@@ -121,7 +124,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -235,7 +238,7 @@ static void avia_gt_gtx_intialize_interrupts(void)
 	gtx_reg_16(ISR2) = 0;
 	gtx_reg_16(ISR3) = 0;
 
-	gtx_reg_s(RR0)->INT = 0;
+	gtx_reg_set(RR0, INT, 0);
 
 	gtx_reg_16(IMR0) = 0xFFFF;
 	gtx_reg_16(IMR1) = 0xFFFF;
@@ -245,7 +248,7 @@ static void avia_gt_gtx_intialize_interrupts(void)
 static void avia_gt_gtx_close_interrupts(void)
 {
 
-	gtx_reg_s(RR0)->INT = 1;
+	gtx_reg_set(RR0, INT, 1);
 
 	gtx_reg_16(IMR0) = 0;
 	gtx_reg_16(IMR1) = 0;
@@ -266,36 +269,36 @@ static void avia_gt_gtx_close_interrupts(void)
 
 void avia_gt_gtx_reset(void)
 {
-	gtx_reg_s(RR0)->PIG = 1;
-	gtx_reg_s(RR0)->VCAP = 1;
-	gtx_reg_s(RR0)->VID = 1;
-	gtx_reg_s(RR0)->ACLK = 1;
-	gtx_reg_s(RR0)->COPY = 1;
-	gtx_reg_s(RR0)->DRAM = 1;
-	gtx_reg_s(RR0)->PCM = 1;
-	gtx_reg_s(RR0)->SPI = 1;
-	gtx_reg_s(RR0)->IR = 1;
-	gtx_reg_s(RR0)->BLIT = 1;
-	gtx_reg_s(RR0)->CRC = 1;
-	gtx_reg_s(RR0)->INT = 1;
-	gtx_reg_s(RR0)->SCD = 1;
-	gtx_reg_s(RR0)->SRX = 1;
-	gtx_reg_s(RR0)->STX = 1;
-	gtx_reg_s(RR0)->GV = 1;
-	gtx_reg_s(RR1)->TTX = 1;
-	gtx_reg_s(RR1)->DAC = 1;
-	gtx_reg_s(RR1)->RISC = 1;
-	gtx_reg_s(RR1)->FRMR = 1;
-	gtx_reg_s(RR1)->CHAN = 1;
-	gtx_reg_s(RR1)->AVD = 1;
-	gtx_reg_s(RR1)->IDC = 1;
-	gtx_reg_s(RR1)->DESC = 1;
+	gtx_reg_set(RR0, PIG, 1);
+	gtx_reg_set(RR0, VCAP, 1);
+	gtx_reg_set(RR0, VID, 1);
+	gtx_reg_set(RR0, ACLK, 1);
+	gtx_reg_set(RR0, COPY, 1);
+	gtx_reg_set(RR0, DRAM, 1);
+	gtx_reg_set(RR0, PCM, 1);
+	gtx_reg_set(RR0, SPI, 1);
+	gtx_reg_set(RR0, IR, 1);
+	gtx_reg_set(RR0, BLIT, 1);
+	gtx_reg_set(RR0, CRC, 1);
+	gtx_reg_set(RR0, INT, 1);
+	gtx_reg_set(RR0, SCD, 1);
+	gtx_reg_set(RR0, SRX, 1);
+	gtx_reg_set(RR0, STX, 1);
+	gtx_reg_set(RR0, GV, 1);
+	gtx_reg_set(RR1, TTX, 1);
+	gtx_reg_set(RR1, DAC, 1);
+	gtx_reg_set(RR1, RISC, 1);
+	gtx_reg_set(RR1, FRMR, 1);
+	gtx_reg_set(RR1, CHAN, 1);
+	gtx_reg_set(RR1, AVD, 1);
+	gtx_reg_set(RR1, IDC, 1);
+	gtx_reg_set(RR1, DESC, 1);
 }
 
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.13 2002/05/09 22:25:23 obi Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.14 2002/06/07 18:06:03 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -312,9 +315,9 @@ void avia_gt_gtx_init(void)
 	// solle nach avia_gt_gtx_reset() wenn ueberhaupt noetig ...
 	udelay (500);
 
-	gtx_reg_s(RR0)->VID = 0;
-	gtx_reg_s(RR0)->DRAM = 0;
-	gtx_reg_s(RR0)->BLIT = 0;
+	gtx_reg_set(RR0, VID, 0);
+	gtx_reg_set(RR0, DRAM, 0);
+	gtx_reg_set(RR0, BLIT, 0);
 
 	// ?
 	udelay (500);
@@ -323,11 +326,11 @@ void avia_gt_gtx_init(void)
 
 	avia_gt_gtx_proc_init ();
 
-	gtx_reg_s(CR0)->DOD = 0;	// DAC Output Disable (0: enable)
-	gtx_reg_s(CR0)->_16M = 1;	// 16 Mbit DRAM Select (1: 16 Mbit)
-	gtx_reg_s(CR0)->DD1 = 0;	// Delay DTACK (2 clocks delay)
-	gtx_reg_s(CR0)->DD0 = 1;
-	gtx_reg_s(CR0)->RFD = 0;	// Refresh Disable
+	gtx_reg_set(CR0, DOD, 0);	// DAC Output Disable (0: enable)
+	gtx_reg_set(CR0, _16M, 1);	// 16 Mbit DRAM Select (1: 16 Mbit)
+	gtx_reg_set(CR0, DD1, 0);	// Delay DTACK (2 clocks delay)
+	gtx_reg_set(CR0, DD0, 1);
+	gtx_reg_set(CR0, RFD, 0);	// Refresh Disable
 
 	avia_gt_gtx_intialize_interrupts ();
 
@@ -345,8 +348,8 @@ void avia_gt_gtx_exit(void)
 
 	//gtx_reg_16(CR0) = 0x0030;
 	//gtx_reg_16(CR1) = 0x0000;
-	gtx_reg_s(CR0)->DOD = 1;
-	gtx_reg_s(CR0)->RFD = 1;
+	gtx_reg_set(CR0, DOD, 1);
+	gtx_reg_set(CR0, RFD, 1);
 
 	avia_gt_gtx_reset();
 
