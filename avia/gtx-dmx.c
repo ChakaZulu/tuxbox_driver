@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.20  2001/03/10 02:46:14  tmbinc
+ *   Fixed section support.
+ *
  *   Revision 1.19  2001/03/10 00:41:21  tmbinc
  *   Fixed section handling.
  *
@@ -57,7 +60,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -452,6 +455,25 @@ void gtx_dmx_close(void)
 }
                 // nokia api
 
+static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
+{
+  gtx_demux_secfilter_t *secfilter;
+  if (gtxfeed->sec_recv != gtxfeed->sec_len)
+    printk("have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+  if (!gtxfeed->sec_recv)
+    return;
+  for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
+  {
+    int ok=1, i;
+    for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
+      if ((gtxfeed->sec_buffer[i]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i])
+        ok=0;
+    if (ok)
+      gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
+  }
+  gtxfeed->sec_len=gtxfeed->sec_recv=0;
+}
+
 static void gtx_task(void *data)
 {
   gtx_demux_t *gtx=(gtx_demux_t*)data;
@@ -499,13 +521,13 @@ static void gtx_task(void *data)
 
             if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
             {
-              printk("gtx_dmx: there's a BIG out of sync problem\n");
+              dprintk("gtx_dmx: there's a BIG out of sync problem\n");
               break;
             }
 
             while (b1l || b2l)
             {
-              int tr=b1l, r=0, pointer=0;
+              int tr=b1l, r=0, p=4;
               if (tr>188)
                 tr=188;
               memcpy(tsbuf, b1, tr);
@@ -518,37 +540,40 @@ static void gtx_task(void *data)
               memcpy(tsbuf+r, b2, tr);
               b2l-=tr;
               
-              if (tsbuf[0]&0x40)
-              {
-                if (gtxfeed->sec_recv<gtxfeed->sec_len)
-                  dprintk("hmm, only got %d of %d bytes\n", gtxfeed->sec_recv, gtxfeed->sec_len);
-                  
-                pointer=tsbuf[4];
-                if (pointer)
-                  dprintk("schau an, schau an, der pointer ist NICHT 0!\n");
+              tr=184;
+              
+              if (!(tsbuf[3]&0x10))             // no payload
+                continue;
 
-                gtxfeed->sec_len=(((tsbuf[4+2]&0xF)<<8)|(tsbuf[4+3])) + 3;
+              if (tsbuf[3]&0x20)                // adaption field
+              {
+                tr-=tsbuf[4]+1;
+                p+=tsbuf[4]+1;
+              }
+              
+              if (tsbuf[1]&0x40)                // PUSI
+              {
+                // rest kopieren
+                r=gtxfeed->sec_len-gtxfeed->sec_recv;
+                if (r>tsbuf[p])
+                  r=tsbuf[p];
+                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
+                gtxfeed->sec_recv+=r;
+                p+=tsbuf[p]+1;
+                dprintk("special case: %d / %d read, pointer is %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p);
+                gtx_handle_section(gtxfeed);
+
+                gtxfeed->sec_len=(((tsbuf[p+1]&0xF)<<8)|(tsbuf[p+2])) + 3;
                 gtxfeed->sec_recv=0;
-                pointer++;      // 1 byte "pointer"
+                tr=188-p;
               }
+              
+              r=gtxfeed->sec_len-gtxfeed->sec_recv;
+              if (r>tr)
+                r=tr;
 
-              if (gtxfeed->sec_recv<gtxfeed->sec_len)
-                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+4+pointer, 184-pointer);
-              gtxfeed->sec_recv+=184-pointer;
-
-              if (gtxfeed->sec_recv>=gtxfeed->sec_len)
-              {
-                gtx_demux_secfilter_t *secfilter;
-                for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
-                {
-                  int ok=1, i;
-                  for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
-                    if ((gtxfeed->sec_buffer[i]&secfilter->filter.filter_mask[i])!=secfilter->filter.filter_value[i])
-                      ok=0;
-                  if (ok)
-                    gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len+3, 0, 0, &secfilter->filter, 0);
-                }
-              }
+              memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p, r);
+              gtxfeed->sec_recv+=r;
             }
             break;
           }
@@ -983,6 +1008,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 
   gtxfeed->pes_type=DMX_TS_PES_OTHER;
   gtxfeed->sec_buffer=kmalloc(16384, GFP_KERNEL);
+  gtxfeed->sec_recv=0;
   gtxfeed->sec_len=0;
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
