@@ -7,7 +7,7 @@ obj-m  = $(M_OBJS)
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
-EXTRA_CFLAGS=-I../dvb-core -I../../../../include -I../../../../../include -DEXPORT_SYMTAB
+EXTRA_CFLAGS=-I../dvb-core -I../../../../include -I../../../../../include -DEXPORT_SYMTAB -DUSE_DVB_I2C
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

@@ -1,6 +1,6 @@
 
 /*
- * $Id: dummyfe.c,v 1.1 2002/10/22 19:43:44 Jolt Exp $
+ * $Id: dummyfe.c,v 1.2 2002/10/22 23:48:58 obi Exp $
  *
  * Dummy Frontend Driver 
  *
@@ -197,11 +197,12 @@ static
 int __init dummyfe_init(void)
 {
 
-	printk("$Id: dummyfe.c,v 1.1 2002/10/22 19:43:44 Jolt Exp $\n");
+	printk("$Id: dummyfe.c,v 1.2 2002/10/22 23:48:58 obi Exp $\n");
 
 #ifdef USE_DVB_I2C
 	return dvb_register_i2c_device(THIS_MODULE, dummyfe_attach, dummyfe_detach);
 #else
+	return 0;
 #endif
 
 }
