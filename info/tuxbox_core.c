@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_core.c,v 1.3 2003/03/04 21:18:09 waldi Exp $
+ * $Id: tuxbox_core.c,v 1.4 2003/03/04 23:06:26 waldi Exp $
  */
 
 #include <linux/module.h>
@@ -36,7 +36,6 @@
 struct proc_dir_entry *proc_bus_tuxbox = NULL;
 
 tuxbox_capabilities_t tuxbox_capabilities;
-tuxbox_frontend_t tuxbox_frontend;
 tuxbox_model_t tuxbox_model;
 tuxbox_submodel_t tuxbox_submodel;
 tuxbox_vendor_t tuxbox_vendor;
@@ -80,9 +79,6 @@ static int tuxbox_proc_create (void)
 	if (tuxbox_proc_create_entry ("capabilities", 0444, proc_bus_tuxbox, &tuxbox_capabilities, &tuxbox_proc_read, NULL))
 		goto error;
 
-	if (tuxbox_proc_create_entry ("frontend", 0444, proc_bus_tuxbox, &tuxbox_frontend, &tuxbox_proc_read, NULL))
-		goto error;
-
 	if (tuxbox_proc_create_entry ("model", 0444, proc_bus_tuxbox, &tuxbox_model, &tuxbox_proc_read, NULL))
 		goto error;
 
@@ -102,7 +98,6 @@ error:
 static void tuxbox_proc_destroy (void)
 {
 	remove_proc_entry ("capabilities", proc_bus_tuxbox);
-	remove_proc_entry ("frontend", proc_bus_tuxbox);
 	remove_proc_entry ("model", proc_bus_tuxbox);
 	remove_proc_entry ("submodel", proc_bus_tuxbox);
 	remove_proc_entry ("vendor", proc_bus_tuxbox);

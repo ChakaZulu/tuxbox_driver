@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware.h,v 1.2 2003/03/04 21:18:09 waldi Exp $
+ * $Id: tuxbox_hardware.h,v 1.3 2003/03/04 23:06:28 waldi Exp $
  */
 
 #ifndef TUXBOX_HARDWARE_H
@@ -29,7 +29,6 @@
 #include <tuxbox/tuxbox_info.h>
 
 extern tuxbox_capabilities_t tuxbox_capabilities;
-extern tuxbox_frontend_t tuxbox_frontend;
 extern tuxbox_model_t tuxbox_model;
 extern tuxbox_submodel_t tuxbox_submodel;
 extern tuxbox_vendor_t tuxbox_vendor;

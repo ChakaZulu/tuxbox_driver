@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.h,v 1.2 2003/03/04 21:18:09 waldi Exp $
+ * $Id: tuxbox_hardware_dbox2.h,v 1.3 2003/03/04 23:06:28 waldi Exp $
  */
 
 #ifndef TUXBOX_HARDWARE_DBOX2_H
@@ -34,7 +34,6 @@
 							  TUXBOX_CAPABILITIES_CAM_EMBEDDED )
 
 extern tuxbox_dbox2_av_t tuxbox_dbox2_av;
-extern tuxbox_dbox2_demod_t tuxbox_dbox2_demod;
 extern u8 tuxbox_dbox2_fp_revision;
 extern tuxbox_dbox2_mid_t tuxbox_dbox2_mid;
 

@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_info.h,v 1.3 2003/03/04 21:18:09 waldi Exp $
+ * $Id: tuxbox_info.h,v 1.4 2003/03/04 23:06:28 waldi Exp $
  */
 
 #ifndef TUXBOX_INFO_H
@@ -35,14 +35,6 @@ typedef enum tuxbox_capabilities
 	TUXBOX_CAPABILITIES_CAM_EMBEDDED	= (1<<6),
 }
 tuxbox_capabilities_t;
-
-typedef enum tuxbox_frontend
-{
-	TUXBOX_FRONTEND_SATELLITE		= 1,
-	TUXBOX_FRONTEND_CABLE			= 2,
-	TUXBOX_FRONTEND_TERRESTRIAL		= 3,
-}
-tuxbox_frontend_t;
 
 typedef enum tuxbox_model
 {
