@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.130 $
+ *   $Revision: 1.131 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.131  2002/09/30 19:46:10  Jolt
+ *   SPTS support
+ *
  *   Revision 1.130  2002/09/18 15:57:24  Jolt
  *   Queue handling changes #3
  *
@@ -1358,8 +1361,10 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->wait_pusi=0;	// right?
 	filter->type=GTX_FILTER_PID;
 
+#ifndef AVIA_SPTS
 	if (gtxfeed->output&TS_DECODER)
 		gtxfeed->output|=TS_PAYLOAD_ONLY;	 // weil: wir haben dual-pes
+#endif
 
 	if (gtxfeed->output&TS_PAYLOAD_ONLY)
 		filter->output=GTX_OUTPUT_PESPAYLOAD;
@@ -1950,7 +1955,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.130 2002/09/18 15:57:24 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.131 2002/09/30 19:46:10 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

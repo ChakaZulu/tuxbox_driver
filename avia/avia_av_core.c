@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.34  2002/09/30 19:46:10  Jolt
+ *   SPTS support
+ *
  *   Revision 1.33  2002/09/29 16:47:03  Jolt
  *   AViA command handling fixes
  *
@@ -155,7 +158,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.33 $
+ *   $Revision: 1.34 $
  *
  */
 
@@ -1235,13 +1238,6 @@ static int init_avia(void)
 
 	avia_command(Reset);
 
-	avia_command(SetStreamType, 0xB);
-
-	avia_command(SelectStream, 0, 0xFF);
-//      avia_command(SelectStream, 2, 0x100);
-//      avia_command(SelectStream, 3, 0x100);
-	avia_command(Play, 0, 0, 0);
-
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
 
@@ -1491,7 +1487,7 @@ init_module (void)
 {
 	int err = (int)0;
 
-	printk ("AVIA: $Id: avia_av_core.c,v 1.33 2002/09/29 16:47:03 Jolt Exp $\n");
+	printk ("AVIA: $Id: avia_av_core.c,v 1.34 2002/09/30 19:46:10 Jolt Exp $\n");
 
 	aviamem = 0;
 

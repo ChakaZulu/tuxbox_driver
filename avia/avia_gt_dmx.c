@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.135  2002/09/30 19:46:10  Jolt
+ *   SPTS support
+ *
  *   Revision 1.134  2002/09/21 00:00:08  Jolt
  *   Some queue changes
  *
@@ -212,7 +215,7 @@
  *
  *
  *
- *   $Revision: 1.134 $
+ *   $Revision: 1.135 $
  *
  */
 
@@ -1508,9 +1511,15 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 	dprintk("avia_gt_dmx_set_pid_control_table, entry %d, type %d, queue %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
 		entry,type,queue,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
 
+#ifdef AVIA_SPTS
+	// Route audio stream into video queue
+	if (queue == 1)
+		queue = 0;
+#endif
+
 	if (risc_mem_map->Version_no[0] < 0xA0)
 		queue++;
-
+		
 	*((u32 *) &e ) = *((u32 *) &risc_mem_map->PID_Parsing_Control_Table[entry]);
 
 	e.type = type;
@@ -1930,7 +1939,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.134 2002/09/21 00:00:08 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.135 2002/09/30 19:46:10 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

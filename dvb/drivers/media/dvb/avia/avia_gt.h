@@ -33,6 +33,8 @@
 #define dprintk(...)
 #endif
 
+//#define AVIA_SPTS
+
 typedef struct {
 
     unsigned char chip_type;

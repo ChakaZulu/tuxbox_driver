@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.79 2002/09/29 16:47:03 Jolt Exp $
+ * $Id: dvb.c,v 1.80 2002/09/30 19:46:10 Jolt Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -36,6 +36,7 @@
 #include <linux/kmod.h>
 
 #include <dbox/avia.h>
+#include <dbox/avia_gt.h>
 #include <dbox/avia_gt_pcm.h>
 #include <dbox/cam.h>
 
@@ -585,12 +586,27 @@ video_ioctl(struct dvb_device *dvbdev, struct file *file,
 	case VIDEO_PLAY:
 		switch (dvb->videostate.streamSource) {
 		case VIDEO_SOURCE_DEMUX:
-		
+
+#ifdef AVIA_SPTS			
+//			avia_command(NewChannel, 0, 0xffff, 0xffff);
+
+			printk("avia: playing vpid 0x%X apid: 0x%X\n", dvb->video_pid, dvb->audio_pid);
+			
+			avia_command(Abort, 1);
+			avia_command(SetStreamType, 0x10, dvb->audio_pid);
+			avia_command(SetStreamType, 0x11, dvb->video_pid);
+			avia_command(SelectStream, 0x00, dvb->video_pid);
+			avia_command(SelectStream, 0x03, dvb->audio_pid);
+			avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
+#else		
+			avia_command(SetStreamType, 0x0B, dvb->audio_pid);
+			avia_command(SetStreamType, 0x0B, dvb->video_pid);
 			avia_command(SelectStream, 0x00, 0x0000);
 			avia_command(SelectStream, 0x03, 0x0000);
 			avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
+#endif	
 			
-			dvb->videostate.playState=VIDEO_PLAYING;
+			dvb->videostate.playState = VIDEO_PLAYING;
 			break;
 
 		case VIDEO_SOURCE_MEMORY:
