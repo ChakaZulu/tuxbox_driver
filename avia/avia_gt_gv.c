@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.21  2002/07/21 15:16:22  waldi
+ *   add workaround for broken memory access on philips boxes
+ *
  *   Revision 1.20  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -83,7 +86,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -599,7 +602,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.20 2002/06/07 18:06:03 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.21 2002/07/21 15:16:22 waldi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -625,25 +628,42 @@ int avia_gt_gv_init(void)
 
 	//avia_gt_gv_hide();
 	avia_gt_gv_cursor_hide();
+#ifdef WORKAROUND_MEMORY_TIMING
+	udelay(100);
+#endif /* WORKAROUND_MEMORY_TIMING */
 	avia_gt_gv_set_pos(0, 0);
+#ifdef WORKAROUND_MEMORY_TIMING
+	udelay(100);
+#endif /* WORKAROUND_MEMORY_TIMING */
 	avia_gt_gv_set_input_size(720, 576);
+#ifdef WORKAROUND_MEMORY_TIMING
+	udelay(100);
+#endif /* WORKAROUND_MEMORY_TIMING */
 	avia_gt_gv_set_size(720, 576);
 
 	if (avia_gt_chip(ENX)) {
+
+#ifdef WORKAROUND_MEMORY_TIMING
+		udelay(1000);
+#endif /* WORKAROUND_MEMORY_TIMING */
 
 		//enx_reg_set(GMR1, P, 1);
 		enx_reg_set(GMR1, S, 1);
 		enx_reg_set(GMR1, B, 0);
 		//enx_reg_set(GMR1, BANK, 1);
 
-		enx_reg_set(BALP, AlphaOut, 0x00);
-		enx_reg_set(BALP, AlphaIn, 0x00);
+		//enx_reg_set(BALP, AlphaOut, 0x00);
+		//enx_reg_set(BALP, AlphaIn, 0x00);
 
 		enx_reg_set(G1CFR, CFT, 0x1);
 		enx_reg_set(G2CFR, CFT, 0x1);
 
 		enx_reg_set(GBLEV1, BLEV11, 0x00);
 		enx_reg_set(GBLEV1, BLEV10, 0x20);
+
+#ifdef WORKAROUND_MEMORY_TIMING
+		udelay(1000);
+#endif /* WORKAROUND_MEMORY_TIMING */
 
 		// schwarzer consolen hintergrund nicht transpartent
 		enx_reg_set(TCR1, E, 0x1);
@@ -656,6 +676,10 @@ int avia_gt_gv_init(void)
 		enx_reg_set(TCR2, Red, 0xFF);
 		enx_reg_set(TCR2, Green, 0x00);
 		enx_reg_set(TCR2, Blue, 0x7F);
+
+#ifdef WORKAROUND_MEMORY_TIMING
+		udelay(1000);
+#endif /* WORKAROUND_MEMORY_TIMING */
 
 		enx_reg_set(VBR, E, 0x0);
 		enx_reg_set(VBR, Y, 0x00);
