@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.20  2002/06/07 14:00:23  tmbinc
+ *   off-by-one aka. "streamen auf gtx ist kaputt" fixed.
+ *
+ *   *bugsuche sponsored by enigma*
+ *
  *   Revision 1.19  2002/05/09 19:54:19  obi
  *   added some tabs
  *
@@ -80,7 +85,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -233,7 +238,7 @@ static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 		irq_mask = avia_gt_get_irq_mask(irq_reg);
 		irq_status = avia_gt_get_irq_status(irq_reg);
 
-		for (irq_bit = 1; irq_bit < 16; irq_bit++) {
+		for (irq_bit = 0; irq_bit < 16; irq_bit++) {
 
 			if (irq_status & (1 << irq_bit)) {
 
@@ -271,7 +276,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct *dbox_info;
 	int result;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.19 2002/05/09 19:54:19 obi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.20 2002/06/07 14:00:23 tmbinc Exp $\n");
 
 	if (chip_type == -1) {
 
