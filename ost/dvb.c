@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.16 2001/03/12 19:51:37 Hunz Exp $
+ * $Id: dvb.c,v 1.17 2001/03/12 22:03:41 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -81,7 +81,7 @@ static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
   {
     int p, t, os, c, r, pe;
     unsigned long b;
-    
+
     freq+=479500000; freq/=125000*4;
     t=0; os=0; c=1;                // doch doch
     r=3; pe=1; p=1;
@@ -274,7 +274,9 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 	    msg[1]=seq->commands[i].u.diseqc.addr;
 	    msg[2]=seq->commands[i].u.diseqc.cmd;
 	    memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
-	    fp_send_diseqc(msg,len+3);
+	    ret=fp_send_diseqc(msg,len+3);
+	    if (ret < 0)
+	      return -EINTERNAL;
 	    break;
 	  case SEC_CMDTYPE_PAUSE:
 	    // what to do here ??
@@ -631,13 +633,11 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
         dvb->front.freq=val;
       }
       val=para.SymbolRate;
-      if ((dvb->front.srate!=val) || (dvb->front.fec!=fectab[para.FEC_inner]))
-      {
-        dvb->front.srate=val;
-        dvb->front.fec=fectab[para.FEC_inner];
-        ves_set_frontend(&dvb->front);
+
+      dvb->front.srate=val;
+      dvb->front.fec=fectab[para.FEC_inner];
+      ves_set_frontend(&dvb->front);
         
-      }
       printk(" TODO: adding QPSK event!\n");
       break;
     }

@@ -17,7 +17,7 @@ here:
 
 install:
 	cp -v $(M_OBJS) $(MODULE_DEST)
-	cp -v $(APPL) $(BIN_DEST)
+#	cp -v $(APPL) $(BIN_DEST)
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(LCD_OBJS) .*.o.flags *~

@@ -217,7 +217,7 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
                 srate=500000;
         ves->srate=srate;
         
-#define MUL (1UL<<25)
+#define MUL (1UL<<26)
 #define FIN (XIN>>4)
         tmp=srate<<6;
 	ratio=tmp/FIN;

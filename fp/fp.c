@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.17  2001/03/12 22:03:40  Hunz
+ *   final? SEC-fix (always clrbit the VES)
+ *
  *   Revision 1.16  2001/03/12 19:51:37  Hunz
  *   SEC changes
  *
@@ -51,7 +54,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -865,7 +868,7 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 	sec_bus_status=-2;
 	i2c_master_send(defdata->client, msg, 2+len);
 
-	for (c=0;c<100;c++)
+	for (c=0;c<500;c++)
 	{
 		fp_cmd(defdata->client, 0x2D, msg, 1);
 
@@ -875,16 +878,19 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 		}
 	}
 
-	if (c>=100)
+	if (c>=250)
 	{
-		dprintk("fp.o: DiSEqC TIMEOUT (should have worked anyway)\n");
+		dprintk("fp.o: DiSEqC TIMEOUT (could have worked anyway)\n");
 	} else
 	{
 
 		dprintk("fp.o: DiSEqC sent after %d polls\n", c);
 	}
 	sec_bus_status=0;
-	return 0;
+	if (c>=250)
+	  return -1;
+	else
+	  return 0;
 }
 
 /* ------------------------------------------------------------------------- */
