@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.14  2002/04/18 18:42:25  obi
+ *   removed annoying debug output :-)
+ *
  *   Revision 1.13  2002/04/17 21:50:57  Jolt
  *   Capture driver fixes
  *
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -193,9 +196,6 @@ void avia_gt_capture_interrupt(unsigned short irq)
 	field = gtx_reg_s(VLC)->F;
 	
     captured_frames++;
-    
-    if (!field)
-	printk("E");
 
     wake_up_interruptible(&capture_wait);
     
@@ -423,7 +423,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.13 2002/04/17 21:50:57 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.14 2002/04/18 18:42:25 obi Exp $\n");
 
     capture_chip_type = avia_gt_get_chip_type();
 
