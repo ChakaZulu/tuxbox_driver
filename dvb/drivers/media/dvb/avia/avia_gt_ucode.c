@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.6 2004/05/19 20:15:00 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.7 2004/05/19 20:25:14 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -883,12 +883,13 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 		local_irq_save(flags);
 		if (pid2feedidx(ccerr.pid,&feedidx)){
 			ucode_info.stop_feed(feedidx,0);
-			if (avia_gt_chip(ENX)) avia_gt_dmx_risc_reset(1); // TODO: GTX
+			*/ reset not needet here , ucode handles this error whell */
+			//if (avia_gt_chip(ENX)) avia_gt_dmx_risc_reset(1); // TODO: GTX  
 			queue->flush(queue);
 			ucode_info.start_feed(feedidx);
 		}
 		local_irq_restore(flags);
-		printk (KERN_INFO "avia_gt_ucode: sync 0x%04x %d\n",ccerr.pid,feedidx);
+		dprintk (KERN_DEBUG "avia_gt_ucode: sync 0x%04x %d\n",ccerr.pid,feedidx);
 		return;}
 	
 	case 0xce: /* section finished, consume */
