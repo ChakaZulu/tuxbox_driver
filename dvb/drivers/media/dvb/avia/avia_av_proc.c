@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.11 2003/09/30 05:45:35 obi Exp $
+ * $Id: avia_av_proc.c,v 1.12 2003/11/20 01:38:25 obi Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -33,13 +33,14 @@
 #include "avia_av.h"
 #include "avia_av_proc.h"
 
-static
-int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof, void *private)
+static u32 *dram_copy;
+
+static int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 	int nr = 0;
 
 	nr = sprintf(buf, "Bitstream Settings:\n");
-	
+
 	nr += sprintf(buf + nr, "H_SIZE:  %d\n", avia_av_dram_read(H_SIZE) & 0xFFFF);
 	nr += sprintf(buf + nr, "V_SIZE:  %d\n", avia_av_dram_read(V_SIZE) & 0xFFFF);
 	nr += sprintf(buf + nr, "A_RATIO: %d\n", avia_av_dram_read(ASPECT_RATIO) & 0xFFFF);
@@ -51,10 +52,7 @@ int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, 
 	return nr;
 }
 
-static u32 *dram_copy;
-
-static
-int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *eof, void *data)
+static int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	int n;
 
@@ -68,25 +66,23 @@ int avia_av_proc_read_dram(char *page, char **start, off_t off, int count, int *
 			dram_copy[n] = avia_av_dram_read(n << 2);
 	}
 	else if (!dram_copy) {
-		return -EINVAL;
+		return -ESPIPE;
 	}
 
 	n = 0x200000;
 
-	if (off >= n) {
-		*eof = 1;
-		vfree(dram_copy);
-		dram_copy = NULL;
-		return 0;
-	}
+	if (off >= n)
+		n = 0;
 
 	if (n > count)
 		n = count;
 	else
 		*eof = 1;
 
-	memcpy(page, &((u8*)dram_copy)[off], n);
-	*start = page;
+	if (n) {
+		memcpy(page, &((u8*)dram_copy)[off], n);
+		*start = page;
+	}
 
 	if (*eof) {
 		vfree(dram_copy);
@@ -101,7 +97,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.11 2003/09/30 05:45:35 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.12 2003/11/20 01:38:25 obi Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");
