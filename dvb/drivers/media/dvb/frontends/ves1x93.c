@@ -28,9 +28,6 @@
 #include "compat.h"
 #include "dvb_frontend.h"
 #include "dvb_i2c.h"
-#ifdef DBOX2
-#include <dbox/fp.h>
-#endif
 
 
 static int debug = 0;
@@ -201,42 +198,6 @@ int sp5659_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
         u32 div = (freq + 479500) / 125;
         u8 buf [4];
 
-#ifdef DBOX2
-	/*
-	 * FIXME: use i2c
-	 */
-
-	if (board_type == NOKIA_DBOX2_1893) {
-		
-		div /= 4;
-
-		/*
-		 * 25-31: ?	0
-		 * 24: p	1
-		 * 
-		 * 23: t	0
-		 * 22: os	0
-		 * 21: c	1
-		 * 20: ?	0
-		 * 18-19: r	3
-		 * 17: pe	1
-		 * 16: ?	0
-		 * 
-		 * 0-15: div	(freq + 479500) / (125 * 4);
-		 */
-
-		buf[0] = 0x01;
-		buf[1] = 0x00 | 0x00 | 0x20 | 0x00 | 0x0C | 0x02 | 0x00;
-		buf[2] = (div >> 8) & 0x7f;
-		buf[3] = div & 0xff;
-
-		dprintk("div: %u\n", div);
-		dprintk("buf: %02x%02x%02x%02x\n", buf[0], buf[1], buf[2], buf[3]);
-
-		return dbox2_fp_tuner_write(buf, sizeof(buf));
-	}
-#endif
-
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = 0x95;
@@ -268,7 +229,6 @@ int tuner_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 {
 	switch (board_type) {
 	case SIEMENS_PCI_1893:
-	case NOKIA_DBOX2_1893:
 		return sp5659_set_tv_freq (i2c, freq, pwr);
 	case NOKIA_DBOX2_1993:
 	case SAGEM_DBOX2_1993:
@@ -494,36 +454,14 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 static
 int ves1x93_set_voltage (struct dvb_i2c_bus *i2c, fe_sec_voltage_t voltage)
 {
-	switch (board_type) {
-	case SIEMENS_PCI_1893:
-		return ves1x93_writereg (i2c, 0x1f, (voltage == SEC_VOLTAGE_13) ? 0x20 : 0x30);
-#ifdef DBOX2
-	case NOKIA_DBOX2_1893:
-	case NOKIA_DBOX2_1993:
-	case SAGEM_DBOX2_1993:
-		return dbox2_fp_sec_set_voltage((voltage == SEC_VOLTAGE_13) ? 0x00 : 0x01);
-#endif
-	default:
-		return -EINVAL;
-	}
+	return ves1x93_writereg (i2c, 0x1f, (voltage == SEC_VOLTAGE_13) ? 0x20 : 0x30);
 }
 
 
 static
 int ves1x93_set_tone (struct dvb_i2c_bus *i2c, fe_sec_tone_mode_t tone)
 {
-	switch (board_type) {
-	case SIEMENS_PCI_1893:
-		return -EOPNOTSUPP;
-#ifdef DBOX2
-	case NOKIA_DBOX2_1893:
-	case NOKIA_DBOX2_1993:
-	case SAGEM_DBOX2_1993:
-		return dbox2_fp_sec_set_tone((tone == SEC_TONE_OFF) ? 0x00 : 0x01);
-#endif
-	default:
-		return -EINVAL;
-	}
+	return -EOPNOTSUPP;
 }
 
 
