@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.169 2003/04/25 05:08:19 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.170 2003/05/02 15:21:12 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1317,7 +1317,7 @@ void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos)
 		return;
 
 	}
-	
+
 	if (avia_gt_chip(ENX)) {
 
 		base = queue_system_map[queue_nr] * 8 + 0x8E0;
@@ -1527,136 +1527,265 @@ void enx_tdp_stop(void)
 
 }
 
-// Ugly as hell - but who cares? :-)
-#define MAKE_PCR(base2, base1, base0, extension) ((((u64)(extension)) << 50) | (((u64)(base2)) << 17) | (((u64)(base1)) << 1) | ((u64)(base0)))
-#define PCR_BASE(pcr) ((pcr) & 0x1FFFFFFFF)
-#define PCR_EXTENSION(pcr) ((pcr) >> 50)
-#define PCR_VALUE(pcr) (PCR_BASE(pcr) * 300 + PCR_EXTENSION(pcr))
-
-u64 avia_gt_dmx_get_transport_pcr(void)
+static s64 avia_gt_dmx_get_pcr_base(void)
 {
+	u16 pcr0 = 0;
+	u16 pcr1 = 0;
+	u16 pcr2 = 0;
 
 	if (avia_gt_chip(ENX))
-		return MAKE_PCR(enx_reg_s(TP_PCR_2)->PCR_Base, enx_reg_s(TP_PCR_1)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Base, enx_reg_s(TP_PCR_0)->PCR_Extension);
+	{
+		pcr2 = enx_reg_16(TP_PCR_2);
+		pcr1 = enx_reg_16(TP_PCR_1);
+		pcr0 = enx_reg_16(TP_PCR_0);
+	}
 	else if (avia_gt_chip(GTX))
-		return MAKE_PCR(gtx_reg_s(PCR2)->PCR_Base, gtx_reg_s(PCR1)->PCR_Base, gtx_reg_s(PCR0)->PCR_Base, gtx_reg_s(PCR0)->PCR_Extension);
+	{
+		pcr2 = gtx_reg_16(PCR2);
+		pcr1 = gtx_reg_16(PCR1);
+		pcr0 = gtx_reg_16(PCR0);
+	}
 
-	return 0;
+	return (pcr2 << 17) | (pcr1 << 1) | (pcr0 >> 15);
+}
+
+static s64 avia_gt_dmx_get_latched_stc_base(void)
+{
+	u16 l_stc0 = 0;
+	u16 l_stc1 = 0;
+	u16 l_stc2 = 0;
+
+	if (avia_gt_chip(ENX))
+	{
+		l_stc2 = enx_reg_16(LC_STC_2);
+		l_stc1 = enx_reg_16(LC_STC_1);
+		l_stc0 = enx_reg_16(LC_STC_0);
+	}
+	else if (avia_gt_chip(GTX))
+	{
+		l_stc2 = gtx_reg_16(LSTC2);
+		l_stc1 = gtx_reg_16(LSTC1);
+		l_stc0 = gtx_reg_16(LSTC0);
+	}
+
+	return (l_stc2 << 17) | (l_stc1 << 1) | (l_stc0 >> 15);
 
 }
 
-u64 avia_gt_dmx_get_latched_stc(void)
+static s64 avia_gt_dmx_get_stc_base(void)
 {
+	u16 stc0 = 0;
+	u16 stc1 = 0;
+	u16 stc2 = 0;
 
 	if (avia_gt_chip(ENX))
-		return MAKE_PCR(enx_reg_s(LC_STC_2)->Latched_STC_Base, enx_reg_s(LC_STC_1)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Base, enx_reg_s(LC_STC_0)->Latched_STC_Extension);
+	{
+		stc2 = enx_reg_16(STC_COUNTER_2);
+		stc1 = enx_reg_16(STC_COUNTER_1);
+		stc0 = enx_reg_16(STC_COUNTER_0);
+	}
 	else if (avia_gt_chip(GTX))
-		return MAKE_PCR(gtx_reg_s(LSTC2)->Latched_STC_Base, gtx_reg_s(LSTC1)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Extension);
+	{
+		stc2 = gtx_reg_16(STCC2);
+		stc1 = gtx_reg_16(STCC1);
+		stc0 = gtx_reg_16(STCC0);
+	}
 
-	return 0;
-
-}
-
-u64 avia_gt_dmx_get_stc(void)
-{
-
-	if (avia_gt_chip(ENX))
-		return MAKE_PCR(enx_reg_s(STC_COUNTER_2)->STC_Count, enx_reg_s(STC_COUNTER_1)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Count, enx_reg_s(STC_COUNTER_0)->STC_Extension);
-	else if (avia_gt_chip(GTX))
-		return MAKE_PCR(gtx_reg_s(STCC2)->STC_Count, gtx_reg_s(STCC1)->STC_Count, gtx_reg_s(STCC0)->STC_Count, gtx_reg_s(STCC0)->STC_Extension);
-
-	return 0;
+	return (stc2 << 17) | (stc1 << 1) | (stc0 >> 15);
 
 }
 
 static void avia_gt_dmx_set_dac(s16 pulse_count)
 {
 
-	if (avia_gt_chip(ENX)) {
-
+	if (avia_gt_chip(ENX))
+	{
 		enx_reg_16(DAC_PC) = pulse_count;
 		enx_reg_16(DAC_CP) = 9;
-
-	} else if (avia_gt_chip(GTX)) {
-
-		gtx_reg_32(DPCR) = (pulse_count << 16) | 9;
-		
 	}
-
+	else if (avia_gt_chip(GTX))
+	{
+		gtx_reg_32(DPCR) = (pulse_count << 16) | 9;
+	}
 }
 
-static s16 gain = 0;
-static s64 last_remote_diff = 0;
+#define MAX_PCR_DIFF	36000
+#define MAX_DIFF_DIFF	4
+#define FORCE_DIFF		80
+#define MAX_DIFF		200
+#define GAIN			50
 
 static void gtx_pcr_interrupt(unsigned short irq)
 {
+	s64 pcr;
+	s64 lstc;
+	s64 stc;
+	s32 pcr_lstc_diff;
+	s32 diff_diff;
+	s64 pcr_diff;
+	enum {
+		SLOW, OK, FAST
+	}  direction;
+	u8 gain_changed = 0;
 
-	u64 tp_pcr;
-	u64 l_stc;
-	u64 stc;
+	static s64 last_pcr = 0;
+	static s64 last_lstc = 0;
+	static s32 last_pcr_lstc_diff = 0;
+	static s16 gain = 0;
 
-	s64 local_diff;
-	s64 remote_diff;
+	pcr = avia_gt_dmx_get_pcr_base();
 
-	tp_pcr = avia_gt_dmx_get_transport_pcr();
-	l_stc = avia_gt_dmx_get_latched_stc();
-	stc = avia_gt_dmx_get_stc();
-
-	if (force_stc_reload) {
-
-		printk(KERN_INFO "avia_gt_dmx: reloading stc\n");
-
-		avia_av_set_pcr(PCR_BASE(tp_pcr) >> 1, (PCR_BASE(tp_pcr) & 0x01) << 15);
+	if (force_stc_reload)
+	{
+		stc = avia_gt_dmx_get_stc_base();
+		avia_av_set_pcr(stc >> 1,(stc & 1) << 15);
 		force_stc_reload = 0;
-
+		last_pcr = pcr;
+		last_lstc = pcr;
+		last_pcr_lstc_diff = 0;
+		return;
 	}
 
-	local_diff = (s64)PCR_VALUE(stc) - (s64)PCR_VALUE(l_stc);
-	remote_diff = (s64)PCR_VALUE(tp_pcr) - (s64)PCR_VALUE(stc);
+	/*
+	 * Wenn die PCR-Differenz zu hoch ist, muß folgendes passiert sein:
+	 *  - der Sender sendet die PCR-Pakete zu selten
+	 *  - wir haben ein paar PCR-Pakete (Interrupts) übersehen (hallo printk)
+	 *  - es gab eine PCR discontinuity
+	 */
 
-#define GAIN 25
-
-	if (remote_diff > 0) {
-
-		if (remote_diff > last_remote_diff)
-			gain -= 2*GAIN;
-		else
-			gain += GAIN;
-
-	} else if (remote_diff < 0) {
-
-		if (remote_diff < last_remote_diff)
-			gain += 2*GAIN;
-		else
-			gain -= GAIN;
-
-
+	if (pcr > last_pcr)
+	{
+		pcr_diff = pcr - last_pcr;
+	}
+	else
+	{
+		pcr_diff = last_pcr - pcr;
 	}
 
-	avia_gt_dmx_set_dac(gain);
-
-	last_remote_diff = remote_diff;
-
-	dprintk(KERN_DEBUG "tp_pcr/stc/dir/diff: 0x%08x%08x/0x%08x%08x//%d\n", (u32)(PCR_VALUE(tp_pcr) >> 32), (u32)(PCR_VALUE(tp_pcr) & 0x0FFFFFFFF), (u32)(PCR_VALUE(stc) >> 32), (u32)(PCR_VALUE(stc) & 0x0FFFFFFFF), (s32)(remote_diff));
-
-#if 0
-
-	if ((remote_diff > TIME_THRESHOLD) || (remote_diff < -TIME_THRESHOLD)) {
-
-		printk("avia_gt_dmx: stc out of sync!\n");
+	if (pcr_diff > MAX_PCR_DIFF)
+	{
+		printk(KERN_INFO "PCR discontinuity: PCR: 0x%01X%04X, OLDPCR: 0x%01X%04X, Diff: %d\n",
+			(u32) (pcr >> 32),(u32) (pcr & 0xFFFFFFFF),
+			(u32) (last_pcr >> 32), (u32) (last_pcr & 0xFFFFFFFF),
+			(s32) pcr_diff);
 		avia_gt_dmx_force_discontinuity();
-
+//		avia_av_flush_pcr();
+		return;
 	}
 
-#endif
+	/*
+	 * Berechnen der Differenz zwischen STC und PCR. Dabei müssen die
+	 * Überlaufe und ihre nicht festgelegte Reihenfolge von STC und PCR
+	 * beachtet werden.
+	 */
 
+	lstc = avia_gt_dmx_get_latched_stc_base();
+
+	if (pcr < last_pcr)		/* Überlauf PCR */
+	{
+		if (lstc < last_lstc)	/* Überlauf STC */
+		{
+			pcr_lstc_diff = lstc - pcr;
+		}
+		else				/* kein Überlauf STC */
+		{
+			pcr_lstc_diff = lstc - pcr - 0x200000000;
+		}
+	}
+	else					/* kein Überlauf PCR */
+	{
+		if (lstc < last_lstc)	/* Überlauf STC */
+		{
+			pcr_lstc_diff = lstc + 0x200000000 - pcr;
+		}
+		else				/* kein Überlauf STC */
+		{
+			pcr_lstc_diff = lstc - pcr;
+		}
+	}
+
+	last_pcr = pcr;
+	last_lstc = lstc;
+
+	/*
+	 * Sync lost ?
+	 */
+
+	if ( (pcr_lstc_diff > MAX_DIFF) || (pcr_lstc_diff < -MAX_DIFF) )
+	{
+		avia_gt_dmx_force_discontinuity();
+//		avia_av_flush_pcr();
+		return;
+	}
+
+	/*
+	 * Feststellen, ob die STC schneller oder langsamer läuft.
+	 * Absichtlich träge, da die CR eiert... (deshalb auch das Ignorieren der
+	 * Extension, bringt eh' nix)
+	 */
+
+	diff_diff = pcr_lstc_diff - last_pcr_lstc_diff;
+
+	if (diff_diff > MAX_DIFF_DIFF)
+	{
+		direction = FAST;
+	}
+	else if (diff_diff < -MAX_DIFF_DIFF)
+	{
+		direction = SLOW;
+	}
+	else
+	{
+		direction = OK;
+	}
+
+	/*
+	 * Nachstellen der STC
+	 */
+
+	if (pcr_lstc_diff > FORCE_DIFF)
+	{
+		if (direction != SLOW)
+		{
+			gain += GAIN;
+			gain_changed = 1;
+			last_pcr_lstc_diff = pcr_lstc_diff;
+		}
+	}
+	else if (pcr_lstc_diff < -FORCE_DIFF)
+	{
+		if (direction != FAST)
+		{
+			gain -= GAIN;
+			gain_changed = 1;
+			last_pcr_lstc_diff = pcr_lstc_diff;
+		}
+	}
+	else if (direction == FAST)
+	{
+		gain += GAIN;
+		gain_changed = 1;
+		last_pcr_lstc_diff++;
+	}
+	else if (direction == SLOW)
+	{
+		gain -= GAIN;
+		gain_changed = 1;
+		last_pcr_lstc_diff--;;
+	}
+
+	if (gain_changed)
+	{
+//		printk(KERN_INFO "Diff: %d, Last-Diff: %d Direction: %d, Gain: %d\n",pcr_lstc_diff,last_pcr_lstc_diff,direction,gain);
+		avia_gt_dmx_set_dac(gain);
+	}
 }
 
 
 void avia_gt_dmx_free_section_filter(u8 index)
 {
 	unsigned nr = index;
-	
+
 	if ( (index > 31) || (section_filter_umap[index] != index) )
 	{
 		printk(KERN_CRIT "avia_gt_dmx: trying to free section filters with wrong index!\n");
@@ -2192,7 +2321,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.169 2003/04/25 05:08:19 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.170 2003/05/02 15:21:12 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
