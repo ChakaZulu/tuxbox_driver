@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.10  2001/04/16 21:39:20  Jolt
+ *   Autodetect
+ *
  *   Revision 1.9  2001/04/01 10:54:01  gillem
  *   - fix mixer device
  *
@@ -49,7 +52,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -70,6 +73,7 @@
 #include <linux/soundcard.h>
 
 #include "dbox/avs_core.h"
+#include "dbox/info.h"
 
 #include "cxa2092.h"
 #include "cxa2126.h"
@@ -115,8 +119,8 @@ struct avs_type
 };
 
 static struct avs_type avs_types[] = {
-	{"CXA2092", 0, 0 },
-	{"CXA2126", 0, 1 }
+	{"CXA2092", 0, CXA2092 },
+	{"CXA2126", 0, CXA2126 }
 };
 
 struct avs
@@ -144,14 +148,13 @@ static struct file_operations avs_fops = {
 
 static int debug = 0;
 static int addr  = 0;
-static int type  = CXA2092;
+static int type  = CXAAUTO;
 
 /* --------------------------------------------------------------------- */
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
-MODULE_PARM(type,"i");
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -476,6 +479,20 @@ int init_module(void)
 int i2c_avs_init(void)
 #endif
 {
+
+	struct dbox_info_struct dinfo;
+	
+	if (type == CXAAUTO) {
+	
+	    dbox_get_info(&dinfo);
+	    
+	    if (dinfo.mID == DBOX_MID_NOKIA)
+		type = CXA2092;
+	    else 
+		type = CXA2126;
+		
+	}
+	
 	i2c_add_driver(&driver);
 
 	switch(type)

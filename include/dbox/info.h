@@ -3,17 +3,17 @@
 
 /*
 
-																	gtxID
-									mID  feID  fpID enxID hwREV fpREV
-		sagem sat			3 		00		52		3			21	 0.23
-		sagem kabel		3			00		52		3			41   0.23
-		nokia kabel 	1			7a		5a		0b		X5	 0.81
+							gtxID
+				mID	feID	fpID	enxID	hwREV	fpREV
+		sagem sat	3 	00	52	3	21	0.23
+		sagem kabel	3	00	52	3	41	0.23
+		nokia kabel 	1	7a	5a	0b	X5	0.81
 																					X5							avia 500
-		nokia sat			1			dd		5a		0b    09   0.81
-		philips sat		2			00		52		3			01	 0.30
+		nokia sat	1	dd	5a	0b	09	0.81
+		philips sat	2	00	52	3	01	0.30
 */
 
-#define DBOX_FE_CABLE	0
+#define DBOX_FE_CABLE		0
 #define DBOX_FE_SAT		1
 
 #define DBOX_DEMOD_VES1820	0

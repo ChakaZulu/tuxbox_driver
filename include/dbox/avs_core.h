@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.4  2001/04/16 21:39:20  Jolt
+ *   Autodetect
+ *
  *   Revision 1.3  2001/03/20 21:16:47  gillem
  *   - change defines
  *
@@ -31,14 +34,16 @@
  *   - initial release
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
-#define CXA2092 0
-#define CXA2126 1
-#define AVS_COUNT 2
-#define AVS_MAJOR 			40
+#define CXAAUTO		-1
+#define CXA2092 	0
+#define CXA2126		1
+
+#define AVS_COUNT 		2
+#define AVS_MAJOR 		40
 #define I2C_DRIVERID_AVS	1
 
 /* Status */
