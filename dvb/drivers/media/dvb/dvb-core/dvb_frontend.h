@@ -28,7 +28,6 @@
 #include <asm/types.h>
 #include <linux/sched.h>
 #include <linux/ioctl.h>
-#include <linux/i2c.h>
 #include <linux/module.h>
 
 #ifndef MODULE_LICENSE
@@ -37,7 +36,6 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dvb_i2c.h"
 #include "dvbdev.h"
 
 
@@ -52,7 +50,7 @@ struct dvb_frontend {
 	int (*before_ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
 	int (*ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
 	int (*after_ioctl) (struct dvb_frontend *frontend, unsigned int cmd, void *arg);
-	struct dvb_i2c_bus *i2c;
+	struct dvb_adapter *adapter;
 	void *before_after_data;   /*  can be used by hardware module... */
 	void *data;                /*  can be used by hardware module... */
 };
@@ -70,14 +68,14 @@ struct dvb_frontend {
 extern int
 dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 				     unsigned int cmd, void *arg),
-		       struct dvb_i2c_bus *i2c,
+		       struct dvb_adapter *adapter,
 		       void *data,
 		       struct dvb_frontend_info *info);
 
 extern int
 dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 				       unsigned int cmd, void *arg),
-			 struct dvb_i2c_bus *i2c);
+		         struct dvb_adapter *adapter);
 
 
 /**

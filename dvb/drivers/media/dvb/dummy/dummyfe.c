@@ -1,6 +1,5 @@
-
 /*
- * $Id: dummyfe.c,v 1.2 2002/10/22 23:48:58 obi Exp $
+ * $Id: dummyfe.c,v 1.3 2002/10/28 14:59:05 Jolt Exp $
  *
  * Dummy Frontend Driver 
  *
@@ -30,6 +29,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#ifdef USE_DVB_I2C
+#include "../dvb-core/dvb_i2c.h"
+#endif
 #include "../dvb-core/dvb_frontend.h"
 
 //#define USE_DVB_I2C
@@ -172,32 +174,38 @@ static int dummyfe_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 }
 
+#ifdef USE_DVB_I2C
 static int dummyfe_attach(struct dvb_i2c_bus *i2c)
 {
 
 	printk("dummyfe: attach\n");
 
-	dvb_register_frontend(dummyfe_ioctl, i2c, NULL, &dummyfe_info);
+	dvb_register_frontend(dummyfe_ioctl, i2c->adapter, NULL, &dummyfe_info);
 
 	return 0;
 
 }
+#else
+#endif
 
+#ifdef USE_DVB_I2C
 static
 void dummyfe_detach(struct dvb_i2c_bus *i2c)
 {
 
 	printk("dummyfe: detach\n");
 
-	dvb_unregister_frontend(dummyfe_ioctl, i2c);
+	dvb_unregister_frontend(dummyfe_ioctl, i2c->adapter);
 
 }
+#else
+#endif
 
 static
 int __init dummyfe_init(void)
 {
 
-	printk("$Id: dummyfe.c,v 1.2 2002/10/22 23:48:58 obi Exp $\n");
+	printk("$Id: dummyfe.c,v 1.3 2002/10/28 14:59:05 Jolt Exp $\n");
 
 #ifdef USE_DVB_I2C
 	return dvb_register_i2c_device(THIS_MODULE, dummyfe_attach, dummyfe_detach);

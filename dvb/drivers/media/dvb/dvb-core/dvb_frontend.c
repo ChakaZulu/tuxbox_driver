@@ -367,8 +367,8 @@ void dvb_frontend_init (struct dvb_frontend_data *fe)
 	struct dvb_frontend *frontend = &fe->frontend;
 	struct dvb_frontend_parameters *init_param;
 
-	printk ("DVB: initialising frontend %i:%i (%s)...\n",
-		frontend->i2c->adapter->num, frontend->i2c->id, fe->info->name);
+//FIXME	printk ("DVB: initialising frontend %i:%i (%s)...\n",
+//FIXME		frontend->adapter->num, frontend->i2c->id, fe->info->name);
 
 	dvb_frontend_internal_ioctl (frontend, FE_INIT, NULL);
 
@@ -701,7 +701,7 @@ dvb_add_frontend_ioctls (struct dvb_adapter *adapter,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter &&
+		if (fe->frontend.adapter == adapter &&
 		    fe->frontend.before_ioctl == NULL &&
 		    fe->frontend.after_ioctl == NULL)
 		{
@@ -738,7 +738,7 @@ dvb_remove_frontend_ioctls (struct dvb_adapter *adapter,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter &&
+		if (fe->frontend.adapter == adapter &&
 		    fe->frontend.before_ioctl == before_ioctl &&
 		    fe->frontend.after_ioctl == after_ioctl)
 		{
@@ -769,7 +769,7 @@ dvb_add_frontend_notifier (struct dvb_adapter *adapter,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter) {
+		if (fe->frontend.adapter == adapter) {
 			struct dvb_fe_notifier_callbacks *e;
 
 			e = kmalloc (sizeof(struct dvb_fe_notifier_callbacks),
@@ -811,7 +811,7 @@ dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter) {
+		if (fe->frontend.adapter == adapter) {
 			struct list_head *e0, *n0;
 
 			list_for_each_safe (e0, n0, &fe->notifier_callbacks) {
@@ -844,7 +844,7 @@ struct file_operations dvb_frontend_fops = {
 int
 dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 				     unsigned int cmd, void *arg),
-		       struct dvb_i2c_bus *i2c,
+		       struct dvb_adapter *adapter,
 		       void *data,
 		       struct dvb_frontend_info *info)
 {
@@ -878,7 +878,7 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 	INIT_LIST_HEAD (&fe->notifier_callbacks);
 
 	fe->frontend.ioctl = ioctl;
-	fe->frontend.i2c = i2c;
+	fe->frontend.adapter = adapter;
 	fe->frontend.data = data;
 	fe->info = info;
 
@@ -889,7 +889,7 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 				    struct dvb_frontend_ioctl_data,
 				    list_head);
 
-		if (ioctl->adapter == i2c->adapter) {
+		if (ioctl->adapter == adapter) {
 			fe->frontend.before_ioctl = ioctl->before_ioctl;
 			fe->frontend.after_ioctl = ioctl->after_ioctl;
 			fe->frontend.before_after_data = ioctl->before_after_data;
@@ -900,7 +900,7 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 
 	list_add_tail (&fe->list_head, &frontend_list);
 
-	dvb_register_device (i2c->adapter, &fe->dvbdev, &dvbdev_template,
+	dvb_register_device (adapter, &fe->dvbdev, &dvbdev_template,
 			     fe, DVB_DEVICE_FRONTEND);
 
 	up (&frontend_mutex);
@@ -911,7 +911,7 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 
 int dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 					   unsigned int cmd, void *arg),
-			     struct dvb_i2c_bus *i2c)
+			     struct dvb_adapter *adapter)
 {
         struct list_head *entry, *n;
 
@@ -925,7 +925,7 @@ int dvb_unregister_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.ioctl == ioctl && fe->frontend.i2c == i2c) {
+		if (fe->frontend.ioctl == ioctl && fe->frontend.adapter == adapter) {
 			dvb_unregister_device (fe->dvbdev);
 
 			list_del (entry);
