@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.174 2003/01/18 00:52:35 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.175 2003/03/03 17:56:06 wjoost Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -58,6 +58,7 @@
 #include "avia_gt_napi.h"
 #include "avia_gt_accel.h"
 #include "avia_av_napi.h"
+#include "avia_gt_vbi.h"
 
 static sAviaGtInfo *gt_info = NULL;
 static struct dvb_adapter *adapter = NULL;
@@ -413,6 +414,8 @@ static int avia_gt_napi_start_feed_ts(struct dvb_demux_feed *dvbdmxfeed)
 		avia_av_napi_decoder_start(dvbdmxfeed);
 
 	avia_gt_dmx_queue_start(queue->index, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 0, 0, 0);
+	if ( (dvbdmxfeed->pes_type == DMX_TS_PES_TELETEXT) && (dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) )
+		avia_gt_vbi_start();
 
 	return 0;
 
@@ -565,6 +568,9 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		((dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) || (dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO)))
 		avia_av_napi_decoder_stop(dvbdmxfeed);
 
+	if ( (dvbdmxfeed->pes_type == DMX_TS_PES_TELETEXT) && (dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER) )
+		avia_gt_vbi_stop();
+	
 	avia_gt_dmx_queue_stop(queue->index);
 
 	if (queue->hw_sec_index >= 0)
@@ -615,7 +621,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.174 2003/01/18 00:52:35 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.175 2003/03/03 17:56:06 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
