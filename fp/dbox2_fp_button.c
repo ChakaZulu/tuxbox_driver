@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_button.c,v 1.1 2002/12/27 17:32:44 Jolt Exp $
+ * $Id: dbox2_fp_button.c,v 1.2 2003/01/03 16:00:34 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -25,69 +25,48 @@
 
 #include <dbox/dbox2_fp_core.h>
 
+static u16 button_new_code_map[] = {
+
+	/* 000-007 */	KEY_RESERVED, KEY_POWER, KEY_UP, KEY_RESERVED, KEY_DOWN, KEY_RESERVED, KEY_RESERVED,
+	
+};
+
+static u16 button_old_code_map[] = {
+
+	/* 000-007 */	KEY_RESERVED, KEY_POWER, KEY_DOWN, KEY_RESERVED, KEY_UP, KEY_RESERVED, KEY_RESERVED,
+	
+};
+
 static struct input_dev *button_input_dev;
 
 static void dbox2_fp_button_queue_handler(u8 queue_nr)
 {
 	u8 button;
 	u16 key;
-	u8 state = 0;
+	u8 pressed = 0;
 
 	if (queue_nr != 4)
 		return;
 
 	fp_cmd(fp_get_i2c(), 0x25, (u8 *)&button, sizeof(button));
 	
-	switch(button) {
+	if (button & 0x80) {
 	
-		case 0x9D:
-		
-			state = 1;
-
-		case 0x9F:
-		
-			key = KEY_POWER;
-			
-			break;
-	
-		case 0xAB:
-		
-			state = 1;
-
-		case 0xAF:
-		
-			key = KEY_DOWN;
-			
-			break;
-	
-		case 0xC7:
-		
-			state = 1;
-
-		case 0xCF:
-		
-			key = KEY_UP;
-			
-			break;
-	
-		default:
-		
-			printk("dbox2_fp_button: unkown panel button code 0x%02X\n", button);
-	
-			return;
-					
-	}
-
-	if (state) {
-	
-		clear_bit(key, button_input_dev->key);
-		input_event(button_input_dev, EV_KEY, key, !0);
+		pressed = !!((((button >> 1) ^ 0x07) & 0x07) & ((button >> 4) & 0x07));
+		key = button_old_code_map[(button >> 4) & 0x07];
 		
 	} else {
 	
-		input_event(button_input_dev, EV_KEY, key, !!0);
-		
+		pressed = !!(((button >> 1) & 0x07) & ((button >> 4) & 0x07));
+		key = button_new_code_map[(button >> 4) & 0x07];
+	
 	}
+
+	
+	if (pressed)
+		clear_bit(key, button_input_dev->key);
+
+	input_event(button_input_dev, EV_KEY, key, pressed);
 
 }
 
