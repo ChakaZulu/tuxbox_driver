@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.22 2003/01/15 21:42:56 obi Exp $
+ * $Id: tda8044h.c,v 1.23 2003/08/26 02:57:23 obi Exp $
  *   
  * Philips TDA8044H QPSK Demodulator DVB API driver
  *
@@ -234,10 +234,10 @@ int tda8044_set_parameters (struct dvb_i2c_bus *i2c,
 	 * TODO: calculate better ;)
 	 * formula: 2^21 * freq / symrate
 	 * 
-	 * clock and symbol rate are divided by 100000
+	 * clock and symbol rate are divided by 25000
 	 * to avoid an integer overflow
 	 */
-	ratio = (2 << 20) * 960 / (symbol_rate / 100000);
+	ratio = (1 << 21) * 3840 / (symbol_rate / 25000);
 	buf[0x02] = ratio >> 16;
 	buf[0x03] = ratio >> 8;
 	buf[0x04] = ratio;
