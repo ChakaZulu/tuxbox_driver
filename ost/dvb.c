@@ -1,5 +1,5 @@
 /*
- * $Id: dvb.c,v 1.86 2002/10/28 14:34:25 wjoost Exp $
+ * $Id: dvb.c,v 1.87 2002/10/28 18:46:54 wjoost Exp $
  *
  * Copyright (C) 2000-2002 tmbinc, gillem, obi
  *
@@ -848,7 +848,7 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 		break;
 
 	case AUDIO_PLAY:
-		if (dvb->audiostate.playState != AUDIO_PLAYING) {
+		if ( (dvb->audiostate.playState != AUDIO_PLAYING) || (dvb->audio_stream_type == STREAM_TYPE_SPTS_ES) ) {
 			switch (dvb->audiostate.streamSource) {
 			case AUDIO_SOURCE_DEMUX:
 				printk("avia: playing apid: 0x%X\n", dvb->audio_pid);
@@ -877,11 +877,13 @@ audio_ioctl(struct dvb_device *dvbdev, struct file *file,
 				}
 #endif
 				avia_command(SelectStream, (dvb->audiostate.bypassMode) ? 0x03 : 0x02, dvb->audio_pid);
-				if (dvb->videostate.playState == VIDEO_PLAYING) {
-					avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
-				}
-				else {
-					avia_command(Play, 0x00, 0xFFFF, dvb->audio_pid);
+				if (dvb->audiostate.playState != AUDIO_PLAYING) {
+					if (dvb->videostate.playState == VIDEO_PLAYING) {
+						avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
+					}
+					else {
+						avia_command(Play, 0x00, 0xFFFF, dvb->audio_pid);
+					}
 				}
 				break;
 
