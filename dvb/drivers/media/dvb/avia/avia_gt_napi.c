@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.146 $
+ *   $Revision: 1.147 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.147  2002/10/31 23:29:30  Jolt
+ *   Porting
+ *
  *   Revision 1.146  2002/10/31 22:36:08  Jolt
  *   Porting
  *
@@ -1029,9 +1032,9 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
 	sAviaGtDmxQueueInfo *queue_info = &queue->info;
+	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	gtx_demux_feed_t *gtxfeed;
-//	gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
 	u8 section_header[3];
 	u32 padding;
 	u8 ts_header_old[5];
@@ -1047,15 +1050,20 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 	return;
 
-	if (gtxfeed->state != DMX_STATE_GO) {
-	
-		dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed, queue %d\n!", queue_nr);
+	switch (dvbdmxfeed->type) {
+
+		case DMX_TYPE_TS:
 		
-	} else {
+			if (!(dvbdmxfeed->ts_type & TS_PACKET)) {
+			
+				printk("avia_gt_napi: wired ts_type settings for queue %d\n", queue_nr);
+			
+				return;
+				
+			}
 
-		switch (gtxfeed->type) {
-
-			case DMX_TYPE_TS:
+			// TS
+			if (!(dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)) {
 			
 				buf_len = queue_info->bytes_avail(queue_nr);
 				
@@ -1174,14 +1182,47 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					
 				}
 
-				return;
+			// PES
+			} else {
 
-			break;
+				payload_len = queue_info->bytes_avail(queue_nr);
 
-			// handle prefiltered section
-			case DMX_TYPE_HW_SEC:
+				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+
+					if ((gtx->feed[i].state == DMX_STATE_GO) &&
+						(gtx->feed[i].pid == gtxfeed->pid) &&
+						(gtx->feed[i].type == DMX_TYPE_PES)) {
+
+						if ((queue->read_pos + payload_len) > queue->size) {
+
+							chunk1 = queue->size - queue->read_pos;
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
+
+						} else {
+
+							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+
+						}
+						
+					}
+					
+				}
+				
+				queue->read_pos = queue->write_pos;
+
+			}
+
+			return;
+
+		break;
+
+
+		// handle prefiltered section
+		case DMX_TYPE_SEC:
+
+//			if (!(hw_sec)) {
 			
-				while (queue_info->bytes_avail(queue_nr) > 0) {
+/*				while (queue_info->bytes_avail(queue_nr) > 0) {
 				
 					while ((queue_info->bytes_avail(queue_nr)) && (queue_info->get_data8(queue_nr, 1) == 0xFF))
 						queue_info->get_data(queue_nr, NULL, 1, 0);
@@ -1236,40 +1277,10 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						
 					}
 					
-				}
+				}*/
 
-			break;
-
-			case DMX_TYPE_PES:
-			
-				payload_len = queue_info->bytes_avail(queue_nr);
-
-				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
-
-					if ((gtx->feed[i].state == DMX_STATE_GO) &&
-						(gtx->feed[i].pid == gtxfeed->pid) &&
-						(gtx->feed[i].type == DMX_TYPE_PES)) {
-
-						if ((queue->read_pos + payload_len) > queue->size) {
-
-							chunk1 = queue->size - queue->read_pos;
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
-
-						} else {
-
-							gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
-
-						}
-						
-					}
-					
-				}
-				
-				queue->read_pos = queue->write_pos;
-			
-			break;
-
-			case DMX_TYPE_SEC:
+			// SW Sections				
+//			} else {
 
 				padding = queue_info->bytes_avail(queue_nr) % 188;
 
@@ -1423,11 +1434,11 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					
 				}
 
-			break;
+			//}
+
+		break;
 			
-		} 
-		
-	}
+	} 
 
 }
 
@@ -1969,7 +1980,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.146 2002/10/31 22:36:08 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.147 2002/10/31 23:29:30 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
