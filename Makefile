@@ -64,7 +64,7 @@ mrproper: clean
 	find . \( -size 0 -o -name .depend \) -type f -print | xargs rm -f
 
 distclean: mrproper
-	rm -f core `find . \( -not -type d \) -and \
+	rm -f `find . \( -not -type d \) -and \
 		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print`
