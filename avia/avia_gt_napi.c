@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.111 $
+ *   $Revision: 1.112 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.112  2002/09/09 18:30:36  Jolt
+ *   Symbol fix
+ *
  *   Revision 1.111  2002/09/09 17:46:30  Jolt
  *   Compile fix
  *
@@ -398,8 +401,6 @@ MODULE_LICENSE("GPL");
 #endif
 #endif
 
-extern sAviaGtDmxQueue *get_queue(u8 queue_nr);
-
 static gtx_demux_t gtx;
 
 static int GtxDmxInit(gtx_demux_t *gtxdemux);
@@ -452,13 +453,6 @@ void enx_tdp_trace(void)
 	enx_reg_16(EC)=0;
 }
 #endif
-
-void gtx_reset_queue(u8 queue_nr)
-{
-
-	get_queue(queue_nr)->read_pos = get_queue(queue_nr)->write_pos;
-
-}
 
 extern int register_demux(struct dmx_demux_s *demux);
 extern int unregister_demux(struct dmx_demux_s *demux);
@@ -609,7 +603,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 					printk("avia_gt_napi: short CC-error-message received.\n");
 										
-					gtx_reset_queue(queue_nr);
+					avia_gt_dmx_queue_reset(queue_nr);
 										
 					break;
 										
@@ -628,7 +622,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 						gtx->feed[i].filter->invalid = 1;
 						dmx_set_filter(gtx->feed[i].filter);
 						gtx->feed[i].filter->invalid = 0;
-						gtx_reset_queue(i);
+						avia_gt_dmx_queue_reset(i);
 						gtx->feed[i].sec_len = 0;
 						gtx->feed[i].sec_recv = 0;
 						blocked |= 1 << i;
@@ -651,7 +645,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 					printk("avia_gt_napi: short private adaption field message.\n");
 
-					gtx_reset_queue(queue_nr);										
+					avia_gt_dmx_queue_reset(queue_nr);										
 										
 					break;
 										
@@ -663,7 +657,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 					printk("avia_gt_napi: short private adaption field message.\n");
 
-					gtx_reset_queue(queue_nr);
+					avia_gt_dmx_queue_reset(queue_nr);
 
 					break;
 										
@@ -687,7 +681,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 							gtx->feed[i].filter->invalid = 1;
 							dmx_set_filter(gtx->feed[i].filter);
 							gtx->feed[i].filter->invalid = 0;
-							gtx_reset_queue(i);
+							avia_gt_dmx_queue_reset(i);
 							gtx->feed[i].sec_len = 0;
 							gtx->feed[i].sec_recv = 0;
 							blocked |= 1 << i;
@@ -788,7 +782,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						if (*b1 != 0x47)
 						{
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
-							gtx_reset_queue(queue_nr);
+							avia_gt_dmx_queue_reset(queue_nr);
 							return;
 						}
 
@@ -819,7 +813,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						}
 						
 					} else
-						gtx_reset_queue(queue_nr);
+						avia_gt_dmx_queue_reset(queue_nr);
 
 					switch (gtxfeed->type)
 					{
@@ -879,7 +873,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									gtxfeed->filter->invalid = 1;
 									dmx_set_filter(gtxfeed->filter);
 									gtxfeed->filter->invalid = 0;
-									gtx_reset_queue(queue_nr);
+									avia_gt_dmx_queue_reset(queue_nr);
 									dmx_set_filter(gtxfeed->filter);
 									break;
 								}
@@ -911,7 +905,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 										gtxfeed->filter->invalid = 1;
 										dmx_set_filter(gtxfeed->filter);
 										gtxfeed->filter->invalid = 0;
-										gtx_reset_queue(queue_nr);
+										avia_gt_dmx_queue_reset(queue_nr);
 										dmx_set_filter(gtxfeed->filter);
 										break;
 									}
@@ -930,7 +924,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								gtxfeed->filter->invalid = 1;
 								dmx_set_filter(gtxfeed->filter);
 								gtxfeed->filter->invalid = 0;
-								gtx_reset_queue(queue_nr);
+								avia_gt_dmx_queue_reset(queue_nr);
 								dmx_set_filter(gtxfeed->filter);
 							}
 						}
@@ -1316,7 +1310,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 		return -EINVAL;
 	}
 
-	gtx_reset_queue(gtxfeed->index);
+	avia_gt_dmx_queue_reset(gtxfeed->index);
 
 	filter->start_up=1;
 	filter->invalid=0;
@@ -1358,7 +1352,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 
 	avia_gt_dmx_queue_irq_disable(gtxfeed->index);
 
-	gtx_reset_queue(gtxfeed->index);
+	avia_gt_dmx_queue_reset(gtxfeed->index);
 
 	return 0;
 
@@ -1556,7 +1550,7 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 		{
 			return -ENOSPC;
 		}
-		gtx_reset_queue(gtxfeed->index);
+		avia_gt_dmx_queue_reset(gtxfeed->index);
 		dprintk("gtx_dmx: section filtering start (%d filter)\n", filter->no_of_filters);
 	}
 
@@ -1802,7 +1796,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
 		avia_gt_dmx_alloc_queue_message(avia_gt_napi_message_callback, gtxdemux);
-		gtx_reset_queue(MESSAGE_QUEUE);
+		avia_gt_dmx_queue_reset(MESSAGE_QUEUE);
 
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
 		gtxdemux->feed[MESSAGE_QUEUE].pid = 0x2000;
@@ -1840,7 +1834,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.111 2002/09/09 17:46:30 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.112 2002/09/09 18:30:36 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

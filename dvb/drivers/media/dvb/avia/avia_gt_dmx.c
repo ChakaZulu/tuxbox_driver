@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.119  2002/09/09 18:30:36  Jolt
+ *   Symbol fix
+ *
  *   Revision 1.118  2002/09/08 16:15:22  Jolt
  *   DMX fixes
  *
@@ -161,7 +164,7 @@
  *
  *
  *
- *   $Revision: 1.118 $
+ *   $Revision: 1.119 $
  *
  */
 
@@ -1206,6 +1209,24 @@ s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr)
 
 }
 
+s32 avia_gt_dmx_queue_reset(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: queue_reset: queue %d out of bounce\n", queue_nr);
+
+		return -EINVAL;
+
+	}
+
+	queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
+//	avia_gt_dmx_set_queue_write_pointer(queue_nr, queue_list[queue_nr].read_pos);
+
+	return 0;
+
+}
+
 static void avia_gt_dmx_queue_task(void *tl_data)
 {
 
@@ -1637,7 +1658,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.118 2002/09/08 16:15:22 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.119 2002/09/09 18:30:36 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1783,6 +1804,7 @@ EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
 EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
+EXPORT_SYMBOL(avia_gt_dmx_queue_reset);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);

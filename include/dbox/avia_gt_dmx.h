@@ -202,6 +202,7 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
 unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr);
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
+s32 avia_gt_dmx_queue_reset(u8 queue_nr);
 void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer);
 void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
