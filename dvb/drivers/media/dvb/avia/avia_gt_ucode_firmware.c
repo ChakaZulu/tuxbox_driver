@@ -5,6 +5,8 @@
  *
  * See COPYING in their archive for license details:
  * http://www.pentamedia.com/english/supports/down/Linux/pentaval-2.1.3_011124.tar.gz
+ * if down 
+ * http://www.transcom.com/satfiles/drivers/Linux/pentaval-2.1.3_011124.tar.gz
  *
  */
 
