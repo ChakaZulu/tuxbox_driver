@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.24  2002/10/09 20:20:07  Jolt
+ *   Uhhh :)
+ *
  *   Revision 1.23  2002/10/09 18:31:06  Jolt
  *   HW copy support
  *
@@ -94,7 +97,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -157,7 +160,7 @@ void avia_gt_gv_cursor_show(void)
 
 }
 
-u8 avia_gt_get_bbp(void) 
+u8 avia_gt_get_bpp(void) 
 {
 
 	switch(input_mode) {
@@ -564,9 +567,9 @@ void avia_gt_gv_set_size(u16 width, u16 height) {
 void avia_gt_gv_set_stride(void) {
 
 	if (avia_gt_chip(ENX))
-		enx_reg_set(GMR1, STRIDE, ((input_width * avia_gt_get_bbp()) + 3) >> 2);
+		enx_reg_set(GMR1, STRIDE, ((input_width * avia_gt_get_bpp()) + 3) >> 2);
 	else if (avia_gt_chip(GTX))
-		gtx_reg_set(GMR, STRIDE, ((input_width * avia_gt_get_bbp()) + 1) >> 1);
+		gtx_reg_set(GMR, STRIDE, ((input_width * avia_gt_get_bpp()) + 1) >> 1);
 
 }
 
@@ -629,7 +632,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.23 2002/10/09 18:31:06 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.24 2002/10/09 20:20:07 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
