@@ -20,10 +20,10 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.52 $
+ *   $Revision: 1.53 $
  *   $Log: avia_gt_napi.c,v $
- *   Revision 1.52  2001/08/18 18:59:40  tmbinc
- *   fixed init
+ *   Revision 1.53  2001/09/02 01:08:23  TripleDES
+ *   -some fixes
  *
  *   Revision 1.51  2001/08/18 18:20:21  TripleDES
  *   moved the ucode loading to dmx
@@ -309,31 +309,31 @@ void enx_tdp_init(u8 *microcode)
 #else
 void LoaduCode (u8 * microcode)
 {
-	unsigned short *dst=(unsigned short*)&rh (RISC);
-	unsigned short *src=(unsigned short*)microcode;
-	int words=0x800/2;
+        unsigned short *dst   = (unsigned short*) &rh (RISC);
+        unsigned short *src   = (unsigned short*) microcode;
+        int             words = 0x800 / 2; //800
 
-	rh(RR1) |= 1 << 5;         // reset RISC
-	udelay (10);
-	rh(RR1) &= ~(1 << 5);
+        rh (RR1) |= 1 << 5;         // reset RISC
+        udelay (10);
+        rh(RR1) &= ~(1 << 5);
 
-	while (words--)
-	{
-		udelay(100);
-		*dst++=*src++;
-	}
+        while (words--) {
+                udelay (100);
+                *dst++ = *src++;
+        }
 
-	dst=(unsigned short*) &rh (RISC);
-	src=(unsigned short*) microcode;
-	words=0x800 / 2;
-	while (words--)
-		if (*dst++ != *src++)
-			break;
-	if (words>=0)
-	{
-		printk(KERN_CRIT "microcode validation failed at %x\n", 0x800 - words);
-		return;
-	}
+        dst   = (unsigned short*) &rh (RISC);
+        src   = (unsigned short*) microcode;
+        words = 0x800 / 2;
+        while (words--)
+                if (*dst++ != *src++)
+                        break;
+
+        if (words >= 0) {
+                printk (KERN_CRIT "microcode validation failed at %x\n",
+                        0x800 - words);
+                return;
+        }
 }
 #endif
 
@@ -592,8 +592,19 @@ void gtx_set_system_queue_wptr(int queue, u32 write)
 {
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
-	enx_reg_h(base+4)=write&0xFFFF;
-	enx_reg_h(base+6)=((write>>16)&63)|(enx_reg_h(base+6)&~63);
+//	enx_reg_h(base+0)=enx_reg_h(base+0);
+//	enx_reg_h(base+4)=write&0xFFFF;
+//	enx_reg_h(base+6)=((write>>16)&63)|(enx_reg_h(base+6)&~63);
+//	enx_reg_h(base+2)=enx_reg_h(base+2);
+  if (base == 0x8f0)   //simple workaround
+  {
+	memset(gtxmem,0,(1024*64));
+	//enx_reg_h(base+0)=0;
+	//enx_reg_h(base+4)=0;
+	//enx_reg_h(base+6)=(10<<6)|0;
+	//enx_reg_h(base+2)=0;
+	//enx_reg_h(base+0)=0;
+  }
 #else
   int base=queue*8+0x1E0;
 	rhn(base+4)=write&0xFFFF;
@@ -620,7 +631,7 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 		return;
 	}
 	gtx_set_system_queue_wptr(rqueue, feed->readptr);
-	gtx_set_system_queue_rptr(rqueue, feed->readptr);
+	//gtx_set_system_queue_rptr(rqueue, feed->readptr);
 }
 
 static __u32 datamask=0;
@@ -863,16 +874,10 @@ int gtx_dmx_init(void)
   mm_segment_t fs;
 
   printk(KERN_DEBUG "gtx_dmx: \n");
-#ifdef enx_dmx
-  gtxmem=enx_get_mem_addr();
-  gtxreg=enx_get_reg_addr();
-#else  
-  gtxmem=gtx_get_mem();
-  gtxreg=gtx_get_reg();
-#endif  
 
   fs = get_fs();
   set_fs(get_ds());
+  
   if(do_firmread(ucode,(char**)&microcode)==0){
   	set_fs(fs);
 	return -EIO;
@@ -880,6 +885,8 @@ int gtx_dmx_init(void)
   set_fs(fs);
   
 #ifdef enx_dmx
+  enx_reg_w(RSTR0) |= (1<<31)|(1<<23);//|(1<<22);    
+  
   enx_tdp_init(microcode);
   enx_tdp_start();
 #else
@@ -888,6 +895,17 @@ int gtx_dmx_init(void)
   vfree(microcode);
 
 #ifdef enx_dmx
+  gtxmem=enx_get_mem_addr();
+  gtxreg=enx_get_reg_addr();
+#else  
+  gtxmem=gtx_get_mem();
+  gtxreg=gtx_get_reg();
+#endif  
+
+#ifdef enx_dmx
+  
+  enx_reg_w(RSTR0) |= (1<<31)|(1<<23);    
+  
   enx_reg_w(RSTR0) &= ~(1 << 27);
   enx_reg_w(RSTR0) &= ~(1 << 13);
   enx_reg_w(RSTR0) &= ~(1 << 11);
@@ -1932,7 +1950,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.52 2001/08/18 18:59:40 tmbinc Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.53 2001/09/02 01:08:23 TripleDES Exp $\n");
 
 	return gtx_dmx_init();
 }
