@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.116 $
+ *   $Revision: 1.117 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.117  2002/09/12 14:58:52  Jolt
+ *   HW sections bugfixes
+ *
  *   Revision 1.116  2002/09/10 21:15:34  Jolt
  *   NAPI cleanup
  *
@@ -597,7 +600,6 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 	sSECTION_COMPLETED_MESSAGE comp_msg;
 	sPRIVATE_ADAPTION_MESSAGE adaption;
 	unsigned i;
-	u8 type;
 	__u32 blocked = 0;
 	
 	if (queue_nr != AVIA_GT_DMX_QUEUE_MESSAGE) {
@@ -610,9 +612,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 
 	while (queue_info->bytes_avail(queue_nr) > 0) {
 							
-		type = queue_info->get_data8(queue_nr, 1);
-							
-		switch(type) {
+		switch(queue_info->get_data8(queue_nr, 1)) {
 		
 			case DMX_MESSAGE_CC_ERROR:
 								
@@ -683,9 +683,11 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 				queue_info->move_data(queue_nr, NULL, adaption.length, 0);
 
 			break;
-#if 0	
+
 			case DMX_MESSAGE_SYNC_LOSS:
-								
+			
+				queue_info->get_data8(queue_nr, 0);
+#if 0	
 				if (!sync_lost) {
 									
 					sync_lost = 1;
@@ -711,14 +713,16 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 					}
 					
 				}
-				
-			break;
 #endif
+			break;
+
 			case DMX_MESSAGE_SECTION_COMPLETED:
-								
+
 				if (queue_info->bytes_avail(queue_nr) < sizeof(comp_msg))	{
 									
 					printk("avia_gt_napi: short section completed message.\n");
+
+					avia_gt_dmx_queue_reset(queue_nr);
 										
 					return;
 										
@@ -728,8 +732,8 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 				if (!(blocked & (1 << comp_msg.filter_index))) {
 									
-//						printk("got section completed %d\n",comp_msg.filter_index);
 						sync_lost = 0;
+						
 						avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
 									
 				}
@@ -737,10 +741,10 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 			break;
 			
 			default:
-#if 0
-				printk("bad message, type-value %02X, len = %d\n",type,queue_info->bytes_avail(queue_nr));
-#endif
-//				dump(b1,b1l,b2,b2l);
+
+				printk("avia_gt_napi: bad message, type-value %02X, len = %d\n", queue_info->get_data8(queue_nr, 1), queue_info->bytes_avail(queue_nr));
+
+				avia_gt_dmx_queue_reset(queue_nr);
 
 				return;
 									
@@ -798,11 +802,14 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						int rlen = b1l + b2l;
 
-						if (*b1 != 0x47)
-						{
+						if (*b1 != 0x47) {
+						
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
+							
 							avia_gt_dmx_queue_reset(queue_nr);
+							
 							return;
+							
 						}
 
 						rlen -= rlen % 188;
@@ -810,6 +817,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						if (!rlen) {
 						
 							dprintk("this SHOULDN'T happen (tm) (incomplete packet)\n");
+
+							avia_gt_dmx_queue_reset(queue_nr);
 							
 							return;
 							
@@ -833,17 +842,22 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						
 					}
 
-					switch (gtxfeed->type)
-					{
+					switch (gtxfeed->type) {
+
 						// handle TS
 						case DMX_TYPE_TS:
-							for (i=USER_QUEUE_START; i<LAST_USER_QUEUE; i++)
-								if ((gtx->feed[i].state==DMX_STATE_GO) &&
-										(gtx->feed[i].pid==gtxfeed->pid) &&
-										(gtx->feed[i].output&TS_PACKET) &&
-										(!((gtxfeed->output^gtx->feed[i].output)&TS_PAYLOAD_ONLY)))
+						
+							for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+							
+								if ((gtx->feed[i].state == DMX_STATE_GO) &&
+									(gtx->feed[i].pid == gtxfeed->pid) &&
+									(gtx->feed[i].output & TS_PACKET) &&
+									(!((gtxfeed->output^gtx->feed[i].output) & TS_PAYLOAD_ONLY)))
 									gtx->feed[i].cb.ts(b1, b1l, b2, b2l, &gtx->feed[i].feed.ts, 0);
-							break;
+
+							}
+
+						break;
 
 						// handle prefiltered section
 						case DMX_TYPE_HW_SEC:
@@ -861,7 +875,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 										queue_info->move_data(queue_nr, NULL, 1, 0);
 
 									if (queue_info->bytes_avail(queue_nr) < 3)
-										break;
+										return;
 
 									queue_info->move_data(queue_nr, section_header, sizeof(section_header), 1);
 									
@@ -879,7 +893,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									avia_gt_dmx_queue_reset(queue_nr);
 									dmx_set_filter(gtxfeed->filter);
 									
-									break;
+									return;
 									
 								}
 								
@@ -900,7 +914,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 										avia_gt_dmx_queue_reset(queue_nr);
 										dmx_set_filter(gtxfeed->filter);
 
-										break;
+										return;
 										
 									}
 									
@@ -918,6 +932,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									gtxfeed->filter->invalid = 0;
 									avia_gt_dmx_queue_reset(queue_nr);
 									dmx_set_filter(gtxfeed->filter);
+									
+									return;
 									
 								}
 								
@@ -943,7 +959,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
 								{
 									dprintk("gtx_dmx: there's a BIG out of sync problem\n");
-									break;
+									return;
 								}
 
 								memcpy(tsbuf, b1, tr);
@@ -1830,7 +1846,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.116 2002/09/10 21:15:34 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.117 2002/09/12 14:58:52 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
