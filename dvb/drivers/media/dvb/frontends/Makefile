@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = ves1820.o ves1893.o
+M_OBJS   = ves1820.o ves1893.o at76c651.o
 obj-m  = $(M_OBJS)
 
 #remove __ASSEMBLY__ option from kernel makefile
