@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.72 $
+ *   $Revision: 1.73 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.73  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.72  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -1986,7 +1989,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	for (i=0; i<NUM_QUEUES; i++)
 		set_queue_interrupt_address(i, -1);
 
-	ptr=0;
+	ptr=AVIA_GT_MEM_DMX_OFFS;
+	
 	for (i=0; i<NUM_QUEUES; i++)
 	{
 		gtxdemux->feed[i].size=(1<<buffersize[i])*64;
@@ -2100,7 +2104,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.72 2002/04/13 23:19:05 Jolt Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.73 2002/04/14 18:06:19 Jolt Exp $\n");
 
 	return gtx_dmx_init();
 }

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.6  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.5  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -37,7 +40,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -83,33 +86,6 @@ unsigned char *gt_reg_addr = NULL;
 
 void (*gt_isr_proc_list[128])(unsigned short irq);
 
-int avia_gt_alloc_dram(unsigned int size, unsigned char align)
-{
-
-/*    int newbeg = rambeg;
-	
-    newbeg += align - 1;
-    newbeg &= ~(align - 1);
-
-    dprintk (KERN_DEBUG "%s: %s: wasting %d bytes.\n", __FILE__,  __FUNCTION__, newbeg-rambeg);
-    
-    if ((newbeg + size) > ramsize) {
-    
-	printk (KERN_ERR "%s: %s: GTX out of memory.\n", __FILE__, __FUNCTION__);
-	
-	return -ENOMEM;
-	
-    }
-    
-    rambeg = newbeg + size;
-    
-    return newbeg;
-*/    
-
-    return -ENOMEM;
-    
-}
-																	 
 void avia_gt_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
@@ -268,7 +244,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.5 2002/04/13 23:19:05 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.6 2002/04/14 18:06:19 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -419,7 +395,6 @@ void avia_gt_exit(void)
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("Avia eNX/GTX driver");
 
-EXPORT_SYMBOL(avia_gt_alloc_dram);
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
 EXPORT_SYMBOL(avia_gt_get_chip_type);

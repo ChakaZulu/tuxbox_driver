@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.8  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.7  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -65,8 +68,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
 unsigned char capture_chip_type;
-static unsigned char *gt_mem;
-static int capt_buf_addr = 0xA0000;
+static int capt_buf_addr = AVIA_GT_MEM_CAPTURE_OFFS;
 
 static unsigned char capture_busy = 0;
 static unsigned short input_height = 576;
@@ -123,7 +125,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 	
     } */   
     
-    if (copy_to_user(buf, gt_mem + capt_buf_addr, count))
+    if (copy_to_user(buf, avia_gt_get_mem_addr() + capt_buf_addr, count))
 	return -EFAULT;
 				
     return count;
@@ -221,7 +223,7 @@ int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride
 
     printk("avia_gt_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
     printk("avia_gt_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
-
+    
 #define BLANK_TIME 132
 #define VIDCAP_PIPEDELAY 2
 
@@ -327,9 +329,9 @@ int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.8 2002/04/14 18:06:19 Jolt Exp $\n");
 
-    devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
+    devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 				    &capture_fops, NULL );
 
@@ -358,8 +360,6 @@ int __init avia_gt_capture_init(void)
         return -EIO;
 		    
     }
-
-    gt_mem = avia_gt_get_mem_addr();
     
     enx_reg_s(RSTR0)->VIDC = 1;		
     enx_reg_s(RSTR0)->VIDC = 0;		

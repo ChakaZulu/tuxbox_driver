@@ -21,6 +21,9 @@
  *
  */
 
+#define AVIA_GT_CAPTURE_MAX_OUTPUT_X	(720 / 2)
+#define AVIA_GT_CAPTURE_MAX_OUTPUT_Y	(576 / 2)
+
 extern int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
 extern int avia_gt_capture_set_output(unsigned short width, unsigned short height);
 extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);

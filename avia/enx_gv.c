@@ -21,11 +21,14 @@
  *
  *
  *   $Log: enx_gv.c,v $
+ *   Revision 1.2  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.1  2001/11/01 18:19:09  Jolt
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -175,6 +178,7 @@ void enx_gv_set_size(unsigned short width, unsigned short height) {
     enx_reg_s(GVSZ1)->IPP = 0;
     enx_reg_s(GVSZ1)->XSZ = width;
     enx_reg_s(GVSZ1)->YSZ = height;
+    
 }
 
 void enx_gv_set_stride(void) {
@@ -206,7 +210,7 @@ void enx_gv_show(void) {
 
 static int enx_gv_init(void)
 {
-    printk("$Id: enx_gv.c,v 1.1 2001/11/01 18:19:09 Jolt Exp $\n");
+    printk("$Id: enx_gv.c,v 1.2 2002/04/14 18:06:19 Jolt Exp $\n");
     
     //enx_reg_w(RSTR0) &= ~(1 << );	// TODO: which one?
     

@@ -34,9 +34,26 @@
 
 #define AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit) (irq_reg * 16 + irq_bit)
 
-#define AVIA_GT_IRQ(reg, bit)       ((((reg) & 0xFF) << 8) | ((bit) & 0xFF))
-#define AVIA_GT_IRQ_BIT(irq)        ((irq) & 0xFF)
-#define AVIA_GT_IRQ_REG(irq)        (((irq) >> 8) & 0xFF)
+#define AVIA_GT_IRQ(reg, bit)	((((reg) & 0xFF) << 8) | ((bit) & 0xFF))
+#define AVIA_GT_IRQ_BIT(irq)	((irq) & 0xFF)
+#define AVIA_GT_IRQ_REG(irq)	(((irq) >> 8) & 0xFF)
+
+#define AVIA_GT_MEM_SIZE		(2 * 1024 * 1024)
+#define AVIA_GT_MEM_ALIGN(addr)		(((addr) + 3) & ~3)
+
+#define AVIA_GT_MEM_PCM_OFFS		AVIA_GT_MEM_ALIGN((0))
+#define AVIA_GT_MEM_PCM_SIZE		(1023 * 4 * 25)
+#define AVIA_GT_MEM_CAPTURE_OFFS	AVIA_GT_MEM_ALIGN((AVIA_GT_MEM_PCM_OFFS + AVIA_GT_MEM_PCM_SIZE))
+#define AVIA_GT_MEM_CAPTURE_SIZE	((720 / 2) * (576 / 2) * 2)
+#define AVIA_GT_MEM_DMX_OFFS		AVIA_GT_MEM_ALIGN((AVIA_GT_MEM_CAPTURE_OFFS + AVIA_GT_MEM_CAPTURE_SIZE))
+#define AVIA_GT_MEM_DMX_SIZE		(640 * 1024)
+//#define AVIA_GT_MEM_GV_OFFS		AVIA_GT_MEM_ALIGN((AVIA_GT_MEM_DMX_OFFS + AVIA_GT_MEM_DMX_SIZE))
+#define AVIA_GT_MEM_GV_OFFS		(1024 * 1024)
+#define AVIA_GT_MEM_GV_SIZE		(720 * 576 * 2)
+
+#if ((AVIA_GT_MEM_GV_OFFS + AVIA_GT_MEM_GV_SIZE) > AVIA_GT_MEM_SIZE)
+#error AViA memory pool exceeds chip memory!
+#endif
 
 extern int avia_gt_alloc_irq(unsigned short irq, void (*isr_proc)(unsigned short irg));
 extern unsigned char avia_gt_get_chip_type(void);

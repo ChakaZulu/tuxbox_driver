@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.11  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.10  2002/04/13 14:47:19  Jolt
  *   eNX/GTX merge
  *
@@ -32,7 +35,7 @@
  *
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 	
@@ -371,9 +374,10 @@ int avia_gt_pig_show(unsigned char pig_nr)
 int __init avia_gt_pig_init(void)
 {
 
+    char devname[128];
     unsigned char pig_nr;
 
-    printk("$Id: avia_gt_pig.c,v 1.10 2002/04/13 14:47:19 Jolt Exp $\n");
+    printk("$Id: avia_gt_pig.c,v 1.11 2002/04/14 18:06:19 Jolt Exp $\n");
 
     pig_chip_type = avia_gt_get_chip_type();
     
@@ -392,7 +396,8 @@ int __init avia_gt_pig_init(void)
 
     for (pig_nr = 0; pig_nr < pig_count; pig_nr++) {
 
-	devfs_handle[pig_nr] = devfs_register(NULL, "dbox/pig%d", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_pig_fops, NULL);
+	sprintf(devname, "dbox/pig%d", pig_nr);
+	devfs_handle[pig_nr] = devfs_register(NULL, devname, DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_pig_fops, NULL);
 
 	// FIXME unregister handles
 	if (!devfs_handle[pig_nr])
@@ -420,7 +425,7 @@ int __init avia_gt_pig_init(void)
 	avia_gt_pig_set_size(pig_nr, PIG_WIDTH, PIG_HEIGHT, 0);
 	avia_gt_pig_set_stack(pig_nr, 1);
 
-	avia_gt_pig_show(pig_nr);
+	//avia_gt_pig_show(pig_nr);
 	
     }
     

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.20  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.19  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -102,7 +105,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -155,9 +158,6 @@ MODULE_PARM(debug,"i");
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
 static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
-
-static unsigned char* gtxmem;
-static unsigned char* gtxreg;
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
@@ -875,26 +875,21 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
  */
 int __init gtxfb_init(void)
 {
-#ifdef GTX
-	gtxmem=avia_gt_get_mem_addr();
-	gtxreg=avia_gt_get_reg_addr();
 
-	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
-	fb_info.offset=1*1024*1024;
+	fb_info.videosize = 1*1024*1024;                // TODO: moduleparm?
+	fb_info.offset = AVIA_GT_MEM_GV_OFFS;
+	//fb_info.offset = 1*1024*1024;
+	//fb_info.offset = ENX_FB_OFFSET;
+	
+#ifdef GTX
 	fb_info.pvideobase=GTX_MEM_BASE+fb_info.offset;
 #endif
 
 #ifdef ENX
-	gtxmem=avia_gt_get_mem_addr();
-	gtxreg=avia_gt_get_reg_addr();
-
-	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
-	fb_info.offset=ENX_FB_OFFSET;
 	fb_info.pvideobase=ENX_MEM_BASE+fb_info.offset;
 #endif
 
-	fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
-	fb_info.videobase=gtxmem+fb_info.offset;
+	fb_info.videobase = avia_gt_get_mem_addr() + fb_info.offset;
 
 	fb_info.gen.info.node = -1;
 	fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -940,7 +935,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: gen-fb.c,v 1.19 2002/04/13 23:19:05 Jolt Exp $\n");
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.20 2002/04/14 18:06:19 Jolt Exp $\n");
 	
 	return gtxfb_init();
 }

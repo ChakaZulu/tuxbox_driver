@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.10  2002/04/14 18:06:19  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.9  2002/04/13 23:19:05  Jolt
  *   eNX/GTX merge
  *
@@ -51,7 +54,7 @@
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -525,7 +528,7 @@ int avia_gt_pcm_init(void)
     unsigned short irq_ad; 
     unsigned short irq_pf;
 
-    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.9 2002/04/13 23:19:05 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.10 2002/04/14 18:06:19 Jolt Exp $\n");
 
     pcm_chip_type = avia_gt_get_chip_type();
     
@@ -571,7 +574,7 @@ int avia_gt_pcm_init(void)
 
     for (buf_nr = 0; buf_nr < AVIA_GT_PCM_BUFFER_COUNT; buf_nr++) {
     
-	pcm_buffer_array[buf_nr].offset = AVIA_GT_PCM_MEM_OFFSET + (AVIA_GT_PCM_BUFFER_SIZE * buf_nr);
+	pcm_buffer_array[buf_nr].offset = AVIA_GT_MEM_PCM_OFFS + (AVIA_GT_PCM_BUFFER_SIZE * buf_nr);
 	pcm_buffer_array[buf_nr].queued = 0;
 	
 	list_add_tail(&pcm_buffer_array[buf_nr].list, &pcm_free_buffer_list);
