@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.9  2001/09/13 17:07:00  field
+ *   Fixed ENX-Framebuffer position bug
+ *
  *   Revision 1.8  2001/07/13 17:08:23  McClean
  *   fix framebuffer screenposition bug
  *
@@ -63,7 +66,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -456,7 +459,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   enx_reg_h(BALP)=0;
   enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
   enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
-  enx_reg_h(VAS)=par->pal?63:58;
+
+//  Field: auskommentiert, behebt FB-Positions-Bug!
+//  enx_reg_h(VAS)=par->pal?63:58;
 
 	val=0;
 	if (par->lowres)
@@ -504,7 +509,11 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_h(GVP1)=0;
 
 //  dprintk("Framebuffer: val: 0x%08x\n", val);
-  ENX_GVP_SET_COORD(129,43);                 // TODO: NTSC?
+
+//  Field: changed according to ppc-boot (fixes position)
+//  ENX_GVP_SET_COORD(129,43);                 // TODO: NTSC?
+  ENX_GVP_SET_COORD(113,42);
+
   ENX_GVP_SET_SPP(63);
 //  ENX_GVP_SET_COORD(90,43);                 // TODO: NTSC?
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
@@ -771,7 +780,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: gen-fb.c,v 1.8 2001/07/13 17:08:23 McClean Exp $\n");
+  dprintk("Framebuffer: $Id: gen-fb.c,v 1.9 2001/09/13 17:07:00 field Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
