@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef _CA_H_
-#define _CA_H_
+#ifndef _DVBCA_H_
+#define _DVBCA_H_
 
 /* slot interface types and info */
 

@@ -20,10 +20,10 @@
  *
  */
 
-#ifndef _VERSION_H_
-#define _VERSION_H_
+#ifndef _DVBVERSION_H_
+#define _DVBVERSION_H_
 
 #define DVB_API_VERSION 3
 
-#endif /*_VERSION_H_*/
+#endif /*_DVBVERSION_H_*/
 

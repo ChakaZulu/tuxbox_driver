@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _FRONTEND_H_
-#define _FRONTEND_H_
+#ifndef _DVBFRONTEND_H_
+#define _DVBFRONTEND_H_
 
 #ifdef __KERNEL__
 #include <linux/types.h>
@@ -258,5 +258,5 @@ struct dvb_frontend_event {
 #define FE_GET_EVENT               _IOR('o', 78, struct dvb_frontend_event)
 
 
-#endif /*_FRONTEND_H_*/
+#endif /*_DVBFRONTEND_H_*/
 
