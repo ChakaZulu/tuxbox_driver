@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ucode.c,v 1.7 2004/05/19 20:25:14 derget Exp $
+ * $Id: avia_gt_ucode.c,v 1.8 2004/05/19 20:27:31 derget Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -883,7 +883,7 @@ void prop_ucode_handle_msgq(struct avia_gt_dmx_queue *queue, void *null)
 		local_irq_save(flags);
 		if (pid2feedidx(ccerr.pid,&feedidx)){
 			ucode_info.stop_feed(feedidx,0);
-			*/ reset not needet here , ucode handles this error whell */
+			/* reset not needet here , ucode handles this error whell */
 			//if (avia_gt_chip(ENX)) avia_gt_dmx_risc_reset(1); // TODO: GTX  
 			queue->flush(queue);
 			ucode_info.start_feed(feedidx);
