@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.83  2002/05/03 22:09:58  Jolt
+ *   Do not require ucodes for framebuffer mode
+ *
  *   Revision 1.82  2002/05/03 21:52:58  Jolt
  *   YEAH YEAH YEAH :(
  *
@@ -46,7 +49,7 @@
  *
  *
  *
- *   $Revision: 1.82 $
+ *   $Revision: 1.83 $
  *
  */
 
@@ -192,7 +195,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	if ((fd = open(ucode, 0, 0)) < 0) {
 
-		printk (KERN_ERR "avia_gt_dmx: Unable to load '%s'\n", ucode);
+		printk (KERN_ERR "avia_gt_dmx: Unable to load firmware file '%s'\n", ucode);
 
 		set_fs(fs);
 
@@ -222,7 +225,7 @@ int avia_gt_dmx_load_ucode(void)
 
 	if (read(fd, risc_ram, file_size) != file_size) {
 
-		printk (KERN_ERR "avia_gt_dmx: Failed to read '%s'\n", ucode);
+		printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
 
 		sys_close(fd);
 		set_fs(fs);
@@ -369,7 +372,6 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 
 void avia_gt_dmx_reset(unsigned char reenable)
 {
-	return; // wegmachen
 
 	if (avia_gt_chip(ENX)) {
 
@@ -400,20 +402,26 @@ void avia_gt_dmx_reset(unsigned char reenable)
 int avia_gt_dmx_risc_init(void)
 {
 
-	int result;
+	avia_gt_dmx_reset(0);
 
-	if ((result = avia_gt_dmx_load_ucode()))
-		return result;
+	if (avia_gt_dmx_load_ucode()) {
+	
+		printk("avia_gt_dmx: No valid firmware found! TV mode disabled.\n");
+		
+		return 0;
+		
+	}
 
 	if (avia_gt_chip(ENX)) {
 
+		avia_gt_dmx_reset(1);
 		enx_reg_32(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
 		//enx_tdp_trace();
 		enx_reg_16(EC) = 0;
 
 	} else if (avia_gt_chip(GTX)) {
 
-		//avia_gt_dmx_reset(1);
+		avia_gt_dmx_reset(1);
 
 	}
 
@@ -648,7 +656,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.82 2002/05/03 21:52:58 Jolt Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.83 2002/05/03 22:09:58 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -660,7 +668,7 @@ int __init avia_gt_dmx_init(void)
 
 	}
 
-	avia_gt_dmx_reset(1);
+//	avia_gt_dmx_reset(1);
 
 
 	if (avia_gt_chip(ENX)) {
