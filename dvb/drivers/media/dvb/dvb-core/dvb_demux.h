@@ -71,6 +71,7 @@ struct dvb_demux_feed {
 	} cb;
 
         struct dvb_demux *demux;
+        void *priv;
         int type;
         int state;
         u16 pid;
