@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.29 2001/05/25 23:18:11 gillem Exp $
+ * $Id: dvb.c,v 1.30 2001/05/26 09:21:10 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -38,7 +38,6 @@
 
 #include <linux/kmod.h>
 
-
 #include <ost/audio.h>
 #include <ost/ca.h>
 #include <ost/demux.h>
@@ -52,15 +51,17 @@
 // #include <dbox/fp.h>
 #include <dbox/avia.h>
 #include <dbox/cam.h>
+#include <dbox/avs_core.h>
 
 #include <mtdriver/scartApi.h>
+#include <mtdriver/ostErrors.h>
 
 #include "dvbdev.h"
 #include "dmxdev.h"
 
 /* dirty - gotta do that better... -Hunz */
 #define EBUSOVERLOAD -6
-#define EINTERNAL		-5
+//#define EINTERNAL		-5
 
 typedef struct dvb_struct
 {
@@ -863,7 +864,8 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 			case SCART_RGB_SWITCH_GET:
 			case SCART_BYPASS_SET:
 			case SCART_BYPASS_GET:
-				return -EOPNOTSUPP;
+				return scart_command( cmd, parg );
+
 			default:
 				return -EOPNOTSUPP;
 		}
