@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.160 $
+ *   $Revision: 1.161 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.161  2002/11/11 12:41:17  Jolt
+ *   CRC handling changes
+ *
  *   Revision 1.160  2002/11/10 21:34:50  Jolt
  *   Fixes
  *
@@ -575,39 +578,29 @@ void avia_gt_dmx_queue_start(struct avia_gt_dmx_queue *queue, u8 mode, u16 pid, 
 
 }
 
-static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, u8 *src, size_t len)
+static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
 
-	u32 crc32;
-	
-	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
-	
-		crc32 = (u32)dvbdmxfeed->feed.sec.priv;
-		dvbdmxfeed->feed.sec.priv = NULL;
-	
-	} else {
-	
-		crc32 = dvb_crc32(src, len, 0);
-	
-	}
-
-	return crc32;
+	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc))
+		return dvbdmxfeed->feed.sec.crc_val;
+	else
+		return dvb_dmx_crc32(dvbdmxfeed, src, len);
 
 }
 
-static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, u8 *src, size_t len)
+static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
 {
 	
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
 	
 		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
-			dvbdmxfeed->feed.sec.priv = (void *)avia_gt_accel_crc32(src - gt_info->mem_addr, len, (u32)dvbdmxfeed->feed.sec.priv);
+			dvbdmxfeed->feed.sec.crc_val = avia_gt_accel_crc32(src - gt_info->mem_addr, len, dvbdmxfeed->feed.sec.crc_val);
 		else
-			dvbdmxfeed->feed.sec.priv = (void *)dvb_crc32(src, len, (u32)dvbdmxfeed->feed.sec.priv);
+			dvbdmxfeed->feed.sec.crc_val = dvb_dmx_crc32(dvbdmxfeed, src, len);
 			
 	}
 
-	memcpy(dst, src, len);
+	memcpy(dst, (void *)src, len);
 
 }
 
@@ -948,7 +941,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.160 2002/11/10 21:34:50 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.161 2002/11/11 12:41:17 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -981,8 +974,8 @@ int __init avia_gt_napi_init(void)
 	
 	if (hw_crc) {
 	
-		demux.crc32 = avia_gt_napi_crc32;
-		demux.memcpy = avia_gt_napi_memcpy;
+		demux.check_crc32 = avia_gt_napi_crc32;
+		demux.memcopy = avia_gt_napi_memcpy;
 		
 	}
 	

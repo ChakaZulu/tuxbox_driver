@@ -31,6 +31,7 @@
 #include "dvb_demux.h"
 
 #define NOBUFS  
+#define DVB_CRC_SEED (~0)
 
 LIST_HEAD(dmx_muxs);
 
@@ -112,7 +113,7 @@ void dvb_set_crc32(u8 *data, int length)
 {
         u32 crc;
 
-        crc = crc32_le(~0, data, length);
+        crc = crc32_le(DVB_CRC_SEED, data, length);
 
 	data[length]   = (crc >> 24) & 0xff;
         data[length+1] = (crc >> 16) & 0xff;
@@ -121,11 +122,10 @@ void dvb_set_crc32(u8 *data, int length)
 }
 
 
-static
-u32 dvb_dmx_crc32 (struct dvb_demux_feed *dvbdmxfeed, u32 seed,
+u32 dvb_dmx_crc32 (struct dvb_demux_feed *dvbdmxfeed,
 		   const u8 *src, size_t len)
 {
-	return crc32_le (seed, src, len);
+	return (dvbdmxfeed->feed.sec.crc_val = crc32_le (dvbdmxfeed->feed.sec.crc_val, src, len));
 }
 
 
@@ -208,7 +208,7 @@ dvb_dmx_swfilter_section_feed(struct dvb_demux_feed *dvbdmxfeed)
                 return 0;
 
 	if (sec->check_crc &&
-	    demux->check_crc32(dvbdmxfeed, ~0, sec->secbuf, sec->seclen))
+	    demux->check_crc32(dvbdmxfeed, sec->secbuf, sec->seclen))
 		return -1;
 
 	do {
@@ -255,6 +255,8 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
 				if (p + tmp >= 187)
 					return -1;
 
+				sec->crc_val = DVB_CRC_SEED;
+
                                 demux->memcopy (feed, sec->secbuf+sec->secbufp,
 					       buf+p+1, tmp);
 
@@ -282,6 +284,8 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
                             ((sec->seclen = section_length(buf+p)) <= count)) {
 				if (sec->seclen>4096) 
 					return -1;
+					
+				sec->crc_val = DVB_CRC_SEED;
 
 				demux->memcopy (feed, sec->secbuf, buf+p,
 					       sec->seclen);
@@ -319,6 +323,8 @@ int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8 *buf)
 		
 		if (tmp>count)
 			return -1;
+
+		sec->crc_val = DVB_CRC_SEED;
 
 		demux->memcopy (feed, sec->secbuf + sec->secbufp, buf+p, tmp);
 
