@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.209 2004/06/24 00:35:39 carjay Exp $
+ * $Id: avia_gt_dmx.c,v 1.210 2004/06/26 16:08:15 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -806,12 +806,10 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 static void avia_gt_dmx_bh_task(void *tl_data)
 {
 	u8 queue_nr = *(u8 *)tl_data;
-	u8 sys_queue_nr;
 	void *priv_data;
 	AviaGtDmxQueueProc *cb_proc;
 	u16 pid1 = 0xFFFF;
 	u16 pid2;
-	struct ts_header ts;
 	u32 avail;
 	sAviaGtDmxQueue *q;
 	struct avia_gt_dmx_queue *queue_info;
@@ -842,7 +840,8 @@ static void avia_gt_dmx_bh_task(void *tl_data)
 	queue_info = &q->info;
 
 	/* Resync for TS-Queues */
-	if (q->mode == TS) {
+	if (q->mode == TS) {	/* in SPTS mode we get data from both pids in queue 0 */
+		struct ts_header ts;
 		if (queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) {
 			if (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid != 0xFFFF) {
 				pid1 = queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid;
@@ -853,51 +852,38 @@ static void avia_gt_dmx_bh_task(void *tl_data)
 				if (pid1 == 0xFFFF)
 					pid1 = pid2;
 			}
-		}
-		else
-		{
+		} else {
 			pid1 = queue_list[queue_nr].pid;
 			pid2 = pid1;
 		}
 
-		if ( (avail = queue_info->bytes_avail(queue_info)) < 188 )
-		{
+		if ( (avail = queue_info->bytes_avail(queue_info)) < 188 ) {
 			return;
 		}
 
-		queue_info->get_data(queue_info, &ts, 3, 1);
+		queue_info->get_data(queue_info, &ts, sizeof(ts), 1);
 
 		/* Resynchronisation TS-queues */
 
-		if ( (ts.sync_byte != 0x47) || ((ts.pid != pid1) && (ts.pid != pid2) ) )
-		{
-			while (avail >= 188)
-			{
-				if ((ts.sync_byte == 0x47) && ((ts.pid == pid1) || (ts.pid == pid2)) )
-				{
-					break;
-				}
+		if ( (ts.sync_byte != 0x47) || ((ts.pid != pid1) && (ts.pid != pid2))) {
+			while (avail >= 188) {
 				queue_info->get_data(queue_info,NULL,1,0);
 				avail--;
+				queue_info->get_data(queue_info,&ts,sizeof(ts),1);
+				if ((ts.sync_byte == 0x47) && ((ts.pid == pid1) || (ts.pid == pid2)))
+						break;
 			}
 
 			if (avail < 188)
-			{
 				return;
-			}
 		}
 	}
 
 	/* if we deal with a system queue, look up the "interested" user queue */
-	for (sys_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO; sys_queue_nr < AVIA_GT_DMX_QUEUE_USER_START; sys_queue_nr++) {
-		if ((sys_queue_nr == queue_nr) && (queue_client[sys_queue_nr] != -1)) {
-			cb_proc = queue_list[queue_client[sys_queue_nr]].cb_proc;
-			priv_data = queue_list[queue_client[sys_queue_nr]].priv_data;
-			break;
-		}
-	}
-
-	if (sys_queue_nr == AVIA_GT_DMX_QUEUE_USER_START) {
+	if ((queue_nr<AVIA_GT_DMX_QUEUE_USER_START) && (queue_client[queue_nr] != -1)) {
+		cb_proc = queue_list[queue_client[queue_nr]].cb_proc;
+		priv_data = queue_list[queue_client[queue_nr]].priv_data;
+	} else {
 		cb_proc = q->cb_proc;
 		priv_data = q->priv_data;
 	}
@@ -1327,7 +1313,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.209 2004/06/24 00:35:39 carjay Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.210 2004/06/26 16:08:15 carjay Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
