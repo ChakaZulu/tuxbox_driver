@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.5  2001/04/07 01:45:34  tmbinc
+ *   added philips-support.
+ *
  *   Revision 1.4  2001/02/11 21:29:43  gillem
  *   - some stuff
  *
@@ -34,7 +37,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -232,10 +235,5 @@ typedef struct s_saa_data {
 #define SAA_DATA_SIZE		sizeof(s_saa_data)
 
 #ifdef __KERNEL__
-
-#define BOARD_NOKIA		0
-#define BOARD_PHILIPS	1
-#define BOARD_SAGEM		2
-#define BOARD_NONE		3
 
 #endif
