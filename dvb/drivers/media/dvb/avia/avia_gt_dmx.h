@@ -34,9 +34,13 @@
 #define AVIA_GT_DMX_QUEUE_MESSAGE		31
 #define AVIA_GT_DMX_QUEUE_HIGH_SPEED	32
 
+typedef void (AviaGtDmxQueueProc)(u8 queue_nr, void *cb_data);
+
 typedef struct {
 
 	u8 busy;
+	void *cb_data;
+	AviaGtDmxQueueProc *cb_proc;
 	u32 irq_count;
 
 } sAviaGtDmxQueue;
@@ -167,10 +171,12 @@ typedef struct {
 #define DMX_MESSAGE_ADAPTION			0xFC
 #define DMX_MESSAGE_SECTION_COMPLETED	0xCE
 
-s32 avia_gt_dmx_alloc_queue_audio(void);
-s32 avia_gt_dmx_alloc_queue_teletext(void);
-s32 avia_gt_dmx_alloc_queue_user(void);
-s32 avia_gt_dmx_alloc_queue_video(void);
+s32 avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+s32 avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *cb_proc, void *cb_data);
+void avia_gt_dmx_fake_queue_irq(u8 queue_nr);
 s32 avia_gt_dmx_free_queue(u8 queue_nr);
 void avia_gt_dmx_force_discontinuity(void);
 void avia_gt_dmx_set_pcr_pid(u16 pid);
@@ -178,6 +184,8 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr);
 unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr);
+void avia_gt_dmx_queue_irq_disable(u8 queue_nr);
+s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr);
 void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer);
 void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);

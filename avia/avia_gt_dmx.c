@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.104  2002/09/03 21:00:34  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.103  2002/09/03 20:24:29  obi
  *   tp_pcr/stc/dir/diff: printk -> dprintk
  *
@@ -115,7 +118,7 @@
  *
  *
  *
- *   $Revision: 1.103 $
+ *   $Revision: 1.104 $
  *
  */
 
@@ -155,6 +158,15 @@
 
 //#define dprintk printk
 
+static void avia_gt_dmx_queue_task(void *tl_data);
+
+struct tq_struct avia_gt_dmx_queue_tasklet = {
+
+	routine: avia_gt_dmx_queue_task,
+	data: 0
+	
+};
+
 static int errno							= (int)0;
 static sAviaGtInfo *gt_info						= (sAviaGtInfo *)NULL;
 static sRISC_MEM_MAP *risc_mem_map				= (sRISC_MEM_MAP *)NULL;
@@ -183,7 +195,7 @@ static void avia_gt_dmx_dump(void) {
 }
 #endif
 
-s32 avia_gt_dmx_alloc_queue(u8 queue_nr)
+s32 avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
@@ -203,26 +215,35 @@ s32 avia_gt_dmx_alloc_queue(u8 queue_nr)
 	}
 
 	queue_list[queue_nr].busy = 1;
+	queue_list[queue_nr].cb_proc = cb_proc;
+	queue_list[queue_nr].cb_data = cb_data;
 
 	return queue_nr;
 
 }
 
-s32 avia_gt_dmx_alloc_queue_audio(void)
+s32 avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
-    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO);
+    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO, cb_proc, cb_data);
 
 }
 
-s32 avia_gt_dmx_alloc_queue_teletext(void)
+s32 avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
-    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT);
+    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_MESSAGE, cb_proc, cb_data);
 
 }
 
-s32 avia_gt_dmx_alloc_queue_user(void)
+s32 avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *cb_proc, void *cb_data)
+{
+
+    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT, cb_proc, cb_data);
+
+}
+
+s32 avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
     u8 queue_nr;
@@ -230,7 +251,7 @@ s32 avia_gt_dmx_alloc_queue_user(void)
     for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr <= AVIA_GT_DMX_QUEUE_USER_END; queue_nr++) {
 
 		if (!queue_list[queue_nr].busy)
-			return avia_gt_dmx_alloc_queue(queue_nr);
+			return avia_gt_dmx_alloc_queue(queue_nr, cb_proc, cb_data);
 
 	}
 
@@ -238,10 +259,10 @@ s32 avia_gt_dmx_alloc_queue_user(void)
 
 }
 
-s32 avia_gt_dmx_alloc_queue_video(void)
+s32 avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *cb_proc, void *cb_data)
 {
 
-	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_VIDEO);
+	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_VIDEO, cb_proc, cb_data);
 
 }
 
@@ -265,6 +286,8 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 	}
     
 	queue_list[queue_nr].busy = 0;
+	queue_list[queue_nr].cb_data = NULL;
+	queue_list[queue_nr].cb_proc = NULL;
 	queue_list[queue_nr].irq_count = 0;
     
 	return 0;
@@ -805,6 +828,15 @@ void avia_gt_dmx_force_discontinuity(void)
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 {
 
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
+
+//		return -EINVAL;
+		return 0;
+
+	}
+
 	if (avia_gt_chip(ENX)) {
 
 		if (queue_nr >= 17)
@@ -826,6 +858,14 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 
 unsigned char avia_gt_dmx_get_queue_size(unsigned char queue_nr)
 {
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
+
+		return 0;
+
+	}
 
 	queue_nr = avia_gt_dmx_map_queue(queue_nr);
 
@@ -929,7 +969,21 @@ int avia_gt_dmx_load_ucode(void)
 
 }
 
-#if 0
+void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
+{
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+
+		printk("avia_gt_dmx: fake_queue_irq: queue %d out of bounce\n", queue_nr);
+
+		return;
+
+	}
+
+	queue_list[queue_nr].irq_count++;
+	
+}
+
 static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 {
 
@@ -970,11 +1024,40 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 	}
 
 	queue_list[queue_nr].irq_count++;
-
-	// schedule tasklet	
+	
+	schedule_task(&avia_gt_dmx_queue_tasklet);
 
 }
-#endif
+
+void avia_gt_dmx_queue_irq_disable(u8 queue_nr)
+{
+
+	avia_gt_free_irq(avia_gt_dmx_get_queue_irq(queue_nr));
+
+}
+
+s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr)
+{
+
+	return avia_gt_alloc_irq(avia_gt_dmx_get_queue_irq(queue_nr), avia_gt_dmx_queue_interrupt);
+
+}
+
+static void avia_gt_dmx_queue_task(void *tl_data)
+{
+
+	s8 queue_nr;
+
+	for (queue_nr = 31; queue_nr >= 0; queue_nr--) {	// msg queue must have priority
+
+		if ((queue_list[queue_nr].irq_count) && (queue_list[queue_nr].cb_proc))
+			queue_list[queue_nr].cb_proc(queue_nr, queue_list[queue_nr].cb_data);
+
+		queue_list[queue_nr].irq_count = 0;
+
+	}
+
+}
 
 void avia_gt_dmx_set_pcr_pid(u16 pid)
 {
@@ -1368,7 +1451,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.103 2002/09/03 20:24:29 obi Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.104 2002/09/03 21:00:34 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1467,13 +1550,17 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_audio);
+EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_message);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_teletext);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_user);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_video);
+EXPORT_SYMBOL(avia_gt_dmx_fake_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_free_queue);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);
+EXPORT_SYMBOL(avia_gt_dmx_queue_irq_disable);
+EXPORT_SYMBOL(avia_gt_dmx_queue_irq_enable);
 EXPORT_SYMBOL(avia_gt_dmx_set_pcr_pid);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_control_table);
 EXPORT_SYMBOL(avia_gt_dmx_set_pid_table);

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.100 $
+ *   $Revision: 1.101 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.101  2002/09/03 21:00:34  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.100  2002/09/03 15:37:50  wjoost
  *   Ein Bug weniger
  *
@@ -368,16 +371,9 @@ MODULE_LICENSE("GPL");
 
 static gtx_demux_t gtx;
 
-static void gtx_task(void *);
 static int GtxDmxInit(gtx_demux_t *gtxdemux);
 static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
 static void dmx_set_filter(gtx_demux_filter_t *filter);
-
-struct tq_struct gtx_tasklet=
-{
-	routine: gtx_task,
-	data: 0
-};
 
 const int buffersize[32]=		// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 														// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
@@ -448,46 +444,6 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 
 	avia_gt_dmx_set_queue_write_pointer(feed->index, feed->readptr);
 	//avia_gt_dmx_set_queue_read_pointer(feed->index, feed->readptr);
-
-}
-
-static volatile __u32 datamask=0;
-
-static void gtx_queue_interrupt(unsigned short irq)
-{
-
-    unsigned char nr = AVIA_GT_IRQ_REG(irq);
-    unsigned char bit = AVIA_GT_IRQ_BIT(irq);
-
-	s32 queue_nr = -EINVAL;
-
-    if (avia_gt_chip(ENX)) {
-
-		if (nr == 3)
-			queue_nr = bit + 16;
-		else if (nr == 4)
-			queue_nr = bit + 1;
-		else if (nr == 5)
-			queue_nr = bit - 6;
-
-    } else if (avia_gt_chip(GTX)) {
-
-		queue_nr = (nr - 2) * 16 + bit;
-
-    }
-	
-	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
-	
-		printk("avia_gt_napi: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
-		
-		return;
-
-	}
-
-	set_bit(queue_nr, &datamask);
-
-	if (gtx_tasklet.data)
-		schedule_task(&gtx_tasklet);
 
 }
 
@@ -619,20 +575,15 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
-static void gtx_task(void *data)
+void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 {
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
-	int queue = (int)0;
+	int queue = queue_nr;
 	int ccn = (int)0;
 #ifdef GTX_SECTIONS
 	static char sync_lost = 0;
 #endif
 
-	if (datamask == 0)
-		return;
-
-	for (queue=31; datamask && queue>= 0; queue--)	// msg queue must have priority
-		if (test_bit(queue,&datamask))
 		{
 			gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
 
@@ -657,19 +608,18 @@ static void gtx_task(void *data)
 					// can happen if a queue has been reset but an interrupt is pending
 					if (wptr == rptr)
 					{
-						clear_bit(queue,&datamask);
-						continue;
+						return;
 					}
 
 					if (wptr < gtxfeed->base)
 					{
 						printk("avia_gt_napi: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
-						break;
+						return;
 					}
 					if (wptr >= (gtxfeed->base+gtxfeed->size))
 					{
 						printk("avia_gt_napi: wptr out of bounds! (is %x)\n", wptr);
-						break;
+						return;
 					}
 
 					b1=gt_info->mem_addr+rptr;
@@ -693,13 +643,13 @@ static void gtx_task(void *data)
 						{
 							dprintk("OUT OF SYNC. -> %x\n", *(__u32*)b1);
 							gtx->feed[queue].readptr=wptr;
-							continue;
+							return;
 						}
 						rlen-=rlen%188;
 						if (!rlen)
 						{
 							dprintk("this SHOULDN'T happen (tm) (incomplete packet)\n");
-							continue;
+							return;
 						}
 						if (rlen<=b1l)
 						{
@@ -788,7 +738,6 @@ static void gtx_task(void *data)
 											gtx_reset_queue(gtx->feed+i);
 											gtx->feed[i].sec_len = 0;
 											gtx->feed[i].sec_recv = 0;
-											clear_bit(i,&datamask);
 											blocked |= 1 << i;
 											dmx_set_filter(gtx->feed[i].filter);
 											break;
@@ -856,7 +805,6 @@ static void gtx_task(void *data)
 												gtx_reset_queue(gtx->feed+i);
 												gtx->feed[i].sec_len = 0;
 												gtx->feed[i].sec_recv = 0;
-												clear_bit(i,&datamask);
 												blocked |= 1 << i;
 												dmx_set_filter(gtx->feed[i].filter);
 												break;
@@ -891,7 +839,7 @@ static void gtx_task(void *data)
 									{
 //										printk("got section completed %d\n",comp_msg.filter_index);
 										sync_lost = 0;
-										set_bit(comp_msg.filter_index,&datamask);
+										avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
 									}
 								}
 								else
@@ -1170,9 +1118,12 @@ static void gtx_task(void *data)
 
 				}
 			}
-		clear_bit(queue,&datamask);
 	}
 }
+
+
+
+
 
 static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 {
@@ -1201,19 +1152,19 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 
 		case DMX_TS_PES_VIDEO:
 
-			queue_nr = avia_gt_dmx_alloc_queue_video();
+			queue_nr = avia_gt_dmx_alloc_queue_video(avia_gt_napi_queue_callback, gtx);
 
 		break;
 
 		case DMX_TS_PES_AUDIO:
 
-			queue_nr = avia_gt_dmx_alloc_queue_audio();
+			queue_nr = avia_gt_dmx_alloc_queue_audio(avia_gt_napi_queue_callback, gtx);
 
 		break;
 
 		case DMX_TS_PES_TELETEXT:
 
-			queue_nr = avia_gt_dmx_alloc_queue_teletext();
+			queue_nr = avia_gt_dmx_alloc_queue_teletext(avia_gt_napi_queue_callback, gtx);
 
 		break;
 
@@ -1226,7 +1177,7 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 
 		case DMX_TS_PES_OTHER:
 
-			queue_nr = avia_gt_dmx_alloc_queue_user();
+			queue_nr = avia_gt_dmx_alloc_queue_user(avia_gt_napi_queue_callback, gtx);
 
 		break;
 
@@ -1269,7 +1220,7 @@ static int dmx_close (struct dmx_demux_s* demux)
 	{
 		int i;
 		// clear resources
-		gtx_tasklet.data=0;
+		//gtx_tasklet.data=0;
 		for (i=0; i<32; i++)
 			if (gtx->feed[i].state!=DMX_STATE_FREE)
 				dprintk(KERN_ERR "gtx-dmx.o: LEAK: queue %d used but it shouldn't.\n", i);
@@ -1346,30 +1297,6 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	return 0;
 }
 
-static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
-{
-
-	if (gtxfeed->tap)
-		return;
-
-	gtxfeed->tap = 1;
-
-	avia_gt_alloc_irq(avia_gt_dmx_get_queue_irq(gtxfeed->index), gtx_queue_interrupt);
-
-}
-
-static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
-{
-
-    if (!gtxfeed->tap)
-		return;
-
-	gtxfeed->tap = 0;
-
-    avia_gt_free_irq(avia_gt_dmx_get_queue_irq(gtxfeed->index));
-
-}
-
 static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 {
 
@@ -1393,9 +1320,9 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid)) {
 		
 			if (used && (gtx->feed[i].type != DMX_TYPE_HW_SEC))
-				dmx_enable_tap(&gtx->feed[i]);
+				avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
 			else
-				dmx_disable_tap(&gtx->feed[i]);
+				avia_gt_dmx_queue_irq_disable(gtx->feed[i].index);
 				
 		}
 		
@@ -1455,7 +1382,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
 
-	dmx_disable_tap(gtxfeed);
+	avia_gt_dmx_queue_irq_disable(gtxfeed->index);
 
 	gtxfeed->readptr = avia_gt_dmx_get_queue_write_pointer(gtxfeed->index);
 
@@ -1863,7 +1790,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		avia_gt_dmx_set_queue((unsigned char)i, gtxdemux->feed[i].base, buffersize[i]);
 		gtxdemux->feed[i].index=i;
 		gtxdemux->feed[i].state=DMX_STATE_FREE;
-		gtxdemux->feed[i].tap=0;
+		avia_gt_dmx_queue_irq_disable(gtxdemux->feed[i].index);
 	}
 	dprintk("%dkb ram used for queues\n", ptr/1024);
 
@@ -1928,8 +1855,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
 	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
 
-	gtx_tasklet.data = gtxdemux;
-
 	if (dmx_register_demux(dmx) < 0)
 		return -1;
 
@@ -1939,6 +1864,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 #ifdef GTX_SECTIONS
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
+		avia_gt_dmx_alloc_queue_message(avia_gt_napi_queue_callback, gtxdemux);
 		gtx_reset_queue(&gtxdemux->feed[MESSAGE_QUEUE]);
 
 		gtxdemux->feed[MESSAGE_QUEUE].type = DMX_TYPE_MESSAGE;
@@ -1946,7 +1872,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		gtxdemux->feed[MESSAGE_QUEUE].output = TS_PAYLOAD_ONLY;
 		gtxdemux->feed[MESSAGE_QUEUE].state = DMX_STATE_GO;
 
-		dmx_enable_tap(&gtxdemux->feed[MESSAGE_QUEUE]);
+		avia_gt_dmx_queue_irq_enable(MESSAGE_QUEUE);
 		
 	}
 #endif
@@ -1963,8 +1889,9 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 #ifdef GTX_SECTIONS
 	if ((gtxdemux->feed[MESSAGE_QUEUE].type == DMX_TYPE_MESSAGE) && (gtxdemux->feed[MESSAGE_QUEUE].state == DMX_STATE_GO)) {
 	
-		dmx_disable_tap(&gtxdemux->feed[MESSAGE_QUEUE]);
+		avia_gt_dmx_queue_irq_disable(MESSAGE_QUEUE);
 		gtxdemux->feed[MESSAGE_QUEUE].state = DMX_STATE_FREE;
+		avia_gt_dmx_free_queue(MESSAGE_QUEUE);
 		
 	}
 #endif
@@ -1979,7 +1906,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.100 2002/09/03 15:37:50 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.101 2002/09/03 21:00:34 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
