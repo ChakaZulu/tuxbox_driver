@@ -100,18 +100,18 @@
 #define GVSZ2		0x03F4			// Graphics Viewport Size Plane 2 Register
 #define CPOS		0x03F8			// Cursor Position Register
 #define CSA		0x03FC			// Cursor Start Address Register
-#define VPSA		0x0540			// PIG1 Video Plane Start Address Register
-#define VPOFFS		0x0548			// PIG1 Video Plane Offset Register
-#define VPSO		0x054C			// PIG1 Video Plane Stacking Order Register
-#define VPSTR		0x054E			// PIG1 Video Plane Stride Register
-#define VPP		0x0550			// PIG1 Video Plane Position Register
-#define VPSZ		0x0554			// PIG1 Video Plane Size Register
-#define VPSA		0x0500			// PIG2 Video Plane Start Address Register
-#define VPOFFS		0x0508			// PIG2 Video Plane Offset Register
-#define VPSO		0x050C			// PIG2 Video Plane Stacking Order Register
-#define VPSTR		0x050E			// PIG2 Video Plane Stride Register
-#define VPP		0x0510			// PIG2 Video Plane Position Register
-#define VPSZ		0x0514			// PIG2 Video Plane Size Register
+#define P1VPSA		0x0540			// PIG1 Video Plane Start Address Register
+#define P1VPOFFS		0x0548			// PIG1 Video Plane Offset Register
+#define P1VPSO		0x054C			// PIG1 Video Plane Stacking Order Register
+#define P1VPSTR		0x054E			// PIG1 Video Plane Stride Register
+#define P1VPP		0x0550			// PIG1 Video Plane Position Register
+#define P1VPSZ		0x0554			// PIG1 Video Plane Size Register
+#define P2VPSA		0x0500			// PIG2 Video Plane Start Address Register
+#define P2VPOFFS		0x0508			// PIG2 Video Plane Offset Register
+#define P2VPSO		0x050C			// PIG2 Video Plane Stacking Order Register
+#define P2VPSTR		0x050E			// PIG2 Video Plane Stride Register
+#define P2VPP		0x0510			// PIG2 Video Plane Position Register
+#define P2VPSZ		0x0514			// PIG2 Video Plane Size Register
 #define VCSA1		0x0480			// Video Capture Start Address Register
 #define VCSA2		0x0484			// Alternate Frame Video Capture Start Address Register
 #define VCOFFS		0x0488			// Video Capture Odd Field Offset Register
@@ -306,7 +306,7 @@ typedef struct {
   unsigned char F_TCP: 1;
   unsigned char F_Reserved3: 1;
   unsigned char F_ACP: 1;
-  unsigned char F_VCP: 1;
+  unsigned char F_VCP: 1;
 
 } sCFGR0;
 
