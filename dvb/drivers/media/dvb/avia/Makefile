@@ -7,7 +7,7 @@ obj-m  = gtx_core.o gtx_fb.o gtx_dmx.o avia.o
 AVIA_OBJS = avia_core.o
 GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o
-GTX_CORE  = gtx-core.o ucode.o
+GTX_CORE  = gtx-core.o
 
 EXTRA_CFLAGS=-I../../include
 
