@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.31 2003/03/09 19:42:51 waldi Exp $
+ * $Id: saa7126_core.c,v 1.32 2003/04/21 19:19:50 obi Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -209,6 +209,7 @@ struct saa7126
 
 	u8 standby;
 	u8 reg_2d;
+	u8 reg_3a;
 	u8 reg_61;
 
 	int norm;
@@ -315,20 +316,32 @@ saa7126_set_mode(struct i2c_client *client, int inp)
 {
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
 
+	encoder->reg_3a = 0x03;		// by default swithch YUV to RGB-matrix on
+
 	switch (inp) {
 	case SAA_MODE_RGB:
+		encoder->reg_2d = 0x0f; // RGB + CVBS (for sync)
+		break;
 	case SAA_MODE_FBAS:
-		encoder->reg_2d &= ~0x50;
+		encoder->reg_2d = 0x08; // 00001000 CVBS only, RGB DAC's off (high impedance mode) !!!
 		break;
 	case SAA_MODE_SVIDEO:
-		encoder->reg_2d |= 0x50; // croma -> R, lumi -> CVBS
+		encoder->reg_2d = 0xff; // 11111111  croma -> R, luma -> CVBS + G + B
+		break;
+	case SAA_MODE_YUV_V:
+		encoder->reg_2d = 0x4f; // reg 2D = 01001111, all DAC's on, RGB + VBS
+		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
+		break;
+	case SAA_MODE_YUV_C:
+		encoder->reg_2d = 0x0f; // reg 2D = 00001111, all DAC's on, RGB + CVBS
+		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	saa7126_writereg(client, 0x2d, encoder->reg_2d);
-
+	saa7126_writereg(client, 0x3a, encoder->reg_3a);
 	return 0;
 }
 

@@ -21,6 +21,11 @@
  *
  *
  *   $Log: saa7126_core.h,v $
+ *   Revision 1.13  2003/04/21 19:19:50  obi
+ *   patch by Micha_R:
+ *   - added support for YUV output
+ *   - fixed S-Video output
+ *
  *   Revision 1.12  2002/11/18 00:53:35  obi
  *   driver cleanup
  *
@@ -61,7 +66,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -82,6 +87,8 @@
 #define SAA_MODE_RGB	0
 #define SAA_MODE_FBAS	1
 #define SAA_MODE_SVIDEO	2
+#define SAA_MODE_YUV_V	3
+#define SAA_MODE_YUV_C	4
 
 #define SAA_NTSC	0
 #define SAA_PAL		1
