@@ -143,6 +143,16 @@ void lcd_sir( int fd, int val )
     return;
 }
 
+void lcd_sirc( int fd, int val )
+{
+    printf("LCD SIRC %d\n",val);
+
+    if ( ioctl(fd,LCD_IOCTL_SIRC,&val) < 0 )
+        perror("");
+
+    return;
+}
+
 void lcd_srv( int fd, int val )
 {
     printf("LCD SRV %d\n",val);
@@ -159,13 +169,26 @@ int main(int argc, char **argv)
 	int pa,col,i;
     lcd_pixel pix;
     int x,y;
-	if((fd = open("/dev/lcd",O_RDWR)) < 0){
+	if((fd = open("/dev/dbox/lcd0",O_RDWR)) < 0){
 		perror("LCD: ");
 		return -1;
 	}
 
-    print_status(fd);
+    lcd_reset(fd);
 
+	close(fd);
+
+	return 0;
+
+    for(i=0;i<=0x3f;i++) {
+        lcd_srv(fd,i);
+        sleep(1);
+    }
+
+	return 0;
+
+    print_status(fd);
+/*
     pix.v = 2;
 
     for (i=0;i<0xFFFF;i++) {
@@ -178,9 +201,9 @@ int main(int argc, char **argv)
 
     }
 
-    return 0;
-    
-    lcd_reset(fd);
+//    return 0;
+*/
+
 
     lcd_on(fd,0);
     sleep(1);
