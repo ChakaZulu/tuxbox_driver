@@ -6,7 +6,7 @@ M_OBJS       = cam.o
 
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../../include
+EXTRA_CFLAGS=-I../include
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

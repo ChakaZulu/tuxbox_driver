@@ -7,7 +7,7 @@ M_OBJS       = pcm.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../nokia/include/dbox
+EXTRA_CFLAGS=-I../include/dbox
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

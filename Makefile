@@ -15,9 +15,9 @@ BIN_DEST=$(LINUXPPC)/rootfs/usr/local/bin
 export CURRENT KERNEL_LOCATION INSTALL_MOD_PATH MODULE_DEST BIN_DEST
 
 
-mod-subdirs := nokia avs lcd saa7126 pcm
+mod-subdirs := avs lcd saa7126 pcm avia fp i2c ves cam ost test
 
-subdir-y := nokia avs lcd saa7126 pcm
+subdir-y := avs lcd saa7126 pcm avia fp i2c ves cam ost test
 
 subdir-m := $(subdir-y)
 

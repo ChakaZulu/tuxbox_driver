@@ -12,7 +12,7 @@ GTX_CORE  = gtx-core.o
 ENX_CORE  = enx-core.o
 ENX_FB  = enx-fb.o #fbgen.o
 
-EXTRA_CFLAGS=-I../../include
+EXTRA_CFLAGS=-I../include
 
 #remove __ASSEMBLY__ option from kernel makefile
 AFLAGS=
