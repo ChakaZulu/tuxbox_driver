@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.2 2001/03/03 08:24:01 waldi Exp $
+ * $Id: dvbdev.c,v 1.3 2001/03/05 17:33:50 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -39,130 +39,124 @@
 
 #include <linux/kmod.h>
 
-#include <ost/dvbdev.h>
+#include "dvbdev.h"
 
-static struct dvb_device * dvb_device[DVB_NUM_DEVICES];
+static struct dvb_device * dvb_device[DVB_DEVICES_NUM];
 
-#define INFU 32768
-
-static int max_users[DVB_NUM_SUB_DEVICES] = { INFU, INFU, INFU, INFU, INFU, 1 };
-static int max_writers[DVB_NUM_SUB_DEVICES] = { 1, 1, 1, 1, 1, 1 };
-
-ssize_t dvb_device_read ( int type, struct file * file, char * buf,
-                          size_t count, loff_t * ppos )
+static int dvbdev_open ( struct inode * inode, struct file * file )
 {
-  struct dvb_device * dvbdev = dvb_device[0];
-
-  if ( ! dvbdev )
-    return -ENODEV;
-
-  return dvbdev -> read ( dvbdev, type, file, buf, count, ppos );
-}
-
-ssize_t dvb_device_write ( int type, struct file * file, const char * buf,
-                           size_t count, loff_t * ppos )
-{
-  struct dvb_device * dvbdev = dvb_device[0];
-
-  if ( ! dvbdev )
-    return -ENODEV;
-
-  return dvbdev -> write ( dvbdev, type, file, buf, count, ppos );
-}
-
-int dvb_device_open ( int type, struct inode * inode, struct file * file )
-{
-  struct dvb_device * dvbdev = dvb_device[0];
+  dvbdev_devfsinfo_t * info;
   int err;
 
-  if ( ! dvbdev )
-    return -ENODEV;
-  if ( type < 0 || type >= DVB_NUM_SUB_DEVICES )
-    return -EINVAL;
-  if ( dvbdev -> users[type] >= max_users[type] )
-    return -EBUSY;
-	
-  if ( ( file -> f_flags & O_ACCMODE ) != O_RDONLY )
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( inode ) );
+
+  err = info -> device -> open ( info -> device, info -> type, inode, file );
+
+  if ( err < 0 ) 
+    return err;
+
+  return 0;
+}
+
+static int dvbdev_release ( struct inode * inode, struct file * file )
+{
+  dvbdev_devfsinfo_t * info;
+  int err;
+
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( inode ) );
+
+  err = info -> device -> close ( info -> device, info -> type, inode, file );
+
+  if ( err < 0 ) 
+    return err;
+
+  return 0;
+}
+
+static ssize_t dvbdev_read ( struct file * file, char * buf,
+                             size_t count, loff_t * ppos )
+{
+  dvbdev_devfsinfo_t * info;
+
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( file -> f_dentry -> d_inode ) );
+
+  return info -> device -> read ( info -> device, info -> type, file, buf, count, ppos );
+}
+
+static ssize_t dvbdev_write ( struct file * file, const char * buf,
+                              size_t count, loff_t * ppos )
+{
+  dvbdev_devfsinfo_t * info;
+
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( file -> f_dentry -> d_inode ) );
+
+  return info -> device -> write ( info -> device, info -> type, file, buf, count, ppos );
+}
+
+static int dvbdev_ioctl ( struct inode *inode, struct file * file,
+                          unsigned int cmd, unsigned long arg )
+{
+  dvbdev_devfsinfo_t * info;
+
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( inode ) );
+
+  return info -> device -> ioctl ( info -> device, info -> type, file, cmd, arg );
+}
+
+unsigned int dvbdev_poll ( struct file * file, poll_table * wait )
+{
+  dvbdev_devfsinfo_t * info;
+
+  info = ( dvbdev_devfsinfo_t * ) devfs_get_info ( devfs_get_handle_from_inode ( file -> f_dentry -> d_inode ) );
+
+  return info -> device -> poll ( info -> device, info -> type, file, wait );
+}
+
+static struct file_operations dvbdev_fops =
+{
+  open:         dvbdev_open,
+  release:      dvbdev_release,
+  read:         dvbdev_read,
+  write:        dvbdev_write,
+  ioctl:        dvbdev_ioctl,
+  poll:         dvbdev_poll
+};
+
+void dvbdev_register_devfs ( dvb_device_t * dev, int number )
+{
+  int i;
+  char device[20];
+
+  for ( i = 0; i < DVB_SUBDEVICES_NUM; i++ )
   {
-    if ( dvbdev -> writers[type] >= max_writers[type] )
-      return -EBUSY;
+    dev -> devfs_info[i].device = dev;
+    dev -> devfs_info[i].type = i;
+    sprintf ( device, "ost/%s%d", subdevice_names[i], 0 );
+    dev -> devfs_handle[i] = 
+      devfs_register ( NULL, device, DEVFS_FL_DEFAULT, 0, 0,
+                       S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                       &dvbdev_fops, &dev -> devfs_info[i] );
   }
-
-  err=dvbdev -> open ( dvbdev, type, inode, file );
-
-  if ( err < 0 ) 
-    return err;
-
-  if ( ( file -> f_flags & O_ACCMODE ) != O_RDONLY )
-    dvbdev -> writers[type]++;
-
-  dvbdev -> users[type]++;
-  return 0;
 }
 
-int dvb_device_close ( int type, struct inode * inode, struct file * file )
-{
-  struct dvb_device * dvbdev = dvb_device[0];
-  int err;
-
-  if ( ! dvbdev )
-    return -ENODEV;
-  if ( type < 0 || type >= DVB_NUM_SUB_DEVICES )
-    return -EINVAL;
-
-  err=dvbdev -> close ( dvbdev, type, inode, file );
-
-  if ( err < 0 ) 
-    return err;
-  if ( ( file -> f_flags & O_ACCMODE ) != O_RDONLY )
-    dvbdev -> writers[type]--;
-
-  dvbdev -> users[type]--;
-  return 0;
-}
-
-int dvb_device_ioctl ( int type, struct file * file,
-                       unsigned int cmd, unsigned long arg)
-{
-  struct dvb_device * dvbdev = dvb_device[0];
-
-  if ( ! dvbdev )
-    return -ENODEV;
-
-  return dvbdev -> ioctl ( dvbdev, type, file, cmd, arg );
-}
-
-unsigned int dvb_device_poll ( int type, struct file * file, poll_table * wait )
-{
-  struct dvb_device * dvbdev = dvb_device[0];
-
-  if ( ! dvbdev )
-    return -ENODEV;
-
-  return dvbdev -> poll ( dvbdev, type, file, wait );
-}
-
-static void dvb_init_device ( dvb_device_t * dev )
+void dvbdev_unregister_devfs ( dvb_device_t * dev )
 {
   int i;
 
-  for ( i = 0; i < DVB_NUM_SUB_DEVICES; i++ )
-  {
-    dev -> users[i] = 0;
-    dev -> writers[i] = 0;
-  }	
+  for ( i = 0; i < DVB_SUBDEVICES_NUM; i++ )
+    devfs_unregister ( dev -> devfs_handle[i] );
 }
 
 int dvb_register_device ( dvb_device_t * dev )
 {
   int i;
 
-  for ( i = 0; i < DVB_NUM_DEVICES; i++ )
+  for ( i = 0; i < DVB_DEVICES_NUM; i++ )
   {
     if ( dvb_device[i] == NULL )
     {
       dvb_device[i] = dev;
-      dvb_init_device ( dev );
+      dvbdev_register_devfs ( dev, i );
       MOD_INC_USE_COUNT;
       return 0;
     }
@@ -173,14 +167,22 @@ int dvb_register_device ( dvb_device_t * dev )
 
 void dvb_unregister_device ( dvb_device_t * dev )
 {
+  int i;
+
+  for ( i = 0; i < DVB_DEVICES_NUM; i++ )
+  {
+    if ( dvb_device[i] == dev )
+      dvbdev_unregister_devfs ( dev );
+  }
+
   MOD_DEC_USE_COUNT;
 }
 
 int __init dvbdev_init_module ()
 {
   int i;
-	
-  for ( i = 0; i < DVB_NUM_DEVICES; i++ )
+
+  for ( i = 0; i < DVB_DEVICES_NUM; i++ )
     dvb_device[i] = NULL;
 
   return 0;
@@ -190,12 +192,6 @@ module_init ( dvbdev_init_module );
 
 EXPORT_SYMBOL(dvb_register_device);
 EXPORT_SYMBOL(dvb_unregister_device);
-EXPORT_SYMBOL(dvb_device_open);
-EXPORT_SYMBOL(dvb_device_close);
-EXPORT_SYMBOL(dvb_device_read);
-EXPORT_SYMBOL(dvb_device_write);
-EXPORT_SYMBOL(dvb_device_ioctl);
-EXPORT_SYMBOL(dvb_device_poll);
 
-MODULE_AUTHOR("Ralph Metzler");
+MODULE_AUTHOR("Bastian Blank");
 MODULE_DESCRIPTION("Device registrar for DVB drivers");

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.4 2001/03/03 08:24:01 waldi Exp $
+ * $Id: dvb.c,v 1.5 2001/03/05 17:33:50 waldi Exp $
  */
 
 #include <linux/config.h>
@@ -41,7 +41,6 @@
 #include <ost/audio.h>
 #include <ost/demux.h>
 #include <ost/dmx.h>
-#include <ost/dvbdev.h>
 #include <ost/frontend.h>
 #include <ost/sec.h>
 #include <ost/video.h>
@@ -52,6 +51,7 @@
 #include <dbox/gtx-dmx.h>
 #include <dbox/avia.h>
 
+#include "dvbdev.h"
 #include "dmxdev.h"
 
 typedef struct dvb_struct

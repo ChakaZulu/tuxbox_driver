@@ -2,7 +2,7 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS       = audio.o demux.o dmx.o dvbdev.o frontend.o sec.o video.o dvb.o dmxdev.o dvr.o
+M_OBJS       = demux.o dvbdev.o dvb.o dmxdev.o
 TEST = test_audio test_av test_dmx test_front test_video
 
 
