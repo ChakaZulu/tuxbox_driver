@@ -1,7 +1,7 @@
 /*
     Driver for STV0297/TSA5512 based DVB QAM frontends
 
-    Copyright (C) 2003 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2003-2004 Dennis Noermann <dennis.noermann@noernet.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@
 #else
 #define dprintk(x...)
 #endif
+
+#define STV0297_CLOCK   28900
 
 static struct dvb_frontend_info stv0297_info = {
 	.name			= "STV0297/TSA5512 based DVB-C frontend",
@@ -256,38 +258,28 @@ static int stv0297_check_inversion (struct dvb_i2c_bus *i2c)
 }
 */
 
-static int stv0297_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)  // DONE 
+static int stv0297_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate) 
 {
 /*
-	u32 clock;
-	u32 rate;
-	u32 drate;
-	u8 buf[4];
-	drate = srate * 2 * 2 * 2 * 2 *2 * 2 *2 *2;
-	clock = 28800000 ;
-		
-
-	rate = drate / clock ;
-
-	rate = rate << 24;
-
-	dprintk("symbolrate %d clock %d drate %d srate %d\n",rate,clock,drate,srate);
-		
-
-        buf[0] = (rate >> 24) ;
-        buf[1] = (rate >> 16) ;
-        buf[2] = (rate >> 8) ;
-        buf[3] = rate ;
-
-	dprintk(" 0x%02x 0x%02x 0x%02x 0x%02x \n", buf[0], buf[1], buf[2], buf[3]);			
-
-	fix me , hardcoded to 6900000 ...
-*/
+	Betanova sniff : 690000 
 	stv0297_writereg (i2c, 0x55, 0x4E);
 	stv0297_writereg (i2c, 0x56, 0x00);
 	stv0297_writereg (i2c, 0x57, 0x1F);
 	stv0297_writereg (i2c, 0x58, 0x3D);
+*/
+long tmp, ExtClk;
 
+	srate = srate / 1000;
+        ExtClk = (long)(STV0297_CLOCK) / 4;	/* 1/4 = 2^-2 */
+	tmp = 131072L * srate;			/* 131072 = 2^17  */
+        tmp = tmp /ExtClk;
+        tmp = tmp * 8192L;			/* 8192 = 2^13 */
+
+        stv0297_writereg (i2c, 0x55,(unsigned char)(tmp & 0xFF));  
+        stv0297_writereg (i2c, 0x56,(unsigned char)(tmp>> 8));     
+        stv0297_writereg (i2c, 0x57,(unsigned char)(tmp>>16));     
+        stv0297_writereg (i2c, 0x58,(unsigned char)(tmp>>24));     
+ 
 	return 0;
 }
 
