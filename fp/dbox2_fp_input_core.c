@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_input_core.c,v 1.4 2003/03/06 10:03:32 waldi Exp $
+ * $Id: dbox2_fp_input_core.c,v 1.5 2003/07/15 05:16:37 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -49,10 +49,12 @@ int __init dbox2_fp_input_init(void)
 	input_dev.name = "DBOX-2 FP IR";
 	input_dev.idbus = BUS_I2C;
 	
-	dbox2_fp_rc_init(&input_dev);
+	dbox2_fp_button_init(&input_dev);
 	dbox2_fp_keyboard_init(&input_dev);
 	dbox2_fp_mouse_init(&input_dev);
-	dbox2_fp_button_init(&input_dev);
+
+	/* init rc as last one.. maybe because it uses fp_sendcmd() */
+	dbox2_fp_rc_init(&input_dev);
 
 	input_register_device(&input_dev);
 
