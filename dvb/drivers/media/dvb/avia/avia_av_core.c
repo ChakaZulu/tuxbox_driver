@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.44  2002/11/17 23:03:16  Jolt
+ *   Audio fixes
+ *
  *   Revision 1.43  2002/11/17 22:36:32  Jolt
  *   Large cleanups + fixes
  *
@@ -185,7 +188,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.43 $
+ *   $Revision: 1.44 $
  *
  */
 
@@ -851,13 +854,6 @@ void avia_set_default(void)
 	wDR(INTERPRET_USER_DATA,0);
 	wDR(INTERPRET_USER_DATA_MASK,0);
 
-#if 0
-	//3des:Fifo dont need setup
-	//3des:is done by memory_map
-	wDR(USER_DATA_BUFFER_START,0x1f0000);
-	wDR(USER_DATA_BUFFER_END,0x1f0400);
-#endif
-
 	/* osd */
 	wDR(DISABLE_OSD, 0);
 
@@ -1306,22 +1302,10 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 //				avia_command(Resume);
 				
 			} else {
-			
-//				avia_command(SelectStream, 0x03, pid_audio);	//FIXME AC3
-			
-				if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
-				
-//					avia_command(Play, 0x00, 0xFFFF, pid_audio);
-					
-				} else {
 
-//					avia_command(NewChannel, 0x00, pid_video, pid_audio);
-				
-//FIXME					if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
-//FIXME						avia_command(Pause, 0x01, 0x01);
+//				avia_command(SelectStream, 0x02, pid_audio);	//FIXME AC3
+				avia_command(SelectStream, 0x03, pid_audio);
 
-				}
-			
 			}
 		
 			break;
@@ -1332,15 +1316,12 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 				(play_state_audio != AVIA_AV_PLAY_STATE_PLAYING))
 				return -EINVAL;
 
-			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
-			
-//				avia_command(Abort, 0x01);
-//				avia_flush_pcr();
-				
-			}
-			
-//			avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
+			avia_command(SelectStream, 0x02, 0xFFFF);
+			avia_command(SelectStream, 0x03, 0xFFFF);
 		
+			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
+				wDR(AV_SYNC_MODE, 0x00);
+			
 			break;
 			
 		default:
@@ -1370,7 +1351,7 @@ int avia_av_play_state_set_video(u8 new_play_state)
 			if (play_state_video != AVIA_AV_PLAY_STATE_PLAYING)
 				return -EINVAL;
 		
-			avia_command(Freeze, 0x01);
+//			avia_command(Freeze, 0x01);
 		
 			break;
 
@@ -1378,27 +1359,12 @@ int avia_av_play_state_set_video(u8 new_play_state)
 		
 			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
 			
-				avia_command(Resume);
+//				avia_command(Resume);
 				
 			} else {
 
 				avia_command(SelectStream, 0x00, 0);
-				avia_command(SelectStream, 0x03, 0);
-//				avia_command(Play, 0x00, 0, 0);
-			
-				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
-				
-//					avia_command(Play, 0x00, pid_video, 0x0);
-					
-				} else {
 
-//					avia_command(Play, 0x00, pid_video, pid_audio);
-				
-//					if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED)
-//						avia_command(Pause, 0x01, 0x01);
-
-				}
-			
 			}
 		
 			break;
@@ -1409,21 +1375,11 @@ int avia_av_play_state_set_video(u8 new_play_state)
 				(play_state_video != AVIA_AV_PLAY_STATE_PLAYING))
 				return -EINVAL;
 				
-			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
-			
-//				avia_command(Abort, 0x01);
-//				avia_flush_pcr();
-				
-			}
-
-//			avia_command(Abort, 0x01);
-//			avia_command(Reset);
-			
 			avia_command(SelectStream, 0x00, 0xFFFF);
-//			avia_command(SelectStream, 0x02, 0xFFFF);
-			avia_command(SelectStream, 0x03, 0xFFFF);
-			wDR(AV_SYNC_MODE, 0x00);
 				
+			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
+				wDR(AV_SYNC_MODE, 0x00);
+
 			break;
 			
 		default:
@@ -1602,7 +1558,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.43 2002/11/17 22:36:32 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.44 2002/11/17 23:03:16 Jolt Exp $\n");
 
 	aviamem = 0;
 
