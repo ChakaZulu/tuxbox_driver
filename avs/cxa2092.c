@@ -21,13 +21,17 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.5  2001/01/15 19:50:08  gillem
+ *   - bug fix
+ *   - add test appl.
+ *
  *   Revision 1.4  2001/01/15 17:02:32  gillem
  *   rewriten
  *
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -134,128 +138,6 @@ static struct avs_type avs_types[] = {
 
 /* ---------------------------------------------------------------------- */
 
-void avs_set_volume( int vol )
-{
-	int c=0,f=0;
-
-	if (vol&(vol<=56))
-	{
-		c = vol/8;
-		f = vol-c;
-	}
-
-	SET_EVC(avs_data,c);
-	SET_EVF(avs_data,f);
-}
-
-void avs_set_mute( int type )
-{
-	switch(type)
-	{
-		case AVS_MUTE_IM:
-		case AVS_MUTE_ZC:
-		case AVS_UNMUTE_IM:
-		case AVS_UNMUTE_ZC:
-			avs_data[0] = (avs_data[0]&(~3)) | type;
-			break;
-		default:
-			break;
-	}
-}
-
-void avs_set_fblk( int type )
-{
-	switch(type)
-	{
-		case AVS_FBLKOUT_NULL:
-		case AVS_FBLKOUT_5V:
-		case AVS_FBLKOUT_IN1:
-		case AVS_FBLKOUT_IN2:
-			avs_data[1] = (avs_data[1]&(~AVS_FBLK)) | (type<<6);
-			break;
-		default:
-			break;
-	}
-}
-
-void avs_set_fnc( int type )
-{
-	switch(type)
-	{
-		case AVS_FNCOUT_INTTV:
-		case AVS_FNCOUT_EXT169:
-		case AVS_FNCOUT_EXT43:
-		case AVS_FNCOUT_EXT43_1:
-			avs_data[2] = (avs_data[2]&(~AVS_FNC)) | (type<<6);
-			break;
-		default:
-			break;
-	}
-}
-
-void avs_set_ycm( int type )
-{
-	switch(type)
-	{
-		case 0:
-		case 1:
-			avs_data[3] = (avs_data[3]&(~AVS_YCM)) | (type<<7);
-			break;
-		default:
-			break;
-	}
-
-}
-
-void avs_set_vsw( int sw, int type )
-{
-	if(sw<0 || sw>2)
-		return;
-
-	switch(type)
-	{
-		case AVS_TVOUT_DE1:
-		case AVS_TVOUT_DE2:
-		case AVS_TVOUT_VCR:
-		case AVS_TVOUT_AUX:
-		case AVS_TVOUT_DE3:
-		case AVS_TVOUT_DE4:
-		case AVS_TVOUT_DE5:
-		case AVS_TVOUT_VM1:
-			avs_data[sw+1] = (avs_data[sw+1]&(~AVS_VSW1)) | (type<<3);
-			break;
-		default:
-			break;
-	}
-}
-
-void avs_set_asw( int sw, int type )
-{
-	if(sw<0 || sw>2)
-		return;
-
-	switch(type)
-	{
-		case AVS_AUXOUT_DE1:
-		case AVS_AUXOUT_VM1:
-		case AVS_AUXOUT_VCR:
-		case AVS_AUXOUT_AUX:
-		case AVS_AUXOUT_DE2:
-		case AVS_AUXOUT_VM2:
-		case AVS_AUXOUT_VM3:
-		case AVS_AUXOUT_VM4:
-			avs_data[sw+1] = (avs_data[sw+1]&(~AVS_ASW1)) | type;
-			break;
-		default:
-			break;
-	}
-}
-
-void avs_set_logic( int type )
-{
-	return;
-}
-
 int avs_set()
 {
 	if ( 5 != i2c_master_send(&client_template, avs_data, 5))
@@ -263,6 +145,98 @@ int avs_set()
 
 	return 0;
 }
+
+int avs_set_volume( int vol )
+{
+	int c=0,f=0;
+
+	if ( vol && (vol<=56))
+	{
+		c = vol/8;
+		f = vol-c;
+	}
+	else
+	{
+		return -EINVAL;
+	}
+
+	SET_EVC(avs_data,c);
+	SET_EVF(avs_data,f);
+
+	return avs_set();
+}
+
+int avs_set_mute( int type )
+{
+	if ((type<0) || (type>3))
+		return -EINVAL;
+
+	avs_data[0] = (avs_data[0]&(~3)) | type;
+
+	return avs_set();
+}
+
+int avs_set_fblk( int type )
+{
+	if (type<0 || type>3)
+		return -EINVAL;
+
+	avs_data[1] = (avs_data[1]&(~AVS_FBLK)) | (type<<6);
+
+	return avs_set();
+}
+
+int avs_set_fnc( int type )
+{
+	if (type<0 || type>3)
+		return -EINVAL;
+
+	avs_data[2] = (avs_data[2]&(~AVS_FNC)) | (type<<6);
+
+	return avs_set();
+}
+
+int avs_set_ycm( int type )
+{
+	if (type<0 || type>1)
+		return -EINVAL;
+
+	avs_data[3] = (avs_data[3]&(~AVS_YCM)) | (type<<7);
+
+	return avs_set();
+}
+
+int avs_set_vsw( int sw, int type )
+{
+	if(sw<0 || sw>2)
+		return -EINVAL;
+
+	if (type<0 || type>7)
+		return -EINVAL;
+
+	avs_data[sw+1] = (avs_data[sw+1]&(~AVS_VSW1)) | (type<<3);
+
+	return avs_set();
+}
+
+int avs_set_asw( int sw, int type )
+{
+	if(sw<0 || sw>2)
+		return -EINVAL;
+
+	if (type<0 || type>7)
+		return -EINVAL;
+
+	avs_data[sw+1] = (avs_data[sw+1]&(~AVS_ASW1)) | type;
+
+	return avs_set();
+}
+
+int avs_set_logic( int type )
+{
+	return -EINVAL;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static int avs_getstatus(struct i2c_client *c)
@@ -369,70 +343,46 @@ int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	int val;
 	dprintk("[AVS]: IOCTL\n");
 	
-	switch (cmd)
+	if (cmd&AVSIOSET)
 	{
-		case AVSIOSVSW1:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_vsw(0,val);
-			avs_set();
-			break;
-		case AVSIOSVSW2:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_vsw(1,val);
-			avs_set();
-			break;
-		case AVSIOSVSW3:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_vsw(2,val);
-			avs_set();
-			break;
-		case AVSIOSASW1:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_asw(0,val);
-			avs_set();
-			break;
-		case AVSIOSASW2:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_asw(1,val);
-			avs_set();
-			break;
-		case AVSIOSASW3:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_asw(2,val);
-			avs_set();
-			break;
-		case AVSIOSVOL:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_volume(val);
-			avs_set();
-			break;
-		case AVSIOSMUTE:
-			if ( get_user(val,(int*)arg) )
-				return -EFAULT;
-			avs_set_mute(val);
-			avs_set();
-			break;
+		if ( get_user(val,(int*)arg) )
+			return -EFAULT;
 
-		case AVSIOGVSW1:
-		case AVSIOGVSW2:
-		case AVSIOGVSW3:
-		case AVSIOGASW1:
-		case AVSIOGASW2:
-		case AVSIOGASW3:
-		case AVSIOGVOL:
-		case AVSIOGMUTE:
-			break;
+		switch (cmd)
+		{
+			/* set video */
+			case AVSIOSVSW1:	return avs_set_vsw(0,val);
+			case AVSIOSVSW2:	return avs_set_vsw(1,val);
+			case AVSIOSVSW3:	return avs_set_vsw(2,val);
+			/* set audio */
+			case AVSIOSASW1:	return avs_set_asw(0,val);
+			case AVSIOSASW2:	return avs_set_asw(1,val);
+			case AVSIOSASW3:	return avs_set_asw(2,val);
+			/* set vol & mute */
+			case AVSIOSVOL:		return avs_set_volume(val);
+			case AVSIOSMUTE:	return avs_set_mute(val);
 
-		default:
-			return -EINVAL;
-			break;
+			default:					return -EINVAL;
+		}
+	} else
+	{
+		switch (cmd)
+		{
+			/* get video */
+			case AVSIOGVSW1:
+			case AVSIOGVSW2:
+			case AVSIOGVSW3:
+			/* get audio */
+			case AVSIOGASW1:
+			case AVSIOGASW2:
+			case AVSIOGASW3:
+			/* get vol & mute */
+			case AVSIOGVOL:
+			case AVSIOGMUTE:
+				break;
+
+			default:					return -EINVAL;
+		}
 	}
 
 	return 0;

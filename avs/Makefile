@@ -18,6 +18,8 @@ BUILD_DATE=$(shell date)
 # when compiling module(s)
 
 M_OBJS       = cxa2092.o
+APPZ	     = avs
+APPZ_SOURCE  = cxa2092_test.c
 
 EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 
@@ -29,6 +31,10 @@ install:
 	cp $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
+	-rm -f $(M_OBJS) $(O_TARGET) $(APPZ) .*.o.flags *~
+
+appz:
+	powerpc-linux-gcc -o $(APPZ) $(APPZ_SOURCE)
 
 include $(KERNEL_LOCATION)/Rules.make
+

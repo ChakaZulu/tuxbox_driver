@@ -21,13 +21,17 @@
  *
  *
  *   $Log: cxa2092.h,v $
+ *   Revision 1.4  2001/01/15 19:50:08  gillem
+ *   - bug fix
+ *   - add test appl.
+ *
  *   Revision 1.3  2001/01/15 17:02:32  gillem
  *   rewriten
  *
  *   Revision 1.2  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -177,21 +181,24 @@ after vol or mute */
 #define SET_EVF(arr,val)	arr[0] = (arr[0]&(~AVS_EVF)) | (val<<2);
 
 /* IOCTL */
-#define AVSIOSVSW1 0
-#define AVSIOSVSW2 1
-#define AVSIOSVSW3 2
-#define AVSIOSASW1 3
-#define AVSIOSASW2 4
-#define AVSIOSASW3 5
-#define AVSIOSVOL  6
+#define AVSIOSET   0x1000
+#define AVSIOGET   0x2000
 
-#define AVSIOGVSW1 7
-#define AVSIOGVSW2 8
-#define AVSIOGVSW3 9
-#define AVSIOGASW1 10
-#define AVSIOGASW2 11
-#define AVSIOGASW3 12
-#define AVSIOGVOL  13
+#define AVSIOSVSW1 (0|AVSIOSET)
+#define AVSIOSVSW2 (1|AVSIOSET)
+#define AVSIOSVSW3 (2|AVSIOSET)
+#define AVSIOSASW1 (3|AVSIOSET)
+#define AVSIOSASW2 (4|AVSIOSET)
+#define AVSIOSASW3 (5|AVSIOSET)
+#define AVSIOSVOL  (6|AVSIOSET)
 
-#define AVSIOSMUTE 14
-#define AVSIOGMUTE 15
+#define AVSIOGVSW1 (7 |AVSIOGET)
+#define AVSIOGVSW2 (8 |AVSIOGET)
+#define AVSIOGVSW3 (9 |AVSIOGET)
+#define AVSIOGASW1 (10|AVSIOGET)
+#define AVSIOGASW2 (11|AVSIOGET)
+#define AVSIOGASW3 (12|AVSIOGET)
+#define AVSIOGVOL  (13|AVSIOGET)
+
+#define AVSIOSMUTE (14|AVSIOSET)
+#define AVSIOGMUTE (15|AVSIOGET)
