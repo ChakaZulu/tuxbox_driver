@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.13  2001/04/07 01:44:54  tmbinc
+    put setfreq into frontend-driverstruct.
+
     Revision 1.12  2001/03/29 19:10:03  gillem
     - fix a patch from tmb
 
@@ -34,7 +37,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.12 $
+    $Revision: 1.13 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -50,6 +53,7 @@
 
 #include <dbox/dvb.h>
 #include <dbox/ves.h>
+#include <dbox/fp.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -58,8 +62,9 @@ static void ves_init(void);
 static void ves_set_frontend(struct frontend *front);
 static void ves_get_frontend(struct frontend *front);
 static int ves_get_unc_packet(uint32_t *uncp);
+static int mitel_set_freq(int freq);
 
-struct demod_function_struct ves1820={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
+struct demod_function_struct ves1820={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet, mitel_set_freq};
 
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
@@ -535,6 +540,23 @@ static void ves_task(void*data)
 	}
 
 	enable_irq(VES_INTERRUPT);
+}
+
+/* ---------------------------------------------------------------------- */
+
+static int mitel_set_freq(int freq)
+{
+	u8 buffer[4];
+	freq+=36125000;
+	freq/=62500;
+		
+	buffer[0]=(freq>>8)&0x7F;
+	buffer[1]=freq&0xFF;
+	buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
+	buffer[3]=1;
+		
+	fp_set_tuner_dword(T_QAM, *((u32*)buffer));
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */

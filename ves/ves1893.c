@@ -30,6 +30,7 @@
 #include <dbox/dvb.h>
 
 #include <dbox/ves.h>
+#include <dbox/fp.h>
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -42,8 +43,9 @@ static void ves_get_frontend(struct frontend *front);
 static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int ves_get_unc_packet(u32 *uncp);
+static int mitel_set_freq(int freq);
 
-struct demod_function_struct ves1893={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
+struct demod_function_struct ves1893={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet, mitel_set_freq};
 
 static int debug = 9;
 #define dprintk	if (debug) printk
@@ -382,6 +384,27 @@ int ves_get_unc_packet(u32 *uncp)
 {
   *uncp=0;
   return -1;
+}
+
+static int mitel_set_freq(int freq)
+{
+	int p, t, os, c, r, pe;
+	unsigned long b;
+
+	freq+=479500000; freq/=125000*4;
+	t=0; os=0; c=1;								// doch doch
+	r=3; pe=1; p=1;
+
+	b=p<<24;
+	b|=t<<23;
+	b|=os<<22;
+	b|=c<<21;
+	b|=r<<18;
+	b|=pe<<17;
+	b|=freq;
+		
+	fp_set_tuner_dword(T_QPSK, b);
+	return 0;
 }
 
 static void inc_use (struct i2c_client *client)

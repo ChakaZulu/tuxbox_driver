@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.23 2001/03/29 02:13:25 tmbinc Exp $
+ * $Id: dvb.c,v 1.24 2001/04/07 01:44:55 tmbinc Exp $
  */
 
 #include <linux/config.h>
@@ -77,43 +77,11 @@ static dvb_struct_t dvb;
 																																// F R O N T E N D
 static int tuner_setfreq(dvb_struct_t *dvb, unsigned int freq)
 {
-	if (dvb->front.type==FRONT_DVBS)
-	{
-		int p, t, os, c, r, pe;
-		unsigned long b;
-
-		freq+=479500000; freq/=125000*4;
-		t=0; os=0; c=1;								// doch doch
-		r=3; pe=1; p=1;
-
-		b=p<<24;
-		b|=t<<23;
-		b|=os<<22;
-		b|=c<<21;
-		b|=r<<18;
-		b|=pe<<17;
-		b|=freq;
-		
-		fp_set_tuner_dword(T_QPSK, b);
-		return 0;
-	} else if (dvb->front.type==FRONT_DVBC)
-	{
-		u8 buffer[4];
-		freq+=36125000;
-		freq/=62500;
-		
-		buffer[0]=(freq>>8)&0x7F;
-		buffer[1]=freq&0xFF;
-		buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
-		buffer[3]=1;
-		
-		fp_set_tuner_dword(T_QAM, *((u32*)buffer));
-		return 0;
-	} else
-	{
-		printk("tuner_setfreq: AAARRRGGG\n");
-		return -1;
-	}
+	if (dvb->demod->set_frequency)
+		return dvb->demod->set_frequency(freq);
+	
+	printk("couldn't set tuner frequency because of missing/old driver\n");
+	return -1;
 }
 
 static int frontend_init(dvb_struct_t *dvb)

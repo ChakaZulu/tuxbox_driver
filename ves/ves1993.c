@@ -40,8 +40,9 @@ static void ves_set_frontend(struct frontend *front);
 static void ves_get_frontend(struct frontend *front);
 static void ves_reset(void);
 static int ves_read_reg(int reg);
+static int mitel_set_freq(int freq);
 
-struct demod_function_struct ves1993={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet};
+struct demod_function_struct ves1993={ves_write_reg, ves_init, ves_set_frontend, ves_get_frontend, ves_get_unc_packet, mitel_set_freq};
 
 static int debug = 9;
 #define dprintk	if (debug) printk
@@ -473,6 +474,25 @@ static struct i2c_client client_template = {
         NULL
 };
 
+/* ---------------------------------------------------------------------- */
+
+int sagem_set_tuner_dword(u32 tw);
+
+static int mitel_set_freq(int freq)		/* NOT SURE */
+{
+	u8 buffer[4];
+	freq+=36125000;
+	freq/=62500;
+		
+	buffer[0]=(freq>>8)&0x7F;
+	buffer[1]=freq&0xFF;
+	buffer[2]=0x80 | (((freq>>15)&3)<<6) | 5;
+	buffer[3]=1;
+		
+	sagem_set_tuner_dword(*((u32*)buffer));
+	return 0;
+}
+
 
 #ifdef MODULE
 int init_module(void) {
@@ -536,4 +556,3 @@ void cleanup_module(void)
         dprintk("ves1993: cleanup\n");
 }
 #endif
-
