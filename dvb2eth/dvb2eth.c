@@ -312,7 +312,11 @@ static void __exit dvb2eth_exit(void)
 	 */
 
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
 	consistent_free(dvb2eth_header_buf);
+#else
+	/* put bugfix here */
+#endif
 
 	/*
 	 * unregister device
@@ -354,6 +358,7 @@ static int __init dvb2eth_init(void)
 	 * alloc memory
 	 */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
 	if ( (dvb2eth_header_buf = (unsigned char *) consistent_alloc(GFP_KERNEL,
 			UDP_HEADERS * sizeof(dvb2eth_udp_header_skel),&phy_addr)) == NULL)
 	{
@@ -361,6 +366,9 @@ static int __init dvb2eth_init(void)
 		devfs_unregister(dvb2eth_device);
 		return -ENOMEM;
 	}
+#else
+	/* put bugfix here */
+#endif
 
 	/*
 	 * store physical addresses for udp-headers
