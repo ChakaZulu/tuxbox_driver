@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.15  2002/05/03 16:15:31  obi
+ *   - formatted source
+ *   - disabled one dprintk
+ *
  *   Revision 1.14  2002/05/02 18:13:52  Jolt
  *   Autodetect
  *
@@ -64,7 +68,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -111,139 +115,139 @@ void (*gt_isr_proc_list[128])(unsigned short irq);
 void avia_gt_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    if (avia_gt_chip(ENX))
-	avia_gt_enx_clear_irq(irq_reg, irq_bit);
-    else if (avia_gt_chip(GTX))
-	avia_gt_gtx_clear_irq(irq_reg, irq_bit);
-    
+	if (avia_gt_chip(ENX))
+		avia_gt_enx_clear_irq(irq_reg, irq_bit);
+	else if (avia_gt_chip(GTX))
+		avia_gt_gtx_clear_irq(irq_reg, irq_bit);
+
 }
 
 sAviaGtInfo *avia_gt_get_info(void)
 {
 
-    return gt_info;
+	return gt_info;
 
 }
 
 unsigned short avia_gt_get_irq_mask(unsigned char irq_reg)
 {
 
-    if (avia_gt_chip(ENX))
-	return avia_gt_enx_get_irq_mask(irq_reg);
-    else if (avia_gt_chip(GTX))
-	return avia_gt_gtx_get_irq_mask(irq_reg);
+	if (avia_gt_chip(ENX))
+		return avia_gt_enx_get_irq_mask(irq_reg);
+	else if (avia_gt_chip(GTX))
+		return avia_gt_gtx_get_irq_mask(irq_reg);
 
-    return 0;
+	return 0;
 
 }
-			    
+
 unsigned short avia_gt_get_irq_status(unsigned char irq_reg)
 {
 
-    if (avia_gt_chip(ENX))
-	return avia_gt_enx_get_irq_status(irq_reg);
-    else if (avia_gt_chip(GTX))
-	return avia_gt_gtx_get_irq_status(irq_reg);
+	if (avia_gt_chip(ENX))
+		return avia_gt_enx_get_irq_status(irq_reg);
+	else if (avia_gt_chip(GTX))
+		return avia_gt_gtx_get_irq_status(irq_reg);
 
-    return 0;
+	return 0;
 
 }
 
 void avia_gt_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-    
-    if (avia_gt_chip(ENX))
-	avia_gt_enx_mask_irq(irq_reg, irq_bit);
-    else if (avia_gt_chip(GTX))
-	avia_gt_gtx_mask_irq(irq_reg, irq_bit);
-	
+
+	if (avia_gt_chip(ENX))
+		avia_gt_enx_mask_irq(irq_reg, irq_bit);
+	else if (avia_gt_chip(GTX))
+		avia_gt_gtx_mask_irq(irq_reg, irq_bit);
+
 }
-	
+
 void avia_gt_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-    if (avia_gt_chip(ENX))
-	avia_gt_enx_unmask_irq(irq_reg, irq_bit);
-    else if (avia_gt_chip(GTX))
-	avia_gt_gtx_unmask_irq(irq_reg, irq_bit);
+	if (avia_gt_chip(ENX))
+		avia_gt_enx_unmask_irq(irq_reg, irq_bit);
+	else if (avia_gt_chip(GTX))
+		avia_gt_gtx_unmask_irq(irq_reg, irq_bit);
 
 }
-	
+
 int avia_gt_alloc_irq(unsigned short irq, void (*isr_proc)(unsigned short irq))
 {
 
-    dprintk("avia_gt_core: alloc_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
-	
-    if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))]) {
-	
-        printk("avia_gt_core: irq already used\n");
-		
-	return -EBUSY;
-		
-    }
-	
-    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = isr_proc;
-    
-    avia_gt_unmask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
-    avia_gt_clear_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+	dprintk("avia_gt_core: alloc_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 
-    return 0;
-	
+	if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))]) {
+
+		printk("avia_gt_core: irq already used\n");
+
+		return -EBUSY;
+
+	}
+
+	gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = isr_proc;
+
+	avia_gt_unmask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+	avia_gt_clear_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+
+	return 0;
+
 }
-			    
+
 void avia_gt_free_irq(unsigned short irq)
 {
 
-    dprintk("avia_gt_core: free_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+	dprintk("avia_gt_core: free_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 
-    avia_gt_mask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
-	
-    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = NULL;
-	
+	avia_gt_mask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+
+	gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = NULL;
+
 }
 
 static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 {
 
-    unsigned char irq_reg;
-    unsigned char irq_bit;
-    unsigned short irq_mask;
-    unsigned short irq_status;
-  
-    for (irq_reg = 0; irq_reg < 6; irq_reg++) {
-  
-        irq_mask = avia_gt_get_irq_mask(irq_reg);
-	irq_status = avia_gt_get_irq_status(irq_reg);
-    
-	for (irq_bit = 1; irq_bit < 16; irq_bit++) {
-    
-    	    if (irq_status & (1 << irq_bit)) {
-      
-		dprintk("avia_gt_core: interrupt reg %d bit %d\n", irq_reg, irq_bit);
+	unsigned char irq_reg;
+	unsigned char irq_bit;
+	unsigned short irq_mask;
+	unsigned short irq_status;
 
-    		if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)]) {
+	for (irq_reg = 0; irq_reg < 6; irq_reg++) {
 
-		    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)](AVIA_GT_IRQ(irq_reg, irq_bit));
+		irq_mask = avia_gt_get_irq_mask(irq_reg);
+		irq_status = avia_gt_get_irq_status(irq_reg);
 
-		} else {
+		for (irq_bit = 1; irq_bit < 16; irq_bit++) {
 
-		    if (irq_mask & (1 << irq_bit)) {
-		    
-			printk("avia_gt_core: masking unhandled irq reg %d bit %d\n", irq_reg, irq_bit);
+			if (irq_status & (1 << irq_bit)) {
 
-			avia_gt_mask_irq(irq_reg, irq_bit);
-			
-		    }
+				//dprintk("avia_gt_core: interrupt reg %d bit %d\n", irq_reg, irq_bit);
+
+				if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)]) {
+
+					gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)](AVIA_GT_IRQ(irq_reg, irq_bit));
+
+				} else {
+
+					if (irq_mask & (1 << irq_bit)) {
+
+						printk("avia_gt_core: masking unhandled irq reg %d bit %d\n", irq_reg, irq_bit);
+
+						avia_gt_mask_irq(irq_reg, irq_bit);
+
+					}
+
+				}
+
+				avia_gt_clear_irq(irq_reg, irq_bit);
+
+			}
 
 		}
 
-		avia_gt_clear_irq(irq_reg, irq_bit);
-
-	    }
-
 	}
-
-    }
 
 }
 
@@ -251,222 +255,222 @@ int __init avia_gt_init(void)
 {
 
 	struct dbox_info_struct *dbox_info;
-    int result;
+	int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.14 2002/05/02 18:13:52 Jolt Exp $\n");
-	
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.15 2002/05/03 16:15:31 obi Exp $\n");
+
 	if (chip_type == -1) {
-	
+
 		printk("avia_gt_core: autodetecting chip type... ");
-	
+
 		dbox_get_info_ptr(&dbox_info);
-		
+
 		if (dbox_info->enxID != -1) {
-		
+
 			chip_type = AVIA_GT_CHIP_TYPE_ENX;
-			
+
 			printk("AViA eNX found\n");
-			
+
 		} else if (dbox_info->gtxID != -1) {
-		
+
 			chip_type = AVIA_GT_CHIP_TYPE_GTX;
 
 			printk("AViA GTX found\n");
-			
+
 		} else {
 
 			printk("no supported chip type found\n");
-		
+
 		}
 
 	}
 
-    if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
-    
-        printk("avia_gt_core: Unsupported chip type (gt_info->chip_type = %d)\n", gt_info->chip_type);
-	    
-        return -EIO;
-		    
-    }
-			    
-    memset(gt_isr_proc_list, 0, sizeof(gt_isr_proc_list));
-     
-    gt_info = kmalloc(sizeof(gt_info), GFP_KERNEL);
-    
-    if (!gt_info) {
-    
-        printk(KERN_ERR "avia_gt_core: Could not allocate info memory!\n");
+	if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
 
-	avia_gt_exit();
-      
+		printk("avia_gt_core: Unsupported chip type (gt_info->chip_type = %d)\n", gt_info->chip_type);
+
+		return -EIO;
+
+	}
+
+	memset(gt_isr_proc_list, 0, sizeof(gt_isr_proc_list));
+
+	gt_info = kmalloc(sizeof(gt_info), GFP_KERNEL);
+
+	if (!gt_info) {
+
+		printk(KERN_ERR "avia_gt_core: Could not allocate info memory!\n");
+
+		avia_gt_exit();
+
 	return -1;
-	
-    }
-    
-    gt_info->chip_type = chip_type;
 
-    init_state = 1;
+	}
 
-    if (avia_gt_chip(ENX))
-	gt_info->reg_addr = (unsigned char *)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
-    else if (avia_gt_chip(GTX))
-	gt_info->reg_addr = (unsigned char *)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+	gt_info->chip_type = chip_type;
 
-    if (!gt_info->reg_addr) {
-  
-	printk(KERN_ERR "avia_gt_core: Failed to remap register space.\n");
-    
+	init_state = 1;
+
+	if (avia_gt_chip(ENX))
+		gt_info->reg_addr = (unsigned char *)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
+	else if (avia_gt_chip(GTX))
+		gt_info->reg_addr = (unsigned char *)ioremap(GTX_REG_BASE, GTX_REG_SIZE);
+
+	if (!gt_info->reg_addr) {
+
+		printk(KERN_ERR "avia_gt_core: Failed to remap register space.\n");
+
+		return -1;
+
+	}
+
+	init_state = 2;
+
+	if (avia_gt_chip(ENX))
+		gt_info->mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
+	else if (avia_gt_chip(GTX))
+		gt_info->mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
+
+	if (!gt_info->mem_addr) {
+
+		printk(KERN_ERR "avia_gt_core: Failed to remap memory space.\n");
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 3;
+
+	if (avia_gt_chip(ENX))
+		result = request_8xxirq(ENX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
+	else if (avia_gt_chip(GTX))
+		result = request_8xxirq(GTX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
+
+	if (result) {
+
+		printk(KERN_ERR "avia_gt_core: Could not allocate IRQ!\n");
+
+		avia_gt_exit();
+
 	return -1;
-    
-    }
-    
-    init_state = 2;
 
-    if (avia_gt_chip(ENX))
-	gt_info->mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
-    else if (avia_gt_chip(GTX))
-	gt_info->mem_addr = (unsigned char*)ioremap(GTX_MEM_BASE, GTX_MEM_SIZE);
+	}
 
-    if (!gt_info->mem_addr) {
-  
-	printk(KERN_ERR "avia_gt_core: Failed to remap memory space.\n");
-	
-	avia_gt_exit();
-    
-	return -1;
-    
-    }
+	init_state = 4;
 
-    init_state = 3;
+	if (avia_gt_chip(ENX))
+		avia_gt_enx_init();
+	else if (avia_gt_chip(GTX))
+		avia_gt_gtx_init();
 
-    if (avia_gt_chip(ENX))
-	result = request_8xxirq(ENX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
-    else if (avia_gt_chip(GTX))
-	result = request_8xxirq(GTX_INTERRUPT, avia_gt_irq_handler, 0, "avia_gt", 0);
-
-    if (result) {
-    
-        printk(KERN_ERR "avia_gt_core: Could not allocate IRQ!\n");
-
-	avia_gt_exit();
-      
-	return -1;
-	
-    }
-
-    init_state = 4;
-    
-    if (avia_gt_chip(ENX))
-	avia_gt_enx_init();
-    else if (avia_gt_chip(GTX))
-	avia_gt_gtx_init();
-
-    init_state = 5;
+	init_state = 5;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (avia_gt_dmx_init()) {
+	if (avia_gt_dmx_init()) {
 
 		avia_gt_exit();
-      
-		return -1;
-	
-    }
 
-    init_state = 6;
-    
-    if (avia_gt_gv_init()) {
+		return -1;
+
+	}
+
+	init_state = 6;
+
+	if (avia_gt_gv_init()) {
 
 		avia_gt_exit();
-      
+
 		return -1;
-	
-    }
 
-    init_state = 7;
-    
-    if (avia_gt_pcm_init()) {
+	}
 
-	avia_gt_exit();
-      
-	return -1;
-	
-    }
+	init_state = 7;
 
-    init_state = 8;
-    
-    if (avia_gt_capture_init()) {
-
-	avia_gt_exit();
-      
-	return -1;
-	
-    }
-
-    init_state = 9;
-    
-    if (avia_gt_pig_init()) {
+	if (avia_gt_pcm_init()) {
 
 		avia_gt_exit();
-      
-		return -1;
-	
-    }
 
-    init_state = 10;
-    
+		return -1;
+
+	}
+
+	init_state = 8;
+
+	if (avia_gt_capture_init()) {
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 9;
+
+	if (avia_gt_pig_init()) {
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 10;
+
 #endif
-	    
-    printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
 
-    return 0;
-  
+	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
+
+	return 0;
+
 }
 
 void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (init_state >= 10)
-        avia_gt_pig_exit();
-	
-    if (init_state >= 9)
-        avia_gt_capture_exit();
-	
-    if (init_state >= 8)
+	if (init_state >= 10)
+		avia_gt_pig_exit();
+
+	if (init_state >= 9)
+		avia_gt_capture_exit();
+
+	if (init_state >= 8)
 		avia_gt_pcm_exit();
-	
-    if (init_state >= 7)
+
+	if (init_state >= 7)
 		avia_gt_gv_exit();
 
-    if (init_state >= 6)
+	if (init_state >= 6)
 		avia_gt_dmx_exit();
 #endif
 
-    if (init_state >= 5) {
-    
+	if (init_state >= 5) {
+
 		if (avia_gt_chip(ENX))
-    	    avia_gt_enx_exit();
- 	  	else if (avia_gt_chip(GTX))
+			avia_gt_enx_exit();
+		else if (avia_gt_chip(GTX))
 			avia_gt_gtx_exit();
 
-    }
+	}
 
-    if (init_state >= 4) {
-    
-        if (avia_gt_chip(ENX))
-	    	free_irq(ENX_INTERRUPT, 0);
-    	else if (avia_gt_chip(GTX))
-		    free_irq(GTX_INTERRUPT, 0);
+	if (init_state >= 4) {
 
-    }
+	if (avia_gt_chip(ENX))
+		free_irq(ENX_INTERRUPT, 0);
+	else if (avia_gt_chip(GTX))
+		free_irq(GTX_INTERRUPT, 0);
 
-    if (init_state >= 3)
+	}
+
+	if (init_state >= 3)
 		iounmap(gt_info->mem_addr);
-	
-    if (init_state >= 2)
+
+	if (init_state >= 2)
 		iounmap(gt_info->reg_addr);
-    
-    if (init_state >= 1)
+
+	if (init_state >= 1)
 		kfree(gt_info);
 
 }
