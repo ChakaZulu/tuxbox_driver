@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.5  2001/07/21 19:20:42  gillem
+ *   - fix default values
+ *
  *   Revision 1.4  2001/07/21 18:41:07  gillem
  *   - fix data struct
  *
@@ -34,7 +37,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -415,12 +418,13 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 
 int stv6412_init(struct i2c_client *client)
 {
+	int i;
 	memset((void*)&stv6412_data,0,STV6412_DATA_SIZE);
 
 	/* Data 0 */
 	stv6412_data.t_vol_c = 2;
 	 /* Data 1 */
-	stv6412_data.tc_asc = 1;
+	stv6412_data.v_asc = 1;
 	stv6412_data.c_ag   = 1;
 	/* Data 2 */
 	stv6412_data.t_cm   = 1;
@@ -428,12 +432,12 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.v_cm   = 1;
 	stv6412_data.t_vsc  = 1;
 	/* Data 3 */
-	stv6412_data.fblk     = 1;
-	stv6412_data.rgb_sc   = 1;
-	stv6412_data.rgb_gain = 2;
 	stv6412_data.rgb_tri  = 1;
+	stv6412_data.rgb_gain = 3;
+	stv6412_data.rgb_sc   = 1;
+	stv6412_data.fblk     = 1;
 	/* Data 4 */
-	stv6412_data.v_coc = 1;
+	stv6412_data.v_cgc = 1;
 	/* Data 5 */
 	stv6412_data.e_aig = 1;
 	stv6412_data.t_sb  = 3;
@@ -441,6 +445,9 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.a_in  = 1;
 	stv6412_data.r_out = 1;
 
+	for(i=0;i<7;i++)
+		printk("%02X ",((char*)(&stv6412_data))[i]);
+	printk("\n");
 	return stv6412_set(client);
 }
 
