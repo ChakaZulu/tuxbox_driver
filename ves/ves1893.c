@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.26 2002/06/17 02:45:40 obi Exp $
+   $Id: ves1893.c,v 1.27 2002/07/22 12:37:27 obi Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.27  2002/07/22 12:37:27  obi
+    increased ddelay for diseqc - untested, reported by coronas@gmx.net
+
     Revision 1.26  2002/06/17 02:45:40  obi
     added comments
 
@@ -216,7 +219,7 @@ static inline void ddelay(int i)
 static void ClrBit1893(struct i2c_client *client)
 {
 	dprintk("clrbit1893\n");
-	ddelay(2);
+	ddelay(5);
 	writereg(client, 0, Init1893Tab[0] & 0xfe);
 	writereg(client, 0, Init1893Tab[0]);
 	writereg(client, 3, 0);
