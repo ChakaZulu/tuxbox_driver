@@ -187,7 +187,7 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 
 	if (tuner_type == 1) {
 		buf[2] |= (div >> 10) & 0x60;
-		Buf[3] = (freq < 174000000 ? 0x88 :
+		buf[3] = (freq < 174000000 ? 0x88 :
 			  freq < 470000000 ? 0x84 : 0x81);
 	} else {
 		buf[3] = (freq < 174000000 ? 0xa1 :
