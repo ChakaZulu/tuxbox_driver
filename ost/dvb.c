@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.12 2001/03/08 21:00:49 gillem Exp $
+ * $Id: dvb.c,v 1.13 2001/03/10 12:21:42 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -39,6 +39,7 @@
 
 
 #include <ost/audio.h>
+#include <ost/ca.h>
 #include <ost/demux.h>
 #include <ost/dmx.h>
 #include <ost/frontend.h>
@@ -50,6 +51,7 @@
 #include <dbox/fp.h>
 #include <dbox/gtx-dmx.h>
 #include <dbox/avia.h>
+#include <dbox/cam.h>
 
 #include "dvbdev.h"
 #include "dmxdev.h"
@@ -664,6 +666,19 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	}
   case DVB_DEVICE_DEMUX:
     return DmxDevIoctl(&dvb->dmxdev, file, cmd, arg);
+
+	case DVB_DEVICE_CA:
+	{
+		switch (cmd)
+		{
+			case CA_RESET:
+				cam_reset();
+				break;
+			default:
+				return -EINVAL;
+		}
+	}
+
   default:
     return -EOPNOTSUPP;
   }
