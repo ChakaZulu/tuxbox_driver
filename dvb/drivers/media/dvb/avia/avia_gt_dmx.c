@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.153  2002/11/23 20:19:43  McClean
+ *   fix no audio bux
+ *
  *   Revision 1.152  2002/11/21 21:44:29  Jolt
  *   Cleanups
  *
@@ -266,7 +269,7 @@
  *
  *
  *
- *   $Revision: 1.152 $
+ *   $Revision: 1.153 $
  *
  */
 
@@ -1732,7 +1735,7 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 		
 	// Special case for SPTS audio queue
 	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == AVIA_GT_DMX_QUEUE_MODE_TS))
-		target_queue_nr = AVIA_GT_DMX_QUEUE_AUDIO;
+		target_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO;
 	else
 		target_queue_nr = queue_nr;
 
@@ -2233,7 +2236,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.152 2002/11/21 21:44:29 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.153 2002/11/23 20:19:43 McClean Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
