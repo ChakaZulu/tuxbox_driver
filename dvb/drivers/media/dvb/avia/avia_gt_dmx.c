@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.193 2003/11/14 18:15:37 kerlimann Exp $
+ * $Id: avia_gt_dmx.c,v 1.194 2003/11/17 08:22:21 diemade Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -56,6 +56,7 @@ static volatile u16 *riscram;
 static volatile u16 *pst;
 static volatile u16 *ppct; 
 static char *ucode;
+static int hw_sections = 1;
 static int force_stc_reload;
 static sAviaGtDmxQueue queue_list[AVIA_GT_DMX_QUEUE_COUNT];
 static s8 section_filter_umap[32];
@@ -2009,10 +2010,7 @@ void avia_gt_dmx_set_ucode_info(void)
 	case 0x0014:
  		ucode_info.caps = (AVIA_GT_UCODE_CAP_ECD |
  			AVIA_GT_UCODE_CAP_PES |
-//
-// this one is pretty experimental yet, beware!
-// 			AVIA_GT_UCODE_CAP_SEC |
-//
+ 			AVIA_GT_UCODE_CAP_SEC |
  			AVIA_GT_UCODE_CAP_TS);
 		ucode_info.qid_offset = 1;
 		ucode_info.queue_mode_pes = 3;
@@ -2041,6 +2039,15 @@ void avia_gt_dmx_set_ucode_info(void)
 		ucode_info.queue_mode_pes = 3;
 		break;
 	}
+
+	if (!hw_sections)
+		ucode_info.caps &= ~AVIA_GT_UCODE_CAP_SEC;
+
+	if ((ucode_info.caps & AVIA_GT_UCODE_CAP_SEC) == AVIA_GT_UCODE_CAP_SEC)
+		printk(KERN_INFO "avia_gt_dmx: hw section filters enabled.\n");
+	else
+		printk(KERN_INFO "avia_gt_dmx: hw section filters disabled.\n");
+
 }
 
 struct avia_gt_ucode_info *avia_gt_dmx_get_ucode_info(void)
@@ -2055,7 +2062,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.193 2003/11/14 18:15:37 kerlimann Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.194 2003/11/17 08:22:21 diemade Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2193,6 +2200,8 @@ MODULE_LICENSE("GPL");
 #endif
 MODULE_PARM(ucode, "s");
 MODULE_PARM_DESC(ucode, "path to risc microcode");
+MODULE_PARM(hw_sections, "i");
+MODULE_PARM_DESC(hw_sections, "hw_sections: 0=disabled, 1=enabled if possible (default)");
 
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_audio);
 EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_message);
