@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.6  2001/02/24 11:09:39  gillem
+ *   - change osd stuff
+ *
  *   Revision 1.5  2001/02/17 19:50:14  gillem
  *   - bugfix ...
  *
@@ -59,7 +62,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -254,6 +257,8 @@ static void load_dram_image(u32 *microcode,u32 section_start)
 	words=endian_swap(microcode[section_start+UX_SECTION_LENGTH_OFFSET])/4;
 	dst=endian_swap(microcode[section_start+UX_SECTION_WRITE_ADDR_OFFSET]);
 	src=microcode+section_start+UX_SECTION_DATA_OFFSET;
+
+	dprintk("AVIA: Microcode at: %08X (%08X)\n",(u32)dst,(u32)words*4);
 
 	dram_memcpyw(dst, src, words);
 
@@ -643,10 +648,10 @@ static void avia_audio_init(void)
 	/* AUDIO_ATTENUATION */
 	wDR(AUDIO_ATTENUATION, 0);
 
-	wDR(0xEC, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
-	wDR(0xE8, 2);                 // AUDIO_DAC_MODE
+	wDR(AUDIO_CLOCK_SELECTION, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
+	wDR(AUDIO_DAC_MODE, 2);                 // AUDIO_DAC_MODE
 //	wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
-	wDR(0xE0, 0x70F);
+	wDR(AUDIO_CONFIG, 0x70F);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -715,11 +720,11 @@ void avia_set_default(void)
     wDR(USER_DATA_BUFFER_END,0);
 
 	/* osd */
-	wDR(DISABLE_OSD, 0 );
-	wDR(OSD_BUFFER_START, 0 );
-	wDR(OSD_BUFFER_END,   0 );
-	wDR(OSD_EVEN_FIELD, 0 );
-	wDR(OSD_ODD_FIELD, 0 );
+	wDR(DISABLE_OSD, 0);
+
+	/* disable osd */
+	wDR(OSD_EVEN_FIELD, 0);
+	wDR(OSD_ODD_FIELD, 0);
 
 	wDR(0x64, 0);
 	wDR(DRAM_INFO, 0);
@@ -1019,6 +1024,13 @@ static int init_avia(void)
 		free_irq(AVIA_INTERRUPT, &dev);
 		return -EIO;
 	}
+
+	avia_wait(avia_command(Abort, 0));
+
+//	wDR(OSD_BUFFER_START, 0x1f0000);
+//	wDR(OSD_BUFFER_END,   0x200000);
+
+	avia_wait(avia_command(Reset));
 
 	/* TODO: better handling */
 	if (avia_wait(avia_command(SetStreamType, 0xB))==-1)
