@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.9  2001/04/01 10:54:01  gillem
+ *   - fix mixer device
+ *
  *   Revision 1.8  2001/03/31 20:21:58  gillem
  *   - add mixer stuff
  *
@@ -46,7 +49,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -153,6 +156,17 @@ MODULE_PARM(type,"i");
 
 /* ---------------------------------------------------------------------- */
 
+static const struct {
+  unsigned volidx:4;
+  unsigned left:4;
+  unsigned right:4;
+  unsigned stereo:1;
+  unsigned recmask:13;
+  unsigned avail:1;
+} mixtable[SOUND_MIXER_NRDEVICES] = {
+  [SOUND_MIXER_VOLUME] = { 0, 0x0, 0x0, 0, 0x0000, 1 },   /* master */
+};
+
 static loff_t avs_llseek_mixdev(struct file *file, loff_t offset, int origin)
 {
 	return -ESPIPE;
@@ -165,21 +179,34 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 
 	if (_SIOC_DIR(cmd) == _SIOC_READ)
 	{
+		printk("mixer: READ\n");
 		switch (_IOC_NR(cmd))
 		{
 			case SOUND_MIXER_RECSRC:
+				printk("mixer: 1\n");
 				return put_user(0,(int *)arg);
 			case SOUND_MIXER_DEVMASK:
+				printk("mixer: 2\n");
 				return put_user(1,(int *)arg);
 			case SOUND_MIXER_RECMASK:
+				printk("mixer: 3\n");
 				return put_user(0,(int *)arg);
 			case SOUND_MIXER_STEREODEVS:
+				printk("mixer: 4\n");
 				return put_user(0,(int *)arg);
 			case SOUND_MIXER_CAPS:
+				printk("mixer: 5\n");
 				return put_user(0,(int *)arg);
 			case SOUND_MIXER_IMIX:
-				return put_user(0,(int *)arg);
+				return -EINVAL;
 			default:
+				i = _IOC_NR(cmd);
+
+				if (i >= SOUND_MIXER_NRDEVICES || !mixtable[i].avail)
+				{
+					return -EINVAL;
+				}
+
 				switch (type)
 				{
 					case CXA2092:
@@ -192,27 +219,31 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 						return -EINVAL;
 				}
 
-				l=(100/63)*(63-l);
+				l = (((63-l)*100)/63);
 				return put_user(l,(int *)arg);
 		}
 	}
+
 
 	if (_SIOC_DIR(cmd) != (_SIOC_READ|_SIOC_WRITE))
 	{
 		return -EINVAL;
 	}
 
+	printk("mixer: write\n");
 	switch (_IOC_NR(cmd))
 	{
 		case SOUND_MIXER_IMIX:
-			return -EINVAL;
+				return -EINVAL;
 		case SOUND_MIXER_RECSRC:
 			return -EINVAL;
 		default:
 			i = _IOC_NR(cmd);
 
-			if (i > 1)
+			if (i >= SOUND_MIXER_NRDEVICES || !mixtable[i].avail)
+			{
 				return -EINVAL;
+			}
 
 			if(get_user(val, (int *)arg))
 				return -EFAULT;
@@ -222,7 +253,7 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 			if (l > 100)
 				l = 100;
 
-			l=63-(int)((63/100)*l);
+			l = (63-((63*l)/100));
 
 			switch (type)
 			{
@@ -235,7 +266,7 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 				default:
 					return -EINVAL;
 			}
-	}
+    }
 
 	return 0;
 }
