@@ -21,6 +21,10 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.33  2001/10/30 23:17:26  derget
+ *
+ *   FP_IOCTL_POWEROFF für sagem eingebaut
+ *
  *   Revision 1.32  2001/10/30 13:40:55  derget
  *   sagem restart
  *
@@ -100,7 +104,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.32 $
+ *   $Revision: 1.33 $
  *
  */
 
@@ -137,6 +141,7 @@
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
 #endif
+
 
 static devfs_handle_t devfs_handle[2];
 static int sec_bus_status=0;
@@ -274,8 +279,9 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					break;
 
 				case FP_IOCTL_POWEROFF:
-					return fp_sendcmd(defdata->client, 0, 3);
-					break;
+					fp_sendcmd(defdata->client, 0, 3);
+					return fp_sendcmd(defdata->client, 0, 0);
+					break; 
 
 				case FP_IOCTL_LCD_DIMM:
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
@@ -1167,3 +1173,5 @@ void cleanup_module(void)
 #endif
 
 /* ------------------------------------------------------------------------- */
+
+
