@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.118 $
+ *   $Revision: 1.119 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.119  2002/09/13 19:23:40  Jolt
+ *   NAPI cleanup
+ *
  *   Revision 1.118  2002/09/13 19:00:49  Jolt
  *   Changed queue handling
  *
@@ -767,6 +770,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int ccn = (int)0;
 	gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
+	u8 section_header[3];
 
 			if (gtxfeed->state!=DMX_STATE_GO)
 			{
@@ -862,11 +866,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						// handle prefiltered section
 						case DMX_TYPE_HW_SEC:
-						{
-						
-							unsigned len;
-							unsigned needed;
-							u8 section_header[3];
 
 							while (queue_info->bytes_avail(queue_nr) >= 3) {
 							
@@ -897,30 +896,30 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									return;
 									
 								}
-								
-								needed = gtxfeed->sec_len - gtxfeed->sec_recv;
-								
-								len = (queue_info->bytes_avail(queue_nr) > needed) ? needed : queue_info->bytes_avail(queue_nr);
-								queue_info->move_data(queue_nr, gtxfeed->sec_buffer + gtxfeed->sec_recv, len, 0);
-								needed -= len;
-								gtxfeed->sec_recv += len;
 
-								if (needed == 0) {
+								if (gtxfeed->sec_len > queue_info->bytes_avail(queue_nr)) {
 								
-									if (gtx_handle_section(gtxfeed) == 0) {
+									dprintk(KERN_ERR "avia_gt_napi: incomplete section: want %d have %d!\n", gtxfeed->sec_len, queue_info->bytes_avail(queue_nr));
 									
-										gtxfeed->filter->invalid = 1;
-										dmx_set_filter(gtxfeed->filter);
-										gtxfeed->filter->invalid = 0;
-										avia_gt_dmx_queue_reset(queue_nr);
-										dmx_set_filter(gtxfeed->filter);
-
-										return;
-										
-									}
+									return;
 									
 								}
 								
+								queue_info->move_data(queue_nr, gtxfeed->sec_buffer, gtxfeed->sec_len, 0);
+								gtxfeed->sec_recv = gtxfeed->sec_len;
+								
+								if (gtx_handle_section(gtxfeed) == 0) {
+									
+									gtxfeed->filter->invalid = 1;
+									dmx_set_filter(gtxfeed->filter);
+									gtxfeed->filter->invalid = 0;
+									avia_gt_dmx_queue_reset(queue_nr);
+									dmx_set_filter(gtxfeed->filter);
+
+									return;
+
+								}
+
 							}
 
 							while (queue_info->bytes_avail(queue_nr)) {
@@ -939,8 +938,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								}
 								
 							}
-							
-						}
+
 						break;
 
 						// handle section
@@ -1850,7 +1848,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.118 2002/09/13 19:00:49 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.119 2002/09/13 19:23:40 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
