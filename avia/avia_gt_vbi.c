@@ -66,11 +66,6 @@ static dmx_demux_t *dmx_demux;
 static void avia_gt_vbi_reset(unsigned char reenable)
 {
 
-	if (avia_gt_chip(ENX))
-		enx_reg_set(RSTR0, TTX, 1);
-	else if (avia_gt_chip(GTX))
-		gtx_reg_set(RR1, TTX, 1);
-
 	if (reenable) {
 
 		if (avia_gt_chip(ENX))
@@ -78,6 +73,13 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 		else if (avia_gt_chip(GTX))
 			gtx_reg_set(RR1, TTX, 0);
 
+	}
+	else
+	{
+		if (avia_gt_chip(ENX))
+			enx_reg_set(RSTR0, TTX, 1);
+		else if (avia_gt_chip(GTX))
+			gtx_reg_set(RR1, TTX, 1);
 	}
 
 }
@@ -87,8 +89,6 @@ static int avia_gt_vbi_stop_vtxt(void)
 
 	if (active_vtxt_pid >= 0) {
 
-		avia_gt_vbi_reset(0);
-
 		if (feed_vtxt->stop_filtering(feed_vtxt) < 0) {
 
 			printk("avia_gt_vbi: error while stoping vtxt feed\n");
@@ -96,6 +96,8 @@ static int avia_gt_vbi_stop_vtxt(void)
 			return -EIO;
 
 		}
+
+		avia_gt_vbi_reset(0);
 
 		active_vtxt_pid = -1;
 
@@ -110,7 +112,7 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
 	struct timespec timeout;
 
-	avia_gt_vbi_stop_vtxt();
+//	avia_gt_vbi_stop_vtxt();
 
 	if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
 
@@ -188,7 +190,7 @@ static int __init avia_gt_vbi_init(void)
 
 	struct list_head *dmx_list;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.12 2002/06/07 18:06:03 Jolt Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.13 2002/06/12 16:29:29 LazyT Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.22  2002/06/12 16:28:51  LazyT
+ *   fixed VBI insertion
+ *
  *   Revision 1.21  2002/06/11 15:31:49  Jolt
  *   VBI stuff
  *
@@ -81,7 +84,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -926,6 +929,13 @@ int saa7126_init(void)
 	}
 
 	i2c_add_driver(&driver);
+
+	/* setup teletext timings for pal*/
+	saa7126_write_register(0x73, 0x42);
+	saa7126_write_register(0x76, 0x05);
+	saa7126_write_register(0x77, 0x16);
+	saa7126_write_register(0x78, 0x04);
+	saa7126_write_register(0x79, 0x16);
 
 	return 0;
 }
