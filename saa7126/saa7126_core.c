@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.7  2001/03/03 18:00:45  waldi
+ *   complete change to devfs; doesn't compile without devfs
+ *
  *   Revision 1.6  2001/02/11 21:29:12  gillem
  *   - add ioctl SAAIOSOUT (output control)
  *
@@ -33,7 +36,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -65,6 +68,12 @@
 #include <linux/video_encoder.h>
 
 #include "saa7126_core.h"
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+static devfs_handle_t devfs_handle;
 
 #define DEBUG(x)   x		/* Debug driver */
 
@@ -663,10 +672,18 @@ int saa7126_init(void)
 		return -EIO;
 	}
 
-	if ( register_chrdev(SAA7126_MAJOR,"pal",&saa7126_fops) ) {
-		printk("saa7126.o: unable to get major %d\n", SAA7126_MAJOR);
-		return -EIO;
-	}
+//	if ( register_chrdev(SAA7126_MAJOR,"pal",&saa7126_fops) ) {
+//		printk("saa7126.o: unable to get major %d\n", SAA7126_MAJOR);
+//		return -EIO;
+//	}
+
+  devfs_handle =
+    devfs_register ( NULL, "dbox/saa0", DEVFS_FL_DEFAULT, 0, 0,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &saa7126_fops, NULL );
+
+  if ( ! devfs_handle )
+    return -EIO;
 
 	i2c_add_driver(&driver);
 
@@ -678,9 +695,11 @@ void cleanup_module(void)
 {
 	i2c_del_driver(&driver);
 
-	if ( unregister_chrdev(SAA7126_MAJOR,"pal") ) {
-		printk("saa7126.o: unable to release major %d\n", SAA7126_MAJOR);
-	}
+  devfs_unregister ( devfs_handle );
+
+//	if ( unregister_chrdev(SAA7126_MAJOR,"pal") ) {
+//		printk("saa7126.o: unable to release major %d\n", SAA7126_MAJOR);
+//	}
 
 	return;
 }

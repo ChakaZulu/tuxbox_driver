@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.10  2001/03/03 18:00:28  waldi
+ *   complete change to devfs; doesn't compile without devfs
+ *
  *   Revision 1.9  2001/01/28 19:47:12  gillem
  *   - fix setpos ...
  *
@@ -39,7 +42,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -67,6 +70,14 @@
 
 #include "lcd-ks0713.h"
 #include "lcd-console.h"
+
+#include <linux/devfs_fs_kernel.h>
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+static devfs_handle_t devfs_handle;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -112,7 +123,7 @@ static struct file_operations lcd_fops = {
 
 static struct file_vars f_vars;
 
-static int lcd_initialized;
+//static int lcd_initialized;
 
 static int LCD_MODE;
 
@@ -832,15 +843,27 @@ int __init lcd_init(void)
 
 	printk("lcd.o: LCD driver (KS0713) module\n");
 
-	lcd_initialized = 0;
-	if (register_chrdev(LCD_MAJOR,"lcd",&lcd_fops)) {
-		printk("lcd.o: unable to get major %d\n", LCD_MAJOR);
-		return -EIO;
-	}
-	lcd_initialized ++;
+//	lcd_initialized = 0;
+//	if (register_chrdev(LCD_MAJOR,"lcd",&lcd_fops)) {
+//		printk("lcd.o: unable to get major %d\n", LCD_MAJOR);
+//		return -EIO;
+//	}
 
-    if ( (immap = (immap_t *)CFG_IMMR) == NULL )
-        return -EIO;
+  devfs_handle =
+    devfs_register ( NULL, "dbox/lcd0", DEVFS_FL_DEFAULT, 0, 0,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &lcd_fops, NULL );
+
+  if ( ! devfs_handle )
+    return -EIO;
+
+//  lcd_initialized ++;
+
+  if ( ( immap = ( immap_t * ) CFG_IMMR ) == NULL )
+  {  
+    devfs_unregister ( devfs_handle );
+    return -EIO;
+  }
 
 	iop = (iop8xx_t *)&immap->im_ioport;
 
@@ -866,14 +889,17 @@ int lcd_cleanup(void)
 {
 	int res;
 
-	if (lcd_initialized >= 1) {
-		if ((res = unregister_chrdev(LCD_MAJOR,"lcd"))) {
-			printk("lcd.o: unable to release major %d\n", LCD_MAJOR );
-			return res;
-		}
-		lcd_initialized --;
-	}
-	return 0;
+//	if (lcd_initialized >= 1) {
+//		if ((res = unregister_chrdev(LCD_MAJOR,"lcd"))) {
+//			printk("lcd.o: unable to release major %d\n", LCD_MAJOR );
+//			return res;
+//		}
+//		lcd_initialized --;
+//	}
+
+  devfs_unregister ( devfs_handle );
+
+  return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

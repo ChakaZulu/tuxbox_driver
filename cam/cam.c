@@ -21,11 +21,14 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.4  2001/03/03 18:01:06  waldi
+ *   complete change to devfs; doesn't compile without devfs
+ *
  *   Revision 1.3  2001/03/03 13:03:04  gillem
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -58,6 +61,14 @@
 #include <asm/semaphore.h>
 
 #include <dbox/fp.h>
+
+#include <linux/devfs_fs_kernel.h>
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+static devfs_handle_t devfs_handle[3];
 
 /* ---------------------------------------------------------------------- */
 
@@ -580,11 +591,42 @@ int cam_init(void)
 
 	vfree(microcode);
 
-	if (register_chrdev(CAM_MAJOR, "cam", &cam_fops))
-	{
-		printk("cam.o: unable to get major %d\n", CAM_MAJOR);
-		return -EIO;
-	}
+//	if (register_chrdev(CAM_MAJOR, "cam", &cam_fops))
+//	{
+//		printk("cam.o: unable to get major %d\n", CAM_MAJOR);
+//		return -EIO;
+//	}
+
+  devfs_handle[CAM_CODE_MINOR] =
+    devfs_register ( NULL, "dbox/cam-code0", DEVFS_FL_DEFAULT, 0, CAM_CODE_MINOR,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &cam_fops, NULL );
+
+  if ( ! devfs_handle[CAM_CODE_MINOR] )
+    return -EIO;
+
+  devfs_handle[CAM_DATA_MINOR] =
+    devfs_register ( NULL, "dbox/cam-data0", DEVFS_FL_DEFAULT, 0, CAM_DATA_MINOR,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &cam_fops, NULL );
+
+  if ( ! devfs_handle[CAM_DATA_MINOR] )
+  {
+    devfs_unregister ( devfs_handle[CAM_CODE_MINOR] );
+    return -EIO;
+  }
+
+  devfs_handle[CAM_MINOR] =
+    devfs_register ( NULL, "dbox/cam0", DEVFS_FL_DEFAULT, 0, CAM_MINOR,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &cam_fops, NULL );
+
+  if ( ! devfs_handle[CAM_MINOR] )
+  {
+    devfs_unregister ( devfs_handle[CAM_CODE_MINOR] );
+    devfs_unregister ( devfs_handle[CAM_DATA_MINOR] );
+    return -EIO;
+  }
 
 	if ((res = i2c_add_driver(&cam_driver)))
 	{
@@ -593,13 +635,16 @@ int cam_init(void)
 		return res;
 	}
 
-	if (!dclient)
-	{
-		unregister_chrdev(CAM_MAJOR, "cam");
-		i2c_del_driver(&cam_driver);
-		printk("CAM: cam not found.\n");
-		return -EBUSY;
-	}
+  if ( ! dclient )
+  {
+    //unregister_chrdev(CAM_MAJOR, "cam");
+    devfs_unregister ( devfs_handle[CAM_CODE_MINOR] );
+    devfs_unregister ( devfs_handle[CAM_DATA_MINOR] );
+    devfs_unregister ( devfs_handle[CAM_MINOR] );
+    i2c_del_driver ( &cam_driver );
+    printk ( "CAM: cam not found.\n" );
+    return -EBUSY;
+  }
 
 	up(&cam_busy);
 
@@ -617,10 +662,14 @@ void cam_fini(void)
 {
 	int res;
 
-	if ((res=unregister_chrdev(CAM_MAJOR, "cam")))
-	{
-		printk("cam.o: unable to release major %d\n", CAM_MAJOR);
-	}
+//	if ((res=unregister_chrdev(CAM_MAJOR, "cam")))
+//	{
+//		printk("cam.o: unable to release major %d\n", CAM_MAJOR);
+//	}
+
+  devfs_unregister ( devfs_handle[CAM_CODE_MINOR] );
+  devfs_unregister ( devfs_handle[CAM_DATA_MINOR] );
+  devfs_unregister ( devfs_handle[CAM_MINOR] );
 
 	free_irq(CAM_INTERRUPT, THIS_MODULE);
 	schedule(); // HACK: let all task queues run.
