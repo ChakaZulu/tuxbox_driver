@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.40  2002/11/12 22:59:35  Jolt
+ *   AViA crash[TM] handler
+ *
  *   Revision 1.39  2002/11/05 22:03:25  Jolt
  *   Decoder work
  *
@@ -173,7 +176,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.39 $
+ *   $Revision: 1.40 $
  *
  */
 
@@ -650,7 +653,9 @@ u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 static u32 avia_cmd_status_get_addr(void)
 {
 
-	while (!rDR(0x5C))
+	u64 timeout = jiffies + HZ * 2;
+
+	while ((!rDR(0x5C)) && (time_before(jiffies, timeout)))
 		schedule();
 
 	return rDR(0x5C);
@@ -666,7 +671,10 @@ u32 avia_command(u32 command, ...)
 	
 	if (!avia_cmd_status_get_addr()) {
 	
-		printk(KERN_ERR "avia_av: timeout.\n");
+		printk(KERN_ERR "avia_av: status timeout - chip not ready for new command\n");
+		
+		avia_standby(1);
+		avia_standby(0);
 		
 		return 0;
 		
@@ -693,10 +701,13 @@ u32 avia_command(u32 command, ...)
 	spin_unlock_irq(&avia_lock);
 
 	va_end(ap);
-	
+
 	if (!(status_addr = avia_cmd_status_get_addr())) {
 	
-		printk(KERN_ERR "avia_av: timeout.\n");
+		printk(KERN_ERR "avia_av: status timeout - chip didn't accept command 0x%X\n", command);
+
+		avia_standby(1);
+		avia_standby(0);
 		
 		return 0;
 		
@@ -1498,7 +1509,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.39 2002/11/05 22:03:25 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.40 2002/11/12 22:59:35 Jolt Exp $\n");
 
 	aviamem = 0;
 
