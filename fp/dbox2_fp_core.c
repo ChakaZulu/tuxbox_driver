@@ -21,6 +21,11 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.71  2002/10/08 19:42:06  Zwen
+ *   - Wakeup fuer sagem/phillips implementiert
+ *   - neuer IOCTL: FP_IOCTL_CLEAR_WAKEUP_TIMER loescht den wakeup-timer eines vorherigen wakeups
+ *     sollte nach wakeup mind. 1 mal ausgefuehrt werden -> ioctl(fd,  FP_IOCTL_CLEAR_WAKEUP_TIMER, NULL)
+ *
  *   Revision 1.70  2002/05/27 18:11:47  happydude
  *   make led on/off work on Nokia
  *
@@ -224,7 +229,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.70 $
+ *   $Revision: 1.71 $
  *
  */
 
@@ -313,7 +318,10 @@ fp:
 #define I2C_FP_DRIVERID     0xF060
 #define RCBUFFERSIZE	16
 #define FP_GETID	    0x1D
-#define FP_WAKEUP						0x11
+#define FP_WAKEUP		0x11
+#define FP_WAKEUP_SAGEM		0x01
+#define FP_CLEAR_WAKEUP		0x11
+#define FP_CLEAR_WAKEUP_SAGEM	0x20
 
 /* ---------------------------------------------------------------------- */
 
@@ -364,6 +372,7 @@ static int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1);
 static void fp_check_queues(void);
 static int fp_set_wakeup_timer(int minutes);
 static int fp_get_wakeup_timer(void);
+static int fp_clear_wakeup_timer(void);
 
 static void fp_restart(char *cmd);
 static void fp_power_off(void);
@@ -452,7 +461,7 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 		  unsigned long arg)
 {
 	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-    int val;
+	int val;
 
 	switch (minor)
 	{
@@ -507,6 +516,8 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					if (copy_from_user(&val, (void*)arg, sizeof(val)) )
 						return -EFAULT;
 					return fp_set_wakeup_timer(val);
+				case FP_IOCTL_CLEAR_WAKEUP_TIMER:
+					return fp_clear_wakeup_timer();
 				case FP_IOCTL_GET_VCR:
 					if (copy_to_user((void*)arg, &defdata->fpVCR, sizeof(defdata->fpVCR)))
 						return -EFAULT;
@@ -1746,36 +1757,51 @@ int fp_set_sec(int power,int tone)
 
 static int fp_set_wakeup_timer(int minutes)
 {
+	u8 cmd[3]={0x00, minutes&0xFF, minutes>>8};
 	if (info.fpREV<0x80)
 	{
-		dprintk("fp.o: fp_set_wakeup_timer on sagem/philips nyi\n");
-		return -1;
+		cmd[0]=FP_WAKEUP_SAGEM;
 	} else
 	{
-		u8 cmd[3]={0x11, minutes&0xFF, minutes>>8};
-
+		cmd[0]=FP_WAKEUP;
+	}
 		if (i2c_master_send(defdata->client, cmd, 3)!=3)
 			return -1;
 
 		return 0;
-	}
 }
+
 
 static int fp_get_wakeup_timer()
 {
+	u8 id[2]={0, 0};
 	if (info.fpREV<0x80)
 	{
-		dprintk("fp.o: fp_set_wakeup_timer on sagem/philips nyi\n");
-		return -1;
+		if (fp_cmd(defdata->client, FP_WAKEUP_SAGEM, id, 2))
+			return -1;
 	} else
 	{
-		u8 id[2]={0, 0};
 
 		if (fp_cmd(defdata->client, FP_WAKEUP, id, 2))
 			return -1;
-
-		return id[0]+id[1]*256;
 	}
+	return id[0]+id[1]*256;
+}
+
+static int fp_clear_wakeup_timer()
+{
+	u8 id[2]={0, 0};
+	if (info.fpREV<0x80)
+	{
+		if (fp_cmd(defdata->client, FP_CLEAR_WAKEUP_SAGEM, id, 2))
+			return -1;
+	} else
+	{
+
+		if (fp_cmd(defdata->client, FP_CLEAR_WAKEUP, id, 2))
+			return -1;
+	}
+	return 0;
 }
 
 /* ------------------------------------------------------------------------- */
