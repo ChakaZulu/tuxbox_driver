@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.72 2003/08/08 17:03:39 obi Exp $
+ * $Id: avia_av_core.c,v 1.73 2003/09/08 11:31:15 alexw Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1038,10 +1038,7 @@ void avia_av_bypass_mode_set(const u8 enable)
 	 */
 
 	if (aviarev)
-	{
 		avia_av_cmd(Abort, 0x00);
-		return; /* Fix: Kernel oops AVIA 500*/
-	}
 
 	if (enable)
 		avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) & ~1);
@@ -1322,7 +1319,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.72 2003/08/08 17:03:39 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.73 2003/09/08 11:31:15 alexw Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
