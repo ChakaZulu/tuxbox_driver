@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.52 2003/11/06 14:25:59 tklamm Exp $
+ * $Id: avia_gt_fb_core.c,v 1.53 2003/12/22 04:02:05 obi Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -151,7 +151,7 @@ int avia_gt_fb_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, str
 
 	fix->line_length = par->stride;
 	fix->smem_start = (unsigned long)fb_info.pvideobase;
-	fix->smem_len = 1024 * 1024;	/* FIXME: AVIA_GT_MEM_GV_SIZE? */
+	fix->smem_len = (AVIA_GT_MEM_GV_SIZE + PAGE_SIZE) & PAGE_MASK;
 
 	fix->xpanstep = 0;
 	fix->ypanstep = 1;
@@ -160,12 +160,12 @@ int avia_gt_fb_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, str
 	if (avia_gt_chip(GTX)) {
 		fix->accel = FB_ACCEL_CCUBE_AVIA_GTX;
 		fix->mmio_start = (unsigned long)GTX_REG_BASE;
-		fix->mmio_len = 0x10000; /* FIXME: GTX_REG_SIZE? */
+		fix->mmio_len = (GTX_REG_SIZE + PAGE_SIZE) & PAGE_MASK;
 	}
 	else if (avia_gt_chip(ENX)) {
 		fix->accel = FB_ACCEL_CCUBE_AVIA_ENX;
 		fix->mmio_start = (unsigned long)ENX_REG_BASE;
-		fix->mmio_len = 0x10000; /* FIXME: ENX_REG_SIZE? */
+		fix->mmio_len = (ENX_REG_SIZE + PAGE_SIZE) & PAGE_MASK;
 	}
 
 	return 0;
@@ -378,7 +378,7 @@ int avia_gt_fb_pan_display(const struct fb_var_screeninfo *var, struct fb_info_g
 
 	sAviaGtInfo *gt_info = avia_gt_get_info();
 	
-	__u32 display_start = 1024*1024 + (var->yoffset * var->xres_virtual);
+	__u32 display_start = fb_info.offset + (var->yoffset * var->xres_virtual);
 	
 	if (avia_gt_chip(GTX))
 		gtx_reg_32(GVSA) = display_start;
@@ -499,7 +499,7 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.52 2003/11/06 14:25:59 tklamm Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.53 2003/12/22 04:02:05 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
