@@ -21,6 +21,10 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.29  2001/05/01 02:00:01  TripleDES
+ *   added fp_sagem_set_secpower for LNB-voltage control (H/V)
+ *   -not completed
+ *
  *   Revision 1.28  2001/04/26 17:28:07  Hunz
  *   breakcode-fix
  *
@@ -87,7 +91,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.28 $
+ *   $Revision: 1.29 $
  *
  */
 
@@ -532,7 +536,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 			immap->im_ioport.iop_padat&=~2;
 		}
 
-    fp_sendcmd(new_client, 0x04, 0x71); //sagem needs this
+//    fp_sendcmd(new_client, 0x04, 0x51); //sagem needs this (71) LNB-Voltage 51-V 71-H
 /*    fp_sendcmd(new_client, 0x22, 0xbf);
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
@@ -1018,6 +1022,30 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 }
 
 /* ------------------------------------------------------------------------- */
+int fp_sagem_set_SECpower(int power)
+{
+   char msg[2]={0x4,0x71};
+   
+   if (power > 0) { 
+     if (power == 1)      // 13V
+       msg[1]=0x41;
+     else if (power == 2) // 14V
+       msg[1]=0x51;
+     else if (power == 3) // 18V
+       msg[1]=0x61;
+   }
+   
+   dprintk("fp.o: fp_set_SECpower: %02X\n", msg[1]);
+   sec_bus_status=-1;
+   if (i2c_master_send(defdata->client, msg, 2)!=2)
+     {
+       return -1;
+     }
+   sec_bus_status=0;
+
+   return 0;
+}
+/* ------------------------------------------------------------------------- */
 
 int fp_set_sec(int power,int tone)
 {
@@ -1059,6 +1087,7 @@ EXPORT_SYMBOL(fp_do_reset);
 EXPORT_SYMBOL(fp_cam_reset);
 EXPORT_SYMBOL(fp_send_diseqc);
 EXPORT_SYMBOL(fp_sec_status);
+EXPORT_SYMBOL(fp_sagem_set_SECpower);
 
 /* ------------------------------------------------------------------------- */
 
