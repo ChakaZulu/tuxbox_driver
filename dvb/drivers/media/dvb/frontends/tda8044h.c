@@ -1,5 +1,5 @@
 /* 
- *   $Id: tda8044h.c,v 1.13 2002/08/25 14:15:46 obi Exp $
+ *   $Id: tda8044h.c,v 1.14 2002/08/26 16:29:10 obi Exp $
  *   
  *   tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -23,6 +23,11 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.14  2002/08/26 16:29:10  obi
+ *   - added symbol rate calculation and anti-alias filter selection
+ *   - divided set_sec into set_tone and set_voltage
+ *   - some cleanup
+ *
  *   Revision 1.13  2002/08/25 14:15:46  obi
  *   - BER should work (the higher fbcn (min 0, max F), the higher the bitrange)
  *   - SIGNAL_STRENGTH should work (min 0, max 65535)
@@ -75,7 +80,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -105,15 +110,17 @@ MODULE_PARM(debug,"i");
 
 static DECLARE_MUTEX(i2c_mutex);
 
-static int tda_set_sec(struct i2c_client *client, int power, int tone);
-static int tda_set_freq(struct i2c_client *client, int freq);
-static int tda_send_diseqc(struct i2c_client *client, u8 *cmd,unsigned int len);
+static int tda_set_tone (struct i2c_client * client);
+static int tda_set_voltage (struct i2c_client * client);
+
+static int tda_set_freq (struct i2c_client * client, u32 freq);
+static int tda_send_diseqc (struct i2c_client * client, u8 * cmd, u32 len);
 
 
 static int debug = 0;
 #define dprintk	if (debug) printk
 
-static int instances=0;
+static int instances = 0;
 
 static struct i2c_driver dvbt_driver;
 
@@ -175,7 +182,7 @@ static u8 Init8044Tab[] =
 	0x06,			// General settings
 	0x00,			// Viterbi decoder
 	0x6f, 0xb5, 0x86,	// CLK: ratio
-	0x20,			// CLK: Anti Alias Filter, Roll off
+	0x22,			// CLK: Anti Alias Filter, Roll off
 	0x00,			// Sigma Delta converter
 	0xea,			// FEC: Possible puncturing rates
 
@@ -218,10 +225,15 @@ static u8 Init8044Tab[] =
 
 struct tda8044
 {
-	int inversion, srate, sync, fec;
-	int loopopen;
-	
-	int power, tone;
+	u32 srate;
+	u8 sync;
+
+	CodeRate fec;
+	SpectralInversion inversion;
+
+	secVoltage power;
+	secToneMode tone;
+
 	dvb_front_t frontend;
 };
 
@@ -279,7 +291,7 @@ u8 readreg(struct i2c_client *client, u8 reg)
 
 /* ---------------------------------------------------------------------- */
 
-static u8 fbcn = 0x5;
+static u8 fbcn = 0xF;
 
 int init(struct i2c_client *client)
 {
@@ -309,91 +321,173 @@ int init(struct i2c_client *client)
 		if (writereg(client, i, Init8044Tab[i])<0)
 			return -1;
 	
-	tda->inversion=0;
-	tda->power=0;
-	tda->srate=0;
+	tda->inversion = INVERSION_AUTO;
+	tda->power = SEC_VOLTAGE_OFF;
+	tda->srate = 27500000;
 
 	return 0;
 }
 
-static void SetSymbolrate(struct i2c_client *client, u32 Symbolrate, int FEC)
+static void SetSymbolrate (struct i2c_client * client)
 {
-	struct tda8044 *tda=(struct tda8044*)client->data;
-	__u8 srate[16];
-	int i;
-//	long long int ratio=0x2EE0000000;
-		
-	i2c_master_send(client, "\x00\x04", 3);
-	srate[0]=1;
-	srate[1]=0;			// no differential encoding, spectral inversion unknown, QPSK encoding
+	struct tda8044 * tda = (struct tda8044 *) client->data;
 
-//	ratio/=Symbolrate;
-	
-//	srate[2]=(ratio>>16)&0xFF;
-//	srate[3]=(ratio>>8)&0xFF;
-//	srate[4]=(ratio)&0xFF;
-//	srate[5]=0x22;
+	u8 buffer[16];
+	u32 ratio;
 
-	if (Symbolrate==21997000)
-		Symbolrate=22000000;
+	dprintk("%s: setting symbolrate: %d\n", __FILE__, tda->srate);
+
+	/* 1st target */
+	buffer[0x00] = 0x00;
+	/* Interrupt request */
+	buffer[0x01] = 0x04;
 	
-	// super-billig-calc:
-	if (Symbolrate==27500000)
-		memcpy(srate+2, "\x6F\xB5\x87\x22", 4);
-	else if (Symbolrate==22000000)
-		memcpy(srate+2, "\x8b\xa2\xe9\x23", 4);
+	if (i2c_master_send(client, buffer, 2) != 2)
+		printk("%s: i2c_master_send 1 failed!\n", __FILE__);
+
+	/* 2nd target */
+	buffer[0x00] = 0x01;
+
+	/*
+	 * Viterbi decoder:
+	 * Differential decoding off
+	 * Spectral inversion unknown
+	 * QPSK modulation
+	 */
+	buffer[0x01] = 0x00;
+
+	if (tda->inversion == INVERSION_ON)
+		buffer[0x01] |= 0x60;
+	else if (tda->inversion == INVERSION_OFF)
+		buffer[0x01] |= 0x20;
+
+	/*
+	 * CLK ratio:
+	 * 
+	 * system clock frequency is 96000000 Hz
+	 * TODO: calculate better ;)
+	 * formula: 2^21 * freq / symrate
+	 * 
+	 * clock and symbol rate are divided by 100000
+	 * to avoid an integer overflow
+	 */
+	ratio = (2 << 20) * 960 / (tda->srate / 100000);
+	buffer[0x02] = ratio >> 16;
+	buffer[0x03] = ratio >> 8;
+	buffer[0x04] = ratio;
+
+	/* nyquist filter roll-off factor 35% */
+	buffer[0x05] = 0x20;
+
+	/* Anti Alias Filter */
+	if (tda->srate < 4500000)
+		printk("%s: unsupported symbol rate: %d\n", __FILE__, tda->srate);
+	else if (tda->srate <= 6000000)
+		buffer[0x05] |= 0x07;
+	else if (tda->srate <= 9000000)
+		buffer[0x05] |= 0x06;
+	else if (tda->srate <= 12000000)
+		buffer[0x05] |= 0x05;
+	else if (tda->srate <= 18000000)
+		buffer[0x05] |= 0x04;
+	else if (tda->srate <= 24000000)
+		buffer[0x05] |= 0x03;
+	else if (tda->srate <= 36000000)
+		buffer[0x05] |= 0x02;
+	else if (tda->srate <= 45000000)
+		buffer[0x05] |= 0x01;
 	else
-		printk("%s: unsupported symbolrate %d! please fix driver!\n", __FILE__, Symbolrate);
-	
-	srate[6]=0;									// sigma delta
-	if (FEC)
-		dprintk("%s: fec: %02x\n", __FILE__, FEC);
-	switch (FEC)
+		printk("%s: unsupported symbol rate: %d\n", __FILE__, tda->srate);
+
+	/* Sigma Delta converter */
+	buffer[0x06] = 0x00;
+
+	/* FEC: Possible puncturing rates */
+	switch (tda->fec)
 	{
+	case FEC_1_2:
+		buffer[0x07] = 0x80;
+		break;
+		
+	case FEC_2_3:
+		buffer[0x07] = 0x40;
+		break;
+		
+	case FEC_3_4:
+		buffer[0x07] = 0x20;
+		break;
+		
+	case FEC_5_6:
+		buffer[0x07] = 0x08;
+		break;
+		
+	case FEC_7_8:
+		buffer[0x07] = 0x02;
+		break;
+
 	case FEC_AUTO:
 	case FEC_NONE:
-		srate[7]=0xFF;
-		break;
-	case FEC_1_2:
-		srate[7]=0x80;
-		break;
-	case FEC_2_3:
-		srate[7]=0x40;
-		break;
-	case FEC_3_4:
-		srate[7]=0x20;
-		break;
-	case FEC_5_6:
-		srate[7]=0x08;
-		break;
-	case FEC_7_8:
-		srate[7]=0x02;
+	default:
+		buffer[0x07] = 0xFF;
 		break;
 	}
+
+	/* carrier lock detector threshold value */
+	buffer[0x08] = 0x30;
 	
-	srate[8]=0x30;							// carrier lock threshold
-	srate[9]=0x42;							// ??
-	srate[10]=0x98;							// ??
-	srate[11]=0x28;							// PD loop opened
-	srate[12]=0x30;							// ??
-	srate[13]=0x42;
-	srate[14]=0x99;
-	srate[15]=0x50;
+	/* AFC1: proportional part settings */
+	buffer[0x09] = 0x42;
+	
+	/* AFC1: integral part settings */
+	buffer[0x0A] = 0x98;
+	
+	/* PD: Leaky integrator SCPC mode */
+	buffer[0x0B] = 0x28;
 
-	if (i2c_master_send(client, srate, 16)!=16)
-		printk("%s: writeregs failed!\n", __FILE__);
+	/* AFC2, AFC1 controls */
+	buffer[0x0C] = 0x30;
+	
+	/* PD: proportional part settings */
+	buffer[0x0D] = 0x42;
+	
+	/* PD: integral part settings */
+	buffer[0x0E] = 0x99;
+	
+	/* AGC */
+	buffer[0x0F] = 0x50;
 
-	for (i=0; i<16; i++)
-		dprintk("%02x ", srate[i]);
-	dprintk("\n");
+	if (i2c_master_send(client, buffer, 16) != 16)
+		printk("%s: i2c_master_send 2 failed!\n", __FILE__);
 
-	i2c_master_send(client, "\x17\x68\x9a", 3);
-	dprintk("%s: 17 68 9a\n", __FILE__);
+	if (debug)
+	{
+		u8 i;
 
-	i2c_master_send(client, "\x22\xf9", 2);				// SCPC
-	dprintk("%s: 22 f9\n", __FILE__);
+		printk("%s: SetSymbolrate:", __FILE__);
 
-	tda->loopopen=1;
+		for (i = 0; i < 16; i++)
+			printk(" %02x", buffer[i]);
+
+		printk("\n");
+	}
+
+	/* 3rd target */
+	buffer[0x00] = 0x17;
+	/* CLK proportional part */
+	buffer[0x01] = 0x68;
+	/* CLK integral part */
+	buffer[0x02] = 0x9A;
+	
+	if (i2c_master_send(client, buffer, 3) != 3)
+		printk("%s: i2c_master_send 3 failed!\n", __FILE__);
+
+	/* 4th target */
+	buffer[0x00] = 0x22;
+	/* SCPC Frequency offset */
+	buffer[0x01] = 0xF9;
+	
+	if (i2c_master_send(client, buffer, 2) != 2)
+		printk("%s: i2c_master_send 4 failed!\n", __FILE__);
 }
 
 int attach_adapter(struct i2c_adapter *adap)
@@ -536,8 +630,8 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		feinfo->type=FE_QPSK;
 		feinfo->minFrequency=500; 
 		feinfo->maxFrequency=2700000;
-		feinfo->minSymbolRate=500000;
-		feinfo->maxSymbolRate=30000000;
+		feinfo->minSymbolRate=4500000;
+		feinfo->maxSymbolRate=45000000;
 		feinfo->hwType=0;    
 		feinfo->hwVersion=0;
 		break;
@@ -552,122 +646,79 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		u8 *msg = (u8 *) arg;
 		msg[1]=readreg(client, msg[0]);
-
 		break;
 	}
 	case FE_INIT:
 	{
-		init(client);
-		break;
+		return init(client);
 	}
 	case FE_SET_FRONTEND:
 	{
-		FrontendParameters *param = (FrontendParameters *) arg;
+		FrontendParameters * param = (FrontendParameters *) arg;
 
-		// param->Inversion);
-		dprintk("%s: setting symbolrate: %d\n", __FILE__, tda->srate);
-		tda->srate=param->u.qpsk.SymbolRate;
-		tda->fec=param->u.qpsk.FEC_inner;
-		SetSymbolrate(client, tda->srate, tda->fec);
+		tda->srate = param->u.qpsk.SymbolRate;
+		tda->fec = param->u.qpsk.FEC_inner;
+		tda->inversion = param->Inversion;
+		SetSymbolrate(client);
 
-		dprintk("%s: 0b 68 70\n", __FILE__);
-		i2c_master_send(client, "\x0b\x68\x70", 3);		// stop sweep, close loop
+		/* stop sweep, close loop */
+		if (i2c_master_send(client, "\x0b\x68\x70", 3) != 3)
+			printk("%s: i2c_master_send failed\n", __FILE__);
 		break;
 	}
 	case FE_RESET:
 	{
-		break;
+		return -EINVAL;
 	}
 	case FE_SEC_SET_TONE:
 	{
-		secToneMode mode=(secToneMode)arg;
-		tda->tone=(mode==SEC_TONE_ON)?1:0;
-		tda_set_sec(client, tda->power, tda->tone);
-		break;
+		tda->tone = (secToneMode) arg;
+		return tda_set_tone(client);
 	}
 	case FE_SEC_SET_VOLTAGE:
 	{
-		secVoltage volt=(secVoltage)arg;
-		switch (volt)
-		{
-		case SEC_VOLTAGE_OFF:
-			tda->power=0;
-			break;
-		case SEC_VOLTAGE_LT:
-			tda->power=-2;
-			break;
-		case SEC_VOLTAGE_13:
-			tda->power=1;
-			break;
-		case SEC_VOLTAGE_13_5:
-			tda->power=2;
-			break;
-		case SEC_VOLTAGE_18:
-			tda->power=3;
-			break;
-		case SEC_VOLTAGE_18_5:
-			tda->power=4;
-			break;
-		default:
-			dprintk("%s: invalid voltage\n", __FILE__);
-		}
-		tda_set_sec(client, tda->power, tda->tone);
-		break;
+		tda->power = (secVoltage) arg;
+		return tda_set_voltage(client);
 	}
 	case FE_SEC_MINI_COMMAND:
 	{
-		printk("%s: warning, minidiseqc nyi\n", __FILE__);
-		return 0;
+		printk("%s: FIXME: mini diseqc not implemented!\n", __FILE__);
+		return -EINVAL;
 	}
 	case FE_SEC_COMMAND:
 	{
-		struct secCommand *command=(struct secCommand*)arg;
-		switch (command->type) {
-		case SEC_CMDTYPE_DISEQC:
-		{
-			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
-			msg[0]=0xE0;
-			msg[1]=command->u.diseqc.addr;
-			msg[2]=command->u.diseqc.cmd;
-			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			tda_send_diseqc(client, msg, command->u.diseqc.numParams+3);
-			break;
-		}
-                case SEC_CMDTYPE_DISEQC_RAW:
-		{
-			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
-			msg[0]=command->u.diseqc.cmdtype;
-			msg[1]=command->u.diseqc.addr;
-			msg[2]=command->u.diseqc.cmd;
-			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
-			tda_send_diseqc(client, msg, command->u.diseqc.numParams+3);
-			break;
-		}
-		default:
+		struct secCommand * command = (struct secCommand *) arg;
+		u8 msg[SEC_MAX_DISEQC_PARAMS + 3];
+		
+		if (command->type == SEC_CMDTYPE_DISEQC)
+			msg[0] = 0xE0;
+		else if (command->type == SEC_CMDTYPE_DISEQC_RAW)
+			msg[0] = command->u.diseqc.cmdtype;
+		else
 			return -EINVAL;
-		}
-		break;
+
+		msg[1] = command->u.diseqc.addr;
+		msg[2] = command->u.diseqc.cmd;
+		memcpy(msg + 3, command->u.diseqc.params, command->u.diseqc.numParams);
+		return tda_send_diseqc(client, msg, command->u.diseqc.numParams + 3);
 	}
 	case FE_SEC_GET_STATUS:
 	{
-		/*
-		struct secStatus *status=(struct secStatus*)arg;
-		*/
-		break;
+		return -EINVAL;
 	}
 	case FE_SETFREQ:
 	{
-		u32 freq=*(u32*)arg;
+		u32 freq = *(u32 *) arg;
 		return tda_set_freq(client, freq);
 	}
 	default:
-		return -1;
+		return -EINVAL;
 	}
 	
 	return 0;
 }
 
-static int tda_set_freq(struct i2c_client *client, int freq)
+static int tda_set_freq(struct i2c_client *client, u32 freq)
 {
 	int tries=10;
 	u8 msg[4];
@@ -685,7 +736,7 @@ static int tda_set_freq(struct i2c_client *client, int freq)
 	if (i2c_master_send(&tuner, msg, 4)!=4)
 		printk("%s: writereg error\n", __FILE__);
 
-	writereg(client, 0x1C, 0x0);
+	writereg(client, 0x1C, 0x00);
 	
 	while (tries--)
 	{
@@ -695,7 +746,7 @@ static int tda_set_freq(struct i2c_client *client, int freq)
 		if (i2c_master_recv(&tuner, msg, 1)!=1)
 			printk("%s: read tuner error\n", __FILE__);
 	
-		writereg(client, 0x1C, 0x0);
+		writereg(client, 0x1C, 0x00);
 		
 		if (msg[0]&0x40)		// in-lock flag
 		{
@@ -708,25 +759,47 @@ static int tda_set_freq(struct i2c_client *client, int freq)
 	return -1;
 }
 
-static int tda_set_sec(struct i2c_client *client, int power, int tone)
+static int tda_set_voltage (struct i2c_client * client)
 {
-	int powerv;
-	dprintk("%s: setting SEC, power: %d, tone: %d\n", __FILE__, power, tone);
-	switch (power)
+	u8 power;
+	struct tda8044 * tda = (struct tda8044 *) client->data;
+
+	switch (tda->power)
 	{
-	case 0:
-		powerv=0x0F; break;
-	case 1:		// 13V
-	case 2:		// 14V
-		powerv=0x3F; break;
-	case 3:		// 18V
-	case 4:		// 19V
-		powerv=0xBF; break;
+	case SEC_VOLTAGE_OFF:
+		power = 0x0F;
+		break;
+
+	case SEC_VOLTAGE_13:
+	case SEC_VOLTAGE_13_5:
+		power = 0x3F;
+		break;
+
+	case SEC_VOLTAGE_18:
+	case SEC_VOLTAGE_18_5:
+		power = 0xBF;
+		break;
+
+	case SEC_VOLTAGE_LT:
 	default:
-		powerv=0; break;
+		power = 0x00;
+		break;
 	}
-	writereg(client, 0x20, powerv);
-	writereg(client, 0x29, tone?0x80:0);
+
+	writereg(client, 0x20, power);
+
+	return 0;
+}
+
+static int tda_set_tone (struct i2c_client * client)
+{
+	struct tda8044 * tda = (struct tda8044 *) client->data;
+
+	if (tda->tone == SEC_TONE_ON)
+		writereg(client, 0x29, 0x80);
+	else
+		writereg(client, 0x29, 0x00);
+
 	return 0;
 }
 
@@ -769,21 +842,42 @@ static void tda_task(void *data)
 	writereg(client, 0, 4);
 	enable_irq(TDA_INTERRUPT);
 
-	sync=readreg(client, 2);
+	sync = readreg(client, 2);
 
-	if ((tda->loopopen) && (sync & 2) && (!(tda->sync & 2)))
-	{
-		dprintk("%s: loop open, lock acquired, closing loop.\n", __FILE__);
-		// i2c_master_send(client, "\x0b\x68\x70", 3);		// stop sweep, close loop
-		tda->loopopen=0;
-	}
-	
 	if (((sync & 0x3F) == 0x1F) && ((tda->sync & 0x3F) != 0x1F))
 	{
-		u8 val = readreg(client, 0xE);
-		tda->inversion = !!(val & 0x80);
-		tda->fec = val & 7;
-		dprintk("%s: acquired full sync, found FEC: %d/%d, %sspectral inversion\n", __FILE__, tda->fec, tda->fec+1, tda->inversion?"":"no ");
+		u8 val = readreg(client, 0x0E);
+
+		dprintk("%s: got full lock\n", __FILE__);
+
+		/* store detected inversion */
+		if (val & 0x80)
+			tda->inversion = INVERSION_ON;
+		else
+			tda->inversion = INVERSION_OFF;
+
+		/* store detected fec */
+		switch (val & 0x07)
+		{
+		case 1:
+			tda->fec = FEC_1_2;
+			break;
+		case 2:
+			tda->fec = FEC_2_3;
+			break;
+		case 3:
+			tda->fec = FEC_3_4;
+			break;
+		case 5:
+			tda->fec = FEC_5_6;
+			break;
+		case 7:
+			tda->fec = FEC_7_8;
+			break;
+		default:
+			tda->fec = FEC_AUTO;
+			break;
+		}
 	}
 
 	if (sync & 0x20)
