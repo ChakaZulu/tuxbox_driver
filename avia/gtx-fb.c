@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-fb.c,v $
+ *   Revision 1.10  2001/03/08 01:15:14  tmbinc
+ *   smem_length 1MB now, transparent color, defaults to dynaclut.
+ *
  *   Revision 1.9  2001/02/11 16:32:08  tmbinc
  *   fixed viewport position
  *
@@ -30,7 +33,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -38,7 +41,7 @@
     This is the improved FB.
     Report bugs as usual.
     
-    CLUTs completely untested.
+    CLUTs completely untested. (just saw: they work.)
     
     There were other attempts to rewrite this driver, but i don't
     know the state of this work.
@@ -169,7 +172,7 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
 
   fix->line_length=par->stride;
   fix->smem_start=(unsigned long)fb_info.pvideobase;
-  fix->smem_len=fix->line_length*par->yres;
+  fix->smem_len=1024*1024;                            // fix->line_length*par->yres;
   fix->mmio_start=(unsigned long)fb_info.pvideobase;  // gtxmem;
   fix->mmio_len=0x410000;
   
@@ -322,8 +325,8 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
     val|=1<<26;
   
   val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
-  val|=0<<20;                           // BLEV1 = 50%
-  val|=4<<16;                           // BLEV2 = 0%
+  val|=0<<20;                           // BLEV1 = 8/8
+  val|=2<<16;                           // BLEV2 = 6/8
   val|=par->stride;
 
   rw(GMR)=val;
@@ -344,7 +347,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
     val/=8;
   val-=3;
   GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
-
+  rh(GFUNC)=0x10;               // enable dynamic clut
+  rh(TCR)=0xFC0F;                       // ekelhaftes rosa als transparent
+  
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (par->lowres)
     GVS_SET_XSZ(par->xres*2);
@@ -420,6 +425,7 @@ static void gtx_set_disp(const void *fb_par, struct display *disp,
   disp->screen_base=(char*)fb_info.videobase;
   switch (par->bpp)
   {
+#if 1
 #ifdef FBCON_HAS_CFB4
   case 4:
     disp->dispsw=&fbcon_cfb4;
@@ -437,6 +443,7 @@ static void gtx_set_disp(const void *fb_par, struct display *disp,
     disp->dispsw=&fbcon_cfb16;
     disp->dispsw_data=&fbcon_cfb16_cmap;
     break;
+#endif
 #endif
   default:
     disp->dispsw=&fbcon_dummy;
@@ -478,8 +485,8 @@ int __init gtxfb_init(void)
 
   fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
 //  fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
-  fb_info.offset=1024*1024;
- 
+  fb_info.offset=1*1024*1024;
+
   fb_info.videobase=gtxmem+fb_info.offset;
   fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
 
