@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.33 2003/03/05 09:52:17 waldi Exp $
+ * $Id: avia_gt_core.c,v 1.34 2003/03/08 09:16:41 waldi Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -59,7 +59,7 @@
 #include "avia_gt_ir.h"
 #include "avia_gt_vbi.h"
 
-TUXBOX_INFO(dbox2_av);
+TUXBOX_INFO(dbox2_gt);
 
 #ifdef MODULE
 MODULE_PARM(chip_type, "i");
@@ -215,22 +215,22 @@ int __init avia_gt_init(void)
 
 	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.33 2003/03/05 09:52:17 waldi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.34 2003/03/08 09:16:41 waldi Exp $\n");
 
 	if (chip_type == -1) {
 
 		printk("avia_gt_core: autodetecting chip type... ");
 
-		switch (tuxbox_dbox2_av) {
+		switch (tuxbox_dbox2_gt) {
 
-		case TUXBOX_DBOX2_AV_ENX:
+		case TUXBOX_DBOX2_GT_ENX:
 
 			chip_type = AVIA_GT_CHIP_TYPE_ENX;
 
 			printk("AViA eNX found\n");
 			break;
 
-		case TUXBOX_DBOX2_AV_GTX:
+		case TUXBOX_DBOX2_GT_GTX:
 
 			chip_type = AVIA_GT_CHIP_TYPE_GTX;
 

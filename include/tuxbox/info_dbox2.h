@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: info_dbox2.h,v 1.1 2003/03/05 09:51:21 waldi Exp $
+ * $Id: info_dbox2.h,v 1.2 2003/03/08 09:16:41 waldi Exp $
  */
 
 #ifndef TUXBOX_INFO_DBOX2_H
@@ -26,12 +26,12 @@
 
 #include <tuxbox/info.h>
 
-typedef enum tuxbox_dbox2_av
+typedef enum tuxbox_dbox2_gt
 {
-	TUXBOX_DBOX2_AV_GTX			= 1,
-	TUXBOX_DBOX2_AV_ENX			= 2,
+	TUXBOX_DBOX2_GT_GTX			= 1,
+	TUXBOX_DBOX2_GT_ENX			= 2,
 }
-tuxbox_dbox2_av_t;
+tuxbox_dbox2_gt_t;
 
 typedef enum tuxbox_dbox2_mid
 {

@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.c,v 1.4 2003/03/05 09:51:20 waldi Exp $
+ * $Id: tuxbox_hardware_dbox2.c,v 1.5 2003/03/08 09:16:41 waldi Exp $
  */
 
 #include <linux/module.h>
@@ -34,7 +34,7 @@
 extern struct proc_dir_entry *proc_bus_tuxbox;
 struct proc_dir_entry *proc_bus_tuxbox_dbox2 = NULL;
 
-tuxbox_dbox2_av_t tuxbox_dbox2_av;
+tuxbox_dbox2_gt_t tuxbox_dbox2_gt;
 tuxbox_dbox2_mid_t tuxbox_dbox2_mid;
 
 static int vendor_read (void)
@@ -51,17 +51,17 @@ static int vendor_read (void)
 	switch (tuxbox_dbox2_mid) {
 		case TUXBOX_DBOX2_MID_NOKIA:
 			tuxbox_vendor = TUXBOX_VENDOR_NOKIA;
-			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_GTX;
+			tuxbox_dbox2_gt = TUXBOX_DBOX2_GT_GTX;
 			break;
 
 		case TUXBOX_DBOX2_MID_PHILIPS:
 			tuxbox_vendor = TUXBOX_VENDOR_PHILIPS;
-			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_ENX;
+			tuxbox_dbox2_gt = TUXBOX_DBOX2_GT_ENX;
 			break;
 
 		case TUXBOX_DBOX2_MID_SAGEM:
 			tuxbox_vendor = TUXBOX_VENDOR_SAGEM;
-			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_ENX;
+			tuxbox_dbox2_gt = TUXBOX_DBOX2_GT_ENX;
 			break;
 	}
 
@@ -91,7 +91,7 @@ int tuxbox_hardware_proc_create (void)
 	if (!(proc_bus_tuxbox_dbox2 = proc_mkdir ("dbox2", proc_bus_tuxbox)))
 		goto error;
 
-	if (tuxbox_proc_create_entry ("av", 0444, proc_bus_tuxbox_dbox2, &tuxbox_dbox2_av, &tuxbox_proc_read, NULL))
+	if (tuxbox_proc_create_entry ("gt", 0444, proc_bus_tuxbox_dbox2, &tuxbox_dbox2_gt, &tuxbox_proc_read, NULL))
 		goto error;
 
 	if (tuxbox_proc_create_entry ("mid", 0444, proc_bus_tuxbox_dbox2, &tuxbox_dbox2_mid, &tuxbox_proc_read, NULL))
@@ -106,7 +106,7 @@ error:
 
 void tuxbox_hardware_proc_destroy (void)
 {
-	remove_proc_entry ("av", proc_bus_tuxbox_dbox2);
+	remove_proc_entry ("gt", proc_bus_tuxbox_dbox2);
 	remove_proc_entry ("mid", proc_bus_tuxbox_dbox2);
 
 	remove_proc_entry ("dbox2", proc_bus_tuxbox);

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.58 2003/03/05 09:52:17 waldi Exp $
+ * $Id: avia_av_core.c,v 1.59 2003/03/08 09:16:41 waldi Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -56,7 +56,7 @@
 
 /* ---------------------------------------------------------------------- */
 
-TUXBOX_INFO(dbox2_av);
+TUXBOX_INFO(dbox2_gt);
 
 static int   pal = 1;
 static char *firmware = NULL;
@@ -668,11 +668,11 @@ void avia_set_default(void)
 	/* 0: Demux interface 2: Host Interface */
 	wDR(BITSTREAM_SOURCE, 0);
 
-	switch (tuxbox_dbox2_av) {
-	case TUXBOX_DBOX2_AV_GTX:
+	switch (tuxbox_dbox2_gt) {
+	case TUXBOX_DBOX2_GT_GTX:
 		wDR(TM_MODE, 0x0a); /* GTX */
 		break;
-	case TUXBOX_DBOX2_AV_ENX:
+	case TUXBOX_DBOX2_GT_ENX:
 		wDR(TM_MODE, 0x18); /* eNX */
 		break;
 	}
@@ -1316,7 +1316,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.58 2003/03/05 09:52:17 waldi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.59 2003/03/08 09:16:41 waldi Exp $\n");
 
 	aviamem = 0;
 
