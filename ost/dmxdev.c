@@ -1,4 +1,4 @@
-/*F
+/*
  * dmxdev.c - DVB demultiplexer device 
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
@@ -240,7 +240,6 @@ DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 						dmxdev->dvr_orig_fe);
 	}
 	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
-#if 1
 		if (dmxdev->dvr_buffer.data) {
 		        void *mem=dmxdev->dvr_buffer.data;
 			mb();
@@ -249,7 +248,6 @@ DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 			spin_unlock_irq(&dmxdev->lock);
 		        vfree(mem);
 		}
-#endif
 	}
         up(&dmxdev->mutex);
 	return 0;
@@ -525,8 +523,7 @@ DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 		dmxdevfilter->feed.sec=0;
 		break;
 	case DMXDEV_TYPE_PES:
-		if (dmxdevfilter->type==DMXDEV_TYPE_PES &&
-		    dmxdevfilter->params.pes.pesType==DMX_PES_PCR) {
+		if (dmxdevfilter->params.pes.pesType==DMX_PES_PCR) {
 			dmxdevfilter->dev->demux->set_pcr_pid(0x1fff);
 			break;
 		}
@@ -789,7 +786,6 @@ DmxDevFilterAlloc(dmxdev_t *dmxdev, struct file *file)
                 return -EMFILE;
 	}
         dmxdevfilter=&dmxdev->filter[i];
-	sema_init(&dmxdevfilter->mutex, 1);
 	file->private_data=dmxdevfilter;
 
 	DmxDevBufferInit(&dmxdevfilter->buffer);
@@ -817,11 +813,6 @@ DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 	        return -EINVAL;
         }
 
-	if (down_interruptible(&dmxdevfilter->mutex)) {
-		up(&dmxdev->mutex);
-		return -ERESTARTSYS;
-	}
-
         DmxDevFilterStop(dmxdevfilter);
 	DmxDevFilterReset(dmxdevfilter);
 
@@ -839,7 +830,6 @@ DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 	}
 	DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_FREE);
 	wake_up(&dmxdevfilter->buffer.queue);
-	up(&dmxdevfilter->mutex);
 	up(&dmxdev->mutex);
 	//printk("free filters = %d\n", DmxDevFilterNum(dmxdev));
         return 0;
@@ -987,7 +977,7 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
         dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 	int ret=0;
 
-        if (down_interruptible(&dmxdevfilter->mutex))
+	if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
@@ -996,7 +986,7 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 	        ret=DmxDevBufferRead(&dmxdevfilter->buffer,
 				     file->f_flags&O_NONBLOCK,
 				     buf, count, ppos);
-        up(&dmxdevfilter->mutex);
+	up(&dmxdev->mutex);
 	return ret;
 }
 
@@ -1013,106 +1003,58 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 		return -EINVAL;
 
 	if (down_interruptible(&dmxdev->mutex))
-	{
 		return -ERESTARTSYS;
-	}
 
 	switch (cmd) {
 		case DMX_START:
-			if (down_interruptible(&dmxdevfilter->mutex)) {
-				ret = -ERESTARTSYS;
-			}
+			if (dmxdevfilter->state<DMXDEV_STATE_SET)
+				ret = -EINVAL;
 			else
-			{
-				if (dmxdevfilter->state<DMXDEV_STATE_SET)
-				{
-					ret = -EINVAL;
-				}
-				else
-				{
-					ret = DmxDevFilterStart(dmxdevfilter);
-				}
-				up(&dmxdevfilter->mutex);
-			}
-		break;
+				ret = DmxDevFilterStart(dmxdevfilter);
+			break;
 
 		case DMX_STOP:
-			if (down_interruptible(&dmxdevfilter->mutex)) {
-				ret =  -ERESTARTSYS;
-			}
-			else
-			{
-				ret=DmxDevFilterStop(dmxdevfilter);
-				up(&dmxdevfilter->mutex);
-			}
-		break;
+			ret=DmxDevFilterStop(dmxdevfilter);
+			break;
 
 		case DMX_SET_FILTER:
 		{
 			struct dmxSctFilterParams params;
 
 			if (copy_from_user(&params, parg, sizeof(params)))
-			{
 				ret=-EFAULT;
-			}
-			else
-			{
-				if (down_interruptible(&dmxdevfilter->mutex))
-				{
-					ret = -ERESTARTSYS;
+			else {
+				if (dmxdevfilter->s != NULL) {
+					sock_release(dmxdevfilter->s);
+					dmxdevfilter->s = NULL;
 				}
-				else
-				{
-					if (dmxdevfilter->s != NULL) {
-						sock_release(dmxdevfilter->s);
-						dmxdevfilter->s = NULL;
-					}
-					ret=DmxDevFilterSet(dmxdev, dmxdevfilter, &params);
-					up(&dmxdevfilter->mutex);
-				}
+				ret=DmxDevFilterSet(dmxdev, dmxdevfilter, &params);
 			}
+			break;
 		}
-		break;
 
 		case DMX_SET_PES_FILTER:
 		{
 			struct dmxPesFilterParams params;
 
 			if (copy_from_user(&params, parg, sizeof(params)))
-			{
 				ret=-EFAULT;
-			}
-			else
-			{
-				if (down_interruptible(&dmxdevfilter->mutex)) {
-					ret = -ERESTARTSYS;
+			else {
+				if (dmxdevfilter->s != NULL) {
+					sock_release(dmxdevfilter->s);
+					dmxdevfilter->s = NULL;
 				}
-				else
-				{
-					if (dmxdevfilter->s != NULL) {
-						sock_release(dmxdevfilter->s);
-						dmxdevfilter->s = NULL;
-					}
-					ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &params);
-					up(&dmxdevfilter->mutex);
-				}
+				ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &params);
 			}
+			break;
 		}
-		break;
 
 		case DMX_SET_BUFFER_SIZE:
-			if (down_interruptible(&dmxdevfilter->mutex)) {
-				ret= -ERESTARTSYS;
-			}
-			else
-			{
-				ret=DmxDevSetBufferSize(dmxdevfilter, arg);
-				up(&dmxdevfilter->mutex);
-			}
-		break;
+			ret=DmxDevSetBufferSize(dmxdevfilter, arg);
+			break;
 
 		case DMX_GET_EVENT:
-		break;
+			break;
 
 		case DMX_GET_PES_PIDS:
 		{
@@ -1120,21 +1062,17 @@ int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 
 			if (!dmxdev->demux->get_pes_pids) {
 				ret=-EINVAL;
+				break;
 			}
-			else
-			{
-				dmxdev->demux->get_pes_pids(dmxdev->demux, pids);
-				if (copy_to_user(parg, pids, 5*sizeof(dvb_pid_t)))
-				{
-		    	    ret=-EFAULT;
-				}
-			}
+			dmxdev->demux->get_pes_pids(dmxdev->demux, pids);
+			if (copy_to_user(parg, pids, 5*sizeof(dvb_pid_t)))
+	    			ret=-EFAULT;
+			break;
 		}
-		break;
 
 		default:
 			ret=-EINVAL;
-		break;
+			break;
 	}
 	up(&dmxdev->mutex);
 	return ret;
