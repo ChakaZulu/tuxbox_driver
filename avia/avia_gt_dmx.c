@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.92  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.91  2002/07/08 15:12:47  wjoost
  *
  *   ein paar nicht benutzte Felder initialisiert (wie in avia_gt_napi.c 1.88)
@@ -75,7 +80,7 @@
  *
  *
  *
- *   $Revision: 1.91 $
+ *   $Revision: 1.92 $
  *
  */
 
@@ -111,12 +116,16 @@
 #include <dbox/avia_gt_dmx.h>
 #include <dbox/avia_gt_napi.h>
 
-static int errno;
-static sAviaGtInfo *gt_info;
-static sRISC_MEM_MAP *risc_mem_map;
-static char *ucode = NULL;
-static int discont=1, large_delta_count, deltaClk_max, deltaClk_min, deltaPCR_AVERAGE;
-static Pcr_t oldClk;
+static int						 errno							= (int)0;
+static sAviaGtInfo		*gt_info						= (sAviaGtInfo *)NULL;
+static sRISC_MEM_MAP	*risc_mem_map				= (sRISC_MEM_MAP *)NULL;
+static char						*ucode							= (char *)NULL;
+static int						 discont						= (int)1;
+static int						 large_delta_count	= (int)0;
+static int						 deltaClk_max				= (int)0;
+static int						 deltaClk_min				= (int)0;
+static int						 deltaPCR_AVERAGE		= (int)0;
+static Pcr_t					 oldClk;
 extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
 
@@ -213,7 +222,7 @@ unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr)
 int avia_gt_dmx_load_ucode(void)
 {
 
-	int fd;
+	int fd = (int)0;
 	loff_t file_size;
 	mm_segment_t fs;
 
@@ -499,8 +508,7 @@ void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsign
 
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 {
-
-	int base;
+	int	base = (int)0;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -595,6 +603,9 @@ static Pcr_t gtx_read_transport_pcr(void)
 
 	Pcr_t pcr;
 
+	pcr.lo = 0;
+	pcr.hi = 0;
+
 	if (avia_gt_chip(ENX)) {
 
 		pcr.hi = (enx_reg_16(TP_PCR_2) << 16) | enx_reg_16(TP_PCR_1);
@@ -616,6 +627,9 @@ static Pcr_t avia_gt_dmx_get_latched_stc(void)
 
 	Pcr_t pcr;
 
+	pcr.lo = 0;
+	pcr.hi = 0;
+
 	if (avia_gt_chip(ENX)) {
 
 		pcr.hi = (enx_reg_s(LC_STC_2)->Latched_STC_Base << 16) | enx_reg_s(LC_STC_1)->Latched_STC_Base;
@@ -636,6 +650,9 @@ Pcr_t avia_gt_dmx_get_stc(void)
 {
 
 	Pcr_t pcr;
+
+	pcr.lo = 0;
+	pcr.hi = 0;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -783,7 +800,9 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
     if (avia_gt_chip(ENX)) {
 
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
+	// Fix gegen Horizontales "Zucken" (von chkdesign):
+	//	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
+	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
 
 	enx_reg_16(DAC_PC)=deltaClk;
 	enx_reg_16(DAC_CP)=9;
@@ -808,9 +827,9 @@ WE_HAVE_DISCONTINUITY:
 int __init avia_gt_dmx_init(void)
 {
 
-	int result;
+	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.91 2002/07/08 15:12:47 wjoost Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.92 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.22  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.21  2002/07/21 15:16:22  waldi
  *   add workaround for broken memory access on philips boxes
  *
@@ -86,7 +91,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -108,7 +113,7 @@
 
 unsigned short input_height = 576;
 unsigned char input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 unsigned short input_width = 720;
 unsigned short output_x = 0;
 unsigned short output_y = 0;
@@ -138,7 +143,7 @@ void avia_gt_gv_cursor_show(void)
 void avia_gt_gv_get_clut(unsigned char clut_nr, unsigned int *transparency, unsigned int *red, unsigned int *green, unsigned int *blue)
 {
 
-	unsigned int val;
+	unsigned int val = (unsigned int)0;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -230,7 +235,7 @@ void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin
 unsigned short avia_gt_gv_get_stride(void)
 {
 
-	unsigned short stride;
+	unsigned short stride = (unsigned short)0;
 
 	if (avia_gt_chip(ENX))
 		stride = enx_reg_s(GMR1)->STRIDE << 2;
@@ -449,7 +454,7 @@ int avia_gt_gv_set_input_size(unsigned short width, unsigned short height)
 
 int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
 
-	unsigned char input_div;
+	unsigned char input_div = (unsigned char)0;
 
 #define BLANK_TIME		132
 #define ENX_VID_PIPEDELAY	16
@@ -602,7 +607,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.21 2002/07/21 15:16:22 waldi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.22 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -20,6 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.15  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.14  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -124,7 +129,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -165,7 +170,7 @@ static int avia_gt_gtx_read_bus(char *buf, char **start, off_t offset, int len, 
 static int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long count, void *data);
 static int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof , void *private);
 
-static int avia_gt_gtx_proc_state;
+static int avia_gt_gtx_proc_state = (int)0;
 
 #else /* undef CONFIG_PROC_FS */
 
@@ -174,7 +179,7 @@ static int avia_gt_gtx_proc_state;
 
 #endif /* CONFIG_PROC_FS */
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
 static int isr[] = {GTX_REG_ISR0, GTX_REG_ISR1, GTX_REG_ISR2, GTX_REG_ISR3};
 static int imr[] = {GTX_REG_IMR0, GTX_REG_IMR1, GTX_REG_IMR2, GTX_REG_IMR3};
@@ -298,7 +303,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.14 2002/06/07 18:06:03 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.15 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -366,8 +371,8 @@ void avia_gt_gtx_exit(void)
 int avia_gt_gtx_proc_init(void)
 {
 
-	struct proc_dir_entry *proc_bus_gtx;
-	struct proc_dir_entry *proc_bus_gtx_reg;
+	struct proc_dir_entry	*proc_bus_gtx			= (struct proc_dir_entry *)NULL;
+	struct proc_dir_entry	*proc_bus_gtx_reg	= (struct proc_dir_entry *)NULL;
 
 	avia_gt_gtx_proc_state = 0;
 
@@ -443,8 +448,9 @@ int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long c
 int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 
-	unsigned int hi, lo;
-	int nr = 0;
+	unsigned int	 hi		= (unsigned int)0;
+	unsigned int	 lo		= (unsigned int)0;
+	int						 nr		= (int)0;
 
 	nr += sprintf(buf+nr, "GTX-Control-Register:\n");
 	nr += sprintf(buf+nr, "RR0:  %04X\n", gtx_reg_16(RR0));

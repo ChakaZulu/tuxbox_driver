@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.36  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.35  2002/08/11 13:07:34  waldi
  *   color 0 is transparent if
  *   - console in text mode
@@ -154,7 +159,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.35 $
+ *   $Revision: 1.36 $
  *
  */
 
@@ -197,7 +202,7 @@
 #define RES_X	   720
 #define RES_Y	   576
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info	= (sAviaGtInfo *)NULL;
 
 #ifdef MODULE
 MODULE_PARM(console_transparent, "i");
@@ -319,8 +324,8 @@ static int gtx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par, str
 static int gtx_decode_var(const struct fb_var_screeninfo *var, void *fb_par, struct fb_info_gen *info)
 {
 
-  struct gtxfb_par *par = (struct gtxfb_par *)fb_par;
-  int yres;
+  struct gtxfb_par	*par		= (struct gtxfb_par *)fb_par;
+  int								 yres		= (int)0;
 
   if ((var->bits_per_pixel != 4) && (var->bits_per_pixel != 8) && (var->bits_per_pixel != 16))
     return -EINVAL;
@@ -632,7 +637,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.35 2002/08/11 13:07:34 waldi Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.36 2002/08/22 13:39:33 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 

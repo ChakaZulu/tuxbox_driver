@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.8  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.7  2002/08/18 18:22:30  tmbinc
  *   added poll()-support for pcm device (untested)
  *
@@ -45,7 +50,7 @@
  *
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -67,13 +72,13 @@
 
 #include <dbox/avia_gt_pcm.h>
 
-int dsp_dev;
-int mixer_dev;
+int dsp_dev			= (int)0;
+int mixer_dev		= (int)0;
 
 static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-    int val, retval;
+    int val = (int)0, retval = (int)0;
 
     switch(cmd) {
 
@@ -299,7 +304,7 @@ static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned i
 static ssize_t avia_oss_dsp_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-    int result;
+    int result = (int)0;
 
     dprintk("avia_oss: dsp write (buffer=0x%X, count=%d)\n", (unsigned int)buf, count);
 
@@ -335,7 +340,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.7 2002/08/18 18:22:30 tmbinc Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.8 2002/08/22 13:39:33 Jolt Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x80, 0x80);
 

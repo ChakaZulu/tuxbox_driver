@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.19  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.18  2002/06/07 18:06:03  Jolt
  *   GCC31 fixes 2nd shot (GTX version) - sponsored by Frankster (THX!)
  *
@@ -77,7 +82,7 @@
  *
  *
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -97,20 +102,20 @@
 DECLARE_WAIT_QUEUE_HEAD(rx_wait);
 DECLARE_WAIT_QUEUE_HEAD(tx_wait);
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 u32 duty_cycle = 33;
-u16 first_period_low;
-u16 first_period_high;
+u16 first_period_low = (u16)0;
+u16 first_period_high = (u16)0;
 u32 frequency = 38000;
 //sAviaGtRxIrPulse *rx_buffer;
 #define RX_MAX 50000
 sAviaGtIrPulse rx_buffer[RX_MAX];
-u32 rx_period_low;
-u32 rx_period_high;
+u32 rx_period_low = (u32)0;
+u32 rx_period_high = (u32)0;
 u32 rx_buffer_read_position = 0;
 u32 rx_buffer_write_position = 0;
 u8 rx_unit_busy = 0;
-sAviaGtTxIrPulse *tx_buffer;
+sAviaGtTxIrPulse *tx_buffer = (sAviaGtTxIrPulse *)NULL;
 u8 tx_buffer_pulse_count = 0;
 u8 tx_unit_busy = 0;
 
@@ -434,11 +439,10 @@ void avia_gt_ir_set_queue(unsigned int addr)
 
 int __init avia_gt_ir_init(void)
 {
+	u16 rx_irq = 0;
+	u16 tx_irq = 0;
 
-	u16 rx_irq;
-	u16 tx_irq;
-
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.18 2002/06/07 18:06:03 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.19 2002/08/22 13:39:33 Jolt Exp $\n");
 
     do_gettimeofday(&last_timestamp);
 	

@@ -52,7 +52,7 @@ static int ttx_flag = 0;
 
 static devfs_handle_t devfs_handle;
 static int active_vtxt_pid = -1;
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
 #ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
@@ -62,8 +62,8 @@ MODULE_LICENSE("GPL");
 #endif
 #endif
 
-static dmx_ts_feed_t* feed_vtxt;
-static dmx_demux_t *dmx_demux;
+static dmx_ts_feed_t* feed_vtxt = (dmx_ts_feed_t *)NULL;
+static dmx_demux_t *dmx_demux = (dmx_demux_t *)NULL;
 
 static void avia_gt_vbi_reset(unsigned char reenable)
 {
@@ -193,9 +193,9 @@ int dmx_ts_callback(__u8* buffer1, size_t buffer1_length, __u8* buffer2, size_t 
 static int __init avia_gt_vbi_init(void)
 {
 
-	struct list_head *dmx_list;
+	struct list_head *dmx_list = (struct list_head *)NULL;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.15 2002/07/02 09:31:22 LazyT Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.16 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

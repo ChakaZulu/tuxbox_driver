@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.17  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.16  2002/08/19 00:02:01  TheDOC
  *   export the poll-stuff
  *
@@ -73,7 +78,7 @@
  *
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -113,10 +118,10 @@ LIST_HEAD(pcm_free_buffer_list);
 spinlock_t busy_buffer_lock = SPIN_LOCK_UNLOCKED;
 spinlock_t free_buffer_lock = SPIN_LOCK_UNLOCKED;
 
-static sAviaGtInfo *gt_info;
-unsigned char swab_samples;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+unsigned char swab_samples	= (unsigned char)0;
 sPcmBuffer pcm_buffer_array[AVIA_GT_PCM_BUFFER_COUNT];
-unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE];
+unsigned char swab_buffer[AVIA_GT_PCM_BUFFER_SIZE] = { 0 };
 
 // Warning - result is _per_ channel
 unsigned int avia_gt_pcm_calc_sample_count(unsigned int buffer_size)
@@ -173,9 +178,9 @@ unsigned int avia_gt_pcm_calc_buffer_size(unsigned int sample_count)
 void avia_gt_pcm_queue_buffer(void)
 {
 
-	unsigned long flags;
-	sPcmBuffer *pcm_buffer;
-	struct list_head *ptr;
+	unsigned long			 flags			= (unsigned long)0;
+	sPcmBuffer				*pcm_buffer	= (sPcmBuffer *)NULL;
+	struct list_head	*ptr				= (struct list_head *)NULL;
 
 	if (avia_gt_chip(ENX)) {
 
@@ -226,8 +231,8 @@ void avia_gt_pcm_queue_buffer(void)
 static void avia_gt_pcm_irq(unsigned short irq)
 {
 
-	unsigned long flags;
-	sPcmBuffer *pcm_buffer;
+	unsigned long		 flags			= (unsigned long)0;
+	sPcmBuffer			*pcm_buffer	= (sPcmBuffer *)NULL;
 	//int i = 0;
 	//struct list_head *ptr;
 
@@ -346,7 +351,7 @@ void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 int avia_gt_pcm_set_rate(unsigned short rate)
 {
 
-	unsigned char divider_mode;
+	unsigned char divider_mode = (unsigned char)0;
 
 	switch(rate) {
 
@@ -455,14 +460,14 @@ int avia_gt_pcm_set_endian(unsigned char be)
 
 int avia_gt_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char block) {
 
-	unsigned char bps_16;
-	unsigned long flags;
-	sPcmBuffer *pcm_buffer;
-	unsigned int sample_nr;
-	unsigned short *swab_dest;
-	unsigned short *swab_src;
-	unsigned int sample_count;
-	unsigned char stereo;
+	unsigned char bps_16      = (char)'\0';
+	unsigned long flags       = (unsigned long)0;
+	sPcmBuffer *pcm_buffer    = (sPcmBuffer *)NULL;
+	unsigned int sample_nr    = (unsigned int)0;
+	unsigned short *swab_dest = (unsigned short *)NULL;
+	unsigned short *swab_src  = (unsigned short *)NULL;
+	unsigned int sample_count = (unsigned int)0;
+	unsigned char stereo      = (unsigned char)'\0';
 
 	sample_count = avia_gt_pcm_calc_sample_count(buffer_size);
 
@@ -553,16 +558,17 @@ void avia_gt_pcm_stop(void)
 	else if (avia_gt_chip(GTX))
 		gtx_reg_set(PCMC, T, 1);
 */
+	return;
 }
 
 int avia_gt_pcm_init(void)
 {
 
-	unsigned char buf_nr;
-	unsigned short irq_ad;
-	unsigned short irq_pf;
+	unsigned char  buf_nr  = (unsigned char)'\0';
+	unsigned short irq_ad  = (unsigned short)0;
+	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.16 2002/08/19 00:02:01 TheDOC Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.17 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

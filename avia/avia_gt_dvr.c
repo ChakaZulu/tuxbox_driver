@@ -20,6 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.5  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.4  2002/06/11 22:44:35  Jolt
  *   DVR fix
  *
@@ -60,7 +65,7 @@
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info		= (sAviaGtInfo *)NULL;
 
 static unsigned int vpointer=0;
 static unsigned int apointer=0;
@@ -192,7 +197,7 @@ static int aiframe_release (struct inode *inode, struct file *file)
 
 static int getQ_Size(unsigned int Bytes)
 {
-	int i;	
+	int i = (int)0;	
 	for(i=0;i<17;i++) if((Bytes/64 >> i)==1) break;
 	return i;
 }
@@ -272,10 +277,10 @@ static ssize_t iframe_write (struct file *file, const char *buf, size_t count,lo
 
 static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,loff_t *offset)
 {
-		int write=count;
-		int i;
-		u32 ptc=0;
-		unsigned char *buffer= (unsigned char *)buf;
+		int						 write	= count;
+		int						 i			= (int)0;
+		u32						 ptc		= (u32)0;
+		unsigned char	*buffer = (unsigned char *)buf;
 		DECLARE_WAITQUEUE(wait,current);
 		
 		if(start)
@@ -347,7 +352,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 
 static int enx_iframe_init(void)
 {
-		int i;
+		int i = (int)0;
     devfs_handle = devfs_register(NULL,"dvrv",DEVFS_FL_DEFAULT,0,0,S_IFCHR|
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
 				  &iframe_fops,NULL);
@@ -356,7 +361,7 @@ static int enx_iframe_init(void)
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
 				  &aiframe_fops,NULL);
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.4 2002/06/11 22:44:35 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.5 2002/08/22 13:39:33 Jolt Exp $\n");
 	
     gt_info = avia_gt_get_info();
 		
@@ -372,9 +377,12 @@ static int enx_iframe_init(void)
 		
     if (avia_gt_chip(ENX)) {
 
-		enx_reg_32(CFGR0) |= 3;
+		enx_reg_set(CFGR0, VCP, 1);
+		enx_reg_set(CFGR0, ACP, 1);
+		enx_reg_set(CFGR0, ACP, 1);
 
-		enx_reg_32(CFGR0)&=~0x10;
+		enx_reg_32(CFGR0)&=~0x10; // Mhhhhhh ???
+		
 		for(i=0;i<16;i++)
 		{
 			oldQWPL[i]=enx_reg_16(QWPnL+(i*4));
@@ -520,15 +528,17 @@ static int enx_iframe_init(void)
     return 0;
 }
 
-static void enx_close(void)
+void __exit avia_gt_dvr_exit(void)
 {
 //	int i;
 	
     if (avia_gt_chip(ENX)) {
+	
+		enx_reg_set(CFGR0, ACP, 0);
+		enx_reg_set(CFGR0, VCP, 0);
 
 		avia_gt_free_irq(AVIA_GT_IRQ(5, 6));			
 		avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
-		enx_reg_32(CFGR0) &= ~3;
 
     } else if (avia_gt_chip(GTX)) {
 
@@ -541,37 +551,41 @@ static void enx_close(void)
 #if 0
 	enx_reg_32(CFGR0)&=~0x10;
 
-	for(i=0;i<16;i++)
-	{
+	for(i=0;i<16;i++) {
+	
 		enx_reg_16(QWPnL+(i*4))=oldQWPL[i];
 		enx_reg_16(QWPnH+(i*4))=oldQWPH[i];
+		
 	}	
+
 	enx_reg_32(CFGR0)|=0x10;
-	for(i=0;i<16;i++)
-	{
+
+	for(i=0;i<16;i++) {
+	
 		enx_reg_16(QWPnL+(i*4))=oldQWPL[16+i];
 		enx_reg_16(QWPnH+(i*4))=oldQWPH[16+i];
+
 	}	
 #endif		
-	
 			
- 	devfs_unregister(devfs_handle);
+	devfs_unregister(devfs_handle);
  	devfs_unregister(adevfs_handle);
+	
 	down(&lock_open);
 	down(&alock_open);
 
-  return;
 }
 
 #ifdef MODULE
 MODULE_AUTHOR("Ronny Strutz <3des@elitedvb.com>");
 MODULE_DESCRIPTION("Video/Audio Playback Driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+#endif
 
-int init_module(void) {
-  return enx_iframe_init();
-}
-
-void cleanup_module(void) {
-  enx_close();
-}
+#if defined(MODULE) 
+//&& defined(STANDALONE)
+module_init(avia_gt_dvr_init);
+module_exit(avia_gt_dvr_exit);
 #endif

@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.21  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.20  2002/06/07 14:00:23  tmbinc
  *   off-by-one aka. "streamen auf gtx ist kaputt" fixed.
  *
@@ -85,7 +90,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -228,10 +233,10 @@ void avia_gt_free_irq(unsigned short irq)
 static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 {
 
-	unsigned char irq_reg;
-	unsigned char irq_bit;
-	unsigned short irq_mask;
-	unsigned short irq_status;
+	unsigned char		irq_reg			= (unsigned char)0;
+	unsigned char		irq_bit			= (unsigned char)0;
+	unsigned short	irq_mask		= (unsigned short)0;
+	unsigned short	irq_status	= (unsigned short)0;
 
 	for (irq_reg = 0; irq_reg < 6; irq_reg++) {
 
@@ -273,10 +278,10 @@ static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 int __init avia_gt_init(void)
 {
 
-	struct dbox_info_struct *dbox_info;
-	int result;
+	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
+	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.20 2002/06/07 14:00:23 tmbinc Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.21 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 

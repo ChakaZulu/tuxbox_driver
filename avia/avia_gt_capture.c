@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.22  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.21  2002/08/06 13:06:30  wjoost
  *   Es kann nur einen (Nutzer des Capture-Moduls) geben.
  *   Entweder *ein* Programm oder avia_gt_pig
@@ -75,7 +80,7 @@
  *
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -117,7 +122,7 @@ static sAviaGtInfo *gt_info;
 
 static unsigned char in_use = 0;
 static unsigned char capture_busy = 0;
-static unsigned short capture_irq;
+static unsigned short capture_irq = 0;
 static unsigned int captured_frames = 0;
 static unsigned short input_height = 576;
 static unsigned short input_width = 720;
@@ -161,7 +166,7 @@ static int capture_release(struct inode *inode, struct file *file)
 
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
-    unsigned max_count;
+    unsigned max_count = (unsigned)0;
 
     if (!capture_busy)
 	avia_gt_capture_start(NULL, NULL, 0);
@@ -188,8 +193,8 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-    unsigned short stride;
-    int result;
+    unsigned short	stride	= (unsigned short)0;
+    int							result	= (int)0;
 
     switch(cmd) {
     
@@ -238,7 +243,7 @@ static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cm
 void avia_gt_capture_interrupt(unsigned short irq)
 {
 
-    unsigned char field;
+    unsigned char field	= (unsigned char)0;
 
 //	printk("avia_gt_capture: irq\n");
 //	printk("L%dF%d ", enx_reg_s(VLC)->LINE, enx_reg_s(VLC)->F);
@@ -256,11 +261,11 @@ void avia_gt_capture_interrupt(unsigned short irq)
 
 int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride,unsigned char pig)
 {
-    unsigned short capture_width;
-    unsigned short capture_height;
+    unsigned short capture_width		= (unsigned short)0;
+    unsigned short capture_height		= (unsigned short)0;
 
-    unsigned char scale_x;
-    unsigned char scale_y;
+    unsigned char scale_x						= (unsigned char)0;
+    unsigned char scale_y						= (unsigned char)0;
 
     if (capture_busy || (pig && in_use) )
 	return -EBUSY;
@@ -456,7 +461,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.21 2002/08/06 13:06:30 wjoost Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.22 2002/08/22 13:39:33 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 

@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.28  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.27  2002/08/06 13:06:30  wjoost
  *   Es kann nur einen (Nutzer des Capture-Moduls) geben.
  *   Entweder *ein* Programm oder avia_gt_pig
@@ -85,7 +90,7 @@
  *
  *
  *
- *   $Revision: 1.27 $
+ *   $Revision: 1.28 $
  *
  */
 	
@@ -121,10 +126,10 @@
 #define CAPTURE_HEIGHT 576
 
 static devfs_handle_t devfs_handle[MAX_PIG_COUNT];
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 static unsigned char pig_busy[MAX_PIG_COUNT] = {0, 0};
 static unsigned char *pig_buffer[MAX_PIG_COUNT] = {NULL, NULL};
-static unsigned char pig_count;
+static unsigned char pig_count = (unsigned char)0;
 static unsigned short pig_stride[MAX_PIG_COUNT] = {0, 0};
 
 static int avia_gt_pig_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
@@ -250,7 +255,7 @@ int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order)
 int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned short height, unsigned char stretch)
 {
 
-    int result;
+    int result = (int)0;
 
     dprintk("avia_gt_pig_set_size (width=%d, height=%d, stretch=%d)\n", width, height, stretch);
     
@@ -352,10 +357,10 @@ int avia_gt_pig_show(unsigned char pig_nr)
 int __init avia_gt_pig_init(void)
 {
 
-    char devname[128];
-    unsigned char pig_nr;
+    char					 devname[128]	= { 0 };
+    unsigned char	 pig_nr				= (unsigned char)0;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.27 2002/08/06 13:06:30 wjoost Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.28 2002/08/22 13:39:33 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -418,7 +423,7 @@ int __init avia_gt_pig_init(void)
 void __exit avia_gt_pig_exit(void)
 {
 
-    unsigned char pig_nr;
+    unsigned char pig_nr = (unsigned char)0;
 
     for (pig_nr = 0; pig_nr < pig_count; pig_nr++)
 	devfs_unregister(devfs_handle[pig_nr]);

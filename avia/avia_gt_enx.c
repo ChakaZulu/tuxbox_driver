@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.12  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.11  2002/06/07 17:53:45  Jolt
  *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
  *
@@ -112,7 +117,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -141,7 +146,7 @@
 
 #include "dbox/avia_gt.h"
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
 static int isr[] = {0x0100, 0x0102, 0x0104, 0x0106, 0x0108, 0x010A};
 static int imr[] = {0x0110, 0x0112, 0x0114, 0x0116, 0x0118, 0x011A};
@@ -265,7 +270,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.11 2002/06/07 17:53:45 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.12 2002/08/22 13:39:33 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
     

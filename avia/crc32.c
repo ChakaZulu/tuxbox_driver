@@ -49,7 +49,7 @@ static u_long crc_table[256] = {
 
 u_long crc32 (char *data, int len)
 {
-	register int i;
+	register int i = 0;
 	u_long crc = 0xffffffff;
 
 	for (i=0; i<len; i++)

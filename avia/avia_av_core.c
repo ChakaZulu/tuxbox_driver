@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.31  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.30  2002/05/06 02:18:18  obi
  *   cleanup for new kernel
  *
@@ -144,7 +149,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.30 $
+ *   $Revision: 1.31 $
  *
  */
 
@@ -463,8 +468,8 @@ avia_htd_interrupt()
 void
 avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 {
-	u32 status;
-	u32 sem;
+	u32 status	= (u32)0;
+	u32 sem			= (u32)0;
 
 	spin_lock(&avia_lock);
 
@@ -624,7 +629,7 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 static u32
 avia_wait_command( u32 tries )
 {
-	int i;
+	int i			= (int)0;
 
 	spin_lock_irq(&avia_cmd_state_lock);
 
@@ -655,7 +660,8 @@ avia_wait_command( u32 tries )
 
 u32 avia_command(u32 command, ...)
 {
-	u32 state, i;
+	u32			 state		= (u32)0;
+	u32			 i				= (u32)0;
 	va_list ap;
 
 	spin_lock_irq(&avia_lock);
@@ -698,7 +704,7 @@ u32 avia_command(u32 command, ...)
 
 u32 avia_wait(u32 sa)
 {
-	int i;
+	int i = (int)0;
 
 	if (sa==-1)
 	{
@@ -780,7 +786,7 @@ static int new_audio_sequence( u32 val )
 
 static void avia_audio_init(void)
 {
-	u32 val;
+	u32 val	= (u32)0;
 
 	/* AUDIO_CONFIG
 	 *
@@ -836,8 +842,8 @@ static void avia_audio_init(void)
 
 void avia_set_default(void)
 {
-	u32 val;
-	struct dbox_info_struct *dinfo;
+	u32 val = (u32)0;
+	struct dbox_info_struct *dinfo = (struct dbox_info_struct *)NULL;
 
 	val  = 0;
 	val |= (0<<2);  // 1: tristate
@@ -936,8 +942,8 @@ void avia_set_default(void)
 
 static int ppc_set_siumcr(void)
 {
-	immap_t *immap;
-	sysconf8xx_t * sys_conf;
+	immap_t *immap = (immap_t *)NULL;
+	sysconf8xx_t * sys_conf = (sysconf8xx_t *)NULL;
 
 	immap = (immap_t *)IMAP_ADDR;
 
@@ -972,10 +978,10 @@ static int errno;
 static int
 do_firmread (const char *fn, char **fp)
 {
-	int    fd;
-	loff_t l;
-	char  *dp;
-	char firmwarePath[100];
+	int    fd								= (int)0;
+	loff_t l								= (loff_t)0;
+	char  *dp								= (char *)NULL;
+	char firmwarePath[100]	= { "\0" };
 
 	if (!fn)
 		return 0;
@@ -1030,10 +1036,10 @@ do_firmread (const char *fn, char **fp)
 
 static int init_avia(void)
 {
-	u32 *microcode;
-	u32 val;
-	int tries;
-	mm_segment_t fs;
+	u32						*microcode	= (u32 *)NULL;
+	u32						 val				= (u32)0;
+	int						 tries			= (int)0;
+	mm_segment_t	 fs;
 
 	run_cmd = 0;
 
@@ -1264,7 +1270,7 @@ static int init_avia(void)
 
 int avia_proc_init(void)
 {
-	struct proc_dir_entry *proc_bus_avia;
+	struct proc_dir_entry *proc_bus_avia = (struct proc_dir_entry *)NULL;
 
 	avia_proc_initialized = 0;
 
@@ -1327,7 +1333,7 @@ int avia_proc_cleanup(void)
 
 void avia_event_init()
 {
-	char * p;
+	char * p = (char *)NULL;
 
 	spin_lock_irq(&avia_event_lock);
 
@@ -1368,8 +1374,7 @@ void avia_event_cleanup()
 
 void avia_event_func(unsigned long data)
 {
-	struct avia_event_reg * reg;
-	struct event_t event;
+	struct avia_event_reg	*reg		= (struct avia_event_reg *)NULL; 
 
 	spin_lock_irq(&avia_event_lock);
 
@@ -1397,6 +1402,8 @@ void avia_event_func(unsigned long data)
 			if ( ( (rDR(H_SIZE)&0xFFFF) != reg->hsize ) ||
 			     ( (rDR(V_SIZE)&0xFFFF) != reg->vsize ) )
 			{
+				struct event_t				 event;
+
 				reg->hsize = (rDR(H_SIZE)&0xFFFF);
 				reg->vsize = (rDR(V_SIZE)&0xFFFF);
 
@@ -1407,6 +1414,8 @@ void avia_event_func(unsigned long data)
 
 			if ( (rDR(ASPECT_RATIO)&0xFFFF) != reg->aratio )
 			{
+				struct event_t				 event;
+
 				reg->aratio = (rDR(ASPECT_RATIO)&0xFFFF);
 
 				memset(&event,0,sizeof(event_t));
@@ -1495,9 +1504,9 @@ MODULE_LICENSE("GPL");
 int
 init_module (void)
 {
-	int err;
+	int err = (int)0;
 
-	printk ("AVIA: $Id: avia_av_core.c,v 1.30 2002/05/06 02:18:18 obi Exp $\n");
+	printk ("AVIA: $Id: avia_av_core.c,v 1.31 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	aviamem = 0;
 

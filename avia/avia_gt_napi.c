@@ -20,8 +20,13 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.89 $
+ *   $Revision: 1.90 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.90  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.89  2002/06/11 20:35:43  Jolt
  *   Sections cleanup
  *
@@ -312,7 +317,7 @@
 #include <dbox/avia_gt_napi.h>
 #include "crc32.c"
 
-static sAviaGtInfo *gt_info;
+static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 static unsigned char auto_pcr_pid = 0;
 
 //#define GTX_SECTIONS
@@ -422,7 +427,7 @@ static void gtx_queue_interrupt(unsigned short irq)
 
     unsigned char nr = AVIA_GT_IRQ_REG(irq);
     unsigned char bit = AVIA_GT_IRQ_BIT(irq);
-    int queue;
+    int queue = (int)0;
 
     if (avia_gt_chip(ENX)) {
 
@@ -456,8 +461,8 @@ extern int unregister_demux(struct dmx_demux_s *demux);
 
 void gtx_dmx_close(void)
 {
-	int i;
-	int j;
+	int i = (int)0;
+	int j = (int)0;
 
 	unregister_demux(&gtx.dmx);
 	GtxDmxCleanup(&gtx);
@@ -488,7 +493,7 @@ void gtx_dmx_close(void)
 
 static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 {
-	gtx_demux_secfilter_t *secfilter;
+	gtx_demux_secfilter_t *secfilter = (gtx_demux_secfilter_t *)NULL;
 
 	if (gtxfeed->sec_recv != gtxfeed->sec_len)
 	{
@@ -528,9 +533,9 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 static void gtx_task(void *data)
 {
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
-	int queue;
-	int ccn;
-	static int c;
+	int queue = (int)0;
+	int ccn = (int)0;
+	static int c = (int)0;
 
 	for (queue=0; datamask && queue<32; queue++)
 		if (datamask&(1<<queue))
@@ -545,12 +550,12 @@ static void gtx_task(void *data)
 			{
 //				if (gtxfeed->output&TS_PACKET)
 				{
-					int wptr;
-					int rptr;
-					int i;
+					int wptr = (int)0;
+					int rptr = (int)0;
+					int i = (int)0;
 
-					__u8 *b1, *b2;
-					size_t b1l, b2l;
+					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
+					size_t b1l = (size_t)0, b2l = (size_t)0;
 
 					wptr = avia_gt_dmx_get_queue_write_pointer(queue);
 					rptr = gtxfeed->readptr;
@@ -809,7 +814,7 @@ static void gtx_task(void *data)
 static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 {
 	gtx_demux_t *gtx=gtxfeed->demux;
-	int i;
+	int i = (int)0;
 #if 0
 	for (i=0; i<32; i++)
 		if (gtx->filter[i].state==DMX_STATE_FREE)
@@ -826,7 +831,7 @@ static gtx_demux_filter_t *GtxDmxFilterAlloc(gtx_demux_feed_t *gtxfeed)
 
 static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 {
-	int i;
+	int i = 0;
 
 	switch (type)
 	{
@@ -1000,7 +1005,7 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 
 static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 {
-	int i, used=0;
+	int i=(int)0, used=(int)0;
 	for (i=0; i<LAST_USER_QUEUE; i++)
 		if ((gtx->feed[i].state==DMX_STATE_GO) && (gtx->feed[i].pid==pid) && (gtx->feed[i].output&TS_PACKET))
 			used++;
@@ -1081,7 +1086,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 {
 
 	gtx_demux_t *gtx = (gtx_demux_t *)demux;
-	gtx_demux_feed_t *gtxfeed;
+	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)NULL;
 
 	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, pes_type))) {
 
@@ -1151,7 +1156,7 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
 	gtx_demux_t *gtx=gtxfeed->demux;
 //	gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
 	gtx_demux_secfilter_t *gtxsecfilter=0;
-	int i;
+	int i = (int)0;
 
 	dprintk("gtx_dmx: dmx_section_feed_allocate_filter.\n");
 
@@ -1245,7 +1250,7 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 	int numflt=0;
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
 	gtx_demux_filter_t *filter=gtxfeed->filter;
-	gtx_demux_secfilter_t *secfilter;
+	gtx_demux_secfilter_t *secfilter = (gtx_demux_secfilter_t *)NULL;
 
 	avia_gt_dmx_set_filter_definition_table(gtxfeed->secfilter->index, 0, gtxfeed->secfilter->index);
 	for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
@@ -1283,7 +1288,7 @@ static int dmx_section_feed_stop_filtering(struct dmx_section_feed_s* feed)
 static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_feed_t** feed, dmx_section_cb callback)
 {
 	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	gtx_demux_feed_t *gtxfeed;
+	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)NULL;
 
 	dprintk("gtx_dmx: dmx_allocate_section_feed.\n");
 
@@ -1352,7 +1357,7 @@ static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed
 static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)
 {
 	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	struct list_head *pos, *head=&gtx->frontend_list;
+	struct list_head *pos = (struct list_head *)NULL, *head=&gtx->frontend_list;
 	if (!(frontend->id && frontend->vendor && frontend->model))
 		return -EINVAL;
 	list_for_each(pos, head)
@@ -1367,7 +1372,7 @@ static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend
 static int dmx_remove_frontend (struct dmx_demux_s* demux,	dmx_frontend_t* frontend)
 {
 	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-	struct list_head *pos, *head=&gtx->frontend_list;
+	struct list_head *pos = (struct list_head *)NULL, *head=&gtx->frontend_list;
 	list_for_each(pos, head)
 	{
 		if (DMX_FE_ENTRY(pos)==frontend)
@@ -1411,7 +1416,7 @@ static void gtx_dmx_set_pcr_pid(int pid)
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
 	dmx_demux_t *dmx=&gtxdemux->dmx;
-	int i, ptr;
+	int i =(int)0, ptr =(int)0;
 	gtxdemux->users=0;
 
 	gtxdemux->frontend_list.next=
@@ -1514,7 +1519,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.89 2002/06/11 20:35:43 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.90 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

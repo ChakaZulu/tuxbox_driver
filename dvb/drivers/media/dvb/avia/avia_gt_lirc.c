@@ -61,8 +61,8 @@ MODULE_LICENSE("GPL");
 static int avia_gt_lirc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-	unsigned long value;
-	int result;
+	unsigned long	 value	= (unsigned long)0;
+	int						 result	= (int)0;
 
 	switch(cmd) {
 
@@ -166,18 +166,18 @@ static unsigned int avia_gt_lirc_poll(struct file *file, poll_table *wait)
 
 }
 					
-u32 pulse_len;
+u32 pulse_len = (u32)0;
 u8 got_next = 0;
-u32 next_high;
-u32 next_low;
+u32 next_high = (u32)0;
+u32 next_low = (u32)0;
 
 static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, loff_t *f_pos)
 {
 
-	u32 period_high;
-	u32 period_low;
+	u32 period_high = (u32)0;
+	u32 period_low = (u32)0;
 //	u32 rand_val;
-	int result;
+	int result = (int)0;
 	u32 done = 0;
 	lirc_t *rx_buffer = (lirc_t *)buf;
 
@@ -281,9 +281,9 @@ static ssize_t avia_gt_lirc_read(struct file *file, char *buf, size_t count, lof
 static ssize_t avia_gt_lirc_write(struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 
-	u32 pulse_count;
-	u32 pulse_nr;
-	int result;
+	u32 pulse_count = (u32)0;
+	u32 pulse_nr = (u32)0;
+	int result = (int)0;
 	
 	if (count % sizeof(lirc_t))
 		return -EINVAL;
@@ -320,7 +320,7 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.3 2002/05/20 21:09:11 Jolt Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.4 2002/08/22 13:39:33 Jolt Exp $\n");
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 

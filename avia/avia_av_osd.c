@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.12  2002/08/22 13:39:33  Jolt
+ *   - GCC warning fixes
+ *   - screen flicker fixes
+ *   Thanks a lot to Massa
+ *
  *   Revision 1.11  2002/05/09 07:29:21  waldi
  *   add correct license
  *
@@ -55,7 +60,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -180,7 +185,7 @@ typedef struct osd_frames {
 
 struct osd_frames frames;
 
-u32 osds,osde;
+u32 osds = (u32)0,osde = (u32)0;
 
 /* ---------------------------------------------------------------------- */
 
@@ -193,7 +198,7 @@ u32 osds,osde;
 static int osd_show_frame( struct osd_frame * frame, u32 * palette, \
 						int psize, u32* bitmap, int bmsize )
 {
-    int i;
+    int i = (int)0;
 
 	frame->odd.bmsize1 = frame->even.bmsize1 = (bmsize>>9);
 	frame->odd.bmsize2 = frame->even.bmsize2 = (bmsize&0x1ff);
@@ -271,9 +276,9 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 
 static void osd_write_frame( struct osd_frame * frame )
 {
-	u32 *odd,*even;
-	u32 osdsp;
-    int i;
+	u32 *odd = (u32 *)NULL,*even = (u32 *)NULL;
+	u32 osdsp = (u32)0;
+    int i = (int)0;
 
 	osdsp = osds+(OSDH_SIZE*2*frame->framenr);
 
@@ -323,7 +328,7 @@ static void osd_init_frame( struct osd_frame * frame, int framenr )
 
 static void osd_init_frames( struct osd_frames * frames )
 {
-	int i;
+	int i = (int)0;
 
 	for(i=0;i<16;i++)
 	{
@@ -371,7 +376,7 @@ int osd_open (struct inode *inode, struct file *file)
 
 static int init_avia_osd(void)
 {
-	u32 i;
+	u32 i = (u32)0;
 //	u32 palette[16];
 //	static u32 bitmap[0x1000];
 
