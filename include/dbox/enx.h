@@ -283,9 +283,6 @@
 #define ENX_REG_QWPnL           0x0880
 #define ENX_REG_QWPnH           0x0882
 
-#define ENX_IRQ_REG(reg, bit)	(reg)
-#define ENX_IRQ_BIT(reg, bit)	(bit)
-
 #define ENX_IRQ_REG_ISR0	0
 #define ENX_IRQ_REG_ISR1	1
 #define ENX_IRQ_REG_ISR2	2
@@ -293,10 +290,12 @@
 #define ENX_IRQ_REG_ISR4	4
 #define ENX_IRQ_REG_ISR5	5
 
-#define ENX_IRQ_IR_TX		ENX_IRQ_REG_ISR0, 1
-#define ENX_IRQ_IR_RX		ENX_IRQ_REG_ISR0, 2
-#define ENX_IRQ_PCM_PF		ENX_IRQ_REG_ISR0, 3
-#define ENX_IRQ_PCM_AD		ENX_IRQ_REG_ISR0, 4
+#define ENX_IRQ_IR_TX		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 1)
+#define ENX_IRQ_IR_RX		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 2)
+#define ENX_IRQ_PCM_PF		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 3)
+#define ENX_IRQ_PCM_AD		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 4)
+#define ENX_IRQ_CAPTURE		AVIA_GT_IRQ(ENX_IRQ_REG_ISR0, 7)
+#define ENX_IRQ_PCR		AVIA_GT_IRQ(ENX_IRQ_REG_ISR1, 5)
 
 typedef struct {
 

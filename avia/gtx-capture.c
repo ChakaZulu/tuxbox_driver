@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: gtx-capture.c,v $
+ *   Revision 1.4  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.3  2002/04/12 23:20:25  Jolt
  *   eNX/GTX merge
  *
@@ -29,7 +32,7 @@
  *   Revision 1.1  2001/09/17 12:24:36  tmbinc
  *   added gtx-capture, very alpha
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -177,7 +180,7 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 	return -ENODEV;
 }
 
-static void vl0_interrupt(int reg, int no)
+static void vl0_interrupt(unsigned short irq)
 {
 	if (state==1)
 	{
@@ -213,7 +216,7 @@ static void disable_capture(void)
 
 static int init_capture(void)
 {
-	printk("$Id: gtx-capture.c,v 1.3 2002/04/12 23:20:25 Jolt Exp $\n");
+	printk("$Id: gtx-capture.c,v 1.4 2002/04/13 23:19:05 Jolt Exp $\n");
 	
 	
   gtxmem = gtx_get_mem();
@@ -225,7 +228,7 @@ static int init_capture(void)
   if (!gtxmem)
     return -1;
 
-  if (gtx_allocate_irq(1, 11, vl0_interrupt ) < 0 )	// VL0 
+  if (gtx_allocate_irq(AVIA_GT_IRQ(1, 11), vl0_interrupt ) < 0 )	// VL0 
   {
     printk("gtx-capture.o: unable to get interrupt\n");
     return -EIO;
@@ -238,7 +241,7 @@ static int init_capture(void)
 		&capture_fops, NULL );
 	if (!devfs_handle)
 	{
-		gtx_free_irq(1, 14);
+		gtx_free_irq(AVIA_GT_IRQ(1, 14));
 		return -EIO;
 	}
 	up(&lock_open);
@@ -250,7 +253,7 @@ static void __exit cleanup_capture(void)
 {
   devfs_unregister(devfs_handle);
 	down(&lock_open);
-	gtx_free_irq(1, 11);
+	gtx_free_irq(AVIA_GT_IRQ(1, 11));
 }
 
 #ifdef MODULE

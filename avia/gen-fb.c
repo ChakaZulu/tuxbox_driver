@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.19  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.18  2002/04/12 23:20:25  Jolt
  *   eNX/GTX merge
  *
@@ -99,7 +102,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -138,14 +141,7 @@
 #include <video/fbcon.h>
 #include <video/fbcon-cfb16.h>
 #include "dbox/fb.h"
-
-#ifdef GTX
-#include "dbox/gtx.h"
-#endif // GTX
-
-#ifdef ENX
-#include "dbox/enx.h"
-#endif // ENX
+#include "dbox/avia_gt.h"
 
 #define RES_X           720
 #define RES_Y           576
@@ -944,7 +940,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: gen-fb.c,v 1.18 2002/04/12 23:20:25 Jolt Exp $\n");
+	dprintk("Framebuffer: $Id: gen-fb.c,v 1.19 2002/04/13 23:19:05 Jolt Exp $\n");
 	
 	return gtxfb_init();
 }

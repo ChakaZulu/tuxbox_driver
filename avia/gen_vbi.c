@@ -38,12 +38,7 @@
 #include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
 
-#ifdef ENX
-#include <dbox/enx.h>
-#endif
-#ifdef GTX
-#include <dbox/gtx.h>
-#endif
+#include <dbox/avia_gt.h>
 
 #include <ost/demux.h>
 #include <dbox/gtx-dmx.h>

@@ -140,19 +140,16 @@
 #define GTX_REG_VCS	0x268
 
 
-unsigned char GTX_IRQ_REG(reg, bit) { return reg; }
-unsigned char GTX_IRQ_BIT(reg, bit) { return bit; }
-//#define GTX_IRQ_BIT(reg, bit)	(bit)
-
 #define GTX_IRQ_REG_ISR0	0
 #define GTX_IRQ_REG_ISR1	1
 #define GTX_IRQ_REG_ISR2	2
 #define GTX_IRQ_REG_ISR3	3
 
-#define GTX_IRQ_IR_TX		GTX_IRQ_REG_ISR1, 8
-#define GTX_IRQ_IR_RX		GTX_IRQ_REG_ISR1, 9
-#define GTX_IRQ_PCM_PF		GTX_IRQ_REG_ISR1, 10
-#define GTX_IRQ_PCM_AD		GTX_IRQ_REG_ISR1, 12
+#define GTX_IRQ_PCR		AVIA_GT_IRQ(GTX_IRQ_REG_ISR0, 8)
+#define GTX_IRQ_IR_TX		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 8)
+#define GTX_IRQ_IR_RX		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 9)
+#define GTX_IRQ_PCM_PF		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 10)
+#define GTX_IRQ_PCM_AD		AVIA_GT_IRQ(GTX_IRQ_REG_ISR1, 12)
 
 
 

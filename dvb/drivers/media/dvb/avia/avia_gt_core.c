@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.5  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.4  2002/04/13 14:47:19  Jolt
  *   eNX/GTX merge
  *
@@ -34,7 +37,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -78,7 +81,7 @@ MODULE_PARM(chip_type, "i");
 unsigned char *gt_mem_addr = NULL;
 unsigned char *gt_reg_addr = NULL;
 
-void (*gt_isr_proc_list[128])(unsigned char irq_reg, unsigned char irq_bit);
+void (*gt_isr_proc_list[128])(unsigned short irq);
 
 int avia_gt_alloc_dram(unsigned int size, unsigned char align)
 {
@@ -182,12 +185,12 @@ void avia_gt_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 
 }
 	
-int avia_gt_alloc_irq(unsigned char irq_reg, unsigned char irq_bit, void (*isr_proc)(unsigned char irq_reg, unsigned char irq_bit))
+int avia_gt_alloc_irq(unsigned short irq, void (*isr_proc)(unsigned short irq))
 {
 
-    dprintk("avia_gt_core: alloc_irq reg %d bit %d\n", irq_reg, irq_bit);
+    dprintk("avia_gt_core: alloc_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 	
-    if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)]) {
+    if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))]) {
 	
         printk("avia_gt_core: irq already used\n");
 		
@@ -195,23 +198,23 @@ int avia_gt_alloc_irq(unsigned char irq_reg, unsigned char irq_bit, void (*isr_p
 		
     }
 	
-    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)] = isr_proc;
+    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = isr_proc;
     
-    avia_gt_unmask_irq(irq_reg, irq_bit);
-    avia_gt_clear_irq(irq_reg, irq_bit);
+    avia_gt_unmask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
+    avia_gt_clear_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 
     return 0;
 	
 }
 			    
-void avia_gt_free_irq(unsigned char irq_reg, unsigned char irq_bit)
+void avia_gt_free_irq(unsigned short irq)
 {
 
-    dprintk("avia_gt_core: free_irq reg %d bit %d\n", irq_reg, irq_bit);
+    dprintk("avia_gt_core: free_irq reg %d bit %d\n", AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 
-    avia_gt_mask_irq(irq_reg, irq_bit);
+    avia_gt_mask_irq(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq));
 	
-    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)] = NULL;
+    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(AVIA_GT_IRQ_REG(irq), AVIA_GT_IRQ_BIT(irq))] = NULL;
 	
 }
 
@@ -236,7 +239,7 @@ static void avia_gt_irq_handler(int irq, void *dev, struct pt_regs *regs)
 
     		if (gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)]) {
 
-		    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)](irq_reg, irq_bit);
+		    gt_isr_proc_list[AVIA_GT_ISR_PROC_NR(irq_reg, irq_bit)](AVIA_GT_IRQ(irq_reg, irq_bit));
 
 		} else {
 
@@ -265,7 +268,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.4 2002/04/13 14:47:19 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.5 2002/04/13 23:19:05 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     

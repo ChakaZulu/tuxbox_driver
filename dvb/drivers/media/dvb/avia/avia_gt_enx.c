@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.7  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.6  2002/04/12 14:00:20  Jolt
  *   eNX/GTX merge
  *
@@ -97,7 +100,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -239,7 +242,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.6 2002/04/12 14:00:20 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
 
     enx_reset();
     enx_sdram_ctrl_init();
@@ -250,15 +253,12 @@ void avia_gt_enx_init(void)
     memset(avia_gt_get_mem_addr(), 0xF, 1024*1024 /*ENX_MEM_SIZE*/);
 
     //bring out of reset state
-    enx_reg_w(RSTR0) &= ~(1 << 28);  // PCM Audio Clock
     enx_reg_w(RSTR0) &= ~(1 << 27);  // AV - Decoder
     enx_reg_w(RSTR0) &= ~(1 << 21);  // Teletext engine
-    enx_reg_w(RSTR0) &= ~(1 << 17);  // PIG2
     enx_reg_w(RSTR0) &= ~(1 << 13);  // Queue Manager
     enx_reg_w(RSTR0) &= ~(1 << 11);  // Graphics
     enx_reg_w(RSTR0) &= ~(1 << 10);  // Video Capture
     enx_reg_w(RSTR0) &= ~(1 << 9);   // Video Module
-    enx_reg_w(RSTR0) &= ~(1 << 7);   // PIG1
     enx_reg_w(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
 
     enx_reg_w(CFGR0) &= ~(1 << 3);   // disable clip mode teletext

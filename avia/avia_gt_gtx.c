@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.7  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.6  2002/04/13 14:47:19  Jolt
  *   eNX/GTX merge
  *
@@ -99,7 +102,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -165,7 +168,7 @@ void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg)
 {
 
-    if (irq_reg <= 5)
+    if (irq_reg <= 3)
 	return gtx_reg_16n(imr[irq_reg]);
     else
 	return 0;
@@ -175,7 +178,7 @@ unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg)
 unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg)
 {
 
-    if (irq_reg <= 5)
+    if (irq_reg <= 2) // FIXME mhh tmb??
 	return gtx_reg_16n(isr[irq_reg]);
     else
 	return 0;
@@ -253,7 +256,7 @@ void avia_gt_gtx_init(void)
 {
         int cr;
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.6 2002/04/13 14:47:19 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
 	
 	avia_gt_gtx_reset();
 

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.71 $
+ *   $Revision: 1.72 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.72  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.71  2002/04/12 23:20:25  Jolt
  *   eNX/GTX merge
  *
@@ -725,8 +728,11 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 
 static __u32 datamask=0;
 
-static void gtx_queue_interrupt(unsigned char nr, unsigned char bit)
+static void gtx_queue_interrupt(unsigned short irq)
 {
+
+    unsigned char nr = AVIA_GT_IRQ_REG(irq); 
+    unsigned char bit = AVIA_GT_IRQ_BIT(irq);
 #ifdef enx_dmx
 	int queue;
 	if (nr==3)
@@ -837,7 +843,7 @@ static Pcr_t oldClk;
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
-static void gtx_pcr_interrupt(unsigned char b, unsigned char r)
+static void gtx_pcr_interrupt(unsigned short irq)
 {
 	Pcr_t TPpcr;
 	Pcr_t latchedClk;
@@ -945,14 +951,14 @@ static void gtx_dmx_set_pcr_source(int pid)
 	enx_reg_h(PCR_PID)=(1<<13)|pid;
 	enx_reg_h(FC)|=0x100;							 // force discontinuity
 	discont=1;
-	avia_gt_free_irq(1, 5);
-	avia_gt_alloc_irq(1, 5, gtx_pcr_interrupt);			 // pcr reception
+	avia_gt_free_irq(ENX_IRQ_PCR);
+	avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 #else
 	rh(PCRPID)=(1<<13)|pid;
 	rh(FCR)|=0x100;							 // force discontinuity
 	discont=1;
-	avia_gt_free_irq(0, 8);
-	avia_gt_alloc_irq(0, 8, gtx_pcr_interrupt);			 // pcr reception
+	avia_gt_free_irq(GTX_IRQ_PCR);
+	avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
 #endif	
 }
 
@@ -1050,18 +1056,18 @@ void gtx_dmx_close(void)
 #ifdef enx_dmx
 	for (i=1; i<16; i++)
 	{
-		avia_gt_free_irq(3, i);
-		avia_gt_free_irq(4, i);
+		avia_gt_free_irq(AVIA_GT_IRQ(3, i));
+		avia_gt_free_irq(AVIA_GT_IRQ(4, i));
 	}
-	avia_gt_free_irq(5, 6);
-	avia_gt_free_irq(5, 7);
-	avia_gt_free_irq(1, 5);					 // PCR
+	avia_gt_free_irq(AVIA_GT_IRQ(5, 6));
+	avia_gt_free_irq(AVIA_GT_IRQ(5, 7));
+	avia_gt_free_irq(ENX_IRQ_PCR);					 // PCR
 #else
 	for (j=0; j<2; j++)
 		for (i=0; i<16; i++)
-			avia_gt_free_irq(j+2, i);
+			avia_gt_free_irq(AVIA_GT_IRQ(j+2, i));
 
-	avia_gt_free_irq(0, 8);					 // PCR
+	avia_gt_free_irq(GTX_IRQ_PCR);					 // PCR
 #endif
 }
 								// nokia api
@@ -1550,9 +1556,9 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 			gtxfeed->int_nr=5;
 			gtxfeed->int_bit=gtxfeed->index+6;
 		}
-		avia_gt_alloc_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
+		avia_gt_alloc_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit), gtx_queue_interrupt);
 #else	
-		avia_gt_alloc_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+		avia_gt_alloc_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15), gtx_queue_interrupt);
 #endif
 	}
 }
@@ -1563,9 +1569,9 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 	{
 		gtxfeed->tap=0;
 #ifdef enx_dmx
-		avia_gt_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
+		avia_gt_free_irq(AVIA_GT_IRQ(gtxfeed->int_nr, gtxfeed->int_bit));
 #else
-		avia_gt_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+		avia_gt_free_irq(AVIA_GT_IRQ(2+!!(gtxfeed->index&16), gtxfeed->index&15));
 #endif
 	}
 }
@@ -2094,7 +2100,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.71 2002/04/12 23:20:25 Jolt Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.72 2002/04/13 23:19:05 Jolt Exp $\n");
 
 	return gtx_dmx_init();
 }

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.7  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.6  2002/04/13 14:47:19  Jolt
  *   eNX/GTX merge
  *
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -81,75 +84,53 @@ DECLARE_WAIT_QUEUE_HEAD(capture_wait);
 static devfs_handle_t devfs_handle;
 
 static struct file_operations capture_fops = {
-	owner:  	THIS_MODULE,
-	read:   	capture_read,
-	ioctl:  	capture_ioctl,
+
+    owner:	THIS_MODULE,
+    read:   	capture_read,
+    ioctl:  	capture_ioctl,
+	
 };
 
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read;
-//	unsigned int done;
 
-	switch (minor)
-	{
-		case 0:
-		{
-			DECLARE_WAITQUEUE(wait, current);
-			read=0;
-
-			for(;;)
-			{
-				if (state!=2)		// frame not done
-				{
-					printk("avia_gt_capture: no frame captured, waiting.. (data: %x)\n", gt_mem[capt_buf_addr]);
-					if (file->f_flags & O_NONBLOCK)
-						return read;
-
-					add_wait_queue(&capture_wait, &wait);
-					set_current_state(TASK_INTERRUPTIBLE);
-					schedule();
-					current->state = TASK_RUNNING;
-					remove_wait_queue(&capture_wait, &wait);
-
-					if (signal_pending(current))
-					{
-						printk("avia_gt_capture: aborted. %x\n", gt_mem[capt_buf_addr]);
-						return -ERESTARTSYS;
-					}
+    while (state != 2) {
+    
+	if (file->f_flags & O_NONBLOCK) {
+	    
+	    return -EWOULDBLOCK;
+	    
+	} else {
+	    
+	    if (wait_event_interruptible(capture_wait, state == 2))
+        	return -ERESTARTSYS;
 					
-					printk("avia_gt_capture: ok\n");
-
-					continue;
-				}
+        }
+	
+    }
+									
+    printk("avia_gt_capture: ok\n");
 				
-				/*done=0;
-				while (done*output_width < count) {
-				    if ((done+1)*output_width > count)
-					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, output_width);
-				    else
-					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
-				    done++;
-				} */   
-				memcpy(buf, gt_mem+capt_buf_addr, count);
+    /*done=0;
+    while (done*output_width < count) {
+    
+	if ((done+1)*output_width > count)
+	    memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, output_width);
+        else
+	    memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
+	    
+        done++;
+	
+    } */   
+    
+    if (copy_to_user(buf, gt_mem + capt_buf_addr, count))
+	return -EFAULT;
 				
-				read=count;
-				
-				//enable_capture();
-
-				break;
-			}
-			//printk("avia_gt_capture: captured 0x%X bytes\n", read);
-			return read;
-		}
-
-		default:
-			return -EINVAL;
-	}
-  return 0;
+    return count;
+    
 }
 
-static int capture_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
 /*    switch(cmd) {
@@ -191,20 +172,25 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
     
     return 0;
 
-//    return -ENODEV;
 }
 
-void avia_gt_capture_interrupt(unsigned char irq_reg, unsigned char irq_bit)
+void avia_gt_capture_interrupt(unsigned short irq)
 {
-    if (state==1)
-    {
+
+    if (state == 1) {
+    
 	//printk("avia_gt_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
-	if (frames++>1)
-	{
-	    state=2;
-	    wake_up(&capture_wait);
+	
+	if (frames++ > 1) {
+	
+	    state = 2;
+	    
+	    wake_up_interruptible(&capture_wait);
+	    
 	}
+	
     }
+    
 }
 
 int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
@@ -341,7 +327,7 @@ int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.6 2002/04/13 14:47:19 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.7 2002/04/13 23:19:05 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
@@ -350,7 +336,7 @@ int __init avia_gt_capture_init(void)
     if (!devfs_handle)
 	return -EIO;
 
-    if (avia_gt_alloc_irq(0, 5, avia_gt_capture_interrupt) < 0) {
+    if (avia_gt_alloc_irq(ENX_IRQ_CAPTURE, avia_gt_capture_interrupt) < 0) {
     
 	printk("avia_gt_capture: unable to get interrupt\n");
 	
@@ -366,7 +352,7 @@ int __init avia_gt_capture_init(void)
     
         printk("avia_gt_pcm: Unsupported chip type\n");
 
-	avia_gt_free_irq(0, 5);
+	avia_gt_free_irq(ENX_IRQ_CAPTURE);
 	devfs_unregister(devfs_handle);
 	    
         return -EIO;
@@ -391,7 +377,7 @@ void __exit avia_gt_capture_exit(void)
 
     avia_gt_capture_stop();
 
-    avia_gt_free_irq(0, 5);
+    avia_gt_free_irq(ENX_IRQ_CAPTURE);
     
     // Reset video capture
     enx_reg_s(RSTR0)->VIDC = 1;		

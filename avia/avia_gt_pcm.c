@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.9  2002/04/13 23:19:05  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.8  2002/04/13 21:00:28  Jolt
  *   eNX/GTX merge
  *
@@ -48,7 +51,7 @@
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -197,7 +200,7 @@ void avia_gt_pcm_queue_buffer(void)
 
 }
 
-static void avia_gt_pcm_irq(unsigned char reg, unsigned char bit)
+static void avia_gt_pcm_irq(unsigned short irq)
 {
 
     unsigned long flags;
@@ -207,7 +210,7 @@ static void avia_gt_pcm_irq(unsigned char reg, unsigned char bit)
 
     spin_lock_irqsave(&busy_buffer_lock, flags);
     
-/*    if (bit == 4)
+/*    if ((irq == ENX_IRQ_PCM_AD) || (irq == GTX_IRQ_PCM_AD))
 	printk("X");
 
     list_for_each(ptr, &pcm_busy_buffer_list) {
@@ -519,9 +522,10 @@ int avia_gt_pcm_init(void)
 {
 
     unsigned char buf_nr;
-    int ad_reg, ad_bit, pf_reg, pf_bit;
+    unsigned short irq_ad; 
+    unsigned short irq_pf;
 
-    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.8 2002/04/13 21:00:28 Jolt Exp $\n");
+    printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.9 2002/04/13 23:19:05 Jolt Exp $\n");
 
     pcm_chip_type = avia_gt_get_chip_type();
     
@@ -535,21 +539,17 @@ int avia_gt_pcm_init(void)
 
     if (pcm_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
-	ad_reg = ENX_IRQ_REG(ENX_IRQ_PCM_AD);
-	ad_bit = ENX_IRQ_BIT(ENX_IRQ_PCM_AD);
-	pf_reg = ENX_IRQ_REG(ENX_IRQ_PCM_PF);
-	pf_bit = ENX_IRQ_BIT(ENX_IRQ_PCM_PF);
+	irq_ad = ENX_IRQ_PCM_AD;
+	irq_pf = ENX_IRQ_PCM_PF;
 	
     } else if (pcm_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
 
-	ad_reg = GTX_IRQ_REG(GTX_IRQ_PCM_AD);
-	ad_bit = GTX_IRQ_BIT(GTX_IRQ_PCM_AD);
-	pf_reg = GTX_IRQ_REG(GTX_IRQ_PCM_PF);
-	pf_bit = GTX_IRQ_BIT(GTX_IRQ_PCM_PF);
+	irq_ad = GTX_IRQ_PCM_AD;
+	irq_pf = GTX_IRQ_PCM_PF;
 
     }
 		
-    if (avia_gt_alloc_irq(ad_reg, ad_bit, avia_gt_pcm_irq)) {
+    if (avia_gt_alloc_irq(irq_ad, avia_gt_pcm_irq)) {
 
 	printk("avia_gt_pcm: unable to get pcm-ad interrupt\n");
 	
@@ -557,11 +557,11 @@ int avia_gt_pcm_init(void)
 	
     }
 		
-    if (avia_gt_alloc_irq(pf_reg, pf_bit, avia_gt_pcm_irq)) {
+    if (avia_gt_alloc_irq(irq_pf, avia_gt_pcm_irq)) {
 
 	printk("avia_gt_pcm: unable to get pcm-pf interrupt\n");
 	
-	avia_gt_free_irq(ad_reg, ad_bit);
+	avia_gt_free_irq(irq_ad);
 	
 	return -EIO;
 	

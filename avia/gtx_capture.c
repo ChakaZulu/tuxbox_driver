@@ -229,7 +229,7 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 //    return -ENODEV;
 }
 
-void gtx_capture_interrupt(int reg, int no)
+void gtx_capture_interrupt(unsigned short irq)
 {
     if (state==1)
     {
@@ -370,7 +370,7 @@ int gtx_capture_init(void)
     gtx_reg_s(VCS)->F = 1;   				// Enable filter
     gtx_reg_s(VCS)->B = 0;				// Enable hardware double buffering
     
-    if (avia_gt_alloc_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
+    if (avia_gt_alloc_irq(AVIA_GT_IRQ(1, 13), gtx_capture_interrupt) < 0)	// VL1
     {
 	printk("gtx_capture: unable to get interrupt\n");
 	return -EIO;
@@ -385,13 +385,13 @@ void gtx_capture_cleanup(void)
 {
     gtx_capture_stop();
 
-    avia_gt_free_irq(1, 13);
+    avia_gt_free_irq(AVIA_GT_IRQ(1, 13));
     gtx_reg_16(RR0) |= (1 << 14);		
 }
 
 static int init_capture(void)
 {
-    printk("$Id: gtx_capture.c,v 1.5 2002/04/12 23:20:25 Jolt Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.6 2002/04/13 23:19:05 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
 
