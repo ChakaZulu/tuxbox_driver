@@ -19,6 +19,9 @@
  *
  *
  *   $Log: dbox2_i2c.c,v $
+ *   Revision 1.20  2002/08/12 17:45:13  obi
+ *   removed compiler warning
+ *
  *   Revision 1.19  2002/05/06 02:18:19  obi
  *   cleanup for new kernel
  *
@@ -44,7 +47,7 @@
  *   Revision 1.12  2001/01/06 10:06:01  gillem
  *   cvs check
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -70,8 +73,10 @@
 /* HACK HACK HACK */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)
 #include <asm/commproc.h>
+static void i2c_interrupt(void *, struct pt_regs *regs);
 #else
 #include <commproc.h>
+static void i2c_interrupt(void *);
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -90,7 +95,6 @@ int i2c_event_mask = 0;
 static DECLARE_MUTEX(i2c_mutex);
 
 /* interrupt stuff */
-static void i2c_interrupt(void*);
 static wait_queue_head_t i2c_wait;
 
 /* ------------------------------------------------------------------------- */
@@ -345,7 +349,11 @@ static int i2c_init(int speed)
 
 /* ------------------------------------------------------------------------- */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)
+static void i2c_interrupt( void * dev_id, struct pt_regs *regs )
+#else
 static void i2c_interrupt( void * dev_id )
+#endif
 {
 	volatile iic_t *iip;
     volatile i2c8xx_t *i2c;
