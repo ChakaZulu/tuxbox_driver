@@ -33,7 +33,6 @@
 #endif
 
 #include "dvb_frontend.h"
-#include "dvb_i2c.h"
 #include "dvb_functions.h"
 
 static int debug = 0;
