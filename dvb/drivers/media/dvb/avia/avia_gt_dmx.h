@@ -49,15 +49,15 @@ typedef struct {
 	u32 State: 3;
 	u32 Reserved1: 1;
 	u32 no_of_filter: 4;
-	
+
 } sPID_Parsing_Control_Entry;
 
 typedef struct {
 
-	u32 and_or_flag: 1;
-	u32 filter_param_id: 6;
-	u32 Reserved: 1;
-	
+	u8 and_or_flag: 1;
+	u8 filter_param_id: 5;
+	u8 Reserved: 2;
+
 } sFilter_Definition_Entry;
 
 typedef struct {
@@ -114,23 +114,52 @@ typedef struct {
     sFilter_Definition_Entry Filter_Definition_Table[32];
     u8 Reserved4[30];
     u8 Version_no[2];
-    
+
 } sRISC_MEM_MAP;
+
+typedef struct {
+	u8 type;
+	u8 expected_cc;
+	u8 detected_cc;
+	u16 pid;
+} sCC_ERROR_MESSAGE;
+
+typedef struct {
+	u8 type;
+	u8 filter_index;
+	u16 pid;
+} sSECTION_COMPLETED_MESSAGE;
+
+typedef struct {
+	u8 type;
+	u16 pid;
+	u8 cc;
+	u8 length;
+} sPRIVATE_ADAPTION_MESSAGE;
 
 #pragma pack()
 
+#define DMX_MESSAGE_CC_ERROR			0xFE
+#define DMX_MESSAGE_SYNC_LOSS			0xFD
+#define DMX_MESSAGE_ADAPTION			0xFC
+#define DMX_MESSAGE_SECTION_COMPLETED	0xCE
+
 void avia_gt_dmx_force_discontinuity(void);
-int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id);
-int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[8], u8 param[8], u8 not_flag, u8 not_flag_ver_id_byte);
 void avia_gt_dmx_set_pcr_pid(u16 pid);
-int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 no_of_filter);
+int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 cw_offset, u8 cc, u8 start_up, u8 pec, u8 filt_tab_idx, u8 _psh);
 int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid);
 unsigned int avia_gt_dmx_get_queue_write_pointer(unsigned char queue_nr);
 void avia_gt_dmx_set_queue_write_pointer(unsigned char queue_nr, unsigned int write_pointer);
 void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr);
 void avia_gt_dmx_set_queue(unsigned char queue_nr, unsigned int write_pointer, unsigned char size);
 void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt);
+int avia_gt_dmx_start_stop_feed(unsigned entry, unsigned what);
+int avia_gt_dmx_set_section_filter(void *v_gtx, unsigned entry, unsigned no_of_filters, void *v_secfilter);
+int avia_gt_dmx_set_filter_definition_table(u8 entry, u8 and_or_flag, u8 filter_param_id);
+int avia_gt_dmx_set_filter_parameter_table(u8 entry, u8 mask[], u8 param[], u8 not_flag, u8 not_flag_ver_id_byte);
+int avia_gt_dmx_get_hw_sec_filt_avail(void);
+void avia_gt_dmx_release_section_filter(void *v_gtx, unsigned entry);
 int avia_gt_dmx_init(void);
 void avia_gt_dmx_exit(void);
-	
+
 #endif

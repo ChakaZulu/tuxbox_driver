@@ -29,7 +29,7 @@ typedef struct gtx_demux_secfilter_s
   dmx_section_filter_t filter;
   int index;
   int state;
-  
+
   struct gtx_demux_secfilter_s *next;
   struct gtx_demux_feed_s *feed;
 } gtx_demux_secfilter_t;
@@ -47,8 +47,8 @@ typedef struct gtx_demux_filter_s
   int output;
   int wait_pusi, invalid, pid;
   int queue, fork, cw_offset, cc, start_up, pec;
-  // type=SECTION
-  int filt_tab_idx, no_of_filters;
+  // type section
+  int no_of_filters;
 
   struct gtx_demux_feed_s *feed;
 } gtx_demux_filter_t;
@@ -75,6 +75,8 @@ typedef struct gtx_demux_feed_s
 #define DMX_TYPE_TS  0
 #define DMX_TYPE_SEC 1
 #define DMX_TYPE_PES 2
+#define DMX_TYPE_HW_SEC 3
+#define DMX_TYPE_MESSAGE 4
 
 #define DMX_STATE_FREE      0
 #define DMX_STATE_ALLOCATED 1
@@ -98,7 +100,7 @@ typedef struct gtx_demux_feed_s
   int index, int_nr, int_bit;
 
   int base, end, size, readptr;
-  
+
   int tap;
 } gtx_demux_feed_t;
 
@@ -110,6 +112,8 @@ typedef struct gtx_demux_s
   gtx_demux_feed_t feed[32];
   gtx_demux_filter_t filter[32];
   gtx_demux_secfilter_t secfilter[32];
+  int filter_definition_table_entry_user[32];
+  unsigned char hw_sec_filt_enabled;
 
   struct list_head frontend_list;
 } gtx_demux_t;
