@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.4  2001/02/17 19:45:21  gillem
+ *   - some changes
+ *
  *   Revision 1.3  2001/02/17 11:12:42  gillem
  *   - fix init
  *
@@ -53,7 +56,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -92,7 +95,7 @@ static int pal=1;
 static char *firmware=0;
 #endif
 
-#define dprintk(fmt,args...) if(debug) printk( "AVIA: " fmt,## args)
+#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
 #ifdef MODULE
 
@@ -106,9 +109,13 @@ static int run_cmd;
 
 /* interrupt stuff */
 #define AVIA_INTERRUPT			SIU_IRQ4
-#define AVIA_CMD_TIMEOUT		500
+#define AVIA_CMD_TIMEOUT		350
 
 static wait_queue_head_t avia_cmd_wait;
+
+/* mutex stuff */
+static DECLARE_MUTEX(avia_cmd_mutex);
+static DECLARE_MUTEX(avia_wait_cmd_mutex);
 
 /* finally i got them */
 #define UX_MAGIC                        0x00
@@ -193,7 +200,7 @@ static void InitialGBus(u32 *microcode)
 	unsigned long *ptr=((unsigned long*)microcode)+0x306;
 	int words=*ptr--, data, addr;
 
-	dprintk(KERN_DEBUG "performing %d initial G-bus Writes. (don't panic! ;)\n", words);
+	dprintk(KERN_DEBUG "AVIA: Performing %d initial G-bus Writes. (don't panic! ;)\n", words);
 
 	while (words--)
 	{
@@ -214,7 +221,7 @@ static void FinalGBus(u32 *microcode)
 	ptr-=words*4;
 	words=*ptr--;
 
-	dprintk(KERN_DEBUG "performing %d final G-bus Writes.\n", words);
+	dprintk(KERN_DEBUG "AVIA: Performing %d final G-bus Writes.\n", words);
 
 	while (words--)
 	{
@@ -259,7 +266,7 @@ static void load_dram_image(u32 *microcode,u32 section_start)
 
 	if (errors)
 	{
-		dprintk(KERN_ERR "ERROR: microcode verify: %d errors.\n", errors);
+		dprintk(KERN_ERR "AVIA: Microcode verify: %d errors.\n", errors);
 	}
 }
 
@@ -290,7 +297,7 @@ static void load_imem_image(u32 *microcode,u32 data_start)
 
 	if (errors)
 	{
-		dprintk(KERN_ERR "ERROR: imem verify: %d errors\n", errors);
+		dprintk(KERN_ERR "AVIA: Imem verify: %d errors\n", errors);
 	}
 } 
 
@@ -315,11 +322,16 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 	u32 status=rDR(0x2AC);
 	u32 sem;
 
-	/* avia cmd stuff */
+	/* usr data */
+	if(status&(1<<12))
+	{
+		dprintk(KERN_INFO "AVIA: User data :-).\n");
+	}
 
+	/* avia cmd stuff */
 	if(status&(1<<15) || status&(1<<9))
 	{
-		dprintk("CMD INTR\n");
+		dprintk(KERN_INFO "AVIA: CMD INTR\n");
 
 		if(run_cmd)
 		{
@@ -328,9 +340,9 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 		}
 		else
 		{
-			dprintk("CMD UNKN %08X %08X %08X %08X %08X %08X %08X %08X\n",\
+			dprintk(KERN_DEBUG "AVIA: CMD UNKN %08X %08X %08X %08X %08X %08X %08X %08X\n",\
 				rDR(0x40),rDR(0x44),rDR(0x48),rDR(0x4c),rDR(0x50),rDR(0x54),rDR(0x58),rDR(0x5c));
-			dprintk("PROC %08X %08X %08X\n",rDR(0x2a0),rDR(0x2a4),rDR(0x2a8));
+			dprintk(KERN_DEBUG "AVIA: PROC %08X %08X %08X\n",rDR(0x2a0),rDR(0x2a4),rDR(0x2a8));
 		}
 	}
 
@@ -345,7 +357,7 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 	{
  	    sem = rDR(0x460);
 
-		dprintk("AUD INTR %08X\n",sem);
+		dprintk(KERN_DEBUG "AVIA: AUD INTR %08X\n",sem);
 
 		// E0 AUDIO_CONFIG
 		// E8 AUDIO_DAC_MODE
@@ -365,13 +377,13 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 				case 7: wDR(0xEC, (rDR(0xEC)&~(7<<2)) | (2<<2) ); break;
 			}
 
-			dprintk("New sample freq. %d.\n",sem&7);
+			dprintk(KERN_INFO "AVIA: New sample freq. %d.\n",sem&7);
 		}
 
 		/* reserved */
 		if ( sem&(7<<3) )
 		{
-			dprintk("Reserved %02X.\n",(sem>>3)&7);
+			dprintk(KERN_INFO "AVIA: Reserved %02X.\n",(sem>>3)&7);
 		}
 
 		/* new audio emphasis */
@@ -379,8 +391,8 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 		{
 			switch((sem>>6)&3)
 			{
-				case 1: dprintk("New audio emphasis is off.\n"); break;
-				case 2: dprintk("New audio emphasis is on.\n"); break;
+				case 1: dprintk(KERN_INFO "AVIA: New audio emphasis is off.\n"); break;
+				case 2: dprintk(KERN_INFO "AVIA: New audio emphasis is on.\n"); break;
 			}
 
 		}
@@ -425,7 +437,7 @@ void avia_interrupt(int irq, void *vdev, struct pt_regs * regs)
 		}
 
 		if ( rDR(0x2c4)&(1<<2) ) {
-			dprintk("ERR AUDIO BITSTREAM CURR: %d\n",rDR(0x320));
+			dprintk(KERN_DEBUG "AVIA: ERR AUDIO BITSTREAM CURR: %d\n",rDR(0x320));
 		}
 
 		if ( rDR(0x2c4)&(1<<3) ) {
@@ -451,20 +463,26 @@ u32 avia_command(u32 command, ...)
 {
 	u32 stataddr, tries, i;
 	va_list ap;
+
+	/* mutex */
+	down(&avia_cmd_mutex);
+
 	va_start(ap, command);
 
 	// TODO: kernel lock (DRINGEND)
 
-	tries=100;
+	tries=1000;
 
 	while (!rDR(0x5C))
 	{
-		udelay(10000);
 		if (! (tries--))
 		{
-			dprintk("AVIA timeout.\n");
+			dprintk(KERN_ERR "AVIA: timeout.\n");
+			up(&avia_cmd_mutex);
 			return -1;
 		}
+
+		udelay(1000);
 	}
   
 	wDR(0x40, command);
@@ -489,14 +507,18 @@ u32 avia_command(u32 command, ...)
 
 	while (!(stataddr=rDR(0x5C)))
 	{
-		udelay(1000);
-
 		if (! (tries--))
 		{
-			dprintk("AVIA timeout.\n");
+			dprintk(KERN_ERR "AVIA: timeout.\n");
+			up(&avia_cmd_mutex);
 			return -1;
 		}
+
+		udelay(1000);
 	}
+
+	/* mutex */
+	up(&avia_cmd_mutex);
 
 	return stataddr;
 }
@@ -506,23 +528,31 @@ u32 avia_command(u32 command, ...)
 u32 avia_wait(u32 sa)
 {
 	int i;
-	int tries=2000;
+
+	down(&avia_wait_cmd_mutex);
 
 	if (sa==-1)
 	{
+		up(&avia_wait_cmd_mutex);
 		return -1;
 	}
 
-	dprintk("COMMAND run\n");
+	dprintk(KERN_IBFO "AVIA: COMMAND run\n");
+
 	run_cmd++;
+
 	i=interruptible_sleep_on_timeout(&avia_cmd_wait, AVIA_CMD_TIMEOUT);
-	dprintk("COMMAND complete: %d.\n",AVIA_CMD_TIMEOUT-i);
+
+	dprintk(KERN_INFO "AVIA: COMMAND complete: %d.\n",AVIA_CMD_TIMEOUT-i);
 
 	if (i==0)
 	{
-		dprintk("COMMAND timeout.\n");
+		dprintk(KERN_ERR "AVIA: COMMAND timeout.\n");
+		up(&avia_wait_cmd_mutex);
 		return -1;
 	}
+
+	up(&avia_wait_cmd_mutex);
 
 	return(rDR(sa));
 }
@@ -540,7 +570,7 @@ void avia_set_pcr(u32 hi, u32 lo)
 	u32 timer_low = ((data2 & 0x03FFFL) << 2)
                			| ((lo & 0x8000L) >> 14) | (( 1L ));
 
-	dprintk("setting avia PCR: %08x:%08x\n", hi, lo);
+	dprintk(KERN_INFO "AVIA: Setting PCR: %08x:%08x\n", hi, lo);
 
 	wGB(0x02, timer_high);
 	wGB(0x03, timer_low);
@@ -676,11 +706,17 @@ void avia_set_default(void)
 
 	/* */
     wDR(INTERPRET_USER_DATA,0);
+    wDR(INTERPRET_USER_DATA_MASK,0);
+
+    wDR(USER_DATA_BUFFER_START,0);
+    wDR(USER_DATA_BUFFER_END,0);
 
 	/* osd */
 	wDR(DISABLE_OSD, 0 );
 	wDR(OSD_BUFFER_START, 0 );
-	wDR(OSD_BUFFER_END, 0xFFFF );
+	wDR(OSD_BUFFER_END,   0 );
+	wDR(OSD_EVEN_FIELD, 0 );
+	wDR(OSD_ODD_FIELD, 0 );
 
 	wDR(0x64, 0);
 	wDR(DRAM_INFO, 0);
@@ -707,7 +743,7 @@ static int ppc_set_siumcr(void)
 
 	if (!immap)
 	{
-		dprintk("Get immap failed.\n");
+		dprintk(KERN_ERR "AVIA: Get immap failed.\n");
 		return -1;
 	}
 
@@ -715,7 +751,7 @@ static int ppc_set_siumcr(void)
 
 	if (!sys_conf)
 	{
-		dprintk("Get sys_conf failed.\n");
+		dprintk(KERN_ERR "AVIA: Get sys_conf failed.\n");
 		return -1;
 	}
 
@@ -745,7 +781,7 @@ static int do_firmread(const char *fn, char **fp)
 
 	if (fd == -1)
 	{
-		dprintk("Unable to load '%s'.\n", firmware);
+		dprintk(KERN_ERR "AVIA: Unable to load '%s'.\n", firmware);
 		return 0;
 	}
 
@@ -753,7 +789,7 @@ static int do_firmread(const char *fn, char **fp)
 
 	if (l<=0)
 	{
-		dprintk("Firmware wrong size '%s'.\n", firmware);
+		dprintk(KERN_ERR "AVIA: Firmware wrong size '%s'.\n", firmware);
 		sys_close(fd);
 		return 0;
 	}
@@ -764,14 +800,14 @@ static int do_firmread(const char *fn, char **fp)
 
 	if (dp == NULL)
 	{
-		dprintk("Out of memory loading '%s'.\n", firmware);
+		dprintk(KERN_ERR "AVIA: Out of memory loading '%s'.\n", firmware);
 		sys_close(fd);
 		return 0;
 	}
 
 	if (read(fd, dp, l) != l)
 	{
-		dprintk("Failed to read '%s'.%d\n", firmware,errno);
+		dprintk(KERN_ERR "AVIA: Failed to read '%s'.%d\n", firmware,errno);
 		vfree(dp);
 		sys_close(fd);
 		return 0;
@@ -813,7 +849,7 @@ static int init_avia(void)
 
 	if (!aviamem)
 	{
-		dprintk("Failed to remap memory.\n");
+		dprintk(KERN_ERR "AVIA: Failed to remap memory.\n");
 		vfree(microcode);
 		return -ENOMEM;
 	}
@@ -831,7 +867,7 @@ static int init_avia(void)
 	/* request avia interrupt */
 	if (request_8xxirq(AVIA_INTERRUPT, avia_interrupt, 0, "avia", &dev) != 0)
 	{
-		dprintk("Failed to get interrupt.\n");
+		dprintk(KERN_ERR "AVIA: Failed to get interrupt.\n");
 		vfree(microcode);
 		iounmap((void*)aviamem);
 		return -EIO;
@@ -855,23 +891,31 @@ static int init_avia(void)
 
 	aviarev=(rGB(0)>>16)&3;
 
+	dprintk(KERN_INFO "AVIA: AVIA REVISION: %02X\n",aviarev);
+
+	/* AR SR CHIP FILE
+	 * 00 80 600L 600...
+     * 03 00 600L 500... ???
+     * 03 00 500  500
+     */
+
 	switch (aviarev)
 	{
 		case 0:
-				dprintk("AVIA 600 found. (no support yet)\n");
+				dprintk(KERN_INFO "AVIA: AVIA 600 found. (no support yet)\n");
 				break;
 		case 1:
-    			dprintk("AVIA 500 LB3 found. (no microcode)\n");
+    			dprintk(KERN_INFO "AVIA: AVIA 500 LB3 found. (no microcode)\n");
 				break;
 //		case 3:
 //				dprintk("AVIA 600L found. (no support yet)\n");
 //				break;
   		default:
-    			dprintk("AVIA 500 LB4 found. (nice)\n");
+    			dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
     			break;
 	}
 
-	dprintk("SILICON REVISION: %02X\n",((rGB(0x22)>>8)&0xFF));
+	dprintk(KERN_INFO "AVIA: SILICON REVISION: %02X\n",((rGB(0x22)>>8)&0xFF));
 
 	/* TODO: AVIA 600 INIT !!! */
 
@@ -932,7 +976,7 @@ static int init_avia(void)
 	wDR(0x2AC, 0);
 
 	/* enable interrupts */
-	wDR(0x200, (1<<23)|(1<<22)|(1<<16)|(1<<8)|(1) );
+	wDR(0x200, (1<<23)|(1<<22)|(1<<16)|(1<<12)|(1<<8)|(1) );
 
 	tries=20;
 
@@ -946,7 +990,9 @@ static int init_avia(void)
 
 	if (!tries)
 	{
-		dprintk("Timeout waiting for decoder initcomplete. (%08X)\n",rDR(0x2A0));
+		dprintk(KERN_ERR "AVIA: Timeout waiting for decoder initcomplete. (%08X)\n",rDR(0x2A0));
+		iounmap((void*)aviamem);
+		free_irq(AVIA_INTERRUPT, &dev);
 		return -EIO;
 	}
 
@@ -965,7 +1011,9 @@ static int init_avia(void)
 
 	if (!tries)
 	{
-		dprintk("New_audio_config timeout\n");
+		dprintk(KERN_ERR "AVIA: New_audio_config timeout\n");
+		iounmap((void*)aviamem);
+		free_irq(AVIA_INTERRUPT, &dev);
 		return -EIO;
 	}
 
@@ -980,8 +1028,8 @@ static int init_avia(void)
 //	avia_wait(avia_command(SelectStream, 3, 0x100));
 	avia_command(Play, 0, 0, 0);
 
-	dprintk("Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
-	dprintk("%x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
+	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
+	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
 
 	return 0;
 }
