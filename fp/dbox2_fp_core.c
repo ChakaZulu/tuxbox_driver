@@ -412,14 +412,12 @@ static int fp_attach_adapter(struct i2c_adapter *adapter)
 
 
 static struct i2c_driver fp_driver = {
-	.name = "DBox2 Frontprocessor driver",
-	.id = I2C_FP_DRIVERID,
-	.flags = I2C_DF_NOTIFY,
-	.attach_adapter = fp_attach_adapter,
-	.detach_client = fp_detach_client,
-	.command = NULL,
-	.inc_use = NULL,
-	.dec_use = NULL,
+	.name           = "DBox2 Frontprocessor driver",
+	.id             = I2C_FP_DRIVERID,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = &fp_attach_adapter,
+	.detach_client  = &fp_detach_client,
+	.command        = NULL
 };
 
 

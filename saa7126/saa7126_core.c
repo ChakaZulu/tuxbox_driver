@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.37 2003/12/20 18:08:39 zwen Exp $
+ * $Id: saa7126_core.c,v 1.38 2004/01/10 16:36:34 alexw Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -470,7 +470,12 @@ saa7126_detect_client(struct i2c_adapter *adapter, int address,
 
 static int saa7126_attach(struct i2c_adapter *adapter)
 {
+#ifdef MODULE
+	MOD_INC_USE_COUNT;
+#endif
+
 	dprintk("[%s]: %s\n", __FILE__, __FUNCTION__);
+
 	return i2c_probe(adapter, &addr_data, saa7126_detect_client);
 }
 
@@ -814,29 +819,13 @@ static int saa7126_open (struct inode *inode, struct file *file)
 
 /* ------------------------------------------------------------------------- */
 
-void saa7126_inc_use (struct i2c_client *client)
-{
-#ifdef MODULE
-	MOD_INC_USE_COUNT;
-#endif
-}
-
-void saa7126_dec_use (struct i2c_client *client)
-{
-#ifdef MODULE
-	MOD_DEC_USE_COUNT;
-#endif
-}
-
 static struct i2c_driver i2c_driver_saa7126 = {
-	.name = "saa7126",
-	.id = I2C_DRIVERID_SAA7126,
-	.flags = I2C_DF_NOTIFY,
-	.attach_adapter = saa7126_attach,
-	.detach_client = saa7126_detach,
-	.command = saa7126_command,
-	.inc_use = saa7126_inc_use,
-	.dec_use = saa7126_dec_use,
+	.name           = "saa7126",
+	.id             = I2C_DRIVERID_SAA7126,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = &saa7126_attach,
+	.detach_client  = &saa7126_detach,
+	.command        = &saa7126_command
 };
 
 /* ------------------------------------------------------------------------- */

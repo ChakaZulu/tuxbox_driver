@@ -1,5 +1,5 @@
 /*
- * $Id: dvb_i2c_bridge.c,v 1.3 2003/11/24 09:22:55 obi Exp $
+ * $Id: dvb_i2c_bridge.c,v 1.4 2004/01/10 16:36:33 alexw Exp $
  *
  * DVB I2C bridge
  *
@@ -32,7 +32,7 @@
 #include "dvb_i2c_bridge.h"
 
 static struct dvb_adapter *dvb_adapter;
-static struct i2c_client dvb_i2c_client;
+static struct i2c_client client_template;
 
 static int dvb_i2c_bridge_master_xfer(struct dvb_i2c_bus *i2c, const struct i2c_msg msgs[], int num)
 {
@@ -48,7 +48,7 @@ static int dvb_i2c_bridge_attach_adapter(struct i2c_adapter *adapter)
 	if ((client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)) == 0)
 		return -ENOMEM;
 
-	memcpy(client, &dvb_i2c_client, sizeof(struct i2c_client));
+	memcpy(client, &client_template, sizeof(struct i2c_client));
 
 	client->adapter = adapter;
 
@@ -72,34 +72,22 @@ static int dvb_i2c_bridge_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-static void dvb_i2c_bridge_inc_use(struct i2c_client *client)
-{
-	MOD_INC_USE_COUNT;
-}
-
-static void dvb_i2c_bridge_dec_use(struct i2c_client *client)
-{
-	MOD_DEC_USE_COUNT;
-}
-
 static struct i2c_driver dvb_i2c_driver = {
-	.name = "DVB I2C bridge",
-	.id = 0xf0,
-	.flags = I2C_DF_NOTIFY,
-	.attach_adapter = dvb_i2c_bridge_attach_adapter,
-	.detach_client = dvb_i2c_bridge_detach_client,
-	.command = NULL,
-	.inc_use = dvb_i2c_bridge_inc_use,
-	.dec_use = dvb_i2c_bridge_dec_use,
+	.name           = "DVB I2C bridge",
+	.id             = 0xf0,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = &dvb_i2c_bridge_attach_adapter,
+	.detach_client  = &dvb_i2c_bridge_detach_client,
+	.command        = NULL
 };
 
-static struct i2c_client dvb_i2c_client = {
-	.name = "dvb",
-	.id = 0xf0,
-	.flags = 0,
-	.addr = 0,
-	.adapter = NULL,
-	.driver = &dvb_i2c_driver,
+static struct i2c_client client_template = {
+	.name           = "DVB I2C bridge",
+	.id             = 0xf0,
+	.flags          = 0,
+	.addr		= 0,
+	.adapter	= NULL,
+	.driver		= &dvb_i2c_driver,
 };
 
 int dvb_i2c_bridge_register(struct dvb_adapter *adap)

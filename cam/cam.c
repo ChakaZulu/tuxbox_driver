@@ -68,25 +68,22 @@ static int cam_detach_client(struct i2c_client *client);
 static struct i2c_client *dclient;
 
 static struct i2c_driver cam_driver = {
-	.name = "DBox2-CAM",
-	.id = I2C_DRIVERID_CAM,
-	.flags = I2C_DF_NOTIFY,
-	.attach_adapter = cam_attach_adapter,
-	.detach_client = cam_detach_client,
-	.command = NULL,
-	.inc_use = NULL,
-	.dec_use = NULL,
+	.name		= "DBox2-CAM",
+	.id		= I2C_DRIVERID_CAM,
+	.flags		= I2C_DF_NOTIFY,
+	.attach_adapter	= &cam_attach_adapter,
+	.detach_client	= &cam_detach_client,
+	.command	= NULL
 };
 
 static struct i2c_client client_template = {
-	.name = "DBox2-CAM",
-	.id = I2C_DRIVERID_CAM,
-	.flags = 0,
-	.addr = (0x6E >> 1),
-	.adapter = NULL,
-	.driver = &cam_driver,
-	.data = NULL,
-	.usage_count = 0,
+	.name		= "DBox2-CAM",
+	.id		= I2C_DRIVERID_CAM,
+	.flags		= 0,
+	.addr		= (0x6E >> 1),
+	.adapter	= NULL,
+	.driver		= &cam_driver,
+	.data		= NULL,
 };
 
 static DECLARE_MUTEX(cam_busy);
@@ -108,7 +105,6 @@ static int cam_attach_adapter(struct i2c_adapter *adap)
 	memcpy(client, &client_template, sizeof(struct i2c_client));
 
 	client->adapter = adap;
-	client->data = NULL;
 
 	if ((ret = i2c_attach_client(client))) {
 		kfree(client);
@@ -397,7 +393,7 @@ static int __init cam_init(void)
 	char *microcode;
 	int len;
 
-	printk(KERN_INFO "$Id: cam.c,v 1.29 2003/11/20 21:23:26 obi Exp $\n");
+	printk(KERN_INFO "$Id: cam.c,v 1.30 2004/01/10 16:36:34 alexw Exp $\n");
 
 	if (!mio) {
 		printk(KERN_ERR "cam: mio address unknown\n");

@@ -1,5 +1,5 @@
 /*
- * $Id: avs_core.c,v 1.26 2003/09/30 05:45:34 obi Exp $
+ * $Id: avs_core.c,v 1.27 2004/01/10 16:36:34 alexw Exp $
  * 
  * audio/video switch core driver (dbox-II-project)
  *
@@ -337,6 +337,10 @@ static int avs_probe(struct i2c_adapter *adap)
 {
 	int ret = 0;
 
+#ifdef MODULE
+	MOD_INC_USE_COUNT;
+#endif
+
 	dprintk("[AVS]: probe\n");
 
 	if (addr) {
@@ -574,39 +578,13 @@ static void avs_event_cleanup(void)
  * i2c
  */
 
-void inc_use (struct i2c_client *client)
-{
-#ifdef MODULE
-	MOD_INC_USE_COUNT;
-#endif
-}
-
-void dec_use (struct i2c_client *client)
-{
-#ifdef MODULE
-	MOD_DEC_USE_COUNT;
-#endif
-}
-
 static struct i2c_driver driver = {
-	"i2c audio/video switch driver",
-	I2C_DRIVERID_AVS,
-	I2C_DF_NOTIFY,
-	avs_probe,
-	avs_detach,
-	avs_command,
-	inc_use,
-	dec_use,
-};
-
-static struct i2c_client client_template =
-{
-	"i2c audio/video switch chip",	/* name			 */
-	I2C_DRIVERID_AVS,		/* ID			 */
-	0,
-	0,				/* interpret as 7Bit-Adr */
-	NULL,
-	&driver
+	.name           = "i2c audio/video switch driver",
+	.id             = I2C_DRIVERID_AVS,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = &avs_probe,
+	.detach_client  = &avs_detach,
+	.command        = &avs_command
 };
 
 
