@@ -53,7 +53,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-/* $Id: demux.h,v 1.4 2002/03/19 18:32:25 happydude Exp $ */ 
+/* $Id: demux.h,v 1.5 2002/08/16 08:42:43 obi Exp $ */ 
 
 #ifndef __DEMUX_H 
 #define __DEMUX_H 
@@ -108,13 +108,12 @@ typedef enum {
 
 typedef enum
 {
-	DMX_TS_PES_USER,
         DMX_TS_PES_AUDIO,   /* also send packets to audio decoder (if it exists) */
 	DMX_TS_PES_VIDEO,   /* ... */
 	DMX_TS_PES_TELETEXT,
 	DMX_TS_PES_SUBTITLE,
-        DMX_TS_PES_PCR,
-        DMX_TS_PES_OTHER
+	DMX_TS_PES_PCR,
+	DMX_TS_PES_OTHER,
 } dmx_ts_pes_t;
 
 
@@ -278,7 +277,7 @@ struct dmx_demux_s {
         char* id;                    /* Unique demux identifier */ 
         char* vendor;                /* Name of the demux vendor */ 
         char* model;                 /* Name of the demux model */ 
-        __u32 capabilites;           /* Bitfield of capability flags */ 
+        __u32 capabilities;          /* Bitfield of capability flags */ 
         dmx_frontend_t* frontend;    /* Front-end connected to the demux */ 
         struct list_head reg_list;   /* List of registered demuxes */
         void* priv;                  /* Pointer to private data of the API client */ 
@@ -289,8 +288,8 @@ struct dmx_demux_s {
         int (*allocate_ts_feed) (struct dmx_demux_s* demux, 
 				 dmx_ts_feed_t** feed, 
 				 dmx_ts_cb callback,
-				 int type,                      // [tmb]
-        			 dmx_ts_pes_t pes_type); 
+				 int type,
+				 dmx_ts_pes_t pes_type); 
         int (*release_ts_feed) (struct dmx_demux_s* demux, 
 				dmx_ts_feed_t* feed); 
         int (*allocate_pes_feed) (struct dmx_demux_s* demux, 
@@ -322,6 +321,11 @@ struct dmx_demux_s {
         int (*connect_frontend) (struct dmx_demux_s* demux, 
 				 dmx_frontend_t* frontend); 
         int (*disconnect_frontend) (struct dmx_demux_s* demux); 
+
+   
+        /* added because js cannot keep track of these himself */
+        int (*get_pes_pids) (struct dmx_demux_s* demux, __u16 *pids);
+
 	void (*flush_pcr)(void);
 	void (*set_pcr_pid) (int pid);
 }; 
