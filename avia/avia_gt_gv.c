@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.10  2002/04/24 21:38:13  Jolt
+ *   Framebuffer cleanups
+ *
  *   Revision 1.9  2002/04/24 19:56:00  Jolt
  *   GV driver updates
  *
@@ -49,7 +52,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -526,7 +529,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.9 2002/04/24 19:56:00 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.10 2002/04/24 21:38:13 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -610,6 +613,8 @@ EXPORT_SYMBOL(avia_gt_gv_get_clut);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
 EXPORT_SYMBOL(avia_gt_gv_set_clut);
 EXPORT_SYMBOL(avia_gt_gv_set_input_mode);
+EXPORT_SYMBOL(avia_gt_gv_set_pos);
+EXPORT_SYMBOL(avia_gt_gv_set_size);
 EXPORT_SYMBOL(avia_gt_gv_show);
 #endif
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.27  2002/04/24 21:38:13  Jolt
+ *   Framebuffer cleanups
+ *
  *   Revision 1.26  2002/04/24 19:56:00  Jolt
  *   GV driver updates
  *
@@ -123,7 +126,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.26 $
+ *   $Revision: 1.27 $
  *
  */
 
@@ -389,11 +392,14 @@ static int gtx_encode_var(struct fb_var_screeninfo *var, const void *fb_par, str
 
 static void gtx_get_par(void *fb_par, struct fb_info_gen *info)
 {
-  struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
-  if (current_par_valid)
-    *par=current_par;
-  else
-    gtx_decode_var(&default_var, par, info);
+
+    struct gtxfb_par *par=(struct gtxfb_par *)fb_par;
+    
+    if (current_par_valid)
+	*par = current_par;
+    else
+	gtx_decode_var(&default_var, par, info);
+	
 }
 
 static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
@@ -472,29 +478,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	// ???
   //val-=(3+20);						//PFUSCHING BY MCCLEAN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   val -= 55;
-   	//GVP_SET_COORD(100,100);
-  	//GVP_SET_COORD(120,620);
-  	//GVP_SET_COORD(130, (par->pal?600:600));
-  GVP_SET_COORD(val, (par->pal?42:36));                 // TODO: NTSC?
-
-	/* set SPP */
-	rw(GVP) |= (rem<<27);
 
   rh(GFUNC)=0x10;			// enable dynamic clut
   rh(TCR)=TCR_COLOR;                       // ekelhaftes rosa als transparent
-
-                                        // DEBUG: TODO: das ist nen kleiner hack hier.
-/*  if (par->lowres)
-    GVS_SET_XSZ(par->xres*2);
-  else */
-	GVS_SET_XSZ(par->xres);
-
-  if (par->interlaced)
-    GVS_SET_YSZ(par->yres);
-  else
-    GVS_SET_YSZ(par->yres*2);
-
-//	rw(GVS)|=(0<<27);
 
   rw(VBR)=0;                       // disable background..
 
@@ -502,13 +488,6 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
 #define ENX_VCR_SET_HP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<10))) | ((X&3)<<10))
 #define ENX_VCR_SET_FP(X)    enx_reg_16(VCR) = ((enx_reg_16(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
-#define ENX_GVP_SET_SPP(X)   enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
-#define ENX_GVP_SET_X(X)     enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define ENX_GVP_SET_Y(X)     enx_reg_32(GVP1) = ((enx_reg_32(GVP1)&(~0x3FF))|(X&0x3FF))
-#define ENX_GVP_SET_COORD(X,Y) ENX_GVP_SET_X(X); ENX_GVP_SET_Y(Y)
-#define ENX_GVS_SET_IPS(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&0xFC000000) | ((X&0x3f)<<27))
-#define ENX_GVS_SET_XSZ(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define ENX_GVS_SET_YSZ(X)   enx_reg_32(GVSZ1) = ((enx_reg_32(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
   enx_reg_32(VBR)=0;
 
@@ -566,31 +545,14 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_32(GVSA1)=fb_info.offset; 	// dram start address
 	enx_reg_16(GVP1)=0;
 
-//  dprintk("Framebuffer: val: 0x%08x\n", val);
-
-//  Field: changed according to ppc-boot (fixes position)
-//  ENX_GVP_SET_COORD(129,43);                 // TODO: NTSC?
-  ENX_GVP_SET_COORD(113,42);
-
-  ENX_GVP_SET_SPP(63);
-  ENX_GVS_SET_IPS(32);
-
-
-/*  if (par->lowres)                  // hm ka warum , aber bei gtx hat tmb das auch so gemacht :)
-     ENX_GVS_SET_XSZ(par->xres*2);
-  else */
-     ENX_GVS_SET_XSZ(par->xres);
-
-
-  if (par->interlaced)
-     ENX_GVS_SET_YSZ(par->yres);
-  else
-     ENX_GVS_SET_YSZ(par->yres*2);
-
     }
+    
+    avia_gt_gv_set_pos(0, 0);
+    avia_gt_gv_set_size(par->xres, par->yres);
 
-  current_par = *par;
-  current_par_valid=1;
+    current_par = *par;
+    current_par_valid = 1;
+    
 }
 
 static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue, u_int *transp, struct fb_info *info)
@@ -780,10 +742,10 @@ static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
                 }
 		break;
 	case CCUBEFB_XPOS:
-		ENX_GVP_SET_X(arg);
+		//ENX_GVP_SET_X(arg);
 		break;
 	case CCUBEFB_YPOS:
-		ENX_GVP_SET_Y(arg);
+		//ENX_GVP_SET_Y(arg);
 		break;
 	case CCBUBEFB_FBCON_BLACK:
 		if(!arg)
@@ -816,7 +778,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.26 2002/04/24 19:56:00 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.27 2002/04/24 21:38:13 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
 	
