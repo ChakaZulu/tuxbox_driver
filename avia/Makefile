@@ -10,7 +10,7 @@ GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o
 GTX_CORE  = gtx-core.o
 ENX_CORE  = enx-core.o
-ENX_FB  = enx-fb.o fbgen.o
+ENX_FB  = enx-fb.o #fbgen.o
 
 EXTRA_CFLAGS=-I../../include
 
