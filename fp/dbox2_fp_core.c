@@ -311,6 +311,7 @@ rc_ioctl (struct inode * inode, struct file * file, unsigned int cmd, unsigned l
 		else
 			rc_bcodes = 0;
 
+		dprintk("fp.o: rc_ioctl\n");
 		return fp_sendcmd(defdata->client, 0x26, rc_bcodes ? 0x80 : 0x00);
 
 	default:
@@ -400,6 +401,7 @@ fp_release (struct inode * inode, struct file * file)
 static int
 rc_release (struct inode * inode, struct file * file)
 {
+	dprintk("fp.o: rc_release\n");
 	if (rc_bcodes != 0)
 		fp_sendcmd(defdata->client, 0x26, 0);
 
@@ -568,6 +570,7 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 		*/
 
 		/* disable (non-working) break code */
+		dprintk("fp.o: detect_client 0x26\n");
 		fp_sendcmd(new_client, 0x26, 0x00);
 
 		/*
@@ -589,7 +592,10 @@ fp_detect_client (struct i2c_adapter * adapter, int address, unsigned short flag
 	if (request_8xxirq(FP_INTERRUPT, fp_interrupt, SA_ONESHOT, "fp", data) != 0)
 		panic("Could not allocate FP IRQ!");
 
-	up(&rc_opened);
+	// dbox2_fp_timer_init causes trouble when called from dbox2_fp_init, but works here
+	dbox2_fp_timer_init();
+
+	up(&rc_opened);  
 	return 0;
 }
 
@@ -813,7 +819,7 @@ __init fp_init (void)
 		i2c_del_driver(&fp_driver);
 		return -EIO;
 	}
-
+	
 	ppc_md.restart			= dbox2_fp_restart;
 	ppc_md.power_off		= dbox2_fp_power_off;
 	ppc_md.halt			= dbox2_fp_power_off;
@@ -832,7 +838,6 @@ __init fp_init (void)
 	dbox2_fp_irkbd_init();
 	dbox2_fp_reset_init();
 	dbox2_fp_sec_init();
-	dbox2_fp_timer_init();
 	dbox2_fp_tuner_init();
 
 	return 0;

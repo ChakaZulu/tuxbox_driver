@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.5 2002/12/02 15:47:56 obi Exp $
+ * $Id: dbox2_fp_timer.c,v 1.6 2002/12/03 00:19:29 Zwen Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -23,7 +23,6 @@
 
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_timer.h>
-
 
 static u8 boot_trigger;
 static u8 manufacturer_id;
@@ -102,22 +101,22 @@ dbox2_fp_timer_clear (void)
 	u8 id [] = { 0x00, 0x00 };
 	u8 cmd;
 
+	// clear wakeup timer (neccesary to clear any timer when booted manually)
 	dbox2_fp_timer_set(0);
 
-	switch (manufacturer_id) {
-	case DBOX_MID_NOKIA:
-		cmd = FP_CLEAR_WAKEUP_NOKIA;
-		break;
-	case DBOX_MID_PHILIPS:
-	case DBOX_MID_SAGEM:
-		cmd = FP_CLEAR_WAKEUP;
-		break;
-	}
-
+	// this cmd reads the boot trigger & restores the normal shutdown behaviour for sagem/phillips
+	cmd = FP_CLEAR_WAKEUP;
 	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 		return -1;
-
 	boot_trigger = (id[0] == 0x80) ? BOOT_TRIGGER_TIMER : BOOT_TRIGGER_USER;
+
+	// nokia needs an additional read to restore normal shutdown behavior
+	if(manufacturer_id==DBOX_MID_NOKIA)
+	{
+		cmd = FP_CLEAR_WAKEUP_NOKIA;
+		if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
+			return -1;
+	}
 
 	return 0;
 }
