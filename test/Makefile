@@ -12,24 +12,24 @@ EXTRA_CFLAGS=-I../include
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp $(M_OBJS) $(BIN_DEST)
 
 install:
-	cp $(M_OBJS) $(MODULE_DEST)
+	cp $(M_OBJS) $(BIN_DEST)
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(APPL) .*.o.flags *~
 
 decode:
-	powerpc-linux-gcc $(EXTRA_CFLAGS) -o decode decode.c
+	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o decode decode.c
 
 test_dmx:
-	powerpc-linux-gcc $(EXTRA_CFLAGS) -o test_dmx test_dmx.c
+	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o test_dmx test_dmx.c
 
 test_front:
-	powerpc-linux-gcc $(EXTRA_CFLAGS) -o test_front test_front.c
+	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o test_front test_front.c
 
 scan_cable:
-	powerpc-linux-gcc $(EXTRA_CFLAGS) -o scan_cable scan_cable.c
+	$(CROSS_COMPILE)gcc $(EXTRA_CFLAGS) -o scan_cable scan_cable.c
 
 include $(KERNEL_LOCATION)/Rules.make
