@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm_enx.c,v $
+ *   Revision 1.3  2001/03/29 14:05:01  fnbrd
+ *   Siehe vorher, war falsche Datei.
+ *
  *   Revision 1.2  2001/03/29 11:55:17  fnbrd
  *   Angepasst an neues enx.h. Geht aber immer noch nicht.
  *
@@ -59,7 +62,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -85,8 +88,6 @@
 #include "pcm.h"
 #include "enx.h"
 #include "avia.h"
-
-#define PCMD DMAADDR
 
 #define wDR(a, d) avia_wr(TM_DRAM, a, d)
 #define rDR(a) avia_rd(TM_DRAM, a)
@@ -131,51 +132,51 @@ void pcm_reset(void)
 
   dprintk("pcm_enx: pcm_reset\n");
 
-  dprintk("pcm_enx: CCR: 0x%08x\n", enx_reg_d(CRR));
-  dprintk("pcm_enx: RCSC: 0x%08x\n", enx_reg_d(RCSC));
+  dprintk("pcm_enx: CCR: 0x%08x\n", enx_reg_w(CRR));
+  dprintk("pcm_enx: RCSC: 0x%08x\n", enx_reg_w(RCSC));
 
   // PCM aus dem reset holen
-  enx_reg_d(RSTR0)&=~(1<<28);
+  enx_reg_w(RSTR0)&=~(1<<28);
 
   // PCM aus dem reset (ohne clock) holen
-//  enx_reg_d(RSTR0)&=~1;
+//  enx_reg_w(RSTR0)&=~1;
 
-  enx_reg_d(CFGR0)|=1<<24; // DAC output enable
+  enx_reg_w(CFGR0)|=1<<24; // DAC output enable
 
   // buffer disable
-  enx_reg_d(PCMA) = 1;
+  enx_reg_w(PCMA) = 1;
 
-  enx_reg_w(PCMC) = 0;
+  enx_reg_h(PCMC) = 0;
 
   // enable PCM frequ. same MPEG
-  enx_reg_w(PCMC) |= (3<<14);
+  enx_reg_h(PCMC) |= (3<<14);
 
   // 16 bit mode
-  enx_reg_w(PCMC) |= (1<<13);
+  enx_reg_h(PCMC) |= (1<<13);
 
   // stereo
-  enx_reg_w(PCMC) |= (1<<12);
+  enx_reg_h(PCMC) |= (1<<12);
 
   // signed samples
-  enx_reg_w(PCMC) |= (1<<11);
+  enx_reg_h(PCMC) |= (1<<11);
 
   // !!! ACLK NOT WORK !!! fnbrd: auch beim enx? muss noch testen
 
   // clock from aclk
-  enx_reg_w(PCMC) &= ~(1<<6);  // 0: use external clock
-//  enx_reg_w(PCMC) |= (1<<6);
+  enx_reg_h(PCMC) &= ~(1<<6);  // 0: use external clock
+//  enx_reg_h(PCMC) |= (1<<6);
 
   // set adv
-//  enx_reg_w(PCMC) |= 0;
+//  enx_reg_h(PCMC) |= 0;
 
   // set acd
-  enx_reg_w(PCMC) |= (2<<2);             // 256 ACLKs per LRCLK
+  enx_reg_h(PCMC) |= (2<<2);             // 256 ACLKs per LRCLK
 
   // set bcd
-  enx_reg_w(PCMC) |= 2; // 32 clks
+  enx_reg_h(PCMC) |= 2; // 32 clks
 
-  dprintkRegBits("PCMC", enx_reg_w(PCMC), 16);
-  dprintkRegBits("CFGR0", enx_reg_d(CFGR0), 32);
+  dprintkRegBits("PCMC", enx_reg_h(PCMC), 16);
+  dprintkRegBits("CFGR0", enx_reg_w(CFGR0), 32);
 
 #ifdef NIXTUN
   /* enable pcm on enx */
@@ -285,12 +286,12 @@ void avia_audio_init()
 
 void pcm_dump_reg(void)
 {
-  dprintk("pcm_enx: PCMA: 0x%08x\n", enx_reg_d(PCMA));
-  dprintk("pcm_enx: PCMN: 0x%08x\n", enx_reg_d(PCMN));
-  dprintkRegBits("PCMC", enx_reg_w(PCMC), 16);
-//  dprintk("pcm_enx: PCMC: 0x%04x\n", enx_reg_w(PCMC));
-  dprintk("pcm_enx: PCMD: 0x%08x\n", enx_reg_d(PCMD));
-  dprintk("pcm_enx: PCMS: 0x%04x\n", enx_reg_w(PCMS));
+  dprintk("pcm_enx: PCMA: 0x%08x\n", enx_reg_w(PCMA));
+  dprintk("pcm_enx: PCMN: 0x%08x\n", enx_reg_w(PCMN));
+  dprintkRegBits("PCMC", enx_reg_h(PCMC), 16);
+//  dprintk("pcm_enx: PCMC: 0x%04x\n", enx_reg_h(PCMC));
+  dprintk("pcm_enx: PCMD: 0x%08x\n", enx_reg_w(PCMD));
+  dprintk("pcm_enx: PCMS: 0x%04x\n", enx_reg_h(PCMS));
 }
 
 
@@ -310,20 +311,20 @@ static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
                         return -EFAULT;
 
                       /* clear flags */
-                      enx_reg_w(PCMC) &= ~3;
+                      enx_reg_h(PCMC) &= ~3;
 
                       /* set speed */
                       switch(val) {
                         case 44100:
-                          enx_reg_w(PCMC) |= (3<<14);
+                          enx_reg_h(PCMC) |= (3<<14);
 		       	  dprintk("pcm_enx: SPEED 44100\n");
                           break;
                         case 22050:
-                          enx_reg_w(PCMC) |= (2<<14);
+                          enx_reg_h(PCMC) |= (2<<14);
 		       	  dprintk("pcm_enx: SPEED 22050\n");
                           break;
                         case 11025:
-                          enx_reg_w(PCMC) |= (1<<14);
+                          enx_reg_h(PCMC) |= (1<<14);
 		       	  dprintk("pcm_enx: SPEED 11025\n");
                           break;
                         default: printk("pcm_enx: SPEED: %d not support\n",val);return -1;
@@ -338,9 +339,9 @@ static int pcm_ioctl (struct inode *inode, struct file *file, unsigned int cmd, 
                         return -EFAULT;
 
                       if (val)
-                        enx_reg_w(PCMC) |= (1<<12);
+                        enx_reg_h(PCMC) |= (1<<12);
                       else
-                        enx_reg_w(PCMC) &= ~(1<<12);
+                        enx_reg_h(PCMC) &= ~(1<<12);
 
                       dprintk("pcm_enx: STEREO: %d\n",val);
 
@@ -390,25 +391,25 @@ static void startplay(int start)
   dprintk("pcm_enx: startplay\n");
 
     // 16 bit ?
-  if ( enx_reg_w(PCMC) & (1<<13) )
+  if ( enx_reg_h(PCMC) & (1<<13) )
     byps<<=1;
 
   // stereo ?
-  if ( enx_reg_w(PCMC) & (1<<12) )
+  if ( enx_reg_h(PCMC) & (1<<12) )
     byps<<=1;
 
-  dprintk("pcm_enx: PCMA: 0x%08x\n", enx_reg_d(PCMA));
-  if(!(enx_reg_d(PCMA)&1))
+  dprintk("pcm_enx: PCMA: 0x%08x\n", enx_reg_w(PCMA));
+  if(!(enx_reg_w(PCMA)&1))
     printk("pcm_enx: not ready for write!");
-  enx_reg_w(PCMS)=512;
-  enx_reg_d(PCMA)=buffer_rptr;
+  enx_reg_h(PCMS)=512;
+  enx_reg_w(PCMA)=buffer_rptr;
   dprintk("pcm_enx: startplay buffer_rptr: %x\n", buffer_rptr);
   buffer_rptr+=512*byps;
   if (buffer_rptr>=buffer_end)
     buffer_rptr-=buffer_size;
-  if(enx_reg_d(PCMA)&1) {
-    enx_reg_w(PCMS)=512;
-    enx_reg_d(PCMA)=buffer_rptr;
+  if(enx_reg_w(PCMA)&1) {
+    enx_reg_h(PCMS)=512;
+    enx_reg_w(PCMA)=buffer_rptr;
     dprintk("pcm_enx: startplay buffer_rptr: %x\n", buffer_rptr);
     buffer_rptr+=512*byps;
     if (buffer_rptr>=buffer_end)
@@ -420,7 +421,7 @@ static void startplay(int start)
 static void stopplay(void)
 {
   dprintk("pcm_enx: stopplay\n");
-  enx_reg_d(PCMA)=1;
+  enx_reg_w(PCMA)=1;
 }
 
 static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff_t *offset)
@@ -435,14 +436,14 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
   dprintk("pcm_enx: buffer_end: %x\n", buffer_end);
 
   // 16 bit ?
-  if ( enx_reg_w(PCMC) & (1<<13) )
+  if ( enx_reg_h(PCMC) & (1<<13) )
   {
     byps<<=1;
     bit16=1;
   }
 
   // stereo ?
-  if ( enx_reg_w(PCMC) & (1<<12) )
+  if ( enx_reg_h(PCMC) & (1<<12) )
     byps<<=1;
 
   if (count<=0)
@@ -475,14 +476,14 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
       interruptible_sleep_on_timeout(&pcm_wait, 1000);
       if (signal_pending(current))
         return -ERESTARTSYS;
-  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_w(ISR0));
-  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_w(ISR1));
-  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_w(ISR2));
-  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_w(ISR3));
-  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_w(IMR0));
-  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_w(IMR1));
-  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_w(IMR2));
-  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_w(IMR3));
+  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_h(ISR0));
+  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_h(ISR1));
+  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_h(ISR2));
+  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_h(ISR3));
+  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_h(IMR0));
+  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_h(IMR1));
+  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_h(IMR2));
+  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_h(IMR3));
   pcm_dump_reg();
       continue;
     }
@@ -528,7 +529,7 @@ static ssize_t pcm_write (struct file *file, const char *buf, size_t count, loff
 
   underrun=0;
 
-  if (enx_reg_d(PCMA)&1)
+  if (enx_reg_w(PCMA)&1)
   {
     dprintk("pcm_enx: starting playback: %x .. %x\n", buffer_rptr, buffer_wptr);
     startplay(buffer_rptr);
@@ -564,26 +565,26 @@ static void pcm_interrupt( int reg, int bit )
   int byps=1;
 
   dprintk("pcm_enx: IRQ reg %d bit %d\n", reg, bit);
-  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_w(ISR0));
-  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_w(IMR0));
+  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_h(ISR0));
+  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_h(IMR0));
   if ( (bit != PCM_PF_INTR_BIT) || (reg != PCM_INTR_REG))
   {
 //    printk("ign %d %d\n", bit, reg);
     return;
   }
 
-  enx_reg_w(PCMC)&=~(1<<10); // Stop loeschen
+  enx_reg_h(PCMC)&=~(1<<10); // Stop loeschen
 
-  if ( enx_reg_w(PCMC) & (1<<13) )
+  if ( enx_reg_h(PCMC) & (1<<13) )
     byps<<=1;
-  if ( enx_reg_w(PCMC) & (1<<12) )
+  if ( enx_reg_h(PCMC) & (1<<12) )
     byps<<=1;
 
-  dprintk("pcm_enx: another block played (%x:%x) -> %x (%x) -> %x.\n", reg, bit, enx_reg_d(PCMD), enx_reg_d(PCMA), enx_reg_w(PCMC));
+  dprintk("pcm_enx: another block played (%x:%x) -> %x (%x) -> %x.\n", reg, bit, enx_reg_w(PCMD), enx_reg_w(PCMA), enx_reg_h(PCMC));
 
   wake_up_interruptible( &pcm_wait );
 
-  buffer_playptr=enx_reg_d(PCMD);
+  buffer_playptr=enx_reg_w(PCMD);
   if (buffer_playptr>=buffer_end)
     buffer_playptr-=buffer_size;
 
@@ -610,20 +611,20 @@ static void pcm_interrupt( int reg, int bit )
     underrun=1;
   }
 
-  if(!(enx_reg_d(PCMA)&1))
+  if(!(enx_reg_w(PCMA)&1))
     printk("pcm_enx: not ready for write!");
-  enx_reg_w(PCMS)=512;
-  enx_reg_d(PCMA)=buffer_rptr;
+  enx_reg_h(PCMS)=512;
+  enx_reg_w(PCMA)=buffer_rptr;
   dprintk("pcm_enx: startplay (irq) buffer_rptr: %x\n", buffer_rptr);
 
   buffer_rptr+=512*byps;               // next block
   if (buffer_rptr>=buffer_end)
     buffer_rptr-=buffer_size;
 
-  if (enx_reg_w(PCMC)&(1<<9))
+  if (enx_reg_h(PCMC)&(1<<9))
   {
     printk("pcm_enx: OVERFLOW.\n");
-    enx_reg_w(PCMC)&=~(1<<9);
+    enx_reg_h(PCMC)&=~(1<<9);
   }
 
 }
@@ -657,7 +658,7 @@ static int mixer_ioctl(struct pcm_state *s, unsigned int cmd, unsigned long arg)
   {
     switch(cmd) {
       case SOUND_MIXER_VOLUME:
-        enx_reg_d(PCMN) = (enx_reg_d(PCMN) & 0xFFFF) | (*(int*)arg << 16);
+        enx_reg_w(PCMN) = (enx_reg_w(PCMN) & 0xFFFF) | (*(int*)arg << 16);
         break;
     default:
         return -EINVAL;
@@ -667,7 +668,7 @@ static int mixer_ioctl(struct pcm_state *s, unsigned int cmd, unsigned long arg)
   {
     switch(cmd) {
       case SOUND_MIXER_VOLUME:
-        *(int*)arg = (enx_reg_d(PCMN)>>16)&0xffff;
+        *(int*)arg = (enx_reg_w(PCMN)>>16)&0xffff;
         break;
     default:
         return -EINVAL;
@@ -722,14 +723,14 @@ static int init_audio(void)
   }
 
   init_waitqueue_head(&pcm_wait);
-  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_w(ISR0));
-  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_w(ISR1));
-  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_w(ISR2));
-  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_w(ISR3));
-  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_w(IMR0));
-  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_w(IMR1));
-  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_w(IMR2));
-  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_w(IMR3));
+  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_h(ISR0));
+  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_h(ISR1));
+  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_h(ISR2));
+  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_h(ISR3));
+  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_h(IMR0));
+  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_h(IMR1));
+  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_h(IMR2));
+  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_h(IMR3));
   if ( enx_allocate_irq( PCM_INTR_REG, PCM_AD_INTR_BIT, pcm_interrupt ) < 0 )
   {
     printk("pcm_enx: unable to get interrupt\n");
@@ -741,14 +742,14 @@ static int init_audio(void)
     printk("pcm_enx: unable to get interrupt\n");
     return -EIO;
   }
-  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_w(ISR0));
-  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_w(ISR1));
-  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_w(ISR2));
-  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_w(ISR3));
-  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_w(IMR0));
-  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_w(IMR1));
-  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_w(IMR2));
-  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_w(IMR3));
+  dprintk("pcm_enx: ISR0: 0x%x\n", enx_reg_h(ISR0));
+  dprintk("pcm_enx: ISR1: 0x%x\n", enx_reg_h(ISR1));
+  dprintk("pcm_enx: ISR2: 0x%x\n", enx_reg_h(ISR2));
+  dprintk("pcm_enx: ISR3: 0x%x\n", enx_reg_h(ISR3));
+  dprintk("pcm_enx: IMR0: 0x%x\n", enx_reg_h(IMR0));
+  dprintk("pcm_enx: IMR1: 0x%x\n", enx_reg_h(IMR1));
+  dprintk("pcm_enx: IMR2: 0x%x\n", enx_reg_h(IMR2));
+  dprintk("pcm_enx: IMR3: 0x%x\n", enx_reg_h(IMR3));
 
   pcm_reset();
 
@@ -778,10 +779,10 @@ static void __exit cleanup_pcm(void)
   enx_free_irq( PCM_INTR_REG, PCM_PF_INTR_BIT );
 
   // disable PCM
-  enx_reg_w(PCMC) &= ~(3<<14);
+  enx_reg_h(PCMC) &= ~(3<<14);
 
   // PCM in den reset stellen
-  enx_reg_d(RSTR0)|=1<<28;
+  enx_reg_w(RSTR0)|=1<<28;
 
   unregister_sound_dsp(s.dev_audio);
   unregister_sound_mixer(s.dev_mixer);
