@@ -26,5 +26,4 @@ dvb-core.o: $(DVB_CORE)
 	$(LD) -m elf32ppclinux -r -o $@ $(DVB_CORE)
 
 include $(KERNEL_LOCATION)/Rules.make
-
-
+-include $(wildcard *.d) dummy

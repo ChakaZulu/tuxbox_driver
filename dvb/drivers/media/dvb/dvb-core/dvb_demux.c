@@ -122,6 +122,7 @@ void dvb_set_crc32(u8 *data, int length)
 }
 
 
+static
 u32 dvb_dmx_crc32 (struct dvb_demux_feed *dvbdmxfeed,
 		   const u8 *src, size_t len)
 {
