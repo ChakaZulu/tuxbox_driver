@@ -50,3 +50,4 @@ else
 all: depend modules
 endif
 
+include $(KERNEL_LOCATION)/.config

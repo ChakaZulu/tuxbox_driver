@@ -1,3 +1,5 @@
+DRIVER_TOPDIR = .
+
 include Config.make
 
 subdir-m			:= dvb info

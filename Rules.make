@@ -1,11 +1,9 @@
-include $(KERNEL_LOCATION)/.config
 include $(KERNEL_LOCATION)/Rules.make
 
 .PHONY: modules
 modules: $(patsubst %, _mod_%, $(SUBDIRS))
 
-depend dep: $(KERNEL_LOCATION)/scripts/mkdep
-	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
+depend dep: $(KERNEL_LOCATION)/scripts/mkdep fastdep
 
 clean:
 	find . \( -name '*.[oas]' -o -name '.*.flags' \) -type f -print | xargs rm -f
