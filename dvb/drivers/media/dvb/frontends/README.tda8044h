@@ -1,0 +1,47 @@
+
+static u8 Init8044Tab[] =
+{
+	0x06,			// General settings
+	0x00,			// Viterbi decoder
+	0x6f, 0xb5, 0x86,	// CLK: ratio
+	0x22,			// CLK: Anti Alias Filter, Roll off
+	0x00,			// Sigma Delta converter
+	0xea,			// FEC: Possible puncturing rates
+
+	0x30,			// carrier lock detector threshold value
+	0x42,			// AFC1: proportional path settings
+	0x98,			// AFC1: Integral path setting
+	0x68,			// PD: Leaky integrator SCPC mode
+	0x70,			// AFC2, AFC1 controls
+	0x42,			// PD: proportional part settings
+	0x99,			// PD: integral part settings
+
+	0x58,			// AGC
+	0x95,			// AGC: gain
+	0x10,			// AGC: Threshold
+	0xf5,			// AGC: Integration time
+	0xe7,			// FEC
+	0x93,			// FEC: RS lock
+	0x0b,			// FEC: RS and Viterbi lock
+	0x15,			// FEC: Miscellaneous
+	0x68,			// CLK: proportional path
+	0x9a,			// CLK: integral path
+	0x90,			// CLK: lock threshold
+	0x61,			// CLK: loop control
+	0x80,			// Offset value I
+	0x00,			// Offset value Q
+	0xe0, 0x40,		// Fine AGC gain
+	0x00,			// interrupt selection
+
+	0x0f,			// EXPWR.
+	0x15,			// Evaluation modes
+	0x00,			// SCPC: Frequency offset
+	0x00,			// CTL: Frame byte
+	0x00,			// CTL: address byte
+	0x00,			// CTL: command byte
+	0x00,			// CTL: data byte 0
+	0x00,			// CTL: data byte 1
+	0x00,			// CTL: data byte 2
+	0x00			// CTL: Send
+};
+
