@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.9  2001/01/20 19:00:48  gillem
+ *   - fix set volume
+ *
  *   Revision 1.8  2001/01/20 16:09:22  gillem
  *   - add avs_get_volume function
  *
@@ -41,7 +44,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -158,9 +161,16 @@ int avs_set_volume( int vol )
 {
 	int c=0,f=0;
 
-	if ( vol && (vol<=63)) {
-		c = vol/8;
-		f = vol-c;
+	if ( vol<=63 ) {
+        if (vol) {
+    		c = vol/8;
+
+            // check round :-/
+            if ( (c*8) > vol )
+                c--;
+
+    		f = vol-(c*8);
+        }
 	} else {
 		return -EINVAL;
 	}
