@@ -709,6 +709,9 @@ static int dvbdmx_release_ts_feed(dmx_demux_t *demux, dmx_ts_feed_t *feed)
 		dvbdmxfeed->demux->pid2feed[dvbdmxfeed->pid]=0;
                 dvbdmxfeed->pid=0xffff;
         }
+	
+	if (dvbdmxfeed->ts_type & TS_DECODER)
+		dvbdmx->pesfilter[dvbdmxfeed->pes_type] = NULL;
 
         up(&dvbdmx->mutex);
         return 0;
