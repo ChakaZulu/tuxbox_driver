@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.17  2001/04/28 07:15:27  gillem
+ *   - fix value check
+ *
  *   Revision 1.16  2001/04/28 07:11:53  gillem
  *   - fix mute
  *
@@ -70,7 +73,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -195,7 +198,7 @@ int cxa2126_set_volume( struct i2c_client *client, int vol )
 
 inline int cxa2126_set_mute( struct i2c_client *client, int type )
 {
-	if ((type<0) || (type>3))
+	if ((type<0) || (type>1))
 	{
 		return -EINVAL;
 	}
@@ -492,7 +495,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.16 2001/04/28 07:11:53 gillem Exp $\n");
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.17 2001/04/28 07:15:27 gillem Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
