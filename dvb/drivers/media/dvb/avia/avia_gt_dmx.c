@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.199 2003/12/22 05:19:37 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.200 2003/12/31 16:49:04 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -375,6 +375,9 @@ void avia_gt_dmx_load_ucode(void)
 	local_irq_restore(flags);
 
 	printk(KERN_INFO "avia_gt_dmx: loaded ucode v%04X\n", riscram[DMX_VERSION_NO]);
+
+	if (riscram[DMX_VERSION_NO] == 0xb107)
+		avia_gt_dmx_memset16(&riscram[0x80], 0x0000, 4);
 }
 
 void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
@@ -2063,7 +2066,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.199 2003/12/22 05:19:37 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.200 2003/12/31 16:49:04 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
