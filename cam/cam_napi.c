@@ -1,5 +1,5 @@
 /*
- * $Id: cam_napi.c,v 1.3 2002/11/11 03:16:08 obi Exp $
+ * $Id: cam_napi.c,v 1.4 2002/12/03 20:58:57 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -29,7 +29,37 @@
 
 #include <dbox/cam.h>
 
+
 static struct dvb_device *ca_dev = NULL;
+
+
+static struct ca_slot_info slot_info_0 = {
+	.num = 0,
+	.type = 0,
+	.flags = 0,
+};
+
+
+static struct ca_slot_info slot_info_1 = {
+	.num = 1,
+	.type = 0,
+	.flags = 0,
+};
+
+
+static struct ca_descr_info descr_info = {
+	.num = 0,
+	.type = 0,
+};
+
+
+static struct ca_caps caps = {
+	.slot_num = 2,
+	.slot_type = 0,
+	.descr_num = 0,
+	.descr_type = 0,
+};
+
 
 static int cam_napi_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
@@ -50,15 +80,25 @@ static int cam_napi_ioctl(struct inode *inode, struct file *file, unsigned int c
 			break;
 
 		case CA_GET_CAP:
-			ret = -EOPNOTSUPP;
+			memcpy(parg, &caps, sizeof(struct ca_caps));
 			break;
 
 		case CA_GET_SLOT_INFO:
-			ret = -EOPNOTSUPP;
+			switch (((struct ca_slot_info *)parg)->num) {
+			case 0:
+				memcpy(parg, &slot_info_0, sizeof(struct ca_slot_info));
+				break;
+			case 1:
+				memcpy(parg, &slot_info_1, sizeof(struct ca_slot_info));
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+			}
 			break;
 
 		case CA_GET_DESCR_INFO:
-			ret = -EOPNOTSUPP;
+			memcpy(parg, &descr_info, sizeof(struct ca_descr_info));
 			break;
 
 		case CA_GET_MSG:
@@ -81,6 +121,13 @@ static int cam_napi_ioctl(struct inode *inode, struct file *file, unsigned int c
 			ret = -EOPNOTSUPP;
 			break;
 
+		case CA_SET_PID:
+			ret = -EOPNOTSUPP;
+			break;
+
+		default:
+			ret = -EINVAL;
+			break;
 	}
 
 	return ret;
@@ -113,7 +160,7 @@ int cam_napi_init(void)
 
 	int result;
 
-	printk("$Id: cam_napi.c,v 1.3 2002/11/11 03:16:08 obi Exp $\n");
+	printk("$Id: cam_napi.c,v 1.4 2002/12/03 20:58:57 obi Exp $\n");
 	
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0)
 		printk("cam_napi: cam_napi_register failed (errno = %d)\n", result);
@@ -125,14 +172,15 @@ int cam_napi_init(void)
 
 void cam_napi_exit(void)
 {
-	
+
 	dvb_unregister_device(ca_dev);
-	
+
 }
 
-#if defined(MODULE)
 module_init(cam_napi_init);
 module_exit(cam_napi_exit);
+
+#ifdef MODULE
 MODULE_DESCRIPTION("dbox2 cam dvb api driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>");
 #ifdef MODULE_LICENSE
