@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.24 2003/09/11 23:22:48 obi Exp $
+ * $Id: avia_av_napi.c,v 1.25 2003/09/12 03:01:51 obi Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -51,17 +51,30 @@
 #include "avia_gt_napi.h"
 #include "avia_gt_pcm.h"
 
-static struct dvb_device *audio_dev = NULL;
-static struct dvb_device *video_dev = NULL;
+static struct dvb_device *audio_dev;
+static struct dvb_device *video_dev;
 static struct audio_status audiostate;
 static struct video_status videostate;
-static wait_queue_head_t audio_wait_queue;
-static wait_queue_head_t video_wait_queue;
-static u8 have_audio = 0;
-static u8 have_video = 0;
+static wait_queue_head_t audio_write_wait_queue;
+static wait_queue_head_t video_write_wait_queue;
+static struct dvb_video_events video_events;
+static u8 have_audio;
+static u8 have_video;
 
 /* used for playback from memory */
-static int need_audio_pts = 0;
+static int need_audio_pts;
+
+/* video MPEG decoder events: */
+/* (code copied from dvb_frontend.c, should maybe be factored out...) */
+#define MAX_VIDEO_EVENT 8
+struct dvb_video_events {
+	struct video_event events[MAX_VIDEO_EVENT];
+	int eventw;
+	int eventr;
+	int overflow;
+	wait_queue_head_t wait_queue;
+	spinlock_t lock;
+};
 
 /*
  * MPEG1 PES & MPEG2 PES
@@ -147,6 +160,81 @@ int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
 }
 
 static
+void avia_av_napi_video_add_event(u16 width, u16 height, u16 aspect_ratio)
+{
+	struct video_event *event;
+	int wp;
+
+	spin_lock_irq(&video_events.lock);
+
+	wp = (video_events.eventw + 1) % MAX_VIDEO_EVENT;
+
+	if (wp == video_events.eventr) {
+		video_events.overflow = 1;
+		video_events.eventr = (video_events.eventr + 1) % MAX_VIDEO_EVENT;
+	}
+
+	event = &video_events.events[video_events.eventw];
+	event->type = VIDEO_EVENT_SIZE_CHANGED;
+	event->u.size.w = width;
+	event->u.size.h = height;
+
+	switch (aspect_ratio) {
+	case 2:
+		event->u.size.aspect_ratio = VIDEO_FORMAT_4_3;
+		break;
+	case 3:
+		event->u.size.aspect_ratio = VIDEO_FORMAT_16_9;
+		break;
+	case 4:
+		event->u.size.aspect_ratio = VIDEO_FORMAT_221_1;
+		break;
+	default:
+		event->u.size.aspect_ratio = VIDEO_FORMAT_4_3;
+		break;
+	}
+
+	video_events.eventw = wp;
+
+	spin_unlock_irq(&video_events.lock);
+
+	wake_up_interruptible(&video_events.wait_queue);
+}
+
+static
+int avia_av_napi_video_get_event(struct video_event *event, int flags)
+{
+	int ret;
+
+	if (video_events.overflow) {
+		video_events.overflow = 0;
+		return -EOVERFLOW;
+	}
+
+	if (video_events.eventw == video_events.eventr) {
+		if (flags & O_NONBLOCK)
+			return -EWOULDBLOCK;
+
+		ret = wait_event_interruptible(video_events.wait_queue,
+				video_events.eventw != video_events.eventr);
+
+		if (ret < 0)
+			return ret;
+	}
+
+	spin_lock_irq(&video_events.lock);
+
+	memcpy(event, &video_events.events[video_events.eventr],
+			sizeof(struct video_event));
+
+	video_events.eventr = (video_events.eventr + 1) % MAX_VIDEO_EVENT;
+
+	spin_unlock_irq(&video_events.lock);
+
+	return 0;
+}
+
+static
 int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	unsigned long arg = (unsigned long) parg;
@@ -207,7 +295,7 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 		break;
 
 	case VIDEO_GET_EVENT:
-		return -EOPNOTSUPP;
+		return avia_av_napi_video_get_event(parg, file->f_flags);
 
 	case VIDEO_SET_DISPLAY_FORMAT:
 	{
@@ -310,11 +398,14 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 	case VIDEO_GET_SIZE:
 	{
 		video_size_t *s = parg;
+		u16 width, height, ratio;
 
-		s->w = avia_av_dram_read(H_SIZE) & 0xffff;
-		s->h = avia_av_dram_read(V_SIZE) & 0xffff;
+		avia_av_get_video_size(&width, &height, &ratio);
 
-		switch (avia_av_dram_read(ASPECT_RATIO) & 0xffff) {
+		s->w = width;
+		s->h = height;
+
+		switch (ratio) {
 		case 2:
 			s->aspect_ratio = VIDEO_FORMAT_4_3;
 			break;
@@ -326,8 +417,6 @@ int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned in
 			break;
 		default:
 			s->aspect_ratio = VIDEO_FORMAT_4_3;
-			printk(KERN_INFO "avia_av_napi: unknown aspect ratio: %x\n",
-					avia_av_dram_read(ASPECT_RATIO) & 0xffff);
 			break;
 		}
 
@@ -517,14 +606,28 @@ ssize_t avia_av_napi_video_write(struct file *file, const char *buf, size_t coun
 static
 int avia_av_napi_video_open(struct inode *inode, struct file *file)
 {
-	return dvb_generic_open(inode, file);
+	int err;
+
+	if ((err = dvb_generic_open(inode, file)) < 0)
+		return err;
+
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+		/* empty event queue */
+		video_events.eventr = 0;
+		video_events.eventw = 0;
+	}
+
+	return 0;
 }
 
 static
 int avia_av_napi_video_release(struct inode *inode, struct file *file)
 {
-	avia_av_napi_video_ioctl(inode, file, VIDEO_STOP, NULL);
-	avia_av_napi_video_ioctl(inode, file, VIDEO_SELECT_SOURCE, VIDEO_SOURCE_DEMUX);
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+		avia_av_napi_video_ioctl(inode, file, VIDEO_STOP, NULL);
+		avia_av_napi_video_ioctl(inode, file, VIDEO_SELECT_SOURCE, VIDEO_SOURCE_DEMUX);
+	}
+
 	return dvb_generic_release(inode, file);
 }
 
@@ -533,14 +636,22 @@ unsigned int avia_av_napi_video_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 
-	poll_wait(file, &video_wait_queue, wait);
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
+		poll_wait(file, &video_write_wait_queue, wait);
 
-	if (videostate.play_state == VIDEO_PLAYING) {
-		if (avia_gt_dmx_queue_nr_get_bytes_free(AVIA_GT_DMX_QUEUE_VIDEO) >= 188)
-			mask = (POLLOUT | POLLWRNORM);
-	}
-	else {
-		mask = (POLLOUT | POLLWRNORM);
+	poll_wait(file, &video_events.wait_queue, wait);
+
+	if (video_events.eventw != video_events.eventr)
+		mask |= POLLPRI;
+
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+		if (videostate.play_state == VIDEO_PLAYING) {
+			if (avia_gt_dmx_queue_nr_get_bytes_free(AVIA_GT_DMX_QUEUE_VIDEO) >= 188)
+				mask |= (POLLOUT | POLLWRNORM);
+		}
+		else {
+			mask |= (POLLOUT | POLLWRNORM);
+		}
 	}
 
 	return mask;
@@ -577,8 +688,11 @@ int avia_av_napi_audio_open(struct inode *inode, struct file *file)
 static
 int avia_av_napi_audio_release(struct inode *inode, struct file *file)
 {
-	avia_av_napi_audio_ioctl(inode, file, AUDIO_STOP, NULL);
-	avia_av_napi_audio_ioctl(inode, file, AUDIO_SELECT_SOURCE, AUDIO_SOURCE_DEMUX);
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+		avia_av_napi_audio_ioctl(inode, file, AUDIO_STOP, NULL);
+		avia_av_napi_audio_ioctl(inode, file, AUDIO_SELECT_SOURCE, AUDIO_SOURCE_DEMUX);
+	}
+
 	return dvb_generic_release(inode, file);
 }
 
@@ -587,14 +701,14 @@ unsigned int avia_av_napi_audio_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 
-	poll_wait(file, &audio_wait_queue, wait);
+	poll_wait(file, &audio_write_wait_queue, wait);
 
 	if (audiostate.play_state == AUDIO_PLAYING) {
 		if (avia_gt_dmx_queue_nr_get_bytes_free(AVIA_GT_DMX_QUEUE_AUDIO) >= 188)
-			mask = (POLLOUT | POLLWRNORM);
+			mask |= (POLLOUT | POLLWRNORM);
 	}
 	else {
-		mask = (POLLOUT | POLLWRNORM);
+		mask |= (POLLOUT | POLLWRNORM);
 	}
 
 	return mask;
@@ -640,7 +754,7 @@ int __init avia_av_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.24 2003/09/11 23:22:48 obi Exp $\n", __FILE__);
+	printk(KERN_INFO "%s: $Id: avia_av_napi.c,v 1.25 2003/09/12 03:01:51 obi Exp $\n", __FILE__);
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;
@@ -657,27 +771,45 @@ int __init avia_av_napi_init(void)
 	videostate.video_format = VIDEO_FORMAT_4_3;
 	videostate.display_format = VIDEO_CENTER_CUT_OUT;
 
-	init_waitqueue_head(&audio_wait_queue);
-	init_waitqueue_head(&video_wait_queue);
+	init_waitqueue_head(&audio_write_wait_queue);
+	init_waitqueue_head(&video_write_wait_queue);
+
+	init_waitqueue_head(&video_events.wait_queue);
+	spin_lock_init(&video_events.lock);
+	video_events.eventw = 0;
+	video_events.eventr = 0;
+	video_events.overflow = 0;
+
+	if ((result = avia_av_register_video_event_handler(avia_av_napi_video_add_event)) < 0) {
+		printk(KERN_ERR "%s: avia_av_register_video_event_handler failed\n", __FILE__);
+		goto fail_0;
+	}
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &video_dev, &avia_av_napi_video_dev, NULL, DVB_DEVICE_VIDEO)) < 0) {
 		printk(KERN_ERR "%s: dvb_register_device (video) failed (errno = %d)\n", __FILE__, result);
-		return result;
+		goto fail_1;
 	}
 
 	if ((result = dvb_register_device(avia_napi_get_adapter(), &audio_dev, &avia_av_napi_audio_dev, NULL, DVB_DEVICE_AUDIO)) < 0) {
 		printk(KERN_ERR "%s: dvb_register_device (audio) failed (errno = %d)\n", __FILE__, result);
-		dvb_unregister_device(video_dev);
-		return result;
+		goto fail_2;
 	}
 
 	return 0;
+
+fail_2:
+	dvb_unregister_device(video_dev);
+fail_1:
+	avia_av_unregister_video_event_handler(avia_av_napi_video_add_event);
+fail_0:
+	return result;
 }
 
 void __exit avia_av_napi_exit(void)
 {
 	dvb_unregister_device(audio_dev);
 	dvb_unregister_device(video_dev);
+	avia_av_unregister_video_event_handler(avia_av_napi_video_add_event);
 }
 
 module_init(avia_av_napi_init);

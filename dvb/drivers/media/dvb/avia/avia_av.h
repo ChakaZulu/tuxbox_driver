@@ -338,6 +338,9 @@ int avia_av_standby(const int state);
 int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_type_audio);
 int avia_av_sync_mode_set(const u8 new_sync_mode);
 int avia_av_audio_pts_to_stc(struct pes_header *pes);
+int avia_av_register_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio));
+void avia_av_unregister_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio));
+void avia_av_get_video_size(u16 *w, u16 *h, u16 *ratio);
 
 u32 avia_av_read(const u8 mode, u32 address);
 void avia_av_write(const u8 mode, u32 address, const u32 data);

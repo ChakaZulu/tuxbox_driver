@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.73 2003/09/08 11:31:15 alexw Exp $
+ * $Id: avia_av_core.c,v 1.74 2003/09/12 03:01:51 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -76,6 +76,10 @@ static u16 sample_rate = 44100;
 static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
 static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
 static u8 sync_mode = AVIA_AV_SYNC_MODE_AV;
+static void (*video_event_handler)(u16 w, u16 h, u16 r);
+static u16 video_width;
+static u16 video_height;
+static u16 video_aspect_ratio;
 
 /* finally i got them */
 #define UX_MAGIC			0x00
@@ -336,6 +340,23 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 		wake_up_interruptible(&avia_cmd_wait);
 	}
 
+	if (status & IRQ_SEQ_V) {
+		dprintk(KERN_DEBUG "avia_av: IRQ_SEQ_V\n");
+		u16 w = avia_av_dram_read(H_SIZE) & 0xffff;
+		u16 h = avia_av_dram_read(V_SIZE) & 0xffff;
+		u16 r = avia_av_dram_read(ASPECT_RATIO) & 0xffff;
+
+		if ((video_event_handler) &&
+			((w != video_width) ||
+			(h != video_height) ||
+			(r != video_aspect_ratio))) {
+				video_width = w;
+				video_height = h;
+				video_aspect_ratio = r;
+				video_event_handler(w, h, r);
+		}
+	}
+
 	/* AUD INTR */
 	if (status & IRQ_AUD) {
 		u32 sem = avia_av_dram_read(NEW_AUDIO_MODE);
@@ -392,7 +413,7 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 			}
 
 		if (sem & 0xFF)
-			avia_av_dram_write(NEW_AUDIO_MODE, 1);	/* FIXME: NEW_AUDIO_CONFIG? */
+			avia_av_dram_write(NEW_AUDIO_CONFIG, 0xFFFF);
 	}
 
 	/* intr. ack */
@@ -537,9 +558,14 @@ u32 avia_av_cmd(u32 command, ...)
 
 	dprintk("C: 0x%X -> SA: 0x%X PROC: 0x%X\n", command, status_addr, avia_av_dram_read(0x2A0));
 
-	if ((command & 0x8000))
-		if ((aviarev) && (command != NewChannel))
+	if (command & 0x8000) {
+		if ((aviarev) && (command != NewChannel)) {
 			avia_cmd_status_get(status_addr, 1);
+		}
+		else {
+			udelay(1500);
+		}
+	}
 
 	return status_addr;
 }
@@ -735,17 +761,17 @@ void avia_av_set_default(void)
 static
 int avia_av_set_ppc_siumcr(void)
 {
-	immap_t *immap;
-	sysconf8xx_t *sys_conf;
+	volatile immap_t *immap;
+	volatile sysconf8xx_t *sys_conf;
 
-	immap = (immap_t *)IMAP_ADDR;
+	immap = (volatile immap_t *)IMAP_ADDR;
 
 	if (!immap) {
 		printk(KERN_ERR "avia_av: Get immap failed.\n");
 		return -1;
 	}
 
-	sys_conf = (sysconf8xx_t *)&immap->im_siu_conf;
+	sys_conf = (volatile sysconf8xx_t *)&immap->im_siu_conf;
 
 	if (!sys_conf) {
 		printk(KERN_ERR "avia_av: Get sys_conf failed.\n");
@@ -972,7 +998,7 @@ static int avia_av_init(void)
 	avia_av_dram_write(INT_STATUS, 0);
 
 	/* enable interrupts */
-	avia_av_dram_write(INT_MASK, IRQ_AUD | IRQ_END_L | IRQ_END_C);
+	avia_av_dram_write(INT_MASK, IRQ_AUD | IRQ_END_L | IRQ_END_C | IRQ_SEQ_V);
 
 	if (avia_av_wait(PROC_STATE, PROC_STATE_IDLE, 100) < 0) {
 		printk(KERN_ERR "avia_av: timeout waiting for decoder init to complete. (%08x)\n",
@@ -1070,7 +1096,6 @@ int avia_av_pid_set(const u8 type, const u16 pid)
 		break;
 
 	default:
-		printk(KERN_ERR "avia_av: invalid pid type\n");
 		return -EINVAL;
 	}
 
@@ -1313,13 +1338,43 @@ int avia_av_audio_pts_to_stc(struct pes_header *pes)
 	return 0;
 }
 
+int avia_av_register_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio))
+{
+	if (video_event_handler)
+		return -EBUSY;
+
+	video_event_handler = handler;
+
+	return 0;
+}
+
+void avia_av_unregister_video_event_handler(void (*handler)(u16 w, u16 h, u16 ratio))
+{
+	if (video_event_handler == handler)
+		video_event_handler = NULL;
+}
+
+void avia_av_get_video_size(u16 *width, u16 *height, u16 *ratio)
+{
+	if (!video_width)
+		video_width = avia_av_dram_read(H_SIZE) & 0xffff;
+	if (!video_height)
+		video_height = avia_av_dram_read(V_SIZE) & 0xffff;
+	if (!video_aspect_ratio)
+		video_aspect_ratio = avia_av_dram_read(ASPECT_RATIO) & 0xffff;
+
+	*width = video_width;
+	*height = video_height;
+	*ratio = video_aspect_ratio;
+}
+
 /* ---------------------------------------------------------------------- */
 
 int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.73 2003/09/08 11:31:15 alexw Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.74 2003/09/12 03:01:51 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
@@ -1350,20 +1405,3 @@ MODULE_PARM_DESC(debug, "1: enable debug messages");
 MODULE_PARM_DESC(pal, "0: ntsc, 1: pal");
 MODULE_PARM_DESC(firmware, "path to microcode");
 
-EXPORT_SYMBOL(avia_av_read);
-EXPORT_SYMBOL(avia_av_write);
-EXPORT_SYMBOL(avia_av_dram_memcpy32);
-EXPORT_SYMBOL(avia_av_cmd);
-EXPORT_SYMBOL(avia_av_set_audio_attenuation);
-EXPORT_SYMBOL(avia_av_set_stc);
-EXPORT_SYMBOL(avia_av_standby);
-EXPORT_SYMBOL(avia_av_get_sample_rate);
-
-EXPORT_SYMBOL(avia_av_bypass_mode_set);
-EXPORT_SYMBOL(avia_av_pid_set);
-EXPORT_SYMBOL(avia_av_play_state_set_audio);
-EXPORT_SYMBOL(avia_av_play_state_set_video);
-EXPORT_SYMBOL(avia_av_stream_type_set);
-EXPORT_SYMBOL(avia_av_sync_mode_set);
-
-EXPORT_SYMBOL(avia_av_audio_pts_to_stc);
