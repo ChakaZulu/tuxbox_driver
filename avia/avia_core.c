@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.7  2001/02/25 15:27:02  gillem
+ *   - fix sound for AVIA600L
+ *
  *   Revision 1.6  2001/02/24 11:09:39  gillem
  *   - change osd stuff
  *
@@ -62,7 +65,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -109,6 +112,7 @@ void avia_set_pcr(u32 hi, u32 lo);
 
 volatile u8 *aviamem;
 int aviarev;
+int silirev;
 
 static int dev;
 static int run_cmd;
@@ -617,13 +621,13 @@ static void avia_audio_init(void)
 	 * 12,11,7,6,5,4 reserved or must be set to 0
      */
 	val  = 0;
-	val |= (1<<10);		// 1: 64 0: 32/48
+	val |= (0<<10);		// 1: 64 0: 32/48
 	val |= (0<<9);		// 1: I2S 0: other
-	val |= (1<<8);		// 1: no clock on da-iec
-	val |= (0<<3);		// 0: normal 1:I2S output
+	val |= (0<<8);		// 1: no clock on da-iec
+	val |= (1<<3);		// 0: normal 1:I2S output
 	val |= (1<<2);		// 0:off 1:on channels
-	val |= (0<<1);		// 0:off 1:on IEC-958
-	val |= (0);			// 0:encoded 1:decoded output
+	val |= (1<<1);		// 0:off 1:on IEC-958
+	val |= (1);			// 0:encoded 1:decoded output
 	wDR(AUDIO_CONFIG, val);
 
 	/* AUDIO_DAC_MODE
@@ -631,7 +635,7 @@ static void avia_audio_init(void)
      */
 	val  = 0;
 	val |= (0<<8);		//			
-	val |= (3<<6);		//
+	val |= (0<<6);		//
 	val |= (0<<4);		//
 	val |= (0<<3);		// 0:high 1:low DA-LRCK polarity
 	val |= (1<<2);		// 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
@@ -640,18 +644,28 @@ static void avia_audio_init(void)
 
 	/* AUDIO_CLOCK_SELECTION */
 	val = 0;
-	val |= (0<<2);
-	val |= (1<<1);		// 1:256 0:384 x sampling frequ.
+	val |= (1<<2);
+
+	/* 500/600 test */
+	if ( (aviarev == 0x00) && (silirev == 0x80) )
+	{
+		val |= (0<<1);		// 1:256 0:384 x sampling frequ.
+    }
+	else
+	{
+		val |= (1<<1);		// 1:256 0:384 x sampling frequ.
+	}
+
 	val |= (1);			// master,slave mode
 	wDR(AUDIO_CLOCK_SELECTION, val);
 
 	/* AUDIO_ATTENUATION */
 	wDR(AUDIO_ATTENUATION, 0);
 
-	wDR(AUDIO_CLOCK_SELECTION, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
-	wDR(AUDIO_DAC_MODE, 2);                 // AUDIO_DAC_MODE
-//	wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
-	wDR(AUDIO_CONFIG, 0x70F);
+//	wDR(AUDIO_CLOCK_SELECTION, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
+//	wDR(AUDIO_DAC_MODE, 2);                 // AUDIO_DAC_MODE
+////	wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
+//	wDR(AUDIO_CONFIG, 0x70F);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -898,8 +912,9 @@ static int init_avia(void)
 	wGB(0, 0x1000);
 
 	aviarev=(rGB(0)>>16)&3;
+	silirev=((rGB(0x22)>>8)&0xFF);
 
-	dprintk(KERN_INFO "AVIA: AVIA REVISION: %02X\n",aviarev);
+	dprintk(KERN_INFO "AVIA: AVIA REV: %02X SILICON REV: %02X\n",aviarev,silirev);
 
 	/* AR SR CHIP FILE
 	 * 00 80 600L 600...
@@ -922,8 +937,6 @@ static int init_avia(void)
     			dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
     			break;
 	}
-
-	dprintk(KERN_INFO "AVIA: SILICON REVISION: %02X\n",((rGB(0x22)>>8)&0xFF));
 
 	/* TODO: AVIA 600 INIT !!! */
 
