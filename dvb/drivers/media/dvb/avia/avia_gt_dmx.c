@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.82  2002/05/03 21:52:58  Jolt
+ *   YEAH YEAH YEAH :(
+ *
  *   Revision 1.81  2002/05/03 16:45:17  obi
  *   replaced r*() by gtx_reg_*()
  *   formatted source
@@ -43,7 +46,7 @@
  *
  *
  *
- *   $Revision: 1.81 $
+ *   $Revision: 1.82 $
  *
  */
 
@@ -399,6 +402,9 @@ int avia_gt_dmx_risc_init(void)
 
 	int result;
 
+	if ((result = avia_gt_dmx_load_ucode()))
+		return result;
+
 	if (avia_gt_chip(ENX)) {
 
 		enx_reg_32(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
@@ -410,9 +416,6 @@ int avia_gt_dmx_risc_init(void)
 		//avia_gt_dmx_reset(1);
 
 	}
-
-	if ((result = avia_gt_dmx_load_ucode()))
-		return result;
 
 	return 0;
 
@@ -645,7 +648,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.81 2002/05/03 16:45:17 obi Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.82 2002/05/03 21:52:58 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
