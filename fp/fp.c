@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.70  2002/05/27 18:11:47  happydude
+ *   make led on/off work on Nokia
+ *
  *   Revision 1.69  2002/05/15 22:02:49  Hunz
  *   raw register read for debugging/testing
  *
@@ -221,7 +224,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.69 $
+ *   $Revision: 1.70 $
  *
  */
 
@@ -487,8 +490,10 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					{
 						return -EFAULT;
 					}
-
-					return fp_sendcmd(defdata->client, 0x10|(val&1), 0);
+					if (info.fpREV>=0x80)
+						return fp_sendcmd(defdata->client, 0, 0x10|((~val)&1));
+					else
+						return fp_sendcmd(defdata->client, 0x10|(val&1), 0);
 					break;
 				case FP_IOCTL_GET_WAKEUP_TIMER:
 					val=fp_get_wakeup_timer();
