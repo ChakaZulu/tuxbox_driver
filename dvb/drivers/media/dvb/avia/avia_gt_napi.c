@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.98 $
+ *   $Revision: 1.99 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.99  2002/09/03 14:02:05  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.98  2002/09/03 13:17:34  Jolt
  *   - DMX/NAPI cleanup
  *   - HW sections workaround
@@ -452,33 +455,37 @@ static void gtx_queue_interrupt(unsigned short irq)
 
     unsigned char nr = AVIA_GT_IRQ_REG(irq);
     unsigned char bit = AVIA_GT_IRQ_BIT(irq);
-    int queue = (int)0;
+
+	s32 queue_nr = -EINVAL;
 
     if (avia_gt_chip(ENX)) {
 
-	if (nr==3)
-		queue=bit+16;
-	else if (nr==4)
-		queue=bit+1;
-	else if (nr==5)
-		queue=bit-6;
-	else
-	{
-		printk("unexpected enx queue interrupt %d:%d", nr, bit);
-		return;
-	}
+		if (nr == 3)
+			queue_nr = bit + 16;
+		else if (nr == 4)
+			queue_nr = bit + 1;
+		else if (nr == 5)
+			queue_nr = bit - 6;
 
     } else if (avia_gt_chip(GTX)) {
 
-	queue=(nr-2)*16+bit;
+		queue_nr = (nr - 2) * 16 + bit;
 
     }
+	
+	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
+	
+		printk("avia_gt_napi: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
+		
+		return;
+	
+	}
 
-	set_bit(queue,&datamask);
+	set_bit(queue_nr, &datamask);
 
 	if (gtx_tasklet.data)
 		schedule_task(&gtx_tasklet);
-		
+
 }
 
 extern int register_demux(struct dmx_demux_s *demux);
@@ -1190,16 +1197,6 @@ static gtx_demux_feed_t *GtxDmxFeedAlloc(gtx_demux_t *gtx, int type)
 
 	switch (type) {
 
-/*
-
-		case DMX_TS_PES_USER:
-			
-			return NULL;
-			
-		break;
-		
-*/
-	
 		case DMX_TS_PES_VIDEO:
 	
 			queue_nr = avia_gt_dmx_alloc_queue_video();
@@ -1931,10 +1928,10 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 	gtx_tasklet.data = gtxdemux;
 
-	if (dmx_register_demux(dmx)<0)
+	if (dmx_register_demux(dmx) < 0)
 		return -1;
 
-	if (dmx->open(dmx)<0)
+	if (dmx->open(dmx) < 0)
 		return -1;
 
 #ifdef GTX_SECTIONS
@@ -1980,7 +1977,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.98 2002/09/03 13:17:34 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.99 2002/09/03 14:02:05 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

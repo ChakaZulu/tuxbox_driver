@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.101  2002/09/03 14:02:05  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.100  2002/09/03 13:17:34  Jolt
  *   - DMX/NAPI cleanup
  *   - HW sections workaround
@@ -106,7 +109,7 @@
  *
  *
  *
- *   $Revision: 1.100 $
+ *   $Revision: 1.101 $
  *
  */
 
@@ -218,11 +221,11 @@ s32 avia_gt_dmx_alloc_queue_user(void)
 
     u8 queue_nr;
 
-    for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr < AVIA_GT_DMX_QUEUE_USER_END; queue_nr++) {
+    for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr <= AVIA_GT_DMX_QUEUE_USER_END; queue_nr++) {
 
 		if (!queue_list[queue_nr].busy)
 			return avia_gt_dmx_alloc_queue(queue_nr);
-		
+
 	}
     
 	return -EBUSY;
@@ -920,6 +923,53 @@ int avia_gt_dmx_load_ucode(void)
 
 }
 
+#if 0
+static void avia_gt_dmx_queue_interrupt(unsigned short irq)
+{
+
+    unsigned char nr = AVIA_GT_IRQ_REG(irq);
+    unsigned char bit = AVIA_GT_IRQ_BIT(irq);
+
+	s32 queue_nr = -EINVAL;
+
+    if (avia_gt_chip(ENX)) {
+
+		if (nr == 3)
+			queue_nr = bit + 16;
+		else if (nr == 4)
+			queue_nr = bit + 1;
+		else if (nr == 5)
+			queue_nr = bit - 6;
+
+    } else if (avia_gt_chip(GTX)) {
+
+		queue_nr = (nr - 2) * 16 + bit;
+
+    }
+	
+	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
+	
+		printk("avia_gt_dmx: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
+		
+		return;
+	
+	}
+
+	if (!queue_list[queue_nr].busy) {
+	
+		printk("avia_gt_dmx: irq on idle queue (queue_nr=%d)\n", queue_nr);
+		
+		return;
+	
+	}
+
+	queue_list[queue_nr].irq_count++;
+
+	// schedule tasklet	
+
+}
+#endif
+
 void avia_gt_dmx_set_pcr_pid(u16 pid)
 {
 
@@ -1312,7 +1362,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result = (int)0;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.100 2002/09/03 13:17:34 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.101 2002/09/03 14:02:05 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -1323,6 +1373,8 @@ int __init avia_gt_dmx_init(void)
 		return -EIO;
 
 	}
+	
+	memset(queue_list, 0, sizeof(queue_list));
 
 //	avia_gt_dmx_reset(1);
 
