@@ -1,5 +1,7 @@
 DRIVER_TOPDIR = ..
 
+include $(DRIVER_TOPDIR)/Config.make
+
 obj-m		:= dbox2_fp.o dbox2_fp_napi.o dbox2_fp_input.o
 export-objs	:= dbox2_fp_core.o dbox2_fp_sec.o dbox2_fp_tuner.o dbox2_fp_reset.o
 

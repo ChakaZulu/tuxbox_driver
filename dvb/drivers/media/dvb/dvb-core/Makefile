@@ -1,5 +1,7 @@
 DRIVER_TOPDIR = ../../../../..
 
+include $(DRIVER_TOPDIR)/Config.make
+
 obj-m		:= dvb-core.o dvb_i2c_bridge.o
 export-objs	:= dvb_ksyms.o compat.o dvb_i2c_bridge.o
 

@@ -1,6 +1,7 @@
 DRIVER_TOPDIR = ..
 
-SUBDIRS		:= drivers
-subdir-m	:= $(SUBDIRS)
+include $(DRIVER_TOPDIR)/Config.make
+
+subdir-m	:= drivers
 
 include $(DRIVER_TOPDIR)/Rules.make

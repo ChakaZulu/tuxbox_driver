@@ -8,8 +8,7 @@
 #
 #    ./build.sh
 #    ./build.sh dep
-#    ./build.sh modules
-#    ./build.sh modules_install
+#    ./build.sh install
 #    ./build.sh clean
 #    ./build.sh distclean
 #
@@ -17,16 +16,15 @@
 #
 
 # TODO: create some kind of tuxboxcdk-config script and use it
-CDKROOT=${CDKPREFIX}/dbox2/cdkroot
-PATH=${CDKPREFIX}/dbox2/cdk/bin:${PATH}
+CDKROOT=${CDKPREFIX}/cdkroot
+PATH=${CDKPREFIX}/cdk/bin:${PATH}
 
-CVSROOT=${HOME}/cvs/tuxbox
+CVSROOT=${CVSROOT:-${HOME}/cvs/tuxbox}
 MAKE=/usr/bin/make
 
 ${MAKE} ${1} \
 	ARCH=ppc \
 	CROSS_COMPILE=powerpc-tuxbox-linux-gnu- \
-	DEPMOD=/bin/true \
 	KERNEL_LOCATION=${CVSROOT}/cdk/linux \
 	INSTALL_MOD_PATH=${CDKROOT}
 

@@ -1,5 +1,7 @@
 DRIVER_TOPDIR = ..
 
+include $(DRIVER_TOPDIR)/Config.make
+
 obj-m		:= saa7126.o
 
 SAA_OBJS	:= saa7126_core.o

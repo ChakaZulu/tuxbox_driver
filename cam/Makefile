@@ -1,5 +1,7 @@
 DRIVER_TOPDIR = ..
 
+include $(DRIVER_TOPDIR)/Config.make
+
 obj-m		:= cam.o cam_napi.o
 export-objs	:= cam.o
 

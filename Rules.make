@@ -1,6 +1,31 @@
 include $(KERNEL_LOCATION)/.config
 include $(KERNEL_LOCATION)/Rules.make
 
+.PHONY: modules
+modules: $(patsubst %, _mod_%, $(SUBDIRS))
+
+depend dep: $(KERNEL_LOCATION)/scripts/mkdep
+	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)" TOPDIR=$(KERNEL_LOCATION)
+
+clean:
+	find . \( -name '*.[oas]' -o -name '.*.flags' \) -type f -print | xargs rm -f
+
+mrproper: clean
+	find . \( -size 0 -o -name .depend \) -type f -print | xargs rm -f
+
+distclean: mrproper
+	rm -f `find . \( -not -type d \) -and \
+		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
+		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
+		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print`
+
+.PHONY: install
+install: modules_install_misc
+
+.PHONY: $(patsubst %, _mod_%, $(SUBDIRS))
+$(patsubst %, _mod_%, $(SUBDIRS)):
+	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
+
 .PHONY: modules_install_misc
 modules_install_misc: _modinst_misc_ $(patsubst %,_modinst_misc_%,$(MOD_DIRS))
 

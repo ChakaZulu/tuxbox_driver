@@ -1,6 +1,7 @@
 DRIVER_TOPDIR = ../..
 
-SUBDIRS		:= media
-subdir-m	:= $(SUBDIRS)
+include $(DRIVER_TOPDIR)/Config.make
+
+subdir-m	:= media
 
 include $(DRIVER_TOPDIR)/Rules.make
