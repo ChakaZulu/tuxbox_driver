@@ -1,13 +1,13 @@
 
 /*
- * $Id: at76c651.c,v 1.39 2002/11/10 21:06:15 Jolt Exp $
+ * $Id: at76c651.c,v 1.40 2002/11/12 08:45:24 obi Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
  * Homepage: http://dbox2.elxsi.de
  *
  * Copyright (C) 2001 fnbrd <fnbrd@gmx.de>
- *             & 2002 Andreas Oberritter <obi@tuxbox.org>
+ *             & 2002 Andreas Oberritter <obi@saftware.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@
 #include "dvb_i2c.h"
 
 static int debug = 0;
-static struct dvb_frontend_parameters fe_param;
 
 #define dprintk	if (debug) printk
 
@@ -304,8 +303,6 @@ static int at76c651_set_parameters(struct dvb_i2c_bus *i2c, struct dvb_frontend_
 	at76c651_set_inversion(i2c, p->inversion);
 	at76c651_set_auto_config(i2c);
 	
-	memcpy(&fe_param, p, sizeof(fe_param));
-
 	return 0;
 
 }
@@ -397,7 +394,6 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			return at76c651_set_parameters(fe->i2c, arg);
 
 		case FE_GET_FRONTEND:
-			memcpy(arg, &fe_param, sizeof(fe_param));
 			break;
 #if 0
 		case FE_SLEEP:
@@ -470,7 +466,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.39 2002/11/10 21:06:15 Jolt Exp $\n");
+	printk("$Id: at76c651.c,v 1.40 2002/11/12 08:45:24 obi Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
