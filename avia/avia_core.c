@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.8  2001/02/25 16:12:53  gillem
+ *   - fix "volume" for AVIA600L
+ *
  *   Revision 1.7  2001/02/25 15:27:02  gillem
  *   - fix sound for AVIA600L
  *
@@ -65,7 +68,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -635,7 +638,7 @@ static void avia_audio_init(void)
      */
 	val  = 0;
 	val |= (0<<8);		//			
-	val |= (0<<6);		//
+	val |= (3<<6);		//
 	val |= (0<<4);		//
 	val |= (0<<3);		// 0:high 1:low DA-LRCK polarity
 	val |= (1<<2);		// 0:0 as MSB in 24 bit mode 1: sign ext. in 24bit
@@ -661,11 +664,6 @@ static void avia_audio_init(void)
 
 	/* AUDIO_ATTENUATION */
 	wDR(AUDIO_ATTENUATION, 0);
-
-//	wDR(AUDIO_CLOCK_SELECTION, 7);                 // AUDIO CLOCK SELECTION (nokia 3) (br 7)
-//	wDR(AUDIO_DAC_MODE, 2);                 // AUDIO_DAC_MODE
-////	wDR(0xE0, 0x2F);              // nokia: 0xF, br: 0x2D
-//	wDR(AUDIO_CONFIG, 0x70F);
 }
 
 /* ---------------------------------------------------------------------- */
