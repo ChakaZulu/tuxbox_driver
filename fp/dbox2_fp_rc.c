@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.15 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.16 2003/09/13 04:00:18 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -29,6 +29,8 @@
 #include <linux/input.h>
 
 #include <dbox/dbox2_fp_core.h>
+
+#include "input_fake.h"
 
 #define UP_TIMEOUT (HZ / 4)
 
