@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.7  2001/03/12 22:32:23  gillem
+ *   - test only ... cam init not work
+ *
  *   Revision 1.6  2001/03/10 18:53:06  gillem
  *   - change to ca
  *
@@ -34,7 +37,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -102,14 +105,10 @@ static char *firmware=0;
 
 /* ---------------------------------------------------------------------- */
 
-static DECLARE_MUTEX_LOCKED(cam_busy);
-
-static void cam_task(void *);
-
-static struct i2c_client *dclient;
-
 static int attach_adapter(struct i2c_adapter *adap);
 static int detach_client(struct i2c_client *client);
+
+static struct i2c_client *dclient;
 
 static struct i2c_driver cam_driver = {
         "DBox2-CAM",
@@ -132,8 +131,11 @@ static struct i2c_client client_template = {
         NULL
 };
 
+/* ---------------------------------------------------------------------- */
 
-static void *code_base, *data_base;
+static DECLARE_MUTEX_LOCKED(cam_busy);
+static void cam_task(void *);
+static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
 
 static int cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 static int cam_open (struct inode *inode, struct file *file);
@@ -141,23 +143,9 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
 static ssize_t cam_read (struct file *file, char *buf, size_t count, loff_t *offset);
 static int cam_release(struct inode *inode, struct file *file);
 
-static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
-
 int cam_reset(void);
 int cam_write_message( char * buf, size_t count );
 int cam_read_message( char * buf, size_t count );
-
-        /*
-          queue data:
-            6f len 23 dd dd ss
-            
-            6f xx 23  is sync 
-        */
-        
-unsigned char cam_queue[CAM_QUEUE_SIZE];
-
-static int cam_queuewptr=0, cam_queuerptr=0;
-static wait_queue_head_t queuewait;
 
 static struct file_operations cam_fops = {
         owner:          THIS_MODULE,
@@ -168,10 +156,23 @@ static struct file_operations cam_fops = {
         release:        cam_release
 };
 
+static void *code_base, *data_base;
+
+        /*
+          queue data:
+            6f len 23 dd dd ss
+            
+            6f xx 23  is sync 
+        */
+        
+unsigned char cam_queue[CAM_QUEUE_SIZE];
+static int cam_queuewptr=0, cam_queuerptr=0;
+static wait_queue_head_t queuewait;
+
 /* ---------------------------------------------------------------------- */
 
-static int cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                      unsigned long arg)
+static int cam_ioctl (struct inode *inode, struct file *file, \
+						unsigned int cmd, unsigned long arg)
 {
 	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
 
@@ -182,30 +183,30 @@ static int cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	return -ENOSYS;
 }
 
-static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff_t *offset)
+/* ---------------------------------------------------------------------- */
+
+static ssize_t cam_write (struct file *file, const char *buf, \
+						size_t count, loff_t *offset)
 {
   unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
   
-  if (/*(minor == CAM_CODE_MINOR) || */(minor == CAM_DATA_MINOR))
+  if ( minor == CAM_DATA_MINOR )
   {
     int numb, size;
     void *base;
   
     switch (minor)
     {
-//    case CAM_CODE_MINOR:
-//      base=cam_code_buffer;               // cam_code_base
-//      size=CAM_CODE_SIZE;
-//      break;
-    case CAM_DATA_MINOR:
-      base=data_base;
-      size=CAM_DATA_SIZE;
-      break;
-    default:
-      return -ENOSYS;
+		case CAM_DATA_MINOR:
+			base=data_base;
+			size=CAM_DATA_SIZE;
+			break;
+		default:
+			return -ENOSYS;
     }
   
     numb=size-file->f_pos;
+
     if (numb<=0)
       return 0;
     if (numb>count)
@@ -218,23 +219,28 @@ static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff
   
     return numb;
   } else
-  if (minor==CAM_MINOR)
   {
-	char buffer[128];
+    if (minor==CAM_MINOR)
+    {
+		char buffer[128];
 
-	if(copy_from_user(buffer, buf, count))
-	{
-		printk("cam.o: write ... buffer error !!! %d\n",count);
-		return -EFAULT;
-	}
+		if (count>128)
+			return -EFAULT;
 
-    // check userspace pointer? use buffer?
-	return cam_write_message( buffer, count );
-  } else
-    return -ENODEV;
+		if(copy_from_user(buffer, buf, count))
+			return -EFAULT;
+
+		return cam_write_message( buffer, count );
+  	}
+  }
+
+  return -ENODEV;
 }                             
 
-static ssize_t cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
+/* ---------------------------------------------------------------------- */
+
+static ssize_t cam_read (struct file *file, char *buf, size_t count, \
+								loff_t *offset)
 {
   unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
   int numb, size;
@@ -244,19 +250,20 @@ static ssize_t cam_read (struct file *file, char *buf, size_t count, loff_t *off
   {
     switch (minor)
     {
-    case CAM_CODE_MINOR:
-      base=code_base;
-      size=CAM_CODE_SIZE;
-      break;
-    case CAM_DATA_MINOR:
-      base=data_base;
-      size=CAM_DATA_SIZE;
-      break;
-    default:
-      return -ENOSYS;
+		case CAM_CODE_MINOR:
+			base=code_base;
+			size=CAM_CODE_SIZE;
+			break;
+		case CAM_DATA_MINOR:
+			base=data_base;
+			size=CAM_DATA_SIZE;
+			break;
+		default:
+			return -ENOSYS;
     }
   
     numb=size-file->f_pos;
+
     if (numb<=0)
       return 0;
     if (numb>count)
@@ -270,53 +277,30 @@ static ssize_t cam_read (struct file *file, char *buf, size_t count, loff_t *off
     return numb;
   } else if (minor==CAM_MINOR)
   {
-//    int cb;
     DECLARE_WAITQUEUE(wait, current);
     
-again:
-    if (cam_queuewptr==cam_queuerptr)
+	while(cam_queuewptr==cam_queuerptr)
     {
       if (file->f_flags & O_NONBLOCK)
         return -EWOULDBLOCK;
-            add_wait_queue(&queuewait, &wait);
+
+      add_wait_queue(&queuewait, &wait);
       set_current_state(TASK_INTERRUPTIBLE);
       schedule();
       current->state = TASK_RUNNING;
       remove_wait_queue(&queuewait, &wait);
+
       if (signal_pending(current))
         return -ERESTARTSYS;
-      goto again;
-    } 
+    }
     
 	return cam_read_message(buf,count);
-/*
-    cb=cam_queuewptr-cam_queuerptr;
-    if (cb<0)
-      cb+=CAM_QUEUE_SIZE;
+  }
 
-    if (count<cb)
-      cb=count;
-    
-    if ((cam_queuerptr+cb)>CAM_QUEUE_SIZE)
-    {
-      if (copy_to_user(buf, cam_queue+cam_queuerptr, CAM_QUEUE_SIZE-cam_queuerptr))
-        return -EFAULT;
-
-      if (copy_to_user(buf, cam_queue, cb-(CAM_QUEUE_SIZE-cam_queuerptr)))
-        return -EFAULT;
-      cam_queuerptr=cb-(CAM_QUEUE_SIZE-cam_queuerptr);
-      return cb;
-    } else
-    {
-      if (copy_to_user(buf, cam_queue+cam_queuerptr, cb))
-        return -EFAULT;
-      cam_queuerptr+=cb;
-      return cb;            
-    }
-*/
-  } else
-    return -ENODEV;
+  return -ENODEV;
 }
+
+/* ---------------------------------------------------------------------- */
 
 static int cam_open (struct inode *inode, struct file *file)
 {
@@ -324,12 +308,15 @@ static int cam_open (struct inode *inode, struct file *file)
   return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+
 static int cam_release(struct inode *inode, struct file *file)
 {
   printk("cam.o: release\n");
   return 0; 
 }
 
+/* ---------------------------------------------------------------------- */
 
 static int attach_adapter(struct i2c_adapter *adap)
 {
@@ -351,6 +338,8 @@ static int attach_adapter(struct i2c_adapter *adap)
   return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+
 static int detach_client(struct i2c_client *client)
 {
   printk("CAM: detach_client\n");
@@ -358,17 +347,22 @@ static int detach_client(struct i2c_client *client)
   kfree(client);
   return 0;
 }
-                                        
+
+/* ---------------------------------------------------------------------- */
+
 struct tq_struct cam_tasklet=
 {
   routine: cam_task,
   data: 0
 };
 
+/* ---------------------------------------------------------------------- */
+
 static void cam_task(void *data)
 {
   unsigned char buffer[130];
   int len, i;
+
   if (down_interruptible(&cam_busy))
   {
     enable_irq(CAM_INTERRUPT);
@@ -384,6 +378,7 @@ static void cam_task(void *data)
   }
 
   len=buffer[1]&0x7F;
+
   if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
   {
     printk("i2c-CAM read error.\n");
@@ -442,6 +437,8 @@ static void cam_task(void *data)
   enable_irq(CAM_INTERRUPT);
 }
 
+/* ---------------------------------------------------------------------- */
+
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 {
   schedule_task(&cam_tasklet);
@@ -459,14 +456,6 @@ int cam_reset()
 int cam_write_message( char * buf, size_t count )
 {
 	int res;
-
-	// TODO: fix this
-//	if ( !buf )
-//		return -EFAULT;
-
-//	if (count<=0)
-//		return 0;
-	// TODO
 
 	if ((res=down_interruptible(&cam_busy)))
 	{
