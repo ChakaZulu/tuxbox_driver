@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.12  2001/07/03 19:23:56  gillem
+ *   - change flags
+ *
  *   Revision 1.11  2001/06/11 15:58:45  gillem
  *   - some change in svideo stuff
  *
@@ -48,7 +51,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -331,14 +334,16 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 
 		/* svideo stuff */
 		i  = 0x07; // RGB normal mode (0=b/w)
+
 		i |= 0x08; // CVBS normal mode
+
+		i |= 0x80; // lumi -> G
+		i |= 0x20; // CVBS -> B
 
 		if (svideo)
 		{
 			i |= 0x10; // croma -> R
-			//i |= 0x20; // CVBS -> B
 			i |= 0x40; // lumi -> CVBS
-			//i |= 0x80; // lumi -> G
 		}
 
 		config[0x2d] = i;
