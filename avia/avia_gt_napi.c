@@ -20,8 +20,12 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.101 $
+ *   $Revision: 1.102 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.102  2002/09/04 07:46:29  Jolt
+ *   - Removed GTX_SECTION
+ *   - Removed auto pcr pid handling
+ *
  *   Revision 1.101  2002/09/03 21:00:34  Jolt
  *   DMX/NAPI cleanup
  *
@@ -353,15 +357,12 @@
 #include "crc32.c"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
-static unsigned char auto_pcr_pid = 0;
 
-#define GTX_SECTIONS
 //#undef dprintk
 //#define dprintk printk
 
 
 #ifdef MODULE
-MODULE_PARM(auto_pcr_pid, "i");
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
 #ifdef MODULE_LICENSE
@@ -503,10 +504,7 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 {
 	gtx_demux_secfilter_t *secfilter = (gtx_demux_secfilter_t *)NULL;
 	int ok,i;
-
-#ifdef GTX_SECTIONS
 	int recover = 0;
-#endif
 
 	if (gtxfeed->sec_recv != gtxfeed->sec_len)
 	{
@@ -547,31 +545,26 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 			}
 		}
 
-		if (ok)
-		{
-#ifdef GTX_SECTIONS
+		if (ok)	{
+		
 			recover++;
-#endif
+
 			if ( (!gtxfeed->check_crc) || (crc32(gtxfeed->sec_buffer, gtxfeed->sec_len) == 0) )
 				gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
 			else
 				dprintk("gtx_dmx: CRC Problem !!!\n");
-		}
-#ifdef GTX_SECTIONS
-		else if ( i >= 10)
-		{
+				
+		} else if ( i >= 10) {
+		
 			recover++;
+			
 		}
-#endif
+
 	}
 
 	gtxfeed->sec_len=gtxfeed->sec_recv=0;
 
-#ifdef GTX_SECTIONS
 	return recover;
-#else
-	return 0;
-#endif
 
 }
 
@@ -580,9 +573,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int queue = queue_nr;
 	int ccn = (int)0;
-#ifdef GTX_SECTIONS
 	static char sync_lost = 0;
-#endif
 
 		{
 			gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
@@ -678,8 +669,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									gtx->feed[i].cb.ts(b1, b1l, b2, b2l, &gtx->feed[i].feed.ts, 0);
 							break;
 
-
-#ifdef GTX_SECTIONS
 						// handle message from dmx
 						case DMX_TYPE_MESSAGE:
 						{
@@ -955,7 +944,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							}
 						}
 						break;
-#endif
+
 						// handle section
 						case DMX_TYPE_SEC:
 						{
@@ -1230,28 +1219,32 @@ static int dmx_close (struct dmx_demux_s* demux)
 
 static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 {
+
 	dprintk(KERN_ERR "gtx-dmx: dmx_write not yet implemented!\n");
+
 	return 0;
+	
 }
 
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
+
 	if (filter->invalid)
 		avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
-#ifdef GTX_SECTIONS
+
 	if ( filter->output != GTX_OUTPUT_8BYTE)
-#endif
 		avia_gt_dmx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, 0, 0);
-#ifdef GTX_SECTIONS
 	else
 		avia_gt_dmx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->index, 1);
-#endif
+
 	if (!filter->invalid)
 		avia_gt_dmx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
+		
 }
 
 static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
 {
+
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
 	gtx_demux_filter_t *filter=gtxfeed->filter;
 
@@ -1262,15 +1255,6 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 
 	filter->pid=pid;
 	filter->wait_pusi=0;	// right?
-
-	if ((auto_pcr_pid) && (gtxfeed->pes_type == DMX_TS_PES_VIDEO)) {
-
-		dprintk("avia_gt_napi: assuming PCR_PID == VPID == 0x%04x\n", pid);
-
-		avia_gt_dmx_set_pcr_pid(pid);
-
-	}
-
 	filter->type=GTX_FILTER_PID;
 
 	if (gtxfeed->output&TS_DECODER)
@@ -1549,35 +1533,33 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 	filter->cw_offset=0;
 	filter->cc=0;
 	filter->start_up=0;
-#ifdef GTX_SECTIONS
-	if (gtxfeed->demux->hw_sec_filt_enabled)
-	{
+
+	if (gtxfeed->demux->hw_sec_filt_enabled) {
+	
 		filter->output=GTX_OUTPUT_8BYTE;
 		filter->pec=1;
 		filter->wait_pusi=1;
-	}
-	else
-	{
-#endif
+		
+	} else {
+
 		filter->output=GTX_OUTPUT_TS;
 		filter->pec=0;
 		filter->wait_pusi=0;
-#ifdef GTX_SECTIONS
+
 	}
-#endif
+
 	dmx_set_filter(gtxfeed->filter);
 
 	return 0;
+	
 }
 
 static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 {
-#ifdef GTX_SECTIONS
+
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
 	gtx_demux_filter_t *filter=gtxfeed->filter;
 	int rc = (int)0;
-
-
 
 	if (filter->output == GTX_OUTPUT_8BYTE)
 	{
@@ -1589,11 +1571,11 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 		gtx_reset_queue(gtxfeed);
 		dprintk("gtx_dmx: section filtering start (%d filter)\n", filter->no_of_filters);
 	}
-#endif
 
 	dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
 
 	return 0;
+	
 }
 
 static int dmx_section_feed_stop_filtering(struct dmx_section_feed_s* feed)
@@ -1637,19 +1619,17 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 	gtxfeed->sec_len=0;
 	gtxfeed->sec_ccn=16;
 
-#ifdef GTX_SECTIONS
-	if (gtx->hw_sec_filt_enabled)
-	{
+	if (gtx->hw_sec_filt_enabled) {
+	
 		gtxfeed->type=DMX_TYPE_HW_SEC;
 		gtxfeed->output = TS_PACKET | TS_PAYLOAD_ONLY;
-	}
-	else {
-#endif
+		
+	} else {
+	
 		gtxfeed->type=DMX_TYPE_SEC;
 		gtxfeed->output = TS_PACKET;
-#ifdef GTX_SECTIONS
+
 	}
-#endif
 
 	gtxfeed->state=DMX_STATE_READY;
 
@@ -1672,9 +1652,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed_t* feed)
 {
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-#ifdef GTX_SECTIONS
 	gtx_demux_t *gtx=(gtx_demux_t*)demux;
-#endif
 
 	dprintk("gtx_dmx: dmx_release_section_feed.\n");
 
@@ -1685,13 +1663,12 @@ static int dmx_release_section_feed (struct dmx_demux_s* demux,	dmx_section_feed
 	}
 	kfree(gtxfeed->sec_buffer);
 	dmx_release_ts_feed (demux, (dmx_ts_feed_t*)feed);						// free corresponding queue
-#ifdef GTX_SECTIONS
+
 	if (gtx->hw_sec_filt_enabled)
-	{
 		avia_gt_dmx_release_section_filter(demux,gtxfeed->index);
-	}
-#endif
+
 	return 0;
+	
 }
 
 static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)
@@ -1757,9 +1734,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
 	dmx_demux_t *dmx=&gtxdemux->dmx;
 	int i =(int)0, ptr =(int)0;
-#ifdef GTX_SECTIONS
 	u8 nullmask[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-#endif
+
 	gtxdemux->users=0;
 
 	gtxdemux->frontend_list.next=
@@ -1807,22 +1783,19 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	}
 
 	for (i=0; i<32; i++)
-	{
 		gtxdemux->filter_definition_table_entry_user[i] = -1;
-	}
 
-#ifdef GTX_SECTIONS
-	if ( (gtxdemux->hw_sec_filt_enabled = avia_gt_dmx_get_hw_sec_filt_avail()) == 1) {
+	if ((gtxdemux->hw_sec_filt_enabled = avia_gt_dmx_get_hw_sec_filt_avail())) {
+	
 		printk(KERN_INFO "avia_gt_napi: hardware section filtering enabled.\n");
+
 		avia_gt_dmx_set_filter_parameter_table(31,nullmask,nullmask,0,0);
-	}
-	else
-	{
+		
+	} else {
+	
 		printk(KERN_INFO "avia_gt_napi: hardware section filtering disabled.\n");
+		
 	}
-#else
-	gtxdemux->hw_sec_filt_enabled = 0;
-#endif
 
 	gtx_set_queue_pointer(Q_VIDEO, gtxdemux->feed[VIDEO_QUEUE].base, gtxdemux->feed[VIDEO_QUEUE].base, buffersize[VIDEO_QUEUE], 0);				// set system queues
 	gtx_set_queue_pointer(Q_AUDIO, gtxdemux->feed[AUDIO_QUEUE].base, gtxdemux->feed[AUDIO_QUEUE].base, buffersize[AUDIO_QUEUE], 0);
@@ -1861,7 +1834,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	if (dmx->open(dmx) < 0)
 		return -1;
 
-#ifdef GTX_SECTIONS
 	if (gtxdemux->hw_sec_filt_enabled) {
 	
 		avia_gt_dmx_alloc_queue_message(avia_gt_napi_queue_callback, gtxdemux);
@@ -1875,7 +1847,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		avia_gt_dmx_queue_irq_enable(MESSAGE_QUEUE);
 		
 	}
-#endif
 
 	return 0;
 
@@ -1886,7 +1857,6 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 
 	dmx_demux_t *dmx = &gtxdemux->dmx;
 
-#ifdef GTX_SECTIONS
 	if ((gtxdemux->feed[MESSAGE_QUEUE].type == DMX_TYPE_MESSAGE) && (gtxdemux->feed[MESSAGE_QUEUE].state == DMX_STATE_GO)) {
 	
 		avia_gt_dmx_queue_irq_disable(MESSAGE_QUEUE);
@@ -1894,7 +1864,6 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 		avia_gt_dmx_free_queue(MESSAGE_QUEUE);
 		
 	}
-#endif
 
 	if (dmx_unregister_demux(dmx) < 0)
 		return -1;
@@ -1906,7 +1875,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.101 2002/09/03 21:00:34 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.102 2002/09/04 07:46:29 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
