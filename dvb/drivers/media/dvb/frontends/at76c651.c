@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.15 2001/04/30 06:21:22 fnbrd Exp $
+    $Id: at76c651.c,v 1.16 2001/05/03 11:33:27 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.16  2001/05/03 11:33:27  fnbrd
+    Ein paar printks in dprintks geaendert, damit der Treiber 'leiser' laedt.
+
     Revision 1.15  2001/04/30 06:21:22  fnbrd
     Aufraeumarbeiten.
 
@@ -176,9 +179,9 @@ struct i2c_client *client;
     return -ENOMEM;
   }
   memset(tunerdata, 0, sizeof(tunerdata));
-  printk("AT76C651: attaching tuner at 0x%02x\n", (client->addr)<<1);
+  dprintk("AT76C651: attaching tuner at 0x%02x\n", (client->addr)<<1);
   i2c_attach_client(client);
-  printk("AT76C651: tuner attached to adapter %s\n", adap->name);
+  dprintk("AT76C651: tuner attached to adapter %s\n", adap->name);
   return 0;
 }
 
@@ -187,7 +190,7 @@ static int tuner_init(void)
 	int res;
 
 	ves_tuner_i2c(1); //enable tuner access on at76c651
-	printk("AT76C651: DBox2 tuner driver\n");
+	dprintk("AT76C651: DBox2 tuner driver\n");
 	if ((res=i2c_add_driver(&tuner_driver)))
 	{
 		printk("AT76C651: tuner driver registration failed!!!\n");
@@ -213,7 +216,7 @@ static int tuner_close(void)
 
 	if ((res=i2c_del_driver(&tuner_driver)))
 	{
-		dprintk("AT76C651: tuner driver unregistration failed.\n");
+		printk("AT76C651: tuner driver unregistration failed.\n");
 		return res;
 	}
 
@@ -279,7 +282,7 @@ int len=4;
 static int tuner_set_freq(int freq)
 {
   u32 dw=0;
-  printk("AT76C651: tuner_set_freq: %d\n", freq);
+  dprintk("AT76C651: tuner_set_freq: %d\n", freq);
   // Rechne mal wer, ich weiss nicht mal welcher Tuner :(
 //  unsigned dw=0x17e28e06+(freq-346000000UL)/8000000UL*0x800000;
   switch(freq) {
@@ -658,10 +661,10 @@ static int attach_adapter(struct i2c_adapter *adap)
                 return -ENOMEM;
         }
 
-        printk("AT76C651: attaching AT76C651 at 0x%02x\n", (client->addr)<<1);
+        dprintk("AT76C651: attaching AT76C651 at 0x%02x\n", (client->addr)<<1);
         i2c_attach_client(client);
 
-        printk("AT76C651: attached to adapter %s\n", adap->name);
+        dprintk("AT76C651: attached to adapter %s\n", adap->name);
 
 #ifndef DONT_USE_IRQ
 	ves_tasklet.data = (void*)client->data;
@@ -671,7 +674,7 @@ static int attach_adapter(struct i2c_adapter *adap)
 	if (request_8xxirq(VES_INTERRUPT, ves_interrupt, SA_ONESHOT, "at76c651", NULL) != 0)
 	{
 		i2c_del_driver(&dvbt_driver);
-		dprintk("AT76C651: can't request interrupt\n");
+		printk("AT76C651: can't request interrupt\n");
 	       return -EBUSY;
 	}
 #endif // DONT_USE_IRQ
@@ -680,7 +683,7 @@ static int attach_adapter(struct i2c_adapter *adap)
 
 static int detach_client(struct i2c_client *client)
 {
-        printk("AT76C651: detach_client\n");
+        dprintk("AT76C651: detach_client\n");
         // IRQs abschalten
 	writereg(client, 0x0b, 0x00);
 
@@ -786,7 +789,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.15 2001/04/30 06:21:22 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.16 2001/05/03 11:33:27 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
