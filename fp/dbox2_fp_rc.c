@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.16 2003/09/13 04:00:18 obi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.17 2003/11/20 01:12:02 carjay Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -32,12 +32,17 @@
 
 #include "input_fake.h"
 
+enum {
+	KEY_RELEASED = 0,
+	KEY_PRESSED,
+	KEY_AUTOREPEAT
+};
 #define UP_TIMEOUT (HZ / 4)
 
 static struct input_dev *rc_input_dev;
 static int old_rc = 1;
 static int new_rc = 1;
-static u8 old_repead_id = 0xFF;
+static u8 toggle_bits = 0xFF;
 
 //#define dprintk printk
 #define dprintk if (0) printk
@@ -93,7 +98,7 @@ static void dbox2_fp_rc_keyup(unsigned long data)
 	if ((!data) || (!test_bit(data, rc_input_dev->key)))
 		return;
 
-	input_event(rc_input_dev, EV_KEY, data, !!0);
+	input_event(rc_input_dev, EV_KEY, data, KEY_RELEASED);	// "key released" event after timeout
 
 }
 
@@ -114,22 +119,18 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 	if ((queue_nr != 0) && (queue_nr != 3))
 		return;
 
+	u8 cmd;
 	switch (mid) {
-	
 		case TUXBOX_DBOX2_MID_NOKIA:
-		
-			fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
-			
+			cmd = 0x01;		
 			break;
 			
 		case TUXBOX_DBOX2_MID_PHILIPS:
 		case TUXBOX_DBOX2_MID_SAGEM:
-	
-			fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc_code, sizeof(rc_code));
-			
+			cmd = 0x26;	
 			break;
-			
 	}
+	fp_cmd(fp_get_i2c(), cmd, (u8*)&rc_code, sizeof(rc_code));
 
 	dprintk("raw=0x%08X code=0x%08X rest=0x%08X\n", rc_code, rc_code & 0x1F, rc_code & (~0x1F));
 
@@ -142,22 +143,21 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 	
 				del_timer(&keyup_timer);
 	
-				if ((keyup_timer.data != rc_key_map[rc_key_nr].code) || (old_repead_id != ((rc_code >> 6) & 0x03)))
-					input_event(rc_input_dev, EV_KEY, keyup_timer.data, !!0);
-					
+				if ((keyup_timer.data != rc_key_map[rc_key_nr].code) || (toggle_bits != ((rc_code >> 6) & 0x03)))
+					input_event(rc_input_dev, EV_KEY, keyup_timer.data, KEY_RELEASED);	// "key released" event because a new key arrived
 			}
 																		
-			clear_bit(rc_key_map[rc_key_nr].code, rc_input_dev->key);
-																				
-			input_event(rc_input_dev, EV_KEY, rc_key_map[rc_key_nr].code, !0);
+			if (toggle_bits == ((rc_code>>6)&0x03))
+				input_event(rc_input_dev, EV_KEY, rc_key_map[rc_key_nr].code, KEY_AUTOREPEAT);		// "key autorepeat" event
+			else
+				input_event(rc_input_dev, EV_KEY, rc_key_map[rc_key_nr].code, KEY_PRESSED);		// "key pressed" event
 
 			keyup_timer.expires = jiffies + UP_TIMEOUT;
 			keyup_timer.data = rc_key_map[rc_key_nr].code;
 
 			add_timer(&keyup_timer);
 			
-			old_repead_id = (rc_code >> 6) & 0x03;
-
+			toggle_bits = (rc_code >> 6) & 0x03;
 		}
 
 	}
