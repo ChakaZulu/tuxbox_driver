@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.31  2002/12/20 22:02:41  Jolt
+ *   - V4L2 compatible pig interface
+ *   - Removed old pig interface
+ *   - Someone needs to fix all the pig users ;-)
+ *
  *   Revision 1.30  2002/12/20 21:27:41  Jolt
  *   Fix lots of ugly things
  *
@@ -96,7 +101,7 @@
  *
  *
  *
- *   $Revision: 1.30 $
+ *   $Revision: 1.31 $
  *
  */
 	
@@ -116,7 +121,6 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
-#include <linux/devfs_fs_kernel.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
@@ -124,72 +128,17 @@
 
 #include "avia_gt.h"
 #include <linux/dvb/avia/avia_gt_capture.h>
-#include <linux/dvb/avia/avia_gt_pig.h>
 
 #define MAX_PIG_COUNT 2
 
 #define CAPTURE_WIDTH 720
 #define CAPTURE_HEIGHT 576
 
-static devfs_handle_t devfs_handle[MAX_PIG_COUNT];
-static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
+static sAviaGtInfo *gt_info = NULL;
 static unsigned char pig_busy[MAX_PIG_COUNT] = {0, 0};
 static unsigned char *pig_buffer[MAX_PIG_COUNT] = {NULL, NULL};
 static unsigned char pig_count = (unsigned char)0;
 static unsigned short pig_stride[MAX_PIG_COUNT] = {0, 0};
-
-static int avia_gt_pig_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-
-    unsigned char pig_nr = (unsigned char)MINOR(file->f_dentry->d_inode->i_rdev);
-    
-    if (pig_nr >= pig_count)
-		return -ENODEV;
-
-    switch(cmd) {
-    
-	case AVIA_PIG_HIDE:
-
-	    avia_gt_pig_hide(pig_nr);
-
-	break;
-
-	case AVIA_PIG_SET_POS:
-
-	    return avia_gt_pig_set_pos(pig_nr, (unsigned short)((arg >> 16) & 0xFFFF), (unsigned short)(arg & 0xFFFF));
-
-	break;
-
-	case AVIA_PIG_SET_SIZE:
-
-	    return avia_gt_pig_set_size(pig_nr, (unsigned short)((arg >> 16) & 0xFFFF), (unsigned short)(arg & 0xFFFF), 0);
-
-	break;
-
-	case AVIA_PIG_SET_STACK:
-
-	    return avia_gt_pig_set_stack(pig_nr, (unsigned char)(arg & 0xFF));
-
-	break;
-	
-	case AVIA_PIG_SHOW:
-
-	    avia_gt_pig_show(pig_nr);
-
-	break;
-
-    }
-
-    return 0;
-    
-}
-
-static struct file_operations avia_gt_pig_fops = {
-
-	owner:  	THIS_MODULE,
-	ioctl:  	avia_gt_pig_ioctl,
-	
-};
 
 int avia_gt_pig_hide(unsigned char pig_nr)
 {
@@ -363,10 +312,9 @@ int avia_gt_pig_show(unsigned char pig_nr)
 int __init avia_gt_pig_init(void)
 {
 
-    char					 devname[128]	= { 0 };
-    unsigned char	 pig_nr				= (unsigned char)0;
+	unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.30 2002/12/20 21:27:41 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.31 2002/12/20 22:02:41 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -378,78 +326,64 @@ int __init avia_gt_pig_init(void)
 			
     }
 			        
-    if (avia_gt_chip(ENX))
-	pig_count = 2;
-    else if (avia_gt_chip(GTX))
-	pig_count = 1;
+	if (avia_gt_chip(ENX))
+		pig_count = 2;
+	else if (avia_gt_chip(GTX))
+		pig_count = 1;
 
-    for (pig_nr = 0; pig_nr < pig_count; pig_nr++) {
+	if (avia_gt_chip(ENX)) {
+   
+		enx_reg_set(RSTR0, PIG1, 1);
+		enx_reg_set(RSTR0, PIG2, 1);
+		enx_reg_set(RSTR0, PIG1, 0);
+		enx_reg_set(RSTR0, PIG2, 0);
 
-	sprintf(devname, "dbox/pig%d", pig_nr);
-	devfs_handle[pig_nr] = devfs_register(NULL, devname, DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_pig_fops, NULL);
+	} else if (avia_gt_chip(GTX)) {
 
-	// FIXME unregister handles
-	if (!devfs_handle[pig_nr])
-	    return -EIO;
-	    
-    }
-
-    if (avia_gt_chip(ENX)) {
+		gtx_reg_set(RR0, PIG, 1);
+		gtx_reg_set(RR0, PIG, 0);
     
-	enx_reg_set(RSTR0, PIG1, 1);
-	enx_reg_set(RSTR0, PIG2, 1);
-	enx_reg_set(RSTR0, PIG1, 0);
-	enx_reg_set(RSTR0, PIG2, 0);
-
-    } else if (avia_gt_chip(GTX)) {
-
-	gtx_reg_set(RR0, PIG, 1);
-	gtx_reg_set(RR0, PIG, 0);
+	}
     
-    }
+	for (pig_nr = 0; pig_nr < pig_count; pig_nr++) {
     
-    for (pig_nr = 0; pig_nr < pig_count; pig_nr++) {
-    
-	avia_gt_pig_set_pos(pig_nr, 150, 50);
-	avia_gt_pig_set_size(pig_nr, CAPTURE_WIDTH / 4, CAPTURE_HEIGHT / 4, 0);
+		avia_gt_pig_set_pos(pig_nr, 150, 50);
+		avia_gt_pig_set_size(pig_nr, CAPTURE_WIDTH / 4, CAPTURE_HEIGHT / 4, 0);
 
-//	avia_gt_pig_set_pos(pig_nr, 365, 362);
-//	avia_gt_pig_set_size(pig_nr, 180, 144, 0);
-//	avia_gt_pig_set_size(pig_nr, 256, 208, 0);
-//	avia_gt_pig_set_stack(pig_nr, 1);
+//		avia_gt_pig_set_pos(pig_nr, 365, 362);
+//		avia_gt_pig_set_size(pig_nr, 180, 144, 0);
+//		avia_gt_pig_set_size(pig_nr, 256, 208, 0);
+//		avia_gt_pig_set_stack(pig_nr, 1);
 
-//	avia_gt_pig_show(pig_nr);
+//		avia_gt_pig_show(pig_nr);
 	
-    }
+	}
     
-    return 0;
+	return 0;
     
 }
 
 void __exit avia_gt_pig_exit(void)
 {
 
-    unsigned char pig_nr = (unsigned char)0;
+	avia_gt_pig_hide(0);
 
-    for (pig_nr = 0; pig_nr < pig_count; pig_nr++)
-	devfs_unregister(devfs_handle[pig_nr]);
+	if (avia_gt_chip(ENX)) {
 
-    avia_gt_pig_hide(0);
-
-    if (avia_gt_chip(ENX)) {
-
-	enx_reg_set(RSTR0, PIG1, 1);
-	enx_reg_set(RSTR0, PIG2, 1);
+		enx_reg_set(RSTR0, PIG1, 1);
+		enx_reg_set(RSTR0, PIG2, 1);
     
-    } else if (avia_gt_chip(GTX)) {
+	} else if (avia_gt_chip(GTX)) {
 
-	gtx_reg_set(RR0, PIG, 1);
+		gtx_reg_set(RR0, PIG, 1);
 
-    }    
+	}    
     
 }
 
 EXPORT_SYMBOL(avia_gt_pig_hide);
+EXPORT_SYMBOL(avia_gt_pig_set_pos);
+EXPORT_SYMBOL(avia_gt_pig_set_size);
 EXPORT_SYMBOL(avia_gt_pig_show);
 
 #if defined(MODULE) && defined(STANDALONE)
