@@ -123,7 +123,7 @@ void lcd_console_new_line()
 {
 //	printk("NL: %02X %02X\n",row,col);
 
-	for(;col<MAX_COL;col++)
+	for(;col<=MAX_COL;col++)
 	{
 		lcd_console_put_char(0x20);
 	}
@@ -133,7 +133,7 @@ void lcd_console_new_line()
 		row--;
 		lcd_console_scroll_down( 1 );
 
-		for(col=0;col<MAX_COL;col++)
+		for(col=0;col<=MAX_COL;col++)
 		{
 			lcd_console_put_char(0x20);
 		}

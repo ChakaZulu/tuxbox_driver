@@ -5,7 +5,9 @@ CURRENT=$(shell uname -r)
 #KERNEL_LOCATION=/usr/src/kernel/2.0.35
 #KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
 #KERNEL_LOCATION=/usr/src/kernel/vger
-KERNEL_LOCATION=/LinuxPPC/usr/src/linux
+KERNEL_LOCATION=/usr/src/linux
+
+BUILD_DATE=$(shell date)
 
 #################################################
 # some magic for using linux kernel settings
@@ -13,9 +15,11 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 O_TARGET    = lcd.o
 M_OBJS       = lcd-console.o lcd-font.o lcd-ks0713.o
-GCC = powerpc-linux-gcc
+GCC = powerpc-linux-gcc 
 LD =  powerpc-linux-ld
+EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 here:
+	echo $(BUILD_DATE)
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
 	$(LD) -m elf32ppclinux -r -o $(O_TARGET) $(M_OBJS)
 	cp lcd.o /LinuxPPC/lib/modules/2.4.0-test12/misc/

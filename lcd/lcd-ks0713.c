@@ -102,6 +102,7 @@ static int LCD_MODE;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/* Front panel LCD display major */
 #define LCD_MAJOR 				156
 #define LCD_DELAY 				1
 
@@ -380,14 +381,14 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 		col = f_vars.pos;
 	}
 
-	for(pa=0;(pa<LCD_ROWS) && i;pa++)
+	for(/*pa=0*/;(pa<LCD_ROWS) && i;pa++)
 	{
 		// set dram pointer
 		lcd_set_pos( pa, col );
 
 		lcd_read_dummy();
 
-		for(col=0;(col<LCD_COLS) && i;col++,bp++,i--)
+		for(/*col=0*/;(col<LCD_COLS) && i;col++,bp++,i--)
 		{
 			*bp = lcd_read_byte();
 		}
@@ -695,7 +696,7 @@ int __init lcd_init(void)
 {
   immap_t	*immap;
 
-	printk("lcd.o: LCD driver (KS0713) module\n");
+	printk("lcd.o: LCD driver (KS0713) module [%s]\n",BUILD_DATE);
 
 	lcd_initialized = 0;
 	if (register_chrdev(LCD_MAJOR,"lcd",&lcd_fops)) {
@@ -713,9 +714,9 @@ int __init lcd_init(void)
 	f_vars.col = 0;
 
 	// set defaults
-	LCD_MODE = LCD_MODE_BIN;
+	LCD_MODE = LCD_MODE_ASC;
 
-//	lcd_init_console();
+	lcd_init_console();
 
 	return 0;
 }
@@ -728,7 +729,7 @@ int lcd_cleanup(void)
 
 	if (lcd_initialized >= 1) {
 		if ((res = unregister_chrdev(LCD_MAJOR,"lcd"))) {
-			printk("lcd.o: unable to release major %d\n", LCD_MAJOR);
+			printk("lcd.o: unable to release major %d\n", LCD_MAJOR );
 			return res;
 		}
 		lcd_initialized --;
