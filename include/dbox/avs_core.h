@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.3  2001/03/20 21:16:47  gillem
+ *   - change defines
+ *
  *   Revision 1.2  2001/03/03 11:02:57  gillem
  *   - cleanup
  *
@@ -28,7 +31,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -50,11 +53,9 @@
 #define AVS_FNCOUT_EXT43   2
 #define AVS_FNCOUT_EXT43_1 3
 
-/* Mute */
-#define AVS_MUTE_IM		0
-#define AVS_MUTE_ZC		1
-#define AVS_UNMUTE_IM	2
-#define AVS_UNMUTE_ZC	3
+/* Un-/Mute */
+#define AVS_MUTE		1
+#define AVS_UNMUTE		0
 
 /* Volume (course) */
 #define AVS_VOLOUT_C00 0
