@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.84 $
+ *   $Revision: 1.85 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.85  2002/05/05 19:58:13  Jolt
+ *   Doh 8-(
+ *
  *   Revision 1.84  2002/05/04 17:05:53  Jolt
  *   PCR PID workaround
  *
@@ -1005,10 +1008,12 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->pid=pid;
 	filter->wait_pusi=0;	// right?
 
-	if ((auto_pcr_pid) && (gtxfeed->pes_type==DMX_TS_PES_VIDEO))
-	{
-		dprintk(KERN_DEBUG "gtx_dmx: assuming PCR_PID == VPID == %04x\n", pid);
-		gtx_dmx_set_pcr_source(pid);
+	if ((auto_pcr_pid) && (gtxfeed->pes_type == DMX_TS_PES_VIDEO)) {
+	
+		dprintk("avia_gt_napi: assuming PCR_PID == VPID == 0x%04x\n", pid);
+		
+		avia_gt_dmx_set_pcr_pid(pid);
+
 	}
 
 	filter->type=GTX_FILTER_PID;
@@ -1598,7 +1603,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.84 2002/05/04 17:05:53 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.85 2002/05/05 19:58:13 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
