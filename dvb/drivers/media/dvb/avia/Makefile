@@ -18,7 +18,7 @@ AVIA_GT_MODS = avia_gt_accel.o avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_
 AVIA_GT      = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o
 AVIA_GT_FB   = avia_gt_fb_core.o $(FB_GEN)
 
-EXTRA_CFLAGS = -I../../../../../include -I../../../../include -DEXPORT_SYMTAB -Werror
+EXTRA_CFLAGS = -I../../../../../include -I../../../../include -DEXPORT_SYMTAB -Werror -MD
 
 ifeq ($(DEBUG), 1)
 EXTRA_CFLAGS	+= -DDEBUG
@@ -44,7 +44,7 @@ install:
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_AV) $(AVIA_OSD)	\
-		$(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~
+		$(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~ *.d
 
 avia_av.o: $(AVIA_AV)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_AV)
@@ -56,3 +56,4 @@ avia_gt_fb.o: $(AVIA_GT_FB)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT_FB)
 
 include $(KERNEL_LOCATION)/Rules.make
+include $(wildcard *.d)

@@ -1,5 +1,5 @@
 /*
- * dvb.h
+ * version.h
  *
  * Copyright (C) 2000 Holger Waechtler <holger@convergence.de>
  *                    for convergence integrated media GmbH

@@ -231,23 +231,4 @@ void dvb_filter_ipack_init(ipack *p, int size,
 void dvb_filter_ipack_free(ipack * p);
 void dvb_filter_ipack_flush(ipack *p);
 
-#if 0
-void setup_ts2pes(ipack *pa, ipack *pv, u16 *pida, u16 *pidv, 
-		  void (*pes_write)(u8 *buf, int count, void *data),
-		  void *priv);
-void ts_to_pes(ipack *p, u8 *buf); 
-void send_ipack(ipack *p);
-int get_ainfo(uint8_t *mbuf, int count, AudioInfo *ai, int pr);
-int get_ac3info(uint8_t *mbuf, int count, AudioInfo *ai, int pr);
-int get_vinfo(uint8_t *mbuf, int count, VideoInfo *vi, int pr);
-uint8_t *skip_pes_header(uint8_t **bufp);
-void initialize_quant_matrix( uint32_t *matrix );
-void initialize_mpg_picture(mpg_picture *pic);
-void init_mpg_picture( mpg_picture *pic, int chan, int32_t field_type);
-void mpg_set_picture_parameter( int32_t field_type, mpg_picture *pic );
-int read_sequence_header(uint8_t *headr, VideoInfo *vi, int pr);
-int read_gop_header(uint8_t *headr, mpg_picture *pic, int pr);
-int read_picture_header(uint8_t *headr, mpg_picture *pic, int field, int pr);
-#endif
-
 #endif
