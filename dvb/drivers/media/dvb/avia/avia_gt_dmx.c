@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.86  2002/05/09 07:29:21  waldi
+ *   add correct license
+ *
  *   Revision 1.85  2002/05/08 03:47:26  obi
  *   changed PRCPID to PCRPID
  *
@@ -55,7 +58,7 @@
  *
  *
  *
- *   $Revision: 1.85 $
+ *   $Revision: 1.86 $
  *
  */
 
@@ -663,7 +666,7 @@ int __init avia_gt_dmx_init(void)
 
 	int result;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.85 2002/05/08 03:47:26 obi Exp $\n");
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.86 2002/05/09 07:29:21 waldi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -749,6 +752,10 @@ void __exit avia_gt_dmx_exit(void)
 }
 
 #ifdef MODULE
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+
 EXPORT_SYMBOL(avia_gt_dmx_force_discontinuity);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_size);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_write_pointer);

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_osd.c,v $
+ *   Revision 1.11  2002/05/09 07:29:21  waldi
+ *   add correct license
+ *
  *   Revision 1.10  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -52,7 +55,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -432,6 +435,9 @@ static int init_avia_osd(void)
 MODULE_AUTHOR("Gillem <htoa@gmx.net>");
 MODULE_DESCRIPTION("AVIA OSD driver");
 MODULE_PARM(debug,"i");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 int init_module(void)
 {

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.18  2002/05/09 07:29:21  waldi
+ *   add correct license
+ *
  *   Revision 1.17  2002/05/07 16:59:19  Jolt
  *   Misc stuff and cleanups
  *
@@ -74,7 +77,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -265,7 +268,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct *dbox_info;
 	int result;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.17 2002/05/07 16:59:19 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.18 2002/05/09 07:29:21 waldi Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -499,6 +502,9 @@ void avia_gt_exit(void)
 #ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("Avia eNX/GTX driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 EXPORT_SYMBOL(avia_gt_alloc_irq);
 EXPORT_SYMBOL(avia_gt_free_irq);
