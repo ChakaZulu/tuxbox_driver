@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.43 2001/07/15 14:13:01 TripleDES Exp $
+ * $Id: dvb.c,v 1.44 2001/07/18 19:40:35 TripleDES Exp $
  */
 
 #include <linux/config.h>
@@ -187,7 +187,6 @@ int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
 	else if (status < 0)
 		return -EINTERNAL;
 
-	old=dvb->front.ttk;
 	dvb->front.ttk=mode;
 	res=SetSec(dvb->front.power,dvb->front.volt,mode);
 	if (res < 0)
@@ -939,6 +938,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						avia_command(SelectStream, 0, 0);
 						avia_command(SelectStream, 2, 0);
 						avia_command(SelectStream, 3, 0);
+						//avia_command(NewChannel,0,0,0);
 						wDR(0x468, 0xFFFF);	// new audio config
 					} else
 						return -EINVAL;
@@ -1089,15 +1089,19 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				    {
 					case 1:	
 					    printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
+					    avia_command(SelectStream,2,0xFFFF);
 					    avia_command(SelectStream,3,0);
-					    wDR(AUDIO_CONFIG,0xF);    //billig workaround ;)
+					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
 					    wDR(0x468,1);
+					    
 					    break;
 					case 0:
 					    printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
+					    avia_command(SelectStream,3,0xFFFF);
 					    avia_command(SelectStream,2,0);
 					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
 					    wDR(0x468,1);
+					    
 					    break;
 				    }
 				    break;	
