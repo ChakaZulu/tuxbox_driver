@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.30  2001/07/31 01:40:28  Hunz
+ *   experimental sagem-diseqc support
+ *
  *   Revision 1.29  2001/05/01 02:00:01  TripleDES
  *   added fp_sagem_set_secpower for LNB-voltage control (H/V)
  *   -not completed
@@ -91,7 +94,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.29 $
+ *   $Revision: 1.30 $
  *
  */
 
@@ -975,15 +978,36 @@ int fp_sec_status(void) {
   // < 0 means error: -1 for bus overload, -2 for busy
   return sec_bus_status;
 }
-  
 
 int fp_send_diseqc(u8 *cmd, unsigned int len)
 {
-	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0x1B};
-	int c;
+	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0};
+	unsigned char status_cmd;
+	int c,sleep_perbyte,sleeptime;
 
 	if (sec_bus_status == -1)
 	  return -1;
+
+	switch(fp_id) {
+	case 0x5A: // NOKIA
+		msg[1]=0x1B;
+		sleeptime=2300;
+		sleep_perbyte=300;
+		status_cmd=0x2D;
+	break;
+	case 0x52: // SAGEM / PHILLIPS?
+		msg[1]=0x28;
+
+	/* this values are measured/calculated for nokia
+	   dunno wether sagem needs longer or not */
+		sleeptime=2300;
+		sleep_perbyte=300;
+
+		status_cmd=0x22;
+	break;
+	default:
+		return -1;
+	}
 
 	memcpy(msg+2,cmd,len);
 
@@ -996,14 +1020,14 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 	i2c_master_send(defdata->client, msg, 2+len);
 
 	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout((2300+(len * 300))/HZ);
+	schedule_timeout((sleeptime+(len * sleep_perbyte))/HZ);
 	
 	for (c=1;c<=5;c++) {
-	  fp_cmd(defdata->client, 0x2D, msg, 1);
+	  fp_cmd(defdata->client, status_cmd, msg, 1);
 	  if ( !msg[0] )
 	    break;
 	  current->state = TASK_INTERRUPTIBLE;
-	  schedule_timeout(300/HZ);
+	  schedule_timeout(sleep_perbyte/HZ);
 	}
 
 	if (c==5) {
