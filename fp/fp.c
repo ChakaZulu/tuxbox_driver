@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.68  2002/05/12 11:18:38  Hunz
+ *   LCD-DIMM fix (for all boxes)
+ *
  *   Revision 1.67  2002/05/06 02:18:19  obi
  *   cleanup for new kernel
  *
@@ -215,7 +218,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.67 $
+ *   $Revision: 1.68 $
  *
  */
 
@@ -470,8 +473,10 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					{
 						return -EFAULT;
 					}
-
-					return fp_sendcmd(defdata->client, 0x18, val&0x0f);
+					if (info.fpREV>=0x80)
+						return fp_sendcmd(defdata->client, 0x18, val&0xff);
+					else
+						return fp_sendcmd(defdata->client, 0x06, val&0xff);
 					break;
 
 				case FP_IOCTL_LED:
