@@ -21,15 +21,14 @@
  *
  *
  *   $Log: gtx_pcm.c,v $
+ *   Revision 1.2  2002/04/02 20:13:22  Jolt
+ *   GTX fixes
+ *
  *   Revision 1.1  2002/04/02 15:05:28  Jolt
  *   Untested gtx_pcm import 8-)
  *
- *   Revision 1.1  2002/04/01 22:23:22  Jolt
- *   Basic PCM driver for gtx - more to come later
  *
- *
- *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -62,8 +61,10 @@ int buf_ptr[MAX_BUF];
 unsigned char buf_busy[MAX_BUF];
 int buf_playing = 0;
 int buf_last = 1;
+int swab_samples;
 
 #define dprintk(...)
+//#define dprintk printk
 
 static void gtx_pcm_irq(int reg, int bit)
 {
@@ -121,10 +122,10 @@ void gtx_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
     
 }
 
-int gtx_pcm_set_mode(unsigned short rate, unsigned char width, unsigned char channels, unsigned char signed_samples)
+int gtx_pcm_set_rate(unsigned short rate)
 {
 
-    printk("gtx_pcm: setting mode (rate=%d, width=%d, channels=%d, signed_samples=%d)\n", rate, width, channels, signed_samples);
+    dprintk("gtx_pcm: setting rate (rate=%d)\n", rate);
 
     switch(rate) {
     
@@ -154,19 +155,62 @@ int gtx_pcm_set_mode(unsigned short rate, unsigned char width, unsigned char cha
 	
     }
     
+    return 0;
+    
+}
+
+int gtx_pcm_set_width(unsigned char width)
+{
+
+    dprintk("gtx_pcm: setting width (width=%d)\n", width);
+
     if ((width == 8) || (width == 16))
 	gtx_reg_s(PCMC)->W = (width == 16);
     else
 	return -EINVAL;
-	
+
+    return 0;
+    
+}
+
+int gtx_pcm_set_channels(unsigned char channels)
+{
+
+    dprintk("gtx_pcm: setting channels (channels=%d)\n", channels);
+
     if ((channels == 1) || (channels == 2))
-        gtx_reg_s(PCMC)->C = channels - 1;
+        gtx_reg_s(PCMC)->C = (channels == 2);
     else
 	return -EINVAL;
 	
-    gtx_reg_s(PCMC)->S = (signed_samples != 0);
+    return 0;
     
+}
 
+int gtx_pcm_set_signed(unsigned char signed_samples)
+{
+
+    dprintk("gtx_pcm: setting signed (signed=%d)\n", signed_samples);
+
+    if ((signed_samples == 0) || (signed_samples == 1))
+	gtx_reg_s(PCMC)->S = (signed_samples == 1);
+    else
+	return -EINVAL;
+	
+    return 0;
+    
+}
+
+int gtx_pcm_set_endian(unsigned char be)
+{
+
+    dprintk("gtx_pcm: setting endian (be=%d)\n", be);
+
+    if ((be == 0) || (be == 1))
+	swab_samples = (be == 0);
+    else
+	return -EINVAL;
+	
     return 0;
     
 }
@@ -228,7 +272,7 @@ int gtx_pcm_play_buffer(void *buffer, unsigned int buffer_size, unsigned char bl
     
     dprintk("gtx_pcm: play_buffer (buf_busy[0]=%d buf_busy[1]=%d buf_nr=%d buf_playing=%d buf_ptr[buf_nr]=0x%X)\n", buf_busy[0], buf_busy[1], buf_nr, buf_playing, (unsigned int)buf_ptr[buf_nr]);
     
-    if (gtx_reg_s(PCMC)->W) {
+    if ((gtx_reg_s(PCMC)->W) && (swab_samples)) {
 
 	copy_from_user(swap_buffer, buffer, buffer_size);
 	swap_target = (unsigned short *)(gtx_get_mem_addr() + buf_ptr[buf_nr]);
@@ -269,7 +313,11 @@ static sAviaPcmOps gtx_pcm_ops = {
 
     name: "AViA GTX soundcore",
     play_buffer: gtx_pcm_play_buffer,
-    set_mode:  gtx_pcm_set_mode,
+    set_rate:  gtx_pcm_set_rate,
+    set_width:  gtx_pcm_set_width,
+    set_channels:  gtx_pcm_set_channels,
+    set_signed:  gtx_pcm_set_signed,
+    set_endian:  gtx_pcm_set_endian,
     set_mpeg_attenuation: gtx_pcm_set_mpeg_attenuation,
     set_pcm_attenuation: gtx_pcm_set_pcm_attenuation,
     stop: gtx_pcm_stop,
@@ -279,7 +327,7 @@ static sAviaPcmOps gtx_pcm_ops = {
 static int __init gtx_pcm_init(void)
 {
 
-    printk("gtx_pcm: $Id: gtx_pcm.c,v 1.1 2002/04/02 15:05:28 Jolt Exp $\n");
+    printk("gtx_pcm: $Id: gtx_pcm.c,v 1.2 2002/04/02 20:13:22 Jolt Exp $\n");
 
     buf_ptr[0] = GTX_PCM_OFFSET;
     buf_busy[0] = 0;
@@ -288,7 +336,7 @@ static int __init gtx_pcm_init(void)
     
     // Reset PCM module
     //gtx_reg_s(RSTR0)->PCM = 1;
-    gtx_reg_16(RR0) |= (1 << 9);
+    gtx_reg_16(RR0) |= (1 << 9); 
     
     if (gtx_allocate_irq(GTX_IRQ_PCM_AD, gtx_pcm_irq) != 0) {
 
@@ -310,14 +358,17 @@ static int __init gtx_pcm_init(void)
 
     // Get PCM module out of reset state
     //gtx_reg_s(RSTR0)->PCM = 0;
-    gtx_reg_16(RR0) &= ~(1 << 9);
+    gtx_reg_16(RR0) &= ~(1 << 9); 
 
-    //gtx_reg_s(PCMC)->ACD = 1;
-    //gtx_reg_s(PCMC)->BCD = 2;
+    // Use external clock from AViA 500/600
     gtx_reg_s(PCMC)->I = 0;
     
     // Set a default mode
-    gtx_pcm_set_mode(44100, 16, 2, 1);
+    gtx_pcm_set_rate(44100);
+    gtx_pcm_set_width(16);
+    gtx_pcm_set_channels(2);
+    gtx_pcm_set_signed(1);
+    gtx_pcm_set_endian(1);
     
     // Enable inter_module access
     inter_module_register(IM_AVIA_PCM_OPS, THIS_MODULE, &gtx_pcm_ops);
@@ -339,7 +390,7 @@ static void __exit gtx_pcm_cleanup(void)
     gtx_pcm_stop();
     
     //gtx_reg_s(RSTR0)->PCM = 1;
-    gtx_reg_16(RR0) |= (1 << 9);
+    gtx_reg_16(RR0) |= (1 << 9); 
 
 }
 
