@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.44 2003/12/22 05:31:39 obi Exp $
+ * $Id: avia_gt_core.c,v 1.45 2004/05/19 21:00:33 derget Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -33,6 +33,7 @@
 #include <asm/io.h>
 
 #include <tuxbox/info_dbox2.h>
+#include "dvb_functions.h"
 
 #include "avia_gt.h"
 #include "avia_gt_accel.h"
@@ -42,12 +43,14 @@
 #include "avia_gt_capture.h"
 #include "avia_gt_pig.h"
 #include "avia_gt_vbi.h"
+#include "avia_gt_ucode.h"
 
 TUXBOX_INFO(dbox2_gt);
 
 static int chip_type = -1;
 static int init_state;
 static sAviaGtInfo *gt_info;
+static wait_queue_head_t avia_gt_wdt_sleep;
 static void (* gt_isr_proc_list[128])(unsigned short irq);
 
 sAviaGtInfo *avia_gt_get_info(void)
@@ -116,11 +119,34 @@ void avia_gt_irq(int irq, void *dev, struct pt_regs *regs)
 	}
 }
 
+int avia_gt_wdt_thread(void)
+{
+	dvb_kernel_thread_setup ("avia_gt_wdt");
+	dprintk ("avia_av_core: Starting avia_gt_wdt thread.\n");
+	for(;;)
+	{
+
+		interruptible_sleep_on_timeout(&avia_gt_wdt_sleep, 200);
+
+		if((enx_reg_16(FIFO_PDCT)&0x7F) == 0x00) {
+		printk("avia_gt_wdt_thread: FIFO_PDCT = 0 ==> framer crashed .. restarting\n");
+        		avia_gt_dmx_risc_reset(1);
+		}
+			if((enx_reg_16(FIFO_PDCT)&0x7F) == 0x7F) {
+			printk("avia_gt_wdt_thread: FIFO_PDCT = 127 ==> risc crashed .. restarting\n");
+			avia_gt_dmx_risc_reset(1);
+			}			
+
+        
+	}
+	return 0;
+}
+
 int __init avia_gt_init(void)
 {
 	int result = 0;
 
-	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.44 2003/12/22 05:31:39 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_core: $Id: avia_gt_core.c,v 1.45 2004/05/19 21:00:33 derget Exp $\n");
 
 	if (chip_type == -1) {
 		printk(KERN_INFO "avia_gt_core: autodetecting chip type... ");
@@ -332,6 +358,12 @@ int __init avia_gt_init(void)
 #endif
 
 #endif /* !STANDALONE */
+
+        /* init avia_av_wdt_sleep queue */
+        init_waitqueue_head(&avia_gt_wdt_sleep);
+        
+        /* start avia_av_wdt_sleep  kernel_thread */
+        kernel_thread ((int (*)(void *)) avia_gt_wdt_thread, NULL, 0);
 
 	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
 
