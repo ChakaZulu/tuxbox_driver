@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.23  2002/04/15 19:32:44  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.22  2002/04/15 19:05:03  Jolt
  *   eNX/GTX merge
  *
@@ -111,7 +114,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -126,6 +129,8 @@
     
     roh suxx.
  */
+
+#define ENX
 
 #define TCR_COLOR 0xFC0F
 #define BLEVEL		0x20
@@ -885,7 +890,7 @@ int __init avia_gt_fb_init(void)
     unsigned char *gv_mem_phys;
     unsigned int gv_mem_size;
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.22 2002/04/15 19:05:03 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.23 2002/04/15 19:32:44 Jolt Exp $\n");
 	    
     avia_gt_gv_get_info(&gv_mem_phys, &gv_mem_lin, &gv_mem_size);
 		
@@ -923,6 +928,8 @@ int __init avia_gt_fb_init(void)
 #ifdef MODULE
     atomic_set(&THIS_MODULE->uc.usecount, 1);
 #endif
+
+    avia_gt_gv_show();
 
     return 0;
 

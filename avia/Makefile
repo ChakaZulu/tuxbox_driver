@@ -9,7 +9,7 @@ AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 
 AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
-AVIA_GT_FB = fbgen.o
+AVIA_GT_FB = avia_gt_fb_core.o fbgen.o
 
 GTX_DMX   = gtx-dmx.o crc32.o
 GTX_FB    = gtx-fb.o fbgen.o

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.4  2002/04/15 19:32:44  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.3  2002/04/15 10:40:50  Jolt
  *   eNX/GTX
  *
@@ -31,7 +34,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -235,7 +238,7 @@ void avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.3 2002/04/15 10:40:50 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.4 2002/04/15 19:32:44 Jolt Exp $\n");
     
     //enx_reg_w(RSTR0) &= ~(1 << );	// TODO: which one?
     
@@ -273,7 +276,9 @@ void __exit avia_gt_gv_exit(void)
 }
 
 #ifdef MODULE
-//EXPORT_SYMBOL(avia_gt_pcm_get_block_size);
+EXPORT_SYMBOL(avia_gt_gv_get_info);
+EXPORT_SYMBOL(avia_gt_gv_set_input_mode);
+EXPORT_SYMBOL(avia_gt_gv_show);
 #endif
 
 #if defined(MODULE) && defined(STANDALONE)
