@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.14  2002/11/25 10:57:13  obi
+ *   clean up kernel symbols
+ *
  *   Revision 1.13  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -65,7 +68,7 @@
  *
  *
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -87,8 +90,8 @@
 
 #include "avia_gt_pcm.h"
 
-int dsp_dev	= 0;
-int mixer_dev = 0;
+static int avia_oss_dsp_dev = 0;
+static int avia_oss_mixer_dev = 0;
 
 extern int avia_standby(int state);
 extern u16 avia_get_sample_rate(void);
@@ -96,7 +99,7 @@ extern u16 avia_get_sample_rate(void);
 static int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-    int val = (int)0, retval = (int)0;
+    int val = 0, retval = 0;
 
     switch(cmd) {
 
@@ -366,7 +369,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.13 2002/10/20 20:38:26 Jolt Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.14 2002/11/25 10:57:13 obi Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 
@@ -376,8 +379,8 @@ static int __init avia_oss_init(void)
     avia_gt_pcm_set_signed(1);
     avia_gt_pcm_set_endian(0);
 
-    dsp_dev = register_sound_dsp(&dsp_fops, -1);
-    mixer_dev = register_sound_mixer(&mixer_fops, -1);
+    avia_oss_dsp_dev = register_sound_dsp(&dsp_fops, -1);
+    avia_oss_mixer_dev = register_sound_mixer(&mixer_fops, -1);
 
     return 0;
 
@@ -386,18 +389,20 @@ static int __init avia_oss_init(void)
 static void __exit avia_oss_cleanup(void)
 {
 
-    unregister_sound_mixer(mixer_dev);
-    unregister_sound_dsp(dsp_dev);
+    unregister_sound_mixer(avia_oss_mixer_dev);
+    unregister_sound_dsp(avia_oss_dsp_dev);
 
     avia_gt_pcm_set_pcm_attenuation(0x00, 0x00);
     avia_gt_pcm_stop();
 
 }
 
-#ifdef MODULE
 module_init(avia_oss_init);
 module_exit(avia_oss_cleanup);
+
+#ifdef MODULE
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
 #endif
+
