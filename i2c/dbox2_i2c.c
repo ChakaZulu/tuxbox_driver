@@ -1,12 +1,23 @@
 /*
-		XX.XX.2000	tmbinc	-	initial release
-		XX.XX.2000	gillem	- some changes
-		18.12.2000	gillem	- add some interrupt stuff
+    cxa20920.c - dbox-II-project
 
+    Copyright (C) 2000 Gillem htoa@gmx.net , TMBINC
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-
-/* modified for kernel */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -29,32 +40,35 @@
 
 static int debug = 0;
 
-#define PDEBUG(level, fmt, args...) if (debug>=level) printk("[" __PRETTY_FUNCTION__ ":%d]" fmt, __LINE__ )
+/* interrupt stuff */
+static void i2c_interrupt(void*);
+static wait_queue_head_t i2c_wait;
 
-#define TXBD_R 0x8000  /* Transmit buffer ready to send */
-#define TXBD_W 0x2000  /* Wrap, last buffer in buffer circle */
-#define TXBD_I 0x1000
-#define TXBD_L 0x0800  /* Last, this buffer is the last in this frame */
-                       /* This bit causes the STOP condition to be sent */
-#define TXBD_S 0x0400  /* Start condition.  Causes this BD to transmit a start */
+#define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
-#define TXBD_NAK 0x0004	 /* indicates nak */
-#define TXBD_UN  0x0002  /* indicates underrun */
-#define TXBD_CO  0x0001  /* indicates collision */
+#define TXBD_R 		0x8000  /* Transmit buffer ready to send */
+#define TXBD_W 		0x2000  /* Wrap, last buffer in buffer circle */
+#define TXBD_I 		0x1000
+#define TXBD_L 		0x0800  /* Last, this buffer is the last in this frame */
+                       		/* This bit causes the STOP condition to be sent */
+#define TXBD_S 		0x0400  /* Start condition.  Causes this BD to transmit a start */
 
-#define RXBD_E 0x8000  /* Receive buffer is empty and can be used by CPM */
-#define RXBD_W 0x2000  /* Wrap, last receive buffer in buffer circle */
-#define RXBD_I 0x1000  /* Int. */
-#define RXBD_L 0x0800  /* Last */
+#define TXBD_NAK 	0x0004	/* indicates nak */
+#define TXBD_UN  	0x0002  /* indicates underrun */
+#define TXBD_CO  	0x0001  /* indicates collision */
 
-#define RXBD_OV 0x0002		/* indicates overrun */
+#define RXBD_E 		0x8000  /* Receive buffer is empty and can be used by CPM */
+#define RXBD_W 		0x2000  /* Wrap, last receive buffer in buffer circle */
+#define RXBD_I 		0x1000  /* Int. */
+#define RXBD_L 		0x0800  /* Last */
 
+#define RXBD_OV 	0x0002	/* indicates overrun */
 
-#define I2C_TX_LEN      128
-#define I2C_RX_LEN      128
+#define I2C_BUF_LEN      128
 
-#define I2C_PPC_MASTER			1
-#define I2C_PPC_SLAVE				0
+#define I2C_PPC_MASTER	 1
+#define I2C_PPC_SLAVE		 0
+
 
 typedef volatile struct I2C_BD
 {
@@ -63,24 +77,24 @@ typedef volatile struct I2C_BD
   unsigned char  *addr;
 } I2C_BD;
 
+/*
 typedef volatile struct RX_TX_BD {
  I2C_BD rxbd;
  I2C_BD txbd[2];
 } RXTXBD;
+*/
 
 static I2C_BD *rxbd, *txbd;
 
-unsigned char *rxbuf, *txbuf;
+static unsigned char *rxbuf, *txbuf;
 
 static	volatile i2c8xx_t	*i2c;
 static	volatile iic_t		*iip;
 static	volatile cpm8xx_t	*cp;
 
-volatile cbd_t		*tbdf, *rbdf;
+volatile cbd_t	*tbdf, *rbdf;
 
-static void i2c_interrupt( void * );
-//static struct wait_queue *i2c_wait;
-static wait_queue_head_t i2c_wait;
+///////////////////////////////////////////////////////////////////////////////
 
 static inline int i2c_roundrate (int hz, int speed, int filter, int modval,
 				    int *brgval, int *totspeed)
@@ -102,6 +116,8 @@ static inline int i2c_roundrate (int hz, int speed, int filter, int modval,
 
   return  0;
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 static int i2c_setrate (int hz, int speed)
 {
@@ -132,23 +148,21 @@ static int i2c_setrate (int hz, int speed)
     }
   }
 
-#ifdef DEBUG_I2C_RATE
-	printk("Best is:\n");
-	printk("CPU=%dhz RATE=%d F=%d I2MOD=%08x I2BRG=%08x DIFF=%dhz\n",
-	    hz, speed,
-	    bestspeed_filter, bestspeed_modval, bestspeed_brgval,
-	    bestspeed_diff);
-#endif
+	dprintk("Best is:\n");
+	dprintk("CPU=%dhz RATE=%d F=%d I2MOD=%08x I2BRG=%08x DIFF=%dhz\n", \
+	    hz, speed, \
+	    bestspeed_filter, bestspeed_modval, bestspeed_brgval, \
+	    bestspeed_diff );
 
   i2c->i2c_i2mod |= ((bestspeed_modval & 3) << 1) | (bestspeed_filter << 3);
   i2c->i2c_i2brg = bestspeed_brgval & 0xff;
 
-#ifdef DEBUG_I2C_RATE
-  printk("i2mod=%08x i2brg=%08x\n", i2c->i2c_i2mod, i2c->i2c_i2brg);
-#endif
+  dprintk("i2mod=%08x i2brg=%08x\n", i2c->i2c_i2mod, i2c->i2c_i2brg);
 
   return 1 ;
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 int i2c_init(int speed)
 {
@@ -191,64 +205,63 @@ int i2c_init(int speed)
   // Set SDMA bus arbitration level to 5 (SDCR)
   immap->im_siu_conf.sc_sdcr = 0x0001 ;
 
-  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc(16);
+  iip->iic_rbptr = iip->iic_rbase = m8xx_cpm_dpalloc(3*8);
   iip->iic_tbptr = iip->iic_tbase = iip->iic_rbase + sizeof(I2C_BD);
   
   rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
   txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
 
-  printk("RBASE = %04x\n", iip->iic_rbase);
-  printk("TBASE = %04x\n", iip->iic_tbase);
-  printk("RXBD1 = %08x\n", (int)rxbd);
-  printk("TXBD1 = %08x\n", (int)txbd);
+  dprintk("RBASE = %04x\n", iip->iic_rbase);
+  dprintk("TBASE = %04x\n", iip->iic_tbase);
+  dprintk("RXBD1 = %08x\n", (int)rxbd);
+  dprintk("TXBD1 = %08x\n", (int)txbd);
 
-  /* Set big endian byte order
-   */
+  /* Set big endian byte order */
   iip->iic_tfcr = 0x15;
   iip->iic_rfcr = 0x15;
 
-  /* Set maximum receive size.
-   */
-  iip->iic_mrblr = 128;
+  /* Set maximum receive size. */
+  iip->iic_mrblr = I2C_BUF_LEN;
 
 // i2c->i2c_i2mod |= ((bestspeed_modval & 3) << 1) | (bestspeed_filter << 3);
   i2c->i2c_i2brg = 7;
 
-    // Rx: Wrap, no interrupt, empty
-  rxbuf      = (unsigned char*)m8xx_cpm_hostalloc(128);
+  // Rx: Wrap, no interrupt, empty
+  rxbuf = (unsigned char*)m8xx_cpm_hostalloc(I2C_BUF_LEN);
 
 	if (rxbuf==0)
 	{
-		printk("INIT ERROR: no RXBUF mem available\n");
+		dprintk("INIT ERROR: no RXBUF mem available\n");
 		return -1;
 	}
 
   rxbd->addr = (unsigned char*)__pa(rxbuf);
-  printk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
-  rxbd->status = 0xa800;
-  rxbd->length = 0;
+  dprintk("RXBD1->ADDR = %08X\n",(uint)rxbd->addr);
 
-  // Tx: Wrap, no interrupt, not ready to send, last
-  txbuf      = (unsigned char*)m8xx_cpm_hostalloc(128);
+  txbuf = (unsigned char*)m8xx_cpm_hostalloc(2*I2C_BUF_LEN);
 
 	if (txbuf==0)
 	{
-		printk("INIT ERROR: no TXBUF mem available\n");
+		dprintk("INIT ERROR: no TXBUF mem available\n");
 		return -1;
 	}
 
-  txbd->addr = (unsigned char*)__pa(txbuf);
-  printk("TXBD1->ADDR = %08X\n",(uint)txbd->addr);
+  txbd[0].addr = (unsigned char*)__pa(txbuf);
+  txbd[1].addr = (unsigned char*)__pa(txbuf+I2C_BUF_LEN);
 
-  txbd->status = 0x2800;
-  txbd->length = 0;
+  dprintk("TXBD1->ADDR = %08X\n",(uint)txbd[0].addr);
+  dprintk("TXBD2->ADDR = %08X\n",(uint)txbd[1].addr);
+
+	txbd[0].status = TXBD_I | TXBD_W;
+	txbd[1].status = TXBD_I | TXBD_W;
+	rxbd->status   = RXBD_E | RXBD_I | RXBD_W;
 
 	// Initialize the BD's
   while (cp->cp_cpcr & CPM_CR_FLG);
   cp->cp_cpcr = mk_cr_cmd(CPM_CR_CH_I2C, CPM_CR_INIT_TRX) | CPM_CR_FLG;
   while (cp->cp_cpcr & CPM_CR_FLG);
 
-	// Clear events and interrupts
+	// Clear events
   i2c->i2c_i2cer = 0xff ;
 
   i2c->i2c_i2cmr = 0x17;
@@ -258,43 +271,37 @@ int i2c_init(int speed)
 	// Install Interrupt handler
 	cpm_install_handler( CPMVEC_I2C, i2c_interrupt, (void*)iip );
 
-	printk("1. CIMR: %08X CICR: %08X\n",cpic->cpic_cimr,cpic->cpic_cicr);
+	/* Enable i2c interrupt */
 	cpic->cpic_cimr |= 0x10000;
+
 //	cpic->cpic_cicr |= 0x8080;
-	printk("2. CIMR: %08X CICR: %08X\n",cpic->cpic_cimr,cpic->cpic_cicr);
 
 	return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataout )
+int i2c_send( unsigned char address,
+							unsigned short size, unsigned char *dataout )
 {
 	unsigned long flags;
   int i,j,ret;
 
-  if( size > I2C_TX_LEN )  /* Trying to send message larger than BD */
+  if( size > I2C_BUF_LEN )  /* Trying to send message larger than BD */
     return -1;
 
   i=0;
-  while( (txbd->status & TXBD_R) && (i<1000))
-  {
-    i++;
-    udelay(1000);
-  }
-
-	if (i==1000)
-	{
-    printk("TXBD: INITIAL TIMEOUT\n");
-		return -1;
-	}
 
   if(size==0)
-   size++;
-   
+	{
+		dprintk("ZERO BYTE WRITE (SEND)\n");
+   	size++;
+	}
+
 	ret = size;
 
-  txbd->length = size + 1;  /* Length of message plus dest address */
+  txbd[0].length = size + 1;  /* Length of message plus dest address */
+
   txbuf[0] = address;  /* Write destination address to BD */
   txbuf[0] &= ~(0x01);  /* Set address to write */
   i = 1;
@@ -303,19 +310,16 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
     txbuf[i]=dataout[j];
 
   /* Ready to Transmit, wrap, last */
-  txbd->status |= TXBD_R | TXBD_W | TXBD_I;
+  txbd[0].status |= TXBD_R | TXBD_W | TXBD_I | TXBD_S | TXBD_L;
 
 	save_flags(flags);cli();
-
-  /* Enable I2C */
-  i2c->i2c_i2mod |= 1;
 
   /* Transmit */
   i2c->i2c_i2com |= 0x80;
 
 //  printk("TXBD: WAIT INT\n");
 
-	interruptible_sleep_on(&i2c_wait);
+	interruptible_sleep_on_timeout(&i2c_wait,1000*1000);
 
 	restore_flags(flags);
 
@@ -324,28 +328,28 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 //  printk("TXBD: READY INT\n");
 
 	/* some error msg */
-	if ( txbd->status & TXBD_NAK )
+	if ( txbd[0].status & TXBD_NAK )
 	{
-		printk("TXBD: NAK AT %02X\n",address);
+		dprintk("TXBD: NAK AT %02X\n",address);
 		ret = -1;
 	}
-	if ( txbd->status & TXBD_UN )
+	if ( txbd[0].status & TXBD_UN )
 	{
-		printk("TXBD: UNDERRUN\n");
+		dprintk("TXBD: UNDERRUN\n");
 		ret = -1;
 	}
-	if ( txbd->status & TXBD_CO )
+	if ( txbd[0].status & TXBD_CO )
 	{
-		printk("TXBD: COLLISION\n");
+		dprintk("TXBD: COLLISION\n");
 		ret = -1;
 	}
   if ( i==1000 )
 	{
-    printk("TXBD: TIMEOUT\n");
+    dprintk("TXBD: TIMEOUT\n");
 		ret = -1;
 	}
 
-  i2c->i2c_i2mod &= (~1);
+//  i2c->i2c_i2mod &= (~1);
 
 	/* clear flags */
   txbd->status &= (~(TXBD_NAK|TXBD_UN|TXBD_CO));
@@ -357,39 +361,54 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
 int i2c_receive(unsigned char address,
                 unsigned short size_to_expect, unsigned char *datain )
 {
 	unsigned long flags;
   int i,ret;
 
-  if( size_to_expect > I2C_RX_LEN )
+  if( size_to_expect > I2C_BUF_LEN )
 	{
 		return -1;
 	}
 
 	ret = size_to_expect;
 
-  /* Setup TXBD for destination address */
-  txbuf[0] = address | 0x01;
-
-  txbd->length = 1 + size_to_expect;
-
 	for(i=0;i<size_to_expect;i++)
 		txbuf[i+1] = datain[i];
 
+	/* dummy write */
+  txbuf[0] = address;
+	txbuf[0]&=~(0x01);
+
+  txbd[0].length = 2;
+  txbd[0].status = TXBD_R | TXBD_S;
+  txbd[0].status&= ~(TXBD_W|TXBD_I);
+
+  /* Setup TXBD for destination address */
+  txbuf[0+I2C_BUF_LEN] = (address | 0x01);
+
+  txbd[1].length = 1 + size_to_expect;
+
+	for(i=0;i<size_to_expect;i++)
+		txbuf[i+1+I2C_BUF_LEN] = datain[i];
+
   if (!size_to_expect)
 	{
-    txbd->length++;
-		txbuf[1] = 0;
+		dprintk("ZERO BYTE WRITE (RECV)\n");
+    txbd[1].length++;
+		txbuf[1+I2C_BUF_LEN] = 0;
 	}
-
-  txbd->status |= TXBD_R | TXBD_W | TXBD_S | TXBD_L | TXBD_I;
 
   /* Reset the rxbd */
   rxbd->status |= RXBD_E | RXBD_W | RXBD_I;
 
+  txbd[1].status = TXBD_R | TXBD_W | TXBD_S | TXBD_L; // | xflags;
+
 	save_flags(flags);cli();
+
+  i2c->i2c_i2cer = 0xff;
 
   /* Enable I2C */
   i2c->i2c_i2mod |= 1;
@@ -399,37 +418,37 @@ int i2c_receive(unsigned char address,
 
 //  printk("TXBD: WAIT INT\n");
 
-	interruptible_sleep_on(&i2c_wait);
+	interruptible_sleep_on_timeout(&i2c_wait,1000*1000);
 
 	restore_flags(flags);
 
+//  udelay(1000);
 /*
   i=0;
   while( (txbd->status & TXBD_R) && (i<1000))
   {
     i++;
-    udelay(1000);
   }
 */
 	/* some error msg */
 	if ( txbd->status & TXBD_NAK )
 	{
-		printk("TXBD: NAK AT %02X LEN: %02X\n",address,size_to_expect);
+		dprintk("TXBD: NAK AT %02X LEN: %02X\n",address,size_to_expect);
 		ret = -1;
 	}
 	if ( txbd->status & TXBD_UN )
 	{
-		printk("TXBD: UNDERRUN\n");
+		dprintk("TXBD: UNDERRUN\n");
 		ret = -1;
 	}
 	if ( txbd->status & TXBD_CO )
 	{
-		printk("TXBD: COLLISION\n");
+		dprintk("TXBD: COLLISION\n");
 		ret = -1;
 	}
   if ( i==1000 )
 	{
-    printk("TXBD: TIMEOUT\n");
+    dprintk("TXBD: TIMEOUT\n");
 		ret = -1;
 	}
 
@@ -440,17 +459,17 @@ int i2c_receive(unsigned char address,
 	{
 		if ( (rxbd->status & RXBD_E) )
 		{
-	    printk("RXBD: RX DATA IS EMPTY\n");
+	    dprintk("RXBD: RX DATA IS EMPTY\n");
 			ret = -1;
 		}
 		if ( rxbd->length == 0  )
 		{
-			printk("RXBD: NO DATA\n");
+			dprintk("RXBD: NO DATA\n");
 			ret = -1;
 		}
 		if ( rxbd->status & RXBD_OV )
 		{
-			printk("RXBD: OVERRUN\n");
+			dprintk("RXBD: OVERRUN\n");
 		 	rxbd->status &= (~RXBD_OV);
 			ret = -1;
 		}
@@ -461,9 +480,6 @@ int i2c_receive(unsigned char address,
 	        datain[i]=rxbuf[i];
 		}
 	}
-
-  /* Turn off I2C */
-  i2c->i2c_i2mod&=(~1);
 
   iip->iic_rstate=0;
   iip->iic_tstate=0;
@@ -482,18 +498,14 @@ static void i2c_interrupt( void * dev_id )
 
         iip = (iic_t *)dev_id;
 
-//			  printk("[I2C INT]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
+			  dprintk("[I2C INT]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
 
-        /* Chip errata, clear enable.
-        */
 			  i2c->i2c_i2mod &= (~1);
 
-        /* Clear interrupt.
-        */
+        /* Clear interrupt. */
         i2c->i2c_i2cer = 0xff;
 
-        /* Get 'me going again.
-        */
+        /* Get 'me going again. */
         wake_up_interruptible( &i2c_wait );
 }
 
@@ -505,20 +517,34 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
   struct i2c_msg *pmsg;
   int i;
 
+  /* Enable I2C */
+  i2c->i2c_i2mod |= 1;
+
   for (i=0; i<num; i++)
   {
     pmsg = &msgs[i];
-//    printk("i2c: addr:=%x, flags:=%x, len:=%x\n", pmsg->addr, pmsg->flags, pmsg->len);
+    dprintk("i2c: addr:=%x, flags:=%x, len:=%x num:=%d\n", pmsg->addr, pmsg->flags, pmsg->len, num);
+
     if (pmsg->flags & I2C_M_RD )
     {
-      if (i2c_receive(pmsg->addr<<1, pmsg->len, pmsg->buf)<0)
+      if (i2c_receive(pmsg->addr<<1, pmsg->len, pmsg->buf )<0)
+			{
+			  i2c->i2c_i2mod&=(~1);
         return -EREMOTEIO;
+			}
     } else
     {
-      if (i2c_send(pmsg->addr<<1, pmsg->len, pmsg->buf)<0)
+      if (i2c_send(pmsg->addr<<1, pmsg->len, pmsg->buf )<0)
+			{
+			  i2c->i2c_i2mod&=(~1);
         return -EREMOTEIO;
+			}
     }
   }
+
+  /* Turn off I2C */
+  i2c->i2c_i2mod&=(~1);
+
   return num;
 }
 
@@ -555,8 +581,7 @@ static struct i2c_algorithm i2c_8xx_algo = {
 
 static struct i2c_adapter adap;
 
-///////////////////////////////////////////////////////////////////////////////
-
+//////////////////////////////////////////////////////////////////////////////
 static int __init i2c_algo_8xx_init (void)
 {
   printk("i2c-8xx.o: mpc 8xx i2c init\n");
@@ -577,6 +602,7 @@ static int __init i2c_algo_8xx_init (void)
 #endif
 
   printk("adapter: %x\n", i2c_add_adapter(&adap));
+
   return 0;
 }
 
@@ -606,7 +632,7 @@ MODULE_DESCRIPTION("I2C-Bus MPC8xx Intgrated I2C");
 
 MODULE_PARM(debug,"i");
 MODULE_PARM_DESC(debug,
-            "debug level - 0 off; 1 normal; 2,3 more verbose; 9 bit-protocol");
+            "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
