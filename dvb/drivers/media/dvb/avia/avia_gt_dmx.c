@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.162 2003/01/19 10:56:46 gandalfx Exp $
+ * $Id: avia_gt_dmx.c,v 1.163 2003/01/19 14:40:42 gandalfx Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -133,9 +133,8 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 	queue_list[queue_nr].write_pos = 0;
 	queue_list[queue_nr].info.hw_sec_index = -1;
 
-	queue_list[queue_nr].queue_nr=queue_nr;
 	queue_list[queue_nr].task_struct.routine=avia_gt_dmx_bh_task;
-	queue_list[queue_nr].task_struct.data=&(queue_list[queue_nr].queue_nr);
+	queue_list[queue_nr].task_struct.data=&(queue_list[queue_nr].info.index);
 	
 	avia_gt_dmx_queue_reset(queue_nr);
 	avia_gt_dmx_set_queue_irq(queue_nr, 0, 0);
@@ -952,7 +951,7 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 
 static void avia_gt_dmx_bh_task(void *tl_data) {
 
-	int queue_nr = *((int *) tl_data);
+	int queue_nr = *((u8 *) tl_data);
 
 	queue_list[queue_nr].write_pos = queue_list[queue_nr].hw_write_pos;
 
@@ -2064,7 +2063,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.162 2003/01/19 10:56:46 gandalfx Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.163 2003/01/19 14:40:42 gandalfx Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

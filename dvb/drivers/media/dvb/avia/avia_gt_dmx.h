@@ -81,7 +81,6 @@ typedef struct {
 	u32 size;
 	u32 write_pos;
 	struct tq_struct task_struct;
-	int       queue_nr;
 
 } sAviaGtDmxQueue;
 
