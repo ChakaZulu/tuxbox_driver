@@ -1,5 +1,5 @@
 /* 
-  $Id: ves1993.c,v 1.17 2002/04/04 06:15:41 obi Exp $
+  $Id: ves1993.c,v 1.18 2002/04/20 18:23:16 obi Exp $
 
 		VES1993	- Single Chip Satellite Channel Receiver driver module
 							 
@@ -20,6 +20,9 @@
 		Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
   $Log: ves1993.c,v $
+  Revision 1.18  2002/04/20 18:23:16  obi
+  added raw diseqc command
+
   Revision 1.17  2002/04/04 06:15:41  obi
   partially implemented FE_SEC_GET_STATUS
 
@@ -653,6 +656,15 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msg[2]=command->u.diseqc.cmd;
 			memcpy(msg+3, command->u.diseqc.params, command->u.diseqc.numParams);
 			return fp_send_diseqc(2, msg, command->u.diseqc.numParams+3);
+		}
+                case SEC_CMDTYPE_DISEQC_RAW:
+		{
+			unsigned char msg[SEC_MAX_DISEQC_PARAMS+3];
+			msg[0]=command->u.diseqc_raw.cmdtype;
+			msg[1]=command->u.diseqc_raw.addr;
+			msg[2]=command->u.diseqc_raw.cmd;
+			memcpy(msg+3, command->u.diseqc_raw.params, command->u.diseqc_raw.numParams);
+			return fp_send_diseqc(2, msg, command->u.diseqc_raw.numParams+3);
 		}
 		default:
 			return -EINVAL;

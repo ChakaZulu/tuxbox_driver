@@ -37,6 +37,15 @@ struct secDiseqcCmd {
 	uint8_t params[SEC_MAX_DISEQC_PARAMS];
 };
 
+/* api breaker */
+struct secDiseqcRawCmd {
+	uint8_t cmdtype;
+	uint8_t addr;
+	uint8_t cmd;
+	uint8_t numParams;
+	uint8_t params[SEC_MAX_DISEQC_PARAMS];
+};
+
 typedef uint32_t secVoltage;
 
 enum {
@@ -84,6 +93,7 @@ struct secCommand {
 	int32_t type;
 	union {
 	        struct secDiseqcCmd diseqc;
+		struct secDiseqcRawCmd diseqc_raw;
 		uint8_t vsec;
 		uint32_t pause;
 	} u;
@@ -100,6 +110,7 @@ struct secCmdSequence {
 
 enum {
 	SEC_CMDTYPE_DISEQC,
+	SEC_CMDTYPE_DISEQC_RAW,
 	SEC_CMDTYPE_VSEC,
 	SEC_CMDTYPE_PAUSE
 };
