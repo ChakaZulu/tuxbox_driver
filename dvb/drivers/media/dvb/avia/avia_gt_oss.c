@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_oss.c,v 1.24 2004/01/29 19:38:20 zwen Exp $
+ * $Id: avia_gt_oss.c,v 1.25 2004/01/30 08:24:42 zwen Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
@@ -133,32 +133,25 @@ int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		printk("avia_oss: IOCTL: SNDCTL_DSP_SPEED (arg=%d)\n", val);
 		
-		switch(val)
-		{
-			case 48000:
-			case 24000:
-			case 12000:
-				if(avia_av_get_sample_rate() != 48000)
-				{
-					avia_av_set_sample_rate(48000);
-				}
-				break;
-			case 44100:
-			case 22050:
-			case 11025:
-				if(avia_av_get_sample_rate() != 44100)
-				{
-					avia_av_set_sample_rate(44100);
-				}
-				break;
-			case 32000:
-			case 16000:
-			case 8000:
-				if(avia_av_get_sample_rate() != 32000)
-				{
-					avia_av_set_sample_rate(32000);
-				}
-				break;
+		switch(val) {
+		case 48000:
+		case 24000:
+		case 12000:
+			if(avia_av_get_sample_rate() != 48000)
+				avia_av_set_sample_rate(48000);
+			break;
+		case 44100:
+		case 22050:
+		case 11025:
+			if(avia_av_get_sample_rate() != 44100)
+				avia_av_set_sample_rate(44100);
+			break;
+		case 32000:
+		case 16000:
+		case 8000:
+			if(avia_av_get_sample_rate() != 32000)
+				avia_av_set_sample_rate(32000);
+			break;
 		}
 
 		return avia_gt_pcm_set_rate(val);
@@ -290,7 +283,7 @@ static struct file_operations mixer_fops = {
 static
 int __init avia_oss_init(void)
 {
-	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.24 2004/01/29 19:38:20 zwen Exp $\n");
+	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.25 2004/01/30 08:24:42 zwen Exp $\n");
 
 	avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 

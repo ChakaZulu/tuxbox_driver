@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.86 2004/01/29 19:38:19 zwen Exp $
+ * $Id: avia_av_core.c,v 1.87 2004/01/30 08:24:42 zwen Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -669,18 +669,17 @@ void avia_av_audio_init(u16 rate)
 
 	/* AUDIO_CLOCK_SELECTION */
 	val = 0;
-	switch(rate)
-	{
-		case 48000:
-			sample_rate = 48000;
-			break;
-		case 32000:
-			sample_rate = 32000;
-			val |= (2<<2);
-			break;
-		default:
-			val |= (1<<2);
-			sample_rate = 44100;
+	switch(rate) {
+	case 48000:
+		sample_rate = 48000;
+		break;
+	case 32000:
+		sample_rate = 32000;
+		val |= (2<<2);
+		break;
+	default:
+		val |= (1<<2);
+		sample_rate = 44100;
 	}
 
 	/* 500/600 test */
@@ -1116,12 +1115,9 @@ u16 avia_av_get_sample_rate(void)
 
 int avia_av_set_sample_rate(u16 rate)
 {
-	if(rate != 48000 && rate !=44100 && rate!=32000)
-	{
+	if((rate != 48000) && (rate != 44100) && (rate != 32000))
 		return -EINVAL;
-	}
-	else if(sample_rate != rate)
-	{
+	else if(sample_rate != rate) {
 		sample_rate=rate;
 		avia_av_standby(1);
 		avia_av_standby(0);
@@ -1442,7 +1438,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.86 2004/01/29 19:38:19 zwen Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.87 2004/01/30 08:24:42 zwen Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
