@@ -1,0 +1,63 @@
+
+u8 ves1820_inittab [] =
+{
+  0x49, //0  noStdBy / internADC / noInversion / 64-QAM / outputs active / CLB-Softreset default
+  0x6A, //1  AGC-Reference set to 64-QAM
+  0x13, //2  Frontend Lock-Indicator /  internADC / AGC in PWM ?? (def=1) / AGC nonInverted / AGC Time constant is minimum (def=00)
+  0x0A, //3  NDEC=0 / gain(3.decimation filter)=1 / gain(2.decimation filter)=1 / DYN=1 acquisition range for clock recovery is ± 240 ppm / CLK_C=def.
+  0x15, //4  carrier acquisition range is ± 2.5% / loop bandwith (BW/RS)=0.03
+  0x46, //5  carrier lock detection = 64-QAM
+  0x26, //6  reference coefficient of the equalizer=def. / coefficients of the equalizer are continuously adjusted / linear transversal equalizer
+  0x1A, //7  convergence steps during the acquisition phase / tracking phase
+  0x43, //8  threshold value used to switch from the acquisition phase to the tracking phase=64-QAM
+  0x6A, //9  reference parameter that optimizes the equalizer convergence during the acquisition phase=64-QAM
+  0x1A, //A  LSB of the BAUD rate frequency to program
+  0x61, //B  MID of the BAUD rate frequency to program
+  0x19, //C  MSB of the BAUD rate frequency to program
+  		//   according to int((2^24*SymbolRate*2^NDEC)/SYSCLK)
+  0xA1, //D  BAUD rate inverse (If BDRI > 255, then set BDRI to 255)
+  		//   according to int(16*SYSCLK /(SymbolRate*2^NDEC))
+  0x63, //E  gain of the Nyquist filter=3 GNYQ=011 / SFIL=0 / gain of the antialiasing filter=1 GLPF=00 / number of samples=16384 SSAT=11
+  0x00, //F  Test-Byte
+  0xB8, //10 PVBER=10 (def=01) / CLB_UNC=1 / sync-unsync detection C=11 / correction capability of RS decoder validated RSI=0 / descrambler validated DESCI=0 / IEI=0
+  0x00, //11 Status-Read-Register: 0 / (FEL but) NODVB / rough idea of the Bit Error Rate: BER[1] BER[0] / DVB lock: FEL=(FSYNC&&CARLOCK) / MPEG2 sync: if(FSYNC) / CarrierLock: if(CARLOCK) / Phase detection: acquisition=0 tracking=1 EQ_ALGO
+  0xE1, //12 if some output Pins inverted or not
+  0x00, //13 7-bit counter uncorractable Packets
+  0x00, //14 8-bit LSB of the BER=OUTPUT SIGNAL QUALITY MEASUREMENT (BER)
+  0x00, //15 8-bit MID of the BER
+  0x00, //16 4-bit MSB of the BER
+  0x00, //17 AGC information 0xFF is maximum
+  0x00, //18 MSE Mean Square Error = representation of the signal quality
+  0x00, //19 VAFC indicates the frequency offset when the carrier has been recovered
+  		//	 sigmaF = (VAFC * SymbolRate) / 1024
+  0x00, //1A IDENTITY
+  0x01, //1B if(PDOWN) internal ADC in STDBY / PCLK polarity of SamplingClock SACLOCK if internal ADC is used
+  0x00, //1C EQCONF2
+  0x00, //1D CKOFF symbol clock frequency offset
+  		//   If DYN=0 SRoffset = (CKOFF * 120 / 128) ppm
+		//	 If DYN=1 SRoffset = (CKOFF * 240 / 128) ppm
+  0x00, //1E PLL config
+  0x00, //1F
+  0x00, //20 INTSEL config
+  0x00, //21 SATNYQ represents the number of saturations that occur at the output of the Nyquist filter
+  0x00, //22 SATADC represents the number of saturations that occur at the output of the ADC
+  0x00, //23 HALFADC HLFADC represents the number of times that the output of the ADC exceeds the mid-range
+  0x00, //24 SATDEC1 SDEC1represents the number of saturations that occur at the output of first decimation filter
+  0x00, //25 SATDEC2 SDEC2 represents the number of saturations that occur at the output of second decimation filter
+  0x00, //26 SATDEC3 SDEC3 represents the number of saturations that occur at the output of third decimation filter
+  0x00, //27 SATAAF SAAF represents the number of saturations that occur at the output of the antialiasing filter
+  0x00, //28
+  0x00, //29
+  0x00, //2A
+  0x00, //2B
+  0x00, //2C
+  0x00, //2D
+  0x00, //2E
+  0x00, //2F
+  0x01, //30 SATTHR STHR is a threshold value, compared to the register SATADC. If SATADC > STHR then an interrupt can be generated on pin IT. (See register ITSEL)
+  0x32, //31 HALFTHR HLFTHR is a threshold value, compared to the register HLFADC
+		//	 If HLFADC < HLFTHR then an interrupt can be generated on pin IT (See register ITSEL)
+  0xc8, //32 ITSEL ITEN=INTerrupt Enable / ITSEL[6]=interrupt if AGC is saturated (AGC = 0 or ACG = 255) / ITSEL[3]=interrupt if VBER is refreshed
+  0x00, //33 ITSTAT interrupt status register corresponds to ITSEL(i)
+  0x00  //34 PWM off
+};
