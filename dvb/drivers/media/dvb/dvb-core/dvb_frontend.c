@@ -336,7 +336,8 @@ int dvb_frontend_set_parameters (struct dvb_frontend_data *fe,
 	struct dvb_frontend *frontend = &fe->frontend;
 	int err;
 
-	dvb_bend_frequency (fe, 0);
+	/*dvb_bend_frequency (fe, 0);*/
+	fe->bending = 0;
 
 	if (first_trial) {
 		fe->timeout_count = 0;
