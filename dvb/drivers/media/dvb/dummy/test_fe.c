@@ -108,60 +108,34 @@ int FEDumpStatus(int fd)
 	
 }
 
-int set_qpsk_channel(int fd, int freq, int vpid, int apid, int tpid, int diseqc, int pol, 
-					 int srate, int fec, int lnb_lof1, int lnb_lof2, int lnb_slof) 
+int FESetFrontend(int fd, struct dvb_frontend_parameters *parameters)
 {
 
-//	struct secCommand scmd;
-//	struct secCmdSequence scmds;
-//	struct dmxPesFilterParams pesFilterParams;
-//	FrontendParameters frp;
-//	struct pollfd pfd[1];
-//	FrontendEvent event;
-//	int demux1, dmeux2, demux3, front;
-	
-//	frequency = (uint32_t)freq;
-//	symbolrate = (uint32_t)srate; 
-	
-/*	if ((sec = open(SEC,O_RDWR)) < 0) {
-	
-		perror("SEC DEVICE: ");
+	int result; 
+
+	if (!parameters)
+		return -EINVAL;
+
+	if ((result = ioctl(fd, FE_SET_FRONTEND, parameters) < 0)) { 
+
+		perror("FE SET FRONTEND: ");
 		
-		return -1;
+		return result;
 		
-	}
-*/	
+	} 
 
-}
-
-/* tune qpsk */
-/* freq: frequency of transponder */
-/* vpid, apid, tpid: PIDs of video, audio and teletext TS packets */
-/* srate: Symbol Rate */
-/* fec. FEC */
-
-int set_qam_channel(int fd, int freq, int vpid, int apid, int tpid, int srate, int fec) 
-{
-
-//	struct dmxPesFilterParams pesFilterParams;
-	struct dvb_frontend_parameters frp;
-	struct pollfd pfd[1];
-	struct dvb_frontend_event event;
-//	int demux1, dmeux2, demux3;
+	return 0;
 	
-//	frequency = (uint32_t)freq;
-//	symbolrate = (uint32_t)srate; 
-	
-
 }
 
 int main(void)
 {
 
-	int front_fd;
-	struct dvb_frontend_info front_info;
+	int fe_fd;
+	struct dvb_frontend_info fe_info;
+	struct dvb_frontend_parameters fe_param;
 
-	if ((front_fd = open(FRONT, O_RDWR)) < 0) {
+	if ((fe_fd = open(FRONT, O_RDWR)) < 0) {
 	
 		perror("FRONTEND DEVICE");
 
@@ -169,12 +143,28 @@ int main(void)
 		
 	}
 
-	FEGetInfo(front_fd, &front_info);
-	FEDumpInfo(&front_info);
-	FEDumpStatus(front_fd);
+	FEGetInfo(fe_fd, &fe_info);
+	FEDumpInfo(&fe_info);
+	FEDumpStatus(fe_fd);
+	
+	if (fe_info.type == FE_QAM) {
+	
+		fe_param.frequency = 1000000;
+		fe_param.u.qam.symbol_rate = 7900;
+		fe_param.inversion = INVERSION_AUTO;
+	
+	} else if (fe_info.type == FE_QPSK) {
+	
+		//FIXME
+	
+	} else if (fe_info.type == FE_OFDM) {
+	
+		//FIXME
+	
+	}
+	
+	FESetFrontend(fe_fd, &fe_param);
 
-//	set_qam_channel(front, 510000, 0x0001, 0x0002, 0x0003, 7000, 1);
-
-	close(front_fd);
+	close(fe_fd);
 
 }	
