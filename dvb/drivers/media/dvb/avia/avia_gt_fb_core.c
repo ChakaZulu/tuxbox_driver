@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.5  2001/05/26 22:22:24  TripleDES
+ *
+ *   fixed the grey-backgrund
+ *
  *   Revision 1.4  2001/05/04 21:07:55  fnbrd
  *   Rand gefixed.
  *
@@ -48,7 +52,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -478,7 +482,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 
 	enx_reg_w(GMR1)=val;
 	enx_reg_w(GMR2)=0;
-  enx_reg_h(GBLEV1)=0x0020;
+  enx_reg_h(GBLEV1)=0x80;
   enx_reg_h(GBLEV2)=0;
 //JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
 	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
@@ -736,7 +740,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.4 2001/05/04 21:07:55 fnbrd Exp $\n");
+  dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.5 2001/05/26 22:22:24 TripleDES Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
