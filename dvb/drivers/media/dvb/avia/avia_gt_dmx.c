@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.151  2002/11/20 18:35:13  Jolt
+ *   IRQ rate fixes
+ *
  *   Revision 1.150  2002/11/20 16:59:45  Jolt
  *   Adaptive IRQ rate control
  *
@@ -260,7 +263,7 @@
  *
  *
  *
- *   $Revision: 1.150 $
+ *   $Revision: 1.151 $
  *
  */
 
@@ -1426,33 +1429,25 @@ void avia_gt_dmx_queue_flush(struct avia_gt_dmx_queue *queue)
 
 /*
  * Für den "Block-IRQ-Modus" wird folgender Algorithmus verwendet:
- * Der gesamte Puffer wird geachtelt. Es wird herausgefunden, in
- * welchem Achtel sich der Schreibpointer gerade befindet:
+ * Der gesamte Puffer wird gesechzehntelt. Es wird herausgefunden, in
+ * welchem Sechzehntel sich der Schreibpointer gerade befindet:
  * Analog der Prozentrechnung
- *  write_pointer * 100 / queue_size mit den Grenzen 12,5, 25 ... 100 wird
- *  write_pointer * 8 / queue_size mit den Grenzen 1, 2 .. 8
+ *  write_pointer * 100 / queue_size mit den Grenzen 6.25, 12.5, ... 100 wird
+ *  write_pointer * 16 / queue_size mit den Grenzen 1, 2 .. 16
  * verwendet.
- * Der Interrupt wird dann auf das erreichen des _übernächsten_ Achtel gesetzt.
- * Das Setzen auf das nächste Achtel könnte zu Problemen führen, wenn der
+ * Der Interrupt wird dann auf das Erreichen des _übernächsten_ Sechzehntel gesetzt.
+ * Das Setzen auf das nächste Sechzehntel könnte zu Problemen führen, wenn der
  * write_pointer kurz vor der Grenze ist.
  */
 
 static void avia_gt_dmx_queue_qim_mode_update(u8 queue_nr)
 {
 
-	u16 value;
 	u8 block_pos;
 
-	block_pos = (queue_list[queue_nr].hw_write_pos << 4) / queue_list[queue_nr].size;
+	block_pos = (queue_list[queue_nr].hw_write_pos * 16) / queue_list[queue_nr].size;
 
-	if (block_pos == 15)
-		value = 0;
-	else
-		value = (block_pos + 2) << 11;
-
-	dprintk(KERN_DEBUG "avia_gt_dmx_set_queue_irq: write_pos: 0x%04X, new irq: 0x%04X, qend 0x%04X\n", queue_list[queue_nr].hw_write_pos, value, queue_list[queue_nr].size);
-	
-	avia_gt_dmx_set_queue_irq(queue_nr, 1, block_pos);
+	avia_gt_dmx_set_queue_irq(queue_nr, 1, ((block_pos + 2) % 16) * 2);
 
 }
 
@@ -1741,18 +1736,18 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 
 }
 
-void avia_gt_dmx_set_queue_irq(unsigned char queue_nr, unsigned char qim, unsigned int irq_addr)
+void avia_gt_dmx_set_queue_irq(u8 queue_nr, u8 qim, u8 block)
 {
 
 	if (!qim)
-		irq_addr = 0;
+		block = 0;
 
 	queue_nr = avia_gt_dmx_map_queue(queue_nr);
 
 	if (avia_gt_chip(ENX))
-		enx_reg_16n(0x08C0 + queue_nr * 2) = ((qim << 15) | (irq_addr & 0x7C00));
+		enx_reg_16n(0x08C0 + queue_nr * 2) = ((qim << 15) | ((block & 0x1F) << 10));
 	else if (avia_gt_chip(GTX))
-		gtx_reg_16(QIn + queue_nr * 2) = ((qim << 15) | (irq_addr & 0x7C00));
+		gtx_reg_16(QIn + queue_nr * 2) = ((qim << 15) | ((block & 0x1F) << 10));
 
 }
 
@@ -2191,7 +2186,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.150 2002/11/20 16:59:45 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.151 2002/11/20 18:35:13 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2334,8 +2329,6 @@ EXPORT_SYMBOL(avia_gt_dmx_alloc_queue_video);
 EXPORT_SYMBOL(avia_gt_dmx_fake_queue_irq);
 EXPORT_SYMBOL(avia_gt_dmx_free_queue);
 EXPORT_SYMBOL(avia_gt_dmx_get_queue_info);
-EXPORT_SYMBOL(avia_gt_dmx_get_queue_irq);
-EXPORT_SYMBOL(avia_gt_dmx_set_queue_irq);
 
 EXPORT_SYMBOL(avia_gt_dmx_queue_get_bytes_free);
 EXPORT_SYMBOL(avia_gt_dmx_queue_get_write_pos);
