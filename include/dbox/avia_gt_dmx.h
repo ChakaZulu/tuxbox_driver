@@ -34,14 +34,22 @@
 #define AVIA_GT_DMX_QUEUE_MESSAGE		31
 #define AVIA_GT_DMX_QUEUE_HIGH_SPEED	32
 
-typedef void (AviaGtDmxQueueProc)(u8 queue_nr, void *cb_data);
+typedef struct {
+
+	u32 irq_count;
+
+} sAviaGtDmxQueueInfo;
+
+typedef void (AviaGtDmxQueueProc)(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *cb_data);
 
 typedef struct {
 
 	u8 busy;
 	void *cb_data;
 	AviaGtDmxQueueProc *cb_proc;
-	u32 irq_count;
+	sAviaGtDmxQueueInfo info;
+	u32 mem_addr;
+	u32 size;
 
 } sAviaGtDmxQueue;
 

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.102 $
+ *   $Revision: 1.103 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.103  2002/09/04 13:25:01  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.102  2002/09/04 07:46:29  Jolt
  *   - Removed GTX_SECTION
  *   - Removed auto pcr pid handling
@@ -568,8 +571,9 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
-void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
+void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, void *data)
 {
+
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int queue = queue_nr;
 	int ccn = (int)0;
@@ -1745,9 +1749,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	for (i=0; i<NUM_PID_FILTER; i++)			// disable all pid filters
 		avia_gt_dmx_set_pid_table(i, 0, 1, 0);
 
-	for (i=0; i<NUM_QUEUES; i++)
-		avia_gt_dmx_set_queue_irq(i, 0, 0);
-
 	ptr=AVIA_GT_MEM_DMX_OFFS;
 
 	for (i=0; i<NUM_QUEUES; i++)
@@ -1762,11 +1763,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		gtxdemux->feed[i].base=ptr;
 		ptr+=gtxdemux->feed[i].size;
 		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
-		//		gtx_queue[i].base=avia_gt_alloc_dram(gtx_queue[i].size, gtx_queue[i].size);
-		avia_gt_dmx_set_queue((unsigned char)i, gtxdemux->feed[i].base, buffersize[i]);
 		gtxdemux->feed[i].index=i;
 		gtxdemux->feed[i].state=DMX_STATE_FREE;
-		avia_gt_dmx_queue_irq_disable(gtxdemux->feed[i].index);
 	}
 	dprintk("%dkb ram used for queues\n", ptr/1024);
 
@@ -1875,7 +1873,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.102 2002/09/04 07:46:29 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.103 2002/09/04 13:25:01 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
