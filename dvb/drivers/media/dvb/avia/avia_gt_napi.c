@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.158 $
+ *   $Revision: 1.159 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.159  2002/11/05 22:03:25  Jolt
+ *   Decoder work
+ *
  *   Revision 1.158  2002/11/04 18:41:55  Jolt
  *   HW TS and PES support
  *
@@ -762,7 +765,7 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 	dvbdmxfeed->priv = queue;
 		
 	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_PES, dvbdmxfeed->pid, 0);
-
+	
 	return 0;
 
 }
@@ -804,15 +807,47 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	}
 
+				
+	
+
 	switch(dvbdmxfeed->type) {
 	
 		case DMX_TYPE_TS:
 		case DMX_TYPE_PES:
+
+			if ((dvbdmxfeed->ts_type & TS_DECODER) && (!(dvbdmxfeed->ts_type & TS_PACKET))) {
+	
+				switch(dvbdmxfeed->pes_type) {
 		
-			if (!(dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY))
-				result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
-			else		
-				result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
+					case DMX_TS_PES_VIDEO:
+					case DMX_TS_PES_AUDIO:
+			
+						result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
+
+						break;
+
+					case DMX_TS_PES_TELETEXT:
+			
+						result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
+				
+					break;
+					
+					default:
+					
+						result = -EINVAL;
+					
+					break;
+					
+				}
+		
+			} else {
+		
+				if (!(dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY))
+					result = avia_gt_napi_start_feed_ts(dvbdmxfeed);
+				else		
+					result = avia_gt_napi_start_feed_pes(dvbdmxfeed);
+					
+			}
 
 			break;
 
@@ -877,7 +912,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.158 2002/11/04 18:41:55 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.159 2002/11/05 22:03:25 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

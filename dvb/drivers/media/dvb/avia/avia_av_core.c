@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.39  2002/11/05 22:03:25  Jolt
+ *   Decoder work
+ *
  *   Revision 1.38  2002/10/22 23:46:58  obi
  *   compile fix
  *
@@ -170,7 +173,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.38 $
+ *   $Revision: 1.39 $
  *
  */
 
@@ -1227,7 +1230,12 @@ static int init_avia(void)
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
-
+	
+	avia_flush_pcr();
+	avia_command(SetStreamType, 0x0B, 0x0000);
+	avia_command(SelectStream, 0, 0);
+	avia_command(SelectStream, 3, 0);
+	avia_command(Play, 0, 0, 0);
 
 	return 0;
 }
@@ -1490,7 +1498,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.38 2002/10/22 23:46:58 obi Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.39 2002/11/05 22:03:25 Jolt Exp $\n");
 
 	aviamem = 0;
 

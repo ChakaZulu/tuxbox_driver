@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.5  2002/11/05 22:03:25  Jolt
+ *   Decoder work
+ *
  *   Revision 1.4  2002/11/05 00:02:58  Jolt
  *   Decoder work
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -93,11 +96,11 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_PLAY:
 
-			if ((audiostate.play_state != AUDIO_PLAYING) && (videostate.play_state != VIDEO_PLAYING)) {
+//FIXME			if ((audiostate.play_state != AUDIO_PLAYING) && (videostate.play_state != VIDEO_PLAYING)) {
 
-				switch (videostate.stream_source) {
+//FIXME				switch (videostate.stream_source) {
 
-					case VIDEO_SOURCE_DEMUX:
+//FIXME					case VIDEO_SOURCE_DEMUX:
 
 						printk("avia: playing vpid 0x%X apid: 0x%X\n", video_pid, audio_pid);
 //FIXME
@@ -133,6 +136,8 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 
 #endif
+						avia_command(SetStreamType, 0x0B, 0x0000);
+
 
 						avia_command(SelectStream, 0x00, video_pid);
 						avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
@@ -140,25 +145,25 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 						break;
 
-					case VIDEO_SOURCE_MEMORY:
+//FIXME					case VIDEO_SOURCE_MEMORY:
 
 //FIXME						video_stream_type = STREAM_TYPE_DPES_PES;
 //FIXME						audio_stream_type = STREAM_TYPE_DPES_PES;
-						avia_command(SelectStream, 0x0B, 0x0000);
-						avia_command(Play, 0x00, 0x0000, 0x0000);
+//FIXME						avia_command(SelectStream, 0x0B, 0x0000);
+//FIXME						avia_command(Play, 0x00, 0x0000, 0x0000);
 
-						break;
+//FIXME						break;
 
-					default:
+//FIXME					default:
 
-						return -EINVAL;
+//FIXME						return -EINVAL;
 
-				}
+//FIXME				}
 
 				audiostate.play_state = AUDIO_PLAYING;
 				videostate.play_state = VIDEO_PLAYING;
 
-			}
+//FIXME			}
 
 			break;
 
@@ -405,7 +410,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 //FIXME
 //FIXME			video_stream_type = (streamType_t)arg;
 //FIXME
-//FIXME			break;
+			break;
 
 		default:
 
@@ -798,7 +803,7 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.4 2002/11/05 00:02:58 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.5 2002/11/05 22:03:25 Jolt Exp $\n");
 
 	return 0;
 
