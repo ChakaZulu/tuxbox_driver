@@ -21,6 +21,7 @@ main(int argc, char **argv)
 {
 	int fd;
 	int err;
+	unsigned long arg;
 
 	struct event_t event;
 
@@ -30,7 +31,11 @@ main(int argc, char **argv)
 		return -1;
 	}
 
-	if ( read(fd,&event,sizeof(event_t)) <= 0 )
+	arg = EVENT_VCR_OFF | EVENT_VHSIZE_CHANGE | EVENT_ARATIO_CHANGE;
+
+	if ( ioctl(fd,EVENT_SET_FILTER,arg) < 0 )
+		perror("ioctl");
+	else if ( read(fd,&event,sizeof(event_t)) <= 0 )
 		perror("read");
 	else
 		printf("event: %d\n",event.event);

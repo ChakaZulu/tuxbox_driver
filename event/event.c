@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.5  2001/12/19 21:15:20  gillem
+ *	- more work on event stuff ...
+ *	
  *	Revision 1.4  2001/12/19 19:47:01  gillem
  *	- some work on event-filter
  *	
@@ -33,7 +36,7 @@
  *	- initial release (not ready today)
  *	
  *
- *	$Revision: 1.4 $
+ *	$Revision: 1.5 $
  *
  */
 
@@ -67,14 +70,13 @@ struct event_data_t {
 
 struct event_private_t {
 	u32 event_filter;
+	struct event_data_t event_data;
 };
 
 #define MAX_EVENT_OPEN 5
 
 static int open_handle;
 static struct event_private_t * event_private[5];
-
-static struct event_data_t event_data;
 
 static DECLARE_WAIT_QUEUE_HEAD(event_wait);
 
@@ -103,21 +105,30 @@ static int debug = 0;
 
 int event_write_message( struct event_t * event, size_t count )
 {
-	int retval = -1;
+	int i;
 
 	spin_lock (&event_lock);
 
+	printk("write event ...\n");
 	// only one event at a time	
 	if ( count == 1 )
 	{
-		if ( event_data.event_free > 0 )
+		for(i=0;i<MAX_EVENT_OPEN;i++)
 		{
-			event_data.event_free--;
-			memcpy( &event_data.event[event_data.event_ptr], event, sizeof(event_t) );
-                        event_data.event_ptr++;
-			if ( EVENTBUFFERSIZE == event_data.event_ptr )
-	                        event_data.event_ptr = 0;
-			retval=0;
+			if(event_private[i])
+			{
+				printk("write event ... free found\n");
+
+				if ( (event_private[i]->event_data.event_free > 0) && (event->event&event_private[i]->event_filter) )
+				{
+					printk("write event ... filter ok\n");
+					event_private[i]->event_data.event_free--;
+					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], event, sizeof(event_t) );
+		                        event_private[i]->event_data.event_ptr++;
+					if ( EVENTBUFFERSIZE == event_private[i]->event_data.event_ptr )
+			                        event_private[i]->event_data.event_ptr = 0;
+				}
+			}
 		}
 	}
 
@@ -131,9 +142,15 @@ int event_write_message( struct event_t * event, size_t count )
 static int event_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
+	struct event_private_t * event_priv;
+
+	event_priv = (struct event_private_t*)file->private_data;
+
 	switch(cmd)
 	{
 		case EVENT_SET_FILTER:
+			printk("set event: %08X\n",arg);
+			event_priv->event_filter = arg;
 			break;
 		default:
 			break;
@@ -152,11 +169,16 @@ static int event_open (struct inode *inode, struct file *file)
 	open_handle++;
 	file->private_data = kmalloc( sizeof(struct event_private_t), GFP_KERNEL );
 
+	memset(file->private_data,0,sizeof(struct event_private_t));
+
 	for(i=0;i<MAX_EVENT_OPEN;i++)
 		if(event_private[i]==0) {
 			event_private[i]=file->private_data;
 			break;
 		}
+
+	event_private[i]->event_filter = 0xFFFFFFFF;
+	event_private[i]->event_data.event_free = EVENTBUFFERSIZE;
 
 	return 0;
 }
@@ -184,6 +206,7 @@ static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *o
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t retval = 0;
         int err = 0;
+	struct event_private_t * event_priv;
 
 	if (count < sizeof(struct event_t))
 		return -EINVAL;
@@ -192,21 +215,23 @@ static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *o
 
 	current->state = TASK_INTERRUPTIBLE;
 
+	event_priv = (struct event_private_t*)file->private_data;
+
 	do {
 		err = 0;
 
 		spin_lock_irq (&event_lock);
 
-		if ( EVENTBUFFERSIZE != event_data.event_free ) {
-			dprintk("found data !\n");
-			retval = put_user(event_data.event[event_data.event_read_ptr], (struct event_t *)buf);
+		if ( EVENTBUFFERSIZE != event_priv->event_data.event_free ) {
+			dprintk("found data %d %d\n",event_priv->event_data.event_free,event_priv->event_data.event_read_ptr);
+			retval = put_user(event_priv->event_data.event[event_priv->event_data.event_read_ptr], (struct event_t *)buf);
 
 			if (!retval) {
-				event_data.event_free++;
+				event_priv->event_data.event_free++;
 
-				event_data.event_read_ptr++;
-				if ( EVENTBUFFERSIZE == event_data.event_read_ptr )
-					event_data.event_read_ptr = 0;
+				event_priv->event_data.event_read_ptr++;
+				if ( EVENTBUFFERSIZE == event_priv->event_data.event_read_ptr )
+					event_priv->event_data.event_read_ptr = 0;
 
 				retval = sizeof(unsigned long);
 			}
@@ -246,10 +271,6 @@ int event_init(void)
 #endif
 {
 	printk("event: init ...\n");
-
-	event_data.event_ptr = 0;
-	event_data.event_read_ptr = 0;
-	event_data.event_free = EVENTBUFFERSIZE;
 
 	open_handle = 0;
 
