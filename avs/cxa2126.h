@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.h,v $
+ *   Revision 1.7  2002/01/01 14:16:28  gillem
+ *   - update
+ *
  *   Revision 1.6  2001/03/16 20:49:21  gillem
  *   - fix errors
  *
@@ -40,7 +43,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 

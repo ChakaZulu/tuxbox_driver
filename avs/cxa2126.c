@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.20  2002/01/01 14:16:28  gillem
+ *   - update
+ *
  *   Revision 1.19  2001/12/01 06:52:05  gillem
  *   - malloc.h -> slab.h
  *
@@ -79,7 +82,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -181,23 +184,23 @@ int cxa2126_set_volume( struct i2c_client *client, int vol )
 
 	if ( vol<=63 )
 	{
-        if (vol)
+		if (vol)
 		{
-    		c = vol/8;
+	    		c = vol/8;
 
-            // check round :-/
-            if ( (c*8) > vol )
-                c--;
+			// check round :-/
+			if ( (c*8) > vol )
+				c--;
 
-    		f = vol-(c*8);
-        }
+	    		f = vol-(c*8);
+		}
 	} else
 	{
 		return -EINVAL;
 	}
 
-    cxa2126_data.evc = c;
-    cxa2126_data.evf = f;
+	cxa2126_data.evc = c;
+	cxa2126_data.evf = f;
 
 	return cxa2126_set(client);
 }
@@ -209,7 +212,7 @@ inline int cxa2126_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-    // (Un-)mute immediately, 1 -> Mute
+	// (Un-)mute immediately, 1 -> Mute
 	cxa2126_data.tvmute1 = cxa2126_data.tvamute = type&1;
 
 	return cxa2126_set(client);
@@ -222,7 +225,7 @@ inline int cxa2126_set_zcd( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-    cxa2126_data.zcd = type&1;
+	cxa2126_data.zcd = type&1;
 
 	return cxa2126_set(client);
 }
@@ -234,7 +237,7 @@ inline int cxa2126_set_fblk( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-    cxa2126_data.fblk = type;
+	cxa2126_data.fblk = type;
 
 	return cxa2126_set(client);
 }
@@ -246,7 +249,7 @@ inline int cxa2126_set_fnc( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-    cxa2126_data.fnc = type;
+	cxa2126_data.fnc = type;
 
 	return cxa2126_set(client);
 }
@@ -258,20 +261,20 @@ inline int cxa2126_set_vsw( struct i2c_client *client, int sw, int type )
 		return -EINVAL;
 	}
 
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            cxa2126_data.vsw1 = type;
-            break;
-        case 1:
-            cxa2126_data.vsw2 = type;
-            break;
-//        case 2:
-//            cxa2126_data.vsw3 = type;
-//            break;
-        default:
-    		return -EINVAL;
-    }
+		case 0:
+			cxa2126_data.vsw1 = type;
+			break;
+		case 1:
+			cxa2126_data.vsw2 = type;
+			break;
+//		case 2:
+//			cxa2126_data.vsw3 = type;
+//			break;
+		default:
+			return -EINVAL;
+	}
 
 	return cxa2126_set(client);
 }
@@ -283,85 +286,87 @@ inline int cxa2126_set_asw( struct i2c_client *client, int sw, int type )
 		return -EINVAL;
 	}
 
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            cxa2126_data.asw1 = type;
-            break;
-        case 1:
-            cxa2126_data.asw2 = type;
-            break;
-//        case 2:
-//            cxa2126_data.asw3 = type;
-//            break;
-        default:
-    		return -EINVAL;
-    }
+		case 0:
+			cxa2126_data.asw1 = type;
+			break;
+		case 1:
+			cxa2126_data.asw2 = type;
+			break;
+//		case 2:
+//			cxa2126_data.asw3 = type;
+//			break;
+		default:
+			return -EINVAL;
+	}
 
 	return cxa2126_set(client);
 }
 
 int cxa2126_get_volume(void)
 {
-    return ((cxa2126_data.evc*8)+cxa2126_data.evf);
+	return ((cxa2126_data.evc*8)+cxa2126_data.evf);
 }
 
 inline int cxa2126_get_mute(void)
 {
-    return cxa2126_data.tvmute1;
+	return cxa2126_data.tvmute1;
 }
 
 inline int cxa2126_get_zcd(void)
 {
-    return cxa2126_data.zcd;
+	return cxa2126_data.zcd;
 }
 
 inline int cxa2126_get_fblk(void)
 {
-    return cxa2126_data.fblk;
+	return cxa2126_data.fblk;
 }
 
 inline int cxa2126_get_fnc(void)
 {
-    return cxa2126_data.fnc;
+	return cxa2126_data.fnc;
 }
 
 inline int cxa2126_get_vsw( int sw )
 {
-    switch(sw) {
-        case 0:
-            return cxa2126_data.vsw1;
-            break;
-        case 1:
-            return cxa2126_data.vsw2;
-            break;
-//        case 2:
-//            return cxa2126_data.vsw3;
-//            break;
-        default:
-            return -EINVAL;
-    }
+	switch(sw)
+	{
+		case 0:
+			return cxa2126_data.vsw1;
+			break;
+		case 1:
+			return cxa2126_data.vsw2;
+			break;
+//		case 2:
+//			return cxa2126_data.vsw3;
+//			break;
+		default:
+			return -EINVAL;
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 
 inline int cxa2126_get_asw( int sw )
 {
-    switch(sw) {
-        case 0:
-            return cxa2126_data.asw1;
-            break;
-        case 1:
-            return cxa2126_data.asw2;
-            break;
-//        case 2:
-//            return cxa2126_data.asw3;
-//            break;
-        default:
-            return -EINVAL;
-    }
+	switch(sw)
+	{
+		case 0:
+			return cxa2126_data.asw1;
+			break;
+		case 1:
+			return cxa2126_data.asw2;
+			break;
+//		case 2:
+//			return cxa2126_data.asw3;
+//			break;
+		default:
+			return -EINVAL;
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -371,14 +376,14 @@ inline int cxa2126_set_logic( struct i2c_client *client, int type )
 	if(type<0 || type>1)
 		return -EINVAL;
 
-    cxa2126_data.log = type;
+	cxa2126_data.log = type;
 
 	return cxa2126_set(client);
 }
 
 inline int cxa2126_get_logic(void)
 {
-    return cxa2126_data.log;
+	return cxa2126_data.log;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -482,11 +487,10 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			case AVSIOGLOG1:
                                 val = cxa2126_get_logic();
                                 break;
-            case AVSIOGSTATUS:
+			case AVSIOGSTATUS:
                                 // TODO: error handling
                                 val = cxa2126_getstatus(client);
                                 break;
-
 			default:
                                 return -EINVAL;
 		}
@@ -501,7 +505,6 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.19 2001/12/01 06:52:05 gillem Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
@@ -515,7 +518,6 @@ int cxa2126_init(struct i2c_client *client)
     cxa2126_data.asw1 = 0;
     cxa2126_data.vsw1 = 0;
     cxa2126_data.fnc = 2;
-    
 
     return cxa2126_set(client);
 }

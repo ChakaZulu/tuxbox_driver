@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.21  2002/01/01 14:16:28  gillem
+ *   - update
+ *
  *   Revision 1.20  2001/12/01 06:52:05  gillem
  *   - malloc.h -> slab.h
  *
@@ -77,7 +80,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -107,20 +110,20 @@
 
 typedef struct s_cxa2092_data {
  /* Data 1 */
- unsigned char evc 		: 3;
- unsigned char evf 		: 3;
+ unsigned char evc 	: 3;
+ unsigned char evf 	: 3;
  unsigned char tvmute1 	: 1;
- unsigned char zcd 		: 1;
+ unsigned char zcd 	: 1;
  /* Data 2 */
  unsigned char fblk 	: 2;
  unsigned char vsw1 	: 3;
  unsigned char asw1 	: 3;
  /* Data 3 */
- unsigned char fnc 		: 2;
+ unsigned char fnc 	: 2;
  unsigned char vsw2 	: 3;
  unsigned char asw2 	: 3;
  /* Data 4 */
- unsigned char ycm 		: 1;
+ unsigned char ycm 	: 1;
  unsigned char res1 	: 1;
  unsigned char vsw3 	: 3;
  unsigned char asw3 	: 3;
@@ -148,7 +151,7 @@ int cxa2092_set(struct i2c_client *client)
 	if ( CXA2092_DATA_SIZE != i2c_master_send(client, (char*)&cxa2092_data, CXA2092_DATA_SIZE))
 	{
 		return -EFAULT;
-    }
+	}
 
 	return 0;
 }
@@ -178,8 +181,8 @@ int cxa2092_set_volume( struct i2c_client *client, int vol )
 		return -EINVAL;
 	}
 
-    cxa2092_data.evc = c;
-    cxa2092_data.evf = f;
+	cxa2092_data.evc = c;
+	cxa2092_data.evf = f;
 
 	return cxa2092_set(client);
 }
@@ -189,9 +192,9 @@ inline int cxa2092_set_mute( struct i2c_client *client, int type )
 	if ((type<0) || (type>1))
 	{
 		return -EINVAL;
-  }
+	}
 
-    cxa2092_data.tvmute1 = cxa2092_data.tvmute2 = type&1;
+	cxa2092_data.tvmute1 = cxa2092_data.tvmute2 = type&1;
 
 	return cxa2092_set(client);
 }
@@ -201,9 +204,9 @@ inline int cxa2092_set_zcd( struct i2c_client *client, int type )
 	if ((type<0) || (type>1))
 	{
 		return -EINVAL;
-    }
+	}
 
-    cxa2092_data.zcd = type&1;
+	cxa2092_data.zcd = type&1;
 
 	return cxa2092_set(client);
 }
@@ -213,9 +216,9 @@ inline int cxa2092_set_fblk( struct i2c_client *client, int type )
 	if (type<0 || type>3)
 	{
 		return -EINVAL;
-    }
+	}
 
-    cxa2092_data.fblk = type;
+	cxa2092_data.fblk = type;
 
 	return cxa2092_set(client);
 }
@@ -225,9 +228,9 @@ inline int cxa2092_set_fnc( struct i2c_client *client, int type )
 	if (type<0 || type>3)
 	{
 		return -EINVAL;
-    }
+	}
 
-    cxa2092_data.fnc = type;
+	cxa2092_data.fnc = type;
 
 	return cxa2092_set(client);
 }
@@ -237,22 +240,22 @@ inline int cxa2092_set_vsw( struct i2c_client *client, int sw, int type )
 	if (type<0 || type>7)
 	{
 		return -EINVAL;
-    }
+	}
 
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            cxa2092_data.vsw1 = type;
-            break;
-        case 1:
-            cxa2092_data.vsw2 = type;
-            break;
-        case 2:
-            cxa2092_data.vsw3 = type;
-            break;
-        default:
-    		return -EINVAL;
-    }
+		case 0:
+			cxa2092_data.vsw1 = type;
+			break;
+		case 1:
+			cxa2092_data.vsw2 = type;
+			break;
+		case 2:
+			cxa2092_data.vsw3 = type;
+			break;
+		default:
+			return -EINVAL;
+	}
 
 	return cxa2092_set(client);
 }
@@ -262,89 +265,89 @@ inline int cxa2092_set_asw( struct i2c_client *client, int sw, int type )
 	if (type<0 || type>7)
 	{
 		return -EINVAL;
-    }
+	}
 
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            cxa2092_data.asw1 = type;
-            break;
-        case 1:
-            cxa2092_data.asw2 = type;
-            break;
-        case 2:
-            cxa2092_data.asw3 = type;
-            break;
-        default:
-    		return -EINVAL;
-    }
+		case 0:
+			cxa2092_data.asw1 = type;
+			break;
+		case 1:
+			cxa2092_data.asw2 = type;
+			break;
+		case 2:
+			cxa2092_data.asw3 = type;
+			break;
+		default:
+			return -EINVAL;
+	}
 
 	return cxa2092_set(client);
 }
 
 int cxa2092_get_volume(void)
 {
-    return ((cxa2092_data.evc*8)+cxa2092_data.evf);
+	return ((cxa2092_data.evc*8)+cxa2092_data.evf);
 }
 
 inline int cxa2092_get_mute(void)
 {
-    return cxa2092_data.tvmute1;
+	return cxa2092_data.tvmute1;
 }
 
 inline int cxa2092_get_zcd(void)
 {
-    return cxa2092_data.zcd;
+	return cxa2092_data.zcd;
 }
 
 inline int cxa2092_get_fblk(void)
 {
-    return cxa2092_data.fblk;
+	return cxa2092_data.fblk;
 }
 
 inline int cxa2092_get_fnc(void)
 {
-    return cxa2092_data.fnc;
+	return cxa2092_data.fnc;
 }
 
 inline int cxa2092_get_vsw( int sw )
 {
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            return cxa2092_data.vsw1;
-            break;
-        case 1:
-            return cxa2092_data.vsw2;
-            break;
-        case 2:
-            return cxa2092_data.vsw3;
-            break;
-        default:
-            return -EINVAL;
-    }
+		case 0:
+			return cxa2092_data.vsw1;
+			break;
+		case 1:
+			return cxa2092_data.vsw2;
+			break;
+		case 2:
+			return cxa2092_data.vsw3;
+			break;
+		default:
+			return -EINVAL;
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 
 inline int cxa2092_get_asw( int sw )
 {
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            return cxa2092_data.asw1;
-            break;
-        case 1:
-            return cxa2092_data.asw2;
-            break;
-        case 2:
-            return cxa2092_data.asw3;
-            break;
-        default:
-            return -EINVAL;
-    }
+		case 0:
+			return cxa2092_data.asw1;
+			break;
+		case 1:
+			return cxa2092_data.asw2;
+			break;
+		case 2:
+			return cxa2092_data.asw3;
+			break;
+		default:
+			return -EINVAL;
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -354,9 +357,9 @@ inline int cxa2092_set_ycm( struct i2c_client *client, int type )
 	if (type<0 || type>1)
 	{
 		return -EINVAL;
-    }
+	}
 
-    cxa2092_data.ycm = type;
+	cxa2092_data.ycm = type;
 
 	return cxa2092_set(client);
 }
@@ -366,55 +369,55 @@ inline int cxa2092_set_logic( struct i2c_client *client, int sw, int type )
 	if(type<0 || type>1)
 	{
 		return -EINVAL;
-    }
+	}
 
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            cxa2092_data.log1 = type;
-            break;
-        case 1:
-            cxa2092_data.log2 = type;
-            break;
-        case 2:
-            cxa2092_data.log3 = type;
-            break;
-        case 3:
-            cxa2092_data.log4 = type;
-            break;
-        default:
-            return -EINVAL;
-    }
+		case 0:
+			cxa2092_data.log1 = type;
+			break;
+		case 1:
+			cxa2092_data.log2 = type;
+			break;
+		case 2:
+			cxa2092_data.log3 = type;
+			break;
+		case 3:
+			cxa2092_data.log4 = type;
+			break;
+		default:
+			return -EINVAL;
+	}
 
 	return cxa2092_set(client);
 }
 
 inline int cxa2092_get_ycm(void)
 {
-    return cxa2092_data.ycm;
+	return cxa2092_data.ycm;
 }
 
 inline int cxa2092_get_logic( int sw )
 {
-    switch(sw)
+	switch(sw)
 	{
-        case 0:
-            return cxa2092_data.log1;
-            break;
-        case 1:
-            return cxa2092_data.log2;
-            break;
-        case 2:
-            return cxa2092_data.log3;
-            break;
-        case 3:
-            return cxa2092_data.log4;
-            break;
-        default:
-            return -EINVAL;
-    }
+		case 0:
+			return cxa2092_data.log1;
+			break;
+		case 1:
+			return cxa2092_data.log2;
+			break;
+		case 2:
+			return cxa2092_data.log3;
+			break;
+		case 3:
+			return cxa2092_data.log4;
+			break;
+		default:
+			return -EINVAL;
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -428,7 +431,7 @@ static int cxa2092_getstatus(struct i2c_client *client)
 	if (1 != i2c_master_recv(client,&byte,1))
 	{
 		return -1;
-    }
+	}
 
 	return byte;
 }
@@ -445,35 +448,52 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 		if ( copy_from_user(&val,arg,sizeof(val)) )
 		{
 			return -EFAULT;
-        }
+        	}
 
-    	switch (cmd) {
+		switch (cmd)
+		{
 			/* set video */
-			case AVSIOSVSW1:	return cxa2092_set_vsw(client,0,val);
-			case AVSIOSVSW2:	return cxa2092_set_vsw(client,1,val);
-			case AVSIOSVSW3:	return cxa2092_set_vsw(client,2,val);
+			case AVSIOSVSW1:
+				return cxa2092_set_vsw(client,0,val);
+			case AVSIOSVSW2:
+				return cxa2092_set_vsw(client,1,val);
+			case AVSIOSVSW3:
+				return cxa2092_set_vsw(client,2,val);
 			/* set audio */
-			case AVSIOSASW1:	return cxa2092_set_asw(client,0,val);
-			case AVSIOSASW2:	return cxa2092_set_asw(client,1,val);
-			case AVSIOSASW3:	return cxa2092_set_asw(client,2,val);
+			case AVSIOSASW1:
+				return cxa2092_set_asw(client,0,val);
+			case AVSIOSASW2:
+				return cxa2092_set_asw(client,1,val);
+			case AVSIOSASW3:
+				return cxa2092_set_asw(client,2,val);
 			/* set vol & mute */
-			case AVSIOSVOL:		return cxa2092_set_volume(client,val);
-			case AVSIOSMUTE:	return cxa2092_set_mute(client,val);
+			case AVSIOSVOL:
+				return cxa2092_set_volume(client,val);
+			case AVSIOSMUTE:
+				return cxa2092_set_mute(client,val);
 			/* set video fast blanking */
-			case AVSIOSFBLK:	return cxa2092_set_fblk(client,val);
+			case AVSIOSFBLK:
+				return cxa2092_set_fblk(client,val);
 			/* set video function switch control */
-			case AVSIOSFNC:		return cxa2092_set_fnc(client,val);
+			case AVSIOSFNC:	
+				return cxa2092_set_fnc(client,val);
 			/* set output throgh vout 8 */
-			case AVSIOSYCM:		return cxa2092_set_ycm(client,val);
+			case AVSIOSYCM:
+				return cxa2092_set_ycm(client,val);
 			/* set zero cross detector */
-			case AVSIOSZCD:		return cxa2092_set_zcd(client,val);
+			case AVSIOSZCD:
+				return cxa2092_set_zcd(client,val);
 			/* set logic outputs */
-			case AVSIOSLOG1:	return cxa2092_set_logic(client,1,val);
-			case AVSIOSLOG2:	return cxa2092_set_logic(client,2,val);
-			case AVSIOSLOG3:	return cxa2092_set_logic(client,3,val);
-			case AVSIOSLOG4:	return cxa2092_set_logic(client,4,val);
-
-			default:            return -EINVAL;
+			case AVSIOSLOG1:
+				return cxa2092_set_logic(client,1,val);
+			case AVSIOSLOG2:
+				return cxa2092_set_logic(client,2,val);
+			case AVSIOSLOG3:
+				return cxa2092_set_logic(client,3,val);
+			case AVSIOSLOG4:
+				return cxa2092_set_logic(client,4,val);
+			default:
+				return -EINVAL;
 		}
 	} else
 	{
@@ -535,17 +555,15 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			case AVSIOGLOG4:
                                 val = cxa2092_get_logic(4);
                                 break;
-
-            case AVSIOGSTATUS:
+			case AVSIOGSTATUS:
                                 // TODO: error handling
                                 val = cxa2092_getstatus(client);
                                 break;
-
 			default:
                                 return -EINVAL;
 		}
 
-       	return put_user(val,(int*)arg);
+		return put_user(val,(int*)arg);
 	}
 
 	return 0;
@@ -555,8 +573,6 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 
 int cxa2092_init(struct i2c_client *client)
 {
-	int i;
-
 	memset((void*)&cxa2092_data,0,CXA2092_DATA_SIZE);
 
 	/* default values */

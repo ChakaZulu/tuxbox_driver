@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2001-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.h,v $
+ *   Revision 1.6  2002/01/01 14:16:10  gillem
+ *   - update
+ *
  *   Revision 1.5  2001/05/26 09:20:36  gillem
  *   - add stv6412
  *
@@ -37,7 +40,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 

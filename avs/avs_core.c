@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2001-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.18  2002/01/01 14:16:28  gillem
+ *   - update
+ *
  *   Revision 1.17  2001/12/01 06:52:05  gillem
  *   - malloc.h -> slab.h
  *
@@ -70,7 +73,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -109,7 +112,7 @@ static devfs_handle_t devfs_handle;
 /* ---------------------------------------------------------------------- */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] 			= {I2C_CLIENT_END};
+static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
 static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x94>>1,I2C_CLIENT_END};
 static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
@@ -139,17 +142,17 @@ struct avs_type
 };
 
 static struct avs_type avs_types[] = {
-	{"CXA2092", VENDOR_SONY, 				CXA2092 },
-	{"CXA2126", VENDOR_SONY, 				CXA2126 },
+	{"CXA2092", VENDOR_SONY, 		CXA2092 },
+	{"CXA2126", VENDOR_SONY, 		CXA2126 },
 	{"STV6412", VENDOR_STMICROELECTRONICS, 	STV6412 }
 };
 
 struct s_avs
 {
-	int type;		         	/* chip type */
-	scartVolume volume;			/* nokia api controls */
+	int type;		        /* chip type */
+	scartVolume volume;		/* nokia api controls */
 	scartRGBLevel rgblevel;		/* nokia api controls */
-	scartBypass bypass;			/* nokia api controls */
+	scartBypass bypass;		/* nokia api controls */
 };
 
 struct s_avs * avs_data;
@@ -245,6 +248,9 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 					case CXA2126:
 						l=cxa2126_get_volume();
 						break;
+					case STV6412:
+						l=stv6412_get_volume();
+						break;
 					default:
 						return -EINVAL;
 				}
@@ -292,6 +298,9 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 					break;
 				case CXA2126:
 					return cxa2126_set_volume(&client_template, l );
+					break;
+				case STV6412:
+					return stv6412_set_volume(&client_template, l );
 					break;
 				default:
 					return -EINVAL;
@@ -394,7 +403,7 @@ static int avs_probe(struct i2c_adapter *adap)
 	if (1)
 	{
 		ret = i2c_probe(adap, &addr_data, avs_attach );
-    }
+	}
 
 	dprintk("[AVS]: probe end %d\n",ret);
 
@@ -411,29 +420,32 @@ static int avs_detach(struct i2c_client *client)
 
 	kfree(t);
 	kfree(client);
+
 	return 0;
 }
 
 static int avs_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
+	int err = 0;
+
 	dprintk("[AVS]: command\n");
 
 	switch (type)
 	{
 		case CXA2092:
-			return cxa2092_command(client, cmd, arg );
+			err = cxa2092_command(client, cmd, arg );
 			break;
 		case CXA2126:
-			return cxa2126_command(client, cmd, arg );
+			err = cxa2126_command(client, cmd, arg );
 			break;
 		case STV6412:
-			return stv6412_command(client, cmd, arg );
+			err = stv6412_command(client, cmd, arg );
 			break;
 		default:
-			return -EINVAL;
+			err = -EINVAL;
 	}
 
-	return 0;
+	return err;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -650,18 +662,20 @@ int scart_command( unsigned int cmd, void *arg )
 int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                   unsigned long arg)
 {
+	int err = 0;
+
 	dprintk("[AVS]: IOCTL\n");
 
 	if ( cmd == AVSIOGTYPE )
 	{
-		return put_user(type,(int*)arg);
+		err = put_user(type,(int*)arg);
 	}
 	else
 	{
-		return avs_command( &client_template, cmd, (void*)arg );
+		err = avs_command( &client_template, cmd, (void*)arg );
 	}
 
-	return 0;
+	return err;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -702,10 +716,10 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-        "i2c audio/video switch chip",          /* name       */
-        I2C_DRIVERID_AVS,           /* ID         */
+        "i2c audio/video switch chip",	/* name			 */
+        I2C_DRIVERID_AVS,		/* ID			 */
         0,
-				0, /* interpret as 7Bit-Adr */
+	0,				/* interpret as 7Bit-Adr */
         NULL,
         &driver
 };
@@ -717,6 +731,11 @@ EXPORT_SYMBOL(scart_command);
 /* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
+MODULE_AUTHOR("Gillem <gillem@berlios.de>");
+MODULE_DESCRIPTION("DBox2 audio/video switch core driver");
+#endif
+
+#ifdef MODULE
 int init_module(void)
 #else
 int i2c_avs_init(void)
@@ -725,9 +744,9 @@ int i2c_avs_init(void)
 
 	struct dbox_info_struct dinfo;
 	
-	if (type == CXAAUTO) {
-	
-	    dbox_get_info(&dinfo);
+	if (type == CXAAUTO)
+	{
+		dbox_get_info(&dinfo);
 	    
 		switch(dinfo.mID)
 		{
@@ -763,9 +782,9 @@ int i2c_avs_init(void)
 	}
 
 	devfs_handle = devfs_register ( NULL, "dbox/avs0", DEVFS_FL_DEFAULT,
-								0, 0,
-								S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-								&avs_fops, NULL );
+			0, 0,
+			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+			&avs_fops, NULL );
 
 	if ( ! devfs_handle )
 	{

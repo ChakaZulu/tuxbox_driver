@@ -3,7 +3,7 @@
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Gillem htoa@gmx.net
+ *   Copyright (C) 2000-2002 Gillem gillem@berlios.de
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,14 @@
  *
  *
  *   $Log: stv6412.h,v $
+ *   Revision 1.2  2002/01/01 14:16:28  gillem
+ *   - update
+ *
  *   Revision 1.1  2001/05/26 09:19:50  gillem
  *   - initial release
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
