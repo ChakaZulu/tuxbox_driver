@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.37  2002/10/09 18:31:06  Jolt
+ *   HW copy support
+ *
  *   Revision 1.36  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -159,7 +162,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.36 $
+ *   $Revision: 1.37 $
  *
  */
 
@@ -591,27 +594,42 @@ struct fbgen_hwswitch gtx_switch = {
 static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
 {
 
+	fb_copyarea copyarea;
+
 	switch (cmd) {
+	
+		case AVIA_GT_GV_COPYAREA:
+		
+			if (copy_from_user(&copyarea, (void *)arg, sizeof(copyarea)))
+				return -EFAULT;
+			
+			avia_gt_gv_copyarea(copyarea.sx, copyarea.sy, copyarea.width, copyarea.height, copyarea.dx, copyarea.dy);
+		
+		break;
 
 		case AVIA_GT_GV_SET_BLEV:
 
 			avia_gt_gv_set_blevel((arg >> 8) & 0xFF, arg & 0xFF);
-			break;
+			
+		break;
 
 		case AVIA_GT_GV_SET_POS:
 
 			avia_gt_gv_set_pos((arg >> 16) & 0xFFFF, arg & 0xFFFF);
-			break;
+			
+		break;
 
 		case AVIA_GT_GV_HIDE:
 
 			avia_gt_gv_hide();
-			break;
+			
+		break;
 
 		case AVIA_GT_GV_SHOW:
 
 			avia_gt_gv_show();
-			break;
+			
+		break;
 
 		default:
 
@@ -637,7 +655,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.36 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.37 2002/10/09 18:31:06 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 

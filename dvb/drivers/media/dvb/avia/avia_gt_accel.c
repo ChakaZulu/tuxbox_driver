@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.7  2002/10/09 18:31:06  Jolt
+ *   HW copy support
+ *
  *   Revision 1.6  2002/09/19 21:09:20  Jolt
  *   Removed old sw crc dependency
  *
@@ -41,7 +44,7 @@
  *
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -56,6 +59,38 @@
 
 static sAviaGtInfo *gt_info = NULL;
 static u8 max_transaction_size = 0;
+
+void avia_gt_accel_copy(u32 buffer_src, u32 buffer_dst, u32 buffer_size, u8 left)
+{
+
+	u32 transaction_size;
+
+	if (avia_gt_chip(ENX)) {
+	
+	} else if (avia_gt_chip(GTX)) {
+	
+		gtx_reg_set(CSA, Addr, buffer_src);
+		gtx_reg_set(CDA, Addr, buffer_dst);
+	
+	}
+
+    while (buffer_size) {
+    
+		if (buffer_size > max_transaction_size)
+			transaction_size = max_transaction_size;
+		else
+			transaction_size = buffer_size;
+
+		if (avia_gt_chip(ENX)) {
+	
+		} else if (avia_gt_chip(GTX))
+			gtx_reg_16(CCOM) = ((!!left) << 10) | (1 << 9) | (1 << 8) | (transaction_size - 1);
+		
+		buffer_size -= transaction_size;
+
+	}
+	
+} 
 
 u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 {
@@ -152,7 +187,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.6 2002/09/19 21:09:20 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.7 2002/10/09 18:31:06 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
@@ -196,6 +231,7 @@ void __exit avia_gt_accel_exit(void)
 #ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
 #endif
+EXPORT_SYMBOL(avia_gt_accel_copy);
 EXPORT_SYMBOL(avia_gt_accel_crc32);
 #endif
 

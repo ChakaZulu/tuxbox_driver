@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.8  2002/10/09 18:31:12  Jolt
+ *   HW copy support
+ *
  *   Revision 1.7  2002/04/25 22:10:39  Jolt
  *   FB cleanup
  *
@@ -43,7 +46,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -56,19 +59,20 @@
 #define AVIA_GT_GV_INPUT_MODE_RGB16	0x03
 #define AVIA_GT_GV_INPUT_MODE_RGB32	0x04
 
-extern void avia_gt_gv_cursor_hide(void);
-extern void avia_gt_gv_cursor_show(void);
-extern void avia_gt_gv_get_clut(unsigned char clut_nr, unsigned int *transparency, unsigned int *red, unsigned int *green, unsigned int *blue);
-extern unsigned short avia_gt_gv_get_stride(void);
-extern void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size);
-extern void avia_gt_gv_hide(void);
-extern void avia_gt_gv_set_blevel(unsigned char class0, unsigned char class1);
-extern void avia_gt_gv_set_clut(unsigned char clut_nr, unsigned int transparency, unsigned int red, unsigned int green, unsigned int blue);
-extern int avia_gt_gv_set_input_mode(unsigned char mode);
-extern int avia_gt_gv_set_input_size(unsigned short width, unsigned short height);
-extern int avia_gt_gv_set_pos(unsigned short x, unsigned short y);
-extern void avia_gt_gv_set_size(unsigned short width, unsigned short height);
-extern int avia_gt_gv_show(void);
+void avia_gt_gv_copyarea(u16 src_x, u16 src_y, u16 width, u16 height, u16 dst_x, u16 dst_y);
+void avia_gt_gv_cursor_hide(void);
+void avia_gt_gv_cursor_show(void);
+void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u32 *blue);
+u16 avia_gt_gv_get_stride(void);
+void avia_gt_gv_get_info(u8 **gv_mem_phys, u8 **gv_mem_lin, u32 *gv_mem_size);
+void avia_gt_gv_hide(void);
+void avia_gt_gv_set_blevel(u8 class0, u8 class1);
+void avia_gt_gv_set_clut(u8 clut_nr, u32 transparency, u32 red, u32 green, u32 blue);
+int avia_gt_gv_set_input_mode(u8 mode);
+int avia_gt_gv_set_input_size(u16 width, u16 height);
+int avia_gt_gv_set_pos(u16 x, u16 y);
+void avia_gt_gv_set_size(u16 width, u16 height);
+int avia_gt_gv_show(void);
 
 extern int avia_gt_gv_init(void);
 extern void avia_gt_gv_exit(void);
