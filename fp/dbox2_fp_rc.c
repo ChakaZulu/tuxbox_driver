@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.10 2003/01/03 11:21:24 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.11 2003/01/03 17:18:59 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -100,16 +100,41 @@ static struct timer_list keyup_timer = {
 	
 };
 
-static void dbox2_fp_add_event(int code)
+void dbox2_fp_rc_queue_handler(u8 queue_nr)
 {
-	int rc_key_nr;
+
+	u16 rc_code;
+	u8 rc_key_nr;
+
+	dprintk("event on queue %d\n", queue_nr);
+
+	if ((queue_nr != 0) && (queue_nr != 3))
+		return;
+
+	switch (fp_get_info()->mID) {
+	
+		case DBOX_MID_NOKIA:
 		
-	dprintk("code=0x%08X rest=0x%08X ", code&0x1f, code&(~0x1f));
+			fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
+			
+			break;
+			
+		case DBOX_MID_PHILIPS:
+		case DBOX_MID_SAGEM:
+	
+			fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc_code, sizeof(rc_code));
+			
+			break;
+			
+	}
+
+	dprintk("raw=0x%08X code=0x%08X rest=0x%08X\n", rc_code, rc_code & 0x1F, rc_code & (~0x1F));
 
 	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++) {
 	
-		if (rc_key_map[rc_key_nr].value_new == (code & 0x1f)) {
-
+		if (((queue_nr == 0) && (rc_key_map[rc_key_nr].value_old == (rc_code & 0x1F))) ||
+			((queue_nr == 3) && (rc_key_map[rc_key_nr].value_new == (rc_code & 0x1F)))) {
+		
 			if (timer_pending(&keyup_timer)) {
 	
 				del_timer(&keyup_timer);
@@ -132,44 +157,12 @@ static void dbox2_fp_add_event(int code)
 
 	}
 
-	dprintk("\n");
-
-}
-
-void dbox2_fp_rc_queue_handler(u8 queue_nr)
-{
-	u16 rc;
-
-	dprintk("event on queue %d\n", queue_nr);
-
-	if ((queue_nr != 0) && (queue_nr != 3))
-		return;
-
-	switch (fp_get_info()->mID) {
-	
-		case DBOX_MID_NOKIA:
-		
-			fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc, sizeof(rc));
-			
-			break;
-			
-		case DBOX_MID_PHILIPS:
-		case DBOX_MID_SAGEM:
-	
-			fp_cmd(fp_get_i2c(), 0x26, (u8*)&rc, sizeof(rc));
-			
-			break;
-			
-	}
-
-	dbox2_fp_add_event(rc);
-
 }
 
 int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 {
 
-	int rc_key_nr;
+	u8 rc_key_nr;
 	
 	rc_input_dev = input_dev;
 		
@@ -186,7 +179,7 @@ int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 		
 	// Enable break codes	
 	//fp_sendcmd(fp_get_i2c(), 0x01, 0x80);
-	fp_sendcmd(fp_get_i2c(), 0x26, 0x80); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
+	fp_sendcmd(fp_get_i2c(), 0x26, 0x00); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
 
 	return 0;
 
