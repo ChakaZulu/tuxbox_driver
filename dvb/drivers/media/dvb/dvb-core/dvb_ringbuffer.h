@@ -5,28 +5,22 @@
  * Copyright (C) 2003 Oliver Endriss 
  * 
  * based on code originally found in av7110.c:
- * Copyright (C) 1999-2002 Ralph  Metzler 
- *                       & Marcus Metzler for convergence integrated media GmbH
+ * Copyright (C) 1999-2002 Ralph Metzler & Marcus Metzler
+ *                         for convergence integrated media GmbH
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
  * of the License, or (at your option) any later version.
- * 
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
- * 
- *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef _DVB_RINGBUFFER_H_
@@ -35,8 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
-
-typedef struct dvb_ringbuffer {
+struct dvb_ringbuffer {
         u8               *data;
         ssize_t           size;
         ssize_t           pread;
@@ -44,7 +37,7 @@ typedef struct dvb_ringbuffer {
 
         wait_queue_head_t queue;
         spinlock_t        lock;
-} dvb_ringbuffer_t;
+};
 
 
 /*
@@ -76,25 +69,25 @@ typedef struct dvb_ringbuffer {
 */
 
 /* initialize ring buffer, lock and queue */
-extern void dvb_ringbuffer_init(dvb_ringbuffer_t *rbuf, void *data, size_t len);
+extern void dvb_ringbuffer_init(struct dvb_ringbuffer *rbuf, void *data, size_t len);
 
 /* test whether buffer is empty */
-extern int dvb_ringbuffer_empty(dvb_ringbuffer_t *rbuf);
+extern int dvb_ringbuffer_empty(struct dvb_ringbuffer *rbuf);
 
 /* return the number of free bytes in the buffer */
-extern ssize_t dvb_ringbuffer_free(dvb_ringbuffer_t *rbuf);
+extern ssize_t dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf);
 
 /* return the number of bytes waiting in the buffer */
-extern ssize_t dvb_ringbuffer_avail(dvb_ringbuffer_t *rbuf);
+extern ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf);
 
 
 /* read routines & macros */
 /* ---------------------- */
 /* flush buffer */
-extern void dvb_ringbuffer_flush(dvb_ringbuffer_t *rbuf);
+extern void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf);
 
 /* flush buffer protected by spinlock and wake-up waiting task(s) */
-extern void dvb_ringbuffer_flush_spinlock_wakeup(dvb_ringbuffer_t *rbuf);
+extern void dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf);
 
 /* peek at byte <offs> in the buffer */
 #define DVB_RINGBUFFER_PEEK(rbuf,offs)	\
@@ -109,7 +102,7 @@ extern void dvb_ringbuffer_flush_spinlock_wakeup(dvb_ringbuffer_t *rbuf);
 ** <usermem> specifies whether <buf> resides in user space
 ** returns number of bytes transferred or -EFAULT
 */
-extern ssize_t dvb_ringbuffer_read(dvb_ringbuffer_t *rbuf, u8 *buf, 
+extern ssize_t dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, 
                                    size_t len, int usermem);
 
 
@@ -124,7 +117,7 @@ extern ssize_t dvb_ringbuffer_read(dvb_ringbuffer_t *rbuf, u8 *buf,
 ** <usermem> specifies whether <buf> resides in user space
 ** returns number of bytes transferred or -EFAULT
 */
-extern ssize_t dvb_ringbuffer_write(dvb_ringbuffer_t *rbuf, const u8 *buf,
+extern ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf,
                                     size_t len, int usermem);
 
 #endif /* _DVB_RINGBUFFER_H_ */

@@ -1,9 +1,8 @@
 /* 
  * dvbdev.h
  *
- * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
- *                  & Marcus Metzler <marcus@convergence.de>
-                      for convergence integrated media GmbH
+ * Copyright (C) 2000 Ralph Metzler & Marcus Metzler
+ *                    for convergence integrated media GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Lesser Public License
@@ -24,11 +23,12 @@
 #ifndef _DVBDEV_H_
 #define _DVBDEV_H_
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/poll.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/list.h>
+#include <linux/version.h>
+#include <linux/devfs_fs_kernel.h>
 
 #define DVB_MAJOR 250
 
@@ -45,23 +45,31 @@
 
 struct dvb_adapter {
 	int num;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	devfs_handle_t devfs_handle;
+#endif
 	struct list_head list_head;
 	struct list_head device_list;
 	const char *name;
+	u8 proposed_mac [6];
 };
 
 
 struct dvb_device {
 	struct list_head list_head;
 	struct file_operations *fops;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	devfs_handle_t devfs_handle;
+#endif
 	struct dvb_adapter *adapter;
 	int type;
 	u32 id;
 
-	int users;
+	/* in theory, 'users' can vanish now,
+	   but I don't want to change too much now... */
+	int readers;
 	int writers;
+	int users;
 
         /* don't really need those !? -- FIXME: use video_usercopy  */
         int (*kernel_ioctl)(struct inode *inode, struct file *file,
@@ -86,10 +94,5 @@ extern int dvb_generic_open (struct inode *inode, struct file *file);
 extern int dvb_generic_release (struct inode *inode, struct file *file);
 extern int dvb_generic_ioctl (struct inode *inode, struct file *file,
 			      unsigned int cmd, unsigned long arg);
-int dvb_usercopy(struct inode *inode, struct file *file,
-                     unsigned int cmd, unsigned long arg,
-                     int (*func)(struct inode *inode, struct file *file,
-                     unsigned int cmd, void *arg));
-
 #endif /* #ifndef _DVBDEV_H_ */
 

@@ -1,3 +1,23 @@
+/*
+ * dvb_filter.h
+ *
+ * Copyright (C) 2003 Convergence GmbH
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ */
+
 #ifndef _DVB_FILTER_H_
 #define _DVB_FILTER_H_
 
@@ -7,17 +27,17 @@
 
 typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
 
-typedef struct dvb_filter_pes2ts_s {
+struct dvb_filter_pes2ts {
 	unsigned char buf[188];
         unsigned char cc;
         dvb_filter_pes2ts_cb_t *cb;
 	void *priv;
-} dvb_filter_pes2ts_t;
+};
 
-void dvb_filter_pes2ts_init(dvb_filter_pes2ts_t *p2ts, unsigned short pid, 
+void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts, unsigned short pid, 
 		 	    dvb_filter_pes2ts_cb_t *cb, void *priv);
 
-int dvb_filter_pes2ts(dvb_filter_pes2ts_t *p2ts, unsigned char *pes, int len);
+int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes, int len);
 
 
 #define PROG_STREAM_MAP  0xBC
@@ -34,14 +54,14 @@ int dvb_filter_pes2ts(dvb_filter_pes2ts_t *p2ts, unsigned char *pes, int len);
 #define ISO13522_STREAM  0xF3
 #define PROG_STREAM_DIR  0xFF
 
-#define PICTURE_START    0x00
-#define USER_START       0xb2
-#define SEQUENCE_HEADER  0xb3
-#define SEQUENCE_ERROR   0xb4
-#define EXTENSION_START  0xb5
-#define SEQUENCE_END     0xb7
-#define GOP_START        0xb8
-#define EXCEPT_SLICE     0xb0
+#define DVB_PICTURE_START    0x00
+#define DVB_USER_START       0xb2
+#define DVB_SEQUENCE_HEADER  0xb3
+#define DVB_SEQUENCE_ERROR   0xb4
+#define DVB_EXTENSION_START  0xb5
+#define DVB_SEQUENCE_END     0xb7
+#define DVB_GOP_START        0xb8
+#define DVB_EXCEPT_SLICE     0xb0
 
 #define SEQUENCE_EXTENSION           0x01
 #define SEQUENCE_DISPLAY_EXTENSION   0x02
@@ -110,7 +130,7 @@ int dvb_filter_pes2ts(dvb_filter_pes2ts_t *p2ts, unsigned char *pes, int len);
 #define IPACKS 2048
 #endif
 
-typedef struct ipack_s {
+struct ipack {
 	int size;
 	int found;
 	u8 *buf;
@@ -130,9 +150,9 @@ typedef struct ipack_s {
 	void (*func)(u8 *buf,  int size, void *priv);
 	int count;
 	int repack_subids;
-} ipack;
+};
 
-typedef struct video_i{
+struct dvb_video_info {
 	u32 horizontal_size;
 	u32 vertical_size;
 	u32 aspect_ratio;
@@ -144,17 +164,16 @@ typedef struct video_i{
         s16 vbv_delay;
 	u32 CSPF;
 	u32 off;
-} VideoInfo;            
-
+};            
 
 #define OFF_SIZE 4
 #define FIRST_FIELD 0
 #define SECOND_FIELD 1
 #define VIDEO_FRAME_PICTURE 0x03
 
-typedef struct mpg_picture_s{
+struct mpg_picture {
         int       channel;
-	VideoInfo vinfo;
+	struct dvb_video_info vinfo;
         u32      *sequence_gop_header;
         u32      *picture_header;
         s32       time_code;
@@ -207,12 +226,9 @@ typedef struct mpg_picture_s{
                   /* picture_display_extenion() 0:no 1:exit*/
         s8        pts_flag[2];
                   /* [0] 1st field, [1] 2nd field */
-} mpg_picture;
+};
 
-
-
-
-typedef struct audio_i{
+struct dvb_audio_info {
 	int layer;
 	u32 bit_rate;
 	u32 frequency;
@@ -221,9 +237,9 @@ typedef struct audio_i{
 	u32 emphasis;
 	u32 framesize;
 	u32 off;
-} AudioInfo;
+};
 
-int dvb_filter_get_ac3info(u8 *mbuf, int count, AudioInfo *ai, int pr);
+int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int pr);
 
 
 #endif

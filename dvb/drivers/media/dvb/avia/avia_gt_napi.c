@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.185 2003/08/25 18:28:42 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.186 2003/09/11 22:43:06 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/crc32.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,7 +32,6 @@
 #include <linux/vmalloc.h>
 #include <linux/dvb/ca.h>
 
-#include "../dvb-core/compat.h"
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dmxdev.h"
 #include "../dvb-core/dvb_demux.h"
@@ -53,8 +53,8 @@ static struct dvb_device *ca_dev = NULL;
 static struct dvb_demux demux;
 static struct dvb_net net;
 static struct dmxdev dmxdev;
-static dmx_frontend_t fe_hw;
-static dmx_frontend_t fe_mem;
+static struct dmx_frontend fe_hw;
+static struct dmx_frontend fe_mem;
 static int hw_crc = 1;
 static int mode = 0;
 
@@ -175,7 +175,7 @@ void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue, void *
 		 * Determine who is interested in the section.
 		 */
 		compare_len = (section_length < DVB_DEMUX_MASK_MAX) ? section_length : DVB_DEMUX_MASK_MAX;
-		crc = queue->crc32(queue, section_length, ~0);
+		crc = queue->crc32_le(queue, section_length, ~0);
 		chunk1 = queue->get_buf1_size(queue);
 
 		/*
@@ -574,7 +574,7 @@ void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 }
 
 static
-int avia_gt_napi_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend)
+int avia_gt_napi_connect_frontend(struct dmx_demux *demux, struct dmx_frontend *frontend)
 {
 	int err;
 
@@ -589,7 +589,7 @@ int avia_gt_napi_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend)
 }
 
 static
-int avia_gt_napi_disconnect_frontend(dmx_demux_t *demux)
+int avia_gt_napi_disconnect_frontend(struct dmx_demux *demux)
 {
 	int err;
 
@@ -702,7 +702,7 @@ int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.185 2003/08/25 18:28:42 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.186 2003/09/11 22:43:06 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -781,8 +781,6 @@ int __init avia_gt_napi_init(void)
 		printk(KERN_ERR "avia_gt_napi: dvb_add_frontend_notifier failed (errno=%d)\n", result);
 		goto init_failed_disconnect_frontend;
 	}
-
-	net.card_num = adapter->num;
 
 	if ((result = dvb_net_init(adapter, &net, &demux.dmx)) < 0) {
 		printk(KERN_ERR "avia_gt_napi: dvb_net_init failed (errno=%d)\n", result);

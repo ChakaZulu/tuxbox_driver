@@ -1,8 +1,7 @@
 /* 
- * dvb_demux.h - DVB kernel demux API
+ * dvb_demux.h: DVB kernel demux API
  *
- * Copyright (C) 2000-2001 Marcus Metzler <marcus@convergence.de>
- *                       & Ralph  Metzler <ralph@convergence.de>
+ * Copyright (C) 2000-2001 Marcus Metzler & Ralph Metzler
  *                         for convergence integrated media GmbH
  *
  * This program is free software; you can redistribute it and/or
@@ -25,10 +24,10 @@
 #ifndef _DVB_DEMUX_H_
 #define _DVB_DEMUX_H_
 
-#include <asm/semaphore.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
+#include <asm/semaphore.h>
 
 #include "demux.h"
 
@@ -45,7 +44,7 @@
 #define DVB_DEMUX_MASK_MAX 18
 
 struct dvb_demux_filter {
-        dmx_section_filter_t filter;
+        struct dmx_section_filter filter;
         u8 maskandmode    [DMX_MAX_FILTER_SIZE]; 
         u8 maskandnotmode [DMX_MAX_FILTER_SIZE]; 
 	int doneq;
@@ -68,8 +67,8 @@ struct dvb_demux_filter {
 
 struct dvb_demux_feed {
         union {
-	        dmx_ts_feed_t ts;
-	        dmx_section_feed_t sec;
+	        struct dmx_ts_feed ts;
+	        struct dmx_section_feed sec;
 	} feed;
 
         union {
@@ -91,7 +90,7 @@ struct dvb_demux_feed {
         int cb_length;
   
         int ts_type;
-        dmx_ts_pes_t pes_type;
+        enum dmx_ts_pes pes_type;
 
         int cc;
 
@@ -101,7 +100,7 @@ struct dvb_demux_feed {
 };
 
 struct dvb_demux {
-        dmx_demux_t dmx;
+        struct dmx_demux dmx;
         void *priv;
         int filternum;
         int feednum;
@@ -142,7 +141,8 @@ void dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf);
 void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, size_t count);
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count);
 
-int dvbdmx_connect_frontend(dmx_demux_t *demux, dmx_frontend_t *frontend);
-int dvbdmx_disconnect_frontend(dmx_demux_t *demux);
+int dvbdmx_connect_frontend(struct dmx_demux *demux, struct dmx_frontend *frontend);
+int dvbdmx_disconnect_frontend(struct dmx_demux *demux);
 
 #endif /* _DVB_DEMUX_H_ */
+

@@ -19,7 +19,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */    
 
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 
 #include "dvb_frontend.h"
-#include "compat.h"
+#include "dvb_functions.h"
 
 
 #if 0
@@ -72,8 +72,7 @@
 
 
 
-static
-struct dvb_frontend_info ves1820_info = {
+static struct dvb_frontend_info ves1820_info = {
 	.name = "VES1820 based DVB-C frontend",
 	.type = FE_QAM,
 	.frequency_stepsize = 62500,
@@ -82,9 +81,9 @@ struct dvb_frontend_info ves1820_info = {
 	.symbol_rate_min = (XIN/2)/64,     /* SACLK/64 == (XIN/2)/64 */
 	.symbol_rate_max = (XIN/2)/4,      /* SACLK/4 */
 #if 0
-	frequency_tolerance: ???,
-	symbol_rate_tolerance: ???,  /* ppm */  /* == 8% (spec p. 5) */
-	notifier_delay: ?,
+	.frequency_tolerance = ???,
+	.symbol_rate_tolerance = ???,  /* ppm */  /* == 8% (spec p. 5) */
+	.notifier_delay = ?,
 #endif
 	.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 		FE_CAN_QAM_128 | FE_CAN_QAM_256 | 
@@ -94,8 +93,7 @@ struct dvb_frontend_info ves1820_info = {
 
 
 
-static
-u8 ves1820_inittab [] =
+static u8 ves1820_inittab [] =
 {
 	0x49, 0x6A, 0x13, 0x0A, 0x15, 0x46, 0x26, 0x1A,
 	0x43, 0x6A, 0x1A, 0x61, 0x19, 0xA1, 0x63, 0x00,
@@ -107,12 +105,11 @@ u8 ves1820_inittab [] =
 };
 
 
-static
-int ves1820_writereg (struct dvb_frontend *fe, u8 reg, u8 data)
+static int ves1820_writereg (struct dvb_frontend *fe, u8 reg, u8 data)
 {
 	u8 addr = GET_DEMOD_ADDR(fe->data);
         u8 buf[] = { 0x00, reg, data };
-	struct i2c_msg msg = { addr: addr, flags: 0, buf: buf, len: 3 };
+	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 3 };
 	struct dvb_i2c_bus *i2c = fe->i2c;
         int ret;
 
@@ -123,19 +120,18 @@ int ves1820_writereg (struct dvb_frontend *fe, u8 reg, u8 data)
 			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			__FUNCTION__, reg, data, ret);
 
-	ddelay(10);
+	dvb_delay(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
 
-static
-u8 ves1820_readreg (struct dvb_frontend *fe, u8 reg)
+static u8 ves1820_readreg (struct dvb_frontend *fe, u8 reg)
 {
 	u8 b0 [] = { 0x00, reg };
 	u8 b1 [] = { 0 };
 	u8 addr = GET_DEMOD_ADDR(fe->data);
-	struct i2c_msg msg [] = { { addr: addr, flags: 0, buf: b0, len: 2 },
-	                   { addr: addr, flags: I2C_M_RD, buf: b1, len: 1 } };
+	struct i2c_msg msg [] = { { .addr = addr, .flags = 0, .buf = b0, .len = 2 },
+	                   { .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 	struct dvb_i2c_bus *i2c = fe->i2c;
 	int ret;
 
@@ -148,11 +144,10 @@ u8 ves1820_readreg (struct dvb_frontend *fe, u8 reg)
 }
 
 
-static
-int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
+static int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
 {
         int ret;
-        struct i2c_msg msg = { addr: addr, flags: 0, buf: data, len: 4 };
+        struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = data, .len = 4 };
 
         ret = i2c->xfer (i2c, &msg, 1);
 
@@ -167,8 +162,7 @@ int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
  *   set up the downconverter frequency divisor for a
  *   reference clock comparision frequency of 62.5 kHz.
  */
-static
-int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
+static int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 {
         u32 div, ifreq;
 	static u8 addr [] = { 0x61, 0x62 };
@@ -179,7 +173,8 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 	if (tuner_type == 0xff)     /*  PLL not reachable over i2c ...  */
 		return 0;
 
-	if (strstr (fe->i2c->adapter->name, "Technotrend"))
+	if (strstr (fe->i2c->adapter->name, "Technotrend") ||
+	    strstr (fe->i2c->adapter->name, "TT-Budget"))
 		ifreq = 35937500;
 	else
 		ifreq = 36125000;
@@ -203,26 +198,34 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 }
 
 
-static
-int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0,
+static int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0,
 			fe_spectral_inversion_t inversion)
 {
 	reg0 |= GET_REG0(fe->data) & 0x62;
 
-	switch (inversion) {
-	case INVERSION_OFF:
+	if (INVERSION_OFF == inversion)
 		reg0 &= ~0x20;
-		break;
-	case INVERSION_ON:
+	else if (INVERSION_ON == inversion)
 		reg0 |= 0x20;
-		break;
-	case INVERSION_AUTO:
-	default:
+	else
 		return -EINVAL;
-	}
-
+	
 	ves1820_writereg (fe, 0x00, reg0 & 0xfe);
-	ves1820_writereg (fe, 0x00, reg0 | 0x01);
+        ves1820_writereg (fe, 0x00, reg0 | 0x01);
+
+#if 0
+	/**
+	 *  check lock and toggle inversion bit if required...
+	 */
+	if (INVERSION_AUTO == inversion && !(ves1820_readreg (fe, 0x11) & 0x08)) {
+		dvb_delay(10);
+		if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
+			reg0 ^= 0x20;
+			ves1820_writereg (fe, 0x00, reg0 & 0xfe);
+        		ves1820_writereg (fe, 0x00, reg0 | 0x01);
+		}
+	}
+#endif
 
 	SET_REG0(fe->data, reg0);
 
@@ -230,8 +233,7 @@ int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0,
 }
 
 
-static
-int ves1820_init (struct dvb_frontend *fe)
+static int ves1820_init (struct dvb_frontend *fe)
 {
 	int i;
         
@@ -248,8 +250,7 @@ int ves1820_init (struct dvb_frontend *fe)
 }
 
 
-static
-int ves1820_set_symbolrate (struct dvb_frontend *fe, u32 symbolrate)
+static int ves1820_set_symbolrate (struct dvb_frontend *fe, u32 symbolrate)
 {
         s32 BDR; 
         s32 BDRI;
@@ -304,8 +305,7 @@ int ves1820_set_symbolrate (struct dvb_frontend *fe, u32 symbolrate)
 }
 
 
-static
-int ves1820_set_parameters (struct dvb_frontend *fe,
+static int ves1820_set_parameters (struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p)
 {
 	static const u8 reg0x00 [] = { 0x00, 0x04, 0x08, 0x0c, 0x10 };
@@ -334,8 +334,7 @@ int ves1820_set_parameters (struct dvb_frontend *fe,
 
 
 
-static
-int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
+static int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
         switch (cmd) {
 	case FE_GET_INFO:
@@ -414,8 +413,8 @@ int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		if (sync & 2)
 			/* AFC only valid when carrier has been recovered */
 			afc = ves1820_readreg(fe, 0x19);
-		printk ("%s: AFC (%d) %dHz (sync & 2 = %d)\n", __FILE__, afc,
-				-((s32)(p->u.qam.symbol_rate >> 3) * afc >> 7), sync & 2);
+		printk ("%s: AFC (%d) %dHz\n", __FILE__, afc,
+				-((s32)(p->u.qam.symbol_rate >> 3) * afc >> 7));
 
 
 		p->inversion = reg0 & 0x20 ? INVERSION_ON : INVERSION_OFF;
@@ -445,13 +444,12 @@ int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 } 
 
 
-static
-long probe_tuner (struct dvb_i2c_bus *i2c)
+static long probe_tuner (struct dvb_i2c_bus *i2c)
 {
-	static const
-	struct i2c_msg msg1 = { addr: 0x61, flags: 0, buf: NULL, len: 0 };
-	static const
-	struct i2c_msg msg2 = { addr: 0x62, flags: 0, buf: NULL, len: 0 };
+	static const struct i2c_msg msg1 = 
+		{ .addr = 0x61, .flags = 0, .buf = NULL, .len = 0 };
+	static const struct i2c_msg msg2 =
+		{ .addr = 0x62, .flags = 0, .buf = NULL, .len = 0 };
 	int type;
 
 	if (i2c->xfer(i2c, &msg1, 1) == 1) {
@@ -471,13 +469,12 @@ long probe_tuner (struct dvb_i2c_bus *i2c)
 }
 
 
-static
-u8 read_pwm (struct dvb_i2c_bus *i2c)
+static u8 read_pwm (struct dvb_i2c_bus *i2c)
 {
 	u8 b = 0xff;
 	u8 pwm;
-	struct i2c_msg msg [] = { { addr: 0x50, flags: 0, buf: &b, len: 1 },
-			 { addr: 0x50, flags: I2C_M_RD, buf: &pwm, len: 1 } };
+	struct i2c_msg msg [] = { { .addr = 0x50, .flags = 0, .buf = &b, .len = 1 },
+			 { .addr = 0x50, .flags = I2C_M_RD, .buf = &pwm, .len = 1 } };
 
 	i2c->xfer (i2c, msg, 2);
 
@@ -490,13 +487,12 @@ u8 read_pwm (struct dvb_i2c_bus *i2c)
 }
 
 
-static
-long probe_demod_addr (struct dvb_i2c_bus *i2c)
+static long probe_demod_addr (struct dvb_i2c_bus *i2c)
 {
 	u8 b [] = { 0x00, 0x1a };
 	u8 id;
-	struct i2c_msg msg [] = { { addr: 0x08, flags: 0, buf: b, len: 2 },
-	                   { addr: 0x08, flags: I2C_M_RD, buf: &id, len: 1 } };
+	struct i2c_msg msg [] = { { .addr = 0x08, .flags = 0, .buf = b, .len = 2 },
+	                   { .addr = 0x08, .flags = I2C_M_RD, .buf = &id, .len = 1 } };
 
 	if (i2c->xfer(i2c, msg, 2) == 2 && (id & 0xf0) == 0x70)
 		return msg[0].addr;
@@ -510,8 +506,7 @@ long probe_demod_addr (struct dvb_i2c_bus *i2c)
 }
 
 
-static
-int ves1820_attach (struct dvb_i2c_bus *i2c)
+static int ves1820_attach (struct dvb_i2c_bus *i2c)
 {
 	void *data = NULL;
 	long demod_addr;
@@ -533,23 +528,20 @@ int ves1820_attach (struct dvb_i2c_bus *i2c)
 }
 
 
-static
-void ves1820_detach (struct dvb_i2c_bus *i2c)
+static void ves1820_detach (struct dvb_i2c_bus *i2c)
 {
 	dvb_unregister_frontend (ves1820_ioctl, i2c);
 }
 
 
-static
-int __init init_ves1820 (void)
+static int __init init_ves1820 (void)
 {
 	return dvb_register_i2c_device (THIS_MODULE,
 					ves1820_attach, ves1820_detach);
 }
 
 
-static
-void __exit exit_ves1820 (void)
+static void __exit exit_ves1820 (void)
 {
 	dvb_unregister_i2c_device (ves1820_attach);
 }

@@ -1,9 +1,9 @@
 /* 
- * dvb-core.h
+ * dvb_frontend.h
  *
- * Copyright (C) 2001 Ralph  Metzler <ralph@convergence.de>
- *                    overhauled by Holger Waechtler <holger@convergence.de>
- *                    for convergence integrated media GmbH
+ * Copyright (C) 2001 Ralph Metzler for convergence integrated media GmbH
+ *                    overhauled by Holger Waechtler for Convergence GmbH
+ *                    
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -25,15 +25,12 @@
 #ifndef _DVB_FRONTEND_H_
 #define _DVB_FRONTEND_H_
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-
-#ifndef MODULE_LICENSE
-#define MODULE_LICENSE(x)
-#endif
+#include <linux/errno.h>
 
 #include <linux/dvb/frontend.h>
 

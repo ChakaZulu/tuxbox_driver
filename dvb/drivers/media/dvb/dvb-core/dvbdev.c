@@ -21,9 +21,8 @@
  *
  */
 
-#include <asm/types.h>
-#include <asm/errno.h>
-#include <asm/semaphore.h>
+#include <linux/types.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -32,13 +31,11 @@
 #include <linux/slab.h>
 
 #include "dvbdev.h"
-#include "compat.h"
-
+#include "dvb_functions.h"
 
 static int dvbdev_debug = 0;
 #define dprintk if (dvbdev_debug) printk
 
-static devfs_handle_t dvb_devfs_handle;
 static LIST_HEAD(dvb_adapter_list);
 static DECLARE_MUTEX(dvbdev_register_lock);
 
@@ -59,8 +56,7 @@ static char *dnames[] = {
 	#define DVB_MAX_IDS              4
 	#define nums2minor(num,type,id)  ((num << 6) | (id << 4) | type)
 
-static
-struct dvb_device* dvbdev_find_device (int minor)
+static struct dvb_device* dvbdev_find_device (int minor)
 {
 	struct list_head *entry;
 
@@ -80,12 +76,11 @@ struct dvb_device* dvbdev_find_device (int minor)
 }
 
 
-static
-int dvb_device_open(struct inode *inode, struct file *file)
+static int dvb_device_open(struct inode *inode, struct file *file)
 {
 	struct dvb_device *dvbdev;
 	
-	dvbdev = dvbdev_find_device (minor(inode->i_rdev));
+	dvbdev = dvbdev_find_device (iminor(inode));
 
 	if (dvbdev && dvbdev->fops) {
 		int err = 0;
@@ -126,7 +121,11 @@ int dvb_generic_open(struct inode *inode, struct file *file)
 	if (!dvbdev->users)
                 return -EBUSY;
 
-	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+                if (!dvbdev->readers)
+		        return -EBUSY;
+		dvbdev->readers--;
+	} else {
                 if (!dvbdev->writers)
 		        return -EBUSY;
 		dvbdev->writers--;
@@ -144,9 +143,12 @@ int dvb_generic_release(struct inode *inode, struct file *file)
 	if (!dvbdev)
                 return -ENODEV;
 
-	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		dvbdev->readers++;
+	} else {
 		dvbdev->writers++;
-
+	}
+	
 	dvbdev->users++;
 	return 0;
 }
@@ -167,8 +169,7 @@ int dvb_generic_ioctl(struct inode *inode, struct file *file,
 }
 
 
-static
-int dvbdev_get_free_id (struct dvb_adapter *adap, int type)
+static int dvbdev_get_free_id (struct dvb_adapter *adap, int type)
 {
 	u32 id = 0;
 
@@ -192,7 +193,6 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			const struct dvb_device *template, void *priv, int type)
 {
 	struct dvb_device *dvbdev;
-	char name [20];
 	int id;
 
 	if (down_interruptible (&dvbdev_register_lock))
@@ -222,6 +222,9 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+	{
+	char name[64];
 	snprintf(name, sizeof(name), "%s%d", dnames[type], id);
 	dvbdev->devfs_handle = devfs_register(adap->devfs_handle, name,
 					      DEVFS_FL_DEFAULT,
@@ -229,10 +232,19 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 					      nums2minor(adap->num, type, id),
 					      S_IFCHR | S_IRUSR | S_IWUSR,
 					      dvbdev->fops, dvbdev);
-
 	dprintk("DVB: register adapter%d/%s @ minor: %i (0x%02x)\n",
 		adap->num, name, nums2minor(adap->num, type, id),
 		nums2minor(adap->num, type, id));
+	}
+#else
+	devfs_mk_cdev(MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
+ 			S_IFCHR | S_IRUSR | S_IWUSR,
+			"dvb/adapter%d/%s%d", adap->num, dnames[type], id);
+
+	dprintk("DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
+		adap->num, dnames[type], id, nums2minor(adap->num, type, id),
+ 		nums2minor(adap->num, type, id));
+#endif
 
 	return 0;
 }
@@ -243,14 +255,18 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	devfs_unregister(dvbdev->devfs_handle);
+#else
+	devfs_remove("dvb/adapter%d/%s%d", dvbdev->adapter->num,
+			dnames[dvbdev->type], dvbdev->id);
+#endif
 	list_del (&dvbdev->list_head);
 	kfree (dvbdev);
 }
 
 
-static
-int dvbdev_get_free_adapter_num (void)
+static int dvbdev_get_free_adapter_num (void)
 {
 	int num = 0;
 
@@ -273,7 +289,6 @@ skip:
 
 int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 {
-	char dirname[10];
 	struct dvb_adapter *adap;
 	int num;
 
@@ -293,13 +308,17 @@ int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 	memset (adap, 0, sizeof(struct dvb_adapter));
 	INIT_LIST_HEAD (&adap->device_list);
 
-	/* fixme: is this correct? */
-	try_module_get(THIS_MODULE);
-
 	printk ("DVB: registering new adapter (%s).\n", name);
 	
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+	{
+	char dirname[64];
 	snprintf(dirname, sizeof(dirname), "adapter%d", num);
 	adap->devfs_handle = devfs_mk_dir(dvb_devfs_handle, dirname, NULL);
+	}
+#else
+	devfs_mk_dir("dvb/adapter%d", num);
+#endif
 	adap->num = num;
 	adap->name = name;
 
@@ -313,22 +332,27 @@ int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 
 int dvb_unregister_adapter(struct dvb_adapter *adap)
 {
-        devfs_unregister (adap->devfs_handle);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+	devfs_unregister(adap->devfs_handle);
+#else
+	devfs_remove("dvb/adapter%d", adap->num);
+#endif
 	if (down_interruptible (&dvbdev_register_lock))
 		return -ERESTARTSYS;
 	list_del (&adap->list_head);
 	up (&dvbdev_register_lock);
 	kfree (adap);
-	/* fixme: is this correct? */
-	module_put(THIS_MODULE);
 	return 0;
 }
 
 
-static
-int __init init_dvbdev(void)
+static int __init init_dvbdev(void)
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	dvb_devfs_handle = devfs_mk_dir (NULL, "dvb", NULL);
+#else
+	devfs_mk_dir("dvb");
+#endif
 #ifndef CONFIG_DVB_DEVFS_ONLY
 	if(register_chrdev(DVB_MAJOR,"DVB", &dvb_device_fops)) {
 		printk("video_dev: unable to get major %d\n", DVB_MAJOR);
@@ -339,13 +363,16 @@ int __init init_dvbdev(void)
 }
 
 
-static 
-void __exit exit_dvbdev(void)
+static void __exit exit_dvbdev(void)
 {
 #ifndef CONFIG_DVB_DEVFS_ONLY
 	unregister_chrdev(DVB_MAJOR, "DVB");
 #endif
-        devfs_unregister(dvb_devfs_handle);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+	devfs_unregister(dvb_devfs_handle);
+#else
+        devfs_remove("dvb");
+#endif
 }
 
 module_init(init_dvbdev);

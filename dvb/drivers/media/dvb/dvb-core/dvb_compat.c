@@ -1,12 +1,17 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 
-#include "compat.h"
+#include "dvb_compat.h"
 
 /**
  *  compatibility crap for old kernels. No guarantee for a working driver
  *  even when everything compiles.
  */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
+devfs_handle_t dvb_devfs_handle;
+EXPORT_SYMBOL(dvb_devfs_handle);
+#endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 static

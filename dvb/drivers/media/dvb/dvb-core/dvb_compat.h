@@ -6,56 +6,25 @@
 #include <linux/smp_lock.h>
 #include <linux/version.h>
 #include <linux/fs.h>
+#include <linux/devfs_fs_kernel.h>
 
+#define iminor(xx) minor(xx->i_rdev)
 
-/**
- *  a sleeping delay function, waits i ms
- *
- */
-static
-inline void ddelay(int i)
-{
-	current->state=TASK_INTERRUPTIBLE;
-	schedule_timeout((HZ*i)/1000);
-}
+#define irqreturn_t void
+#define IRQ_NONE
+#define IRQ_HANDLED
+#define strlcpy strncpy
+extern devfs_handle_t dvb_devfs_handle;
 
+int devfs_mk_cdev(dev_t dev, umode_t mode, const char *fmt, ...);
 
-static inline
-void kernel_thread_setup (const char *thread_name)
-{
-        lock_kernel ();
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,61))
-        daemonize ();
-	strncpy (current->comm, thread_name, sizeof(current->comm));
-#else
-        daemonize (thread_name);
-#endif
-
-/*      not needed anymore in 2.5.x, done in daemonize() */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-        reparent_to_init ();
-#endif
-
-        sigfillset (&current->blocked);
-        unlock_kernel ();
-}
-
-
+/* necessary dummy functions due to the > 2.5.67 kernel i2c changes */
+#define i2c_get_adapdata(adapter) (struct saa7146_dev*)adapter->data;
 
 /**
  *  compatibility crap for old kernels. No guarantee for a working driver
  *  even when everything compiles.
  */
-
-/* we don't mess with video_usercopy() any more,
-we simply define out own dvb_usercopy(), which will hopefull become
-generic_usercopy()  someday... */
-
-extern int dvb_usercopy(struct inode *inode, struct file *file,
-	                    unsigned int cmd, unsigned long arg,
-			    int (*func)(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *arg));
 
 /* FIXME: check what is really necessary in here */
 #include <linux/module.h>
@@ -126,10 +95,15 @@ extern struct page * vmalloc_to_page(void *addr);
 #endif
 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,66))
-#define devfs_mk_dir(parent,name,info) devfs_mk_dir(name)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#include <linux/tqueue.h>
+#define work_struct tq_struct
+#define INIT_WORK(wq,routine,data) INIT_TQUEUE(wq,routine,data)
+#define schedule_work(wq) schedule_task(wq)
+#define flush_scheduled_work() flush_scheduled_tasks()
+#else
+#include <linux/workqueue.h>
 #endif
-
 
 #endif
 
