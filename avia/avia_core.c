@@ -21,6 +21,11 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.12  2001/04/20 22:55:56  TripleDES
+ *
+ *   fixed "new resolution" bug
+ *   - setting up the user-data fifo (in a free mem-area)
+ *
  *   Revision 1.11  2001/03/21 15:30:25  tmbinc
  *   Added SYNC-delay for avia, resulting in faster zap-time.
  *
@@ -77,7 +82,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -775,9 +780,11 @@ void avia_set_default(void)
 	/* */
     wDR(INTERPRET_USER_DATA,0);
     wDR(INTERPRET_USER_DATA_MASK,0);
-
-    wDR(USER_DATA_BUFFER_START,0);
-    wDR(USER_DATA_BUFFER_END,0);
+        
+    wDR(USER_DATA_WRITE,0x1f0000);    //User Data Fifo
+    wDR(USER_DATA_READ,0x1f0000);
+    wDR(USER_DATA_BUFFER_START,0x1f0000);
+    wDR(USER_DATA_BUFFER_END,0x1f0400);
 
 	/* osd */
 	wDR(DISABLE_OSD, 0);
