@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.4 2001/03/16 12:27:29 fnbrd Exp $
+    $Id: at76c651.c,v 1.5 2001/03/16 13:04:16 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -33,6 +33,10 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.5  2001/03/16 13:04:16  fnbrd
+    Alle Interrupt-Routinen auskommentiert (task), da sie auch beim alten Treiber
+    anscheinend nichts gemacht habe.
+
     Revision 1.4  2001/03/16 12:27:29  fnbrd
     Symbolrate wird berechnet.
 
@@ -63,9 +67,10 @@ EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
 
-// Ist der beliebig oder von der Hardware vorgegeben?
-#define VES_INTERRUPT		14
-static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
+// Da im irq (task) beim ves1820 anscheinend nichts gemacht
+// irqs komplett auskommentiert
+//#define VES_INTERRUPT		14
+//static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
@@ -101,6 +106,7 @@ u8 Init1820PTab[] =
   0x00, 0x00, 0x00, 0x00, 0x40
 };
 */
+/*
 int ves_task(void*);
 
 struct tq_struct ves_tasklet=
@@ -108,7 +114,7 @@ struct tq_struct ves_tasklet=
 	routine: ves_task,
 	data: 0
 };
-
+*/
 struct ves1820 {
 //        int inversion;
         u32 srate;
@@ -152,11 +158,6 @@ u8 readreg(struct i2c_client *client, u8 reg)
 int init(struct i2c_client *client)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
-        struct i2c_adapter *adap=client->adapter;
-        struct i2c_msg msgs[2];
-        unsigned char mm1[] = {0xff};
-        unsigned char mm2[] = {0x00};
-        int i;
 
         dprintk("AT76C651: init chip\n");
 	ves->pwm=readreg(client, 0x17);
@@ -188,7 +189,15 @@ int init(struct i2c_client *client)
         // Noch mehr noetig?
 
 	return 0;
-/*
+
+/* VES1820:
+
+        struct i2c_adapter *adap=client->adapter;
+        struct i2c_msg msgs[2];
+        unsigned char mm1[] = {0xff};
+        unsigned char mm2[] = {0x00};
+        int i;
+
         msgs[0].flags=0; // write
         msgs[1].flags=1; // read
         msgs[0].addr=msgs[1].addr=(0x28<<1);
@@ -239,12 +248,12 @@ void SetPWM(struct i2c_client* client)
 
         struct ves1820 *ves=(struct ves1820 *) client->data;
 
-dprintk("AT76C651: set PWM\n");
-return;
+	dprintk("AT76C651: SetPWM\n");
 
         writereg(client, 0x17, ves->pwm); // Angepasst an AT... muss aber noch ueberprueft werden
 
 //        writereg(client, 0x34, ves->pwm);
+	return;
 }
 
 // Tabelle zum Berechnen des Exponenten zur gegebenen Symbolrate (fref=69.6 MHz)
@@ -274,7 +283,7 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
                 Symbolrate=500000;
 
         ves->srate=Symbolrate;
-	dprintk("AT76C651: set Symbolrate\n");
+	dprintk("AT76C651: SetSymbolrate\n");
 	dprintk("exp: %02x mantisse: %x\n", exp, mantisse);
 
         for(i=7; i>0; i--)
@@ -398,8 +407,11 @@ dprintk("AT76C651: set QAM\n");
 	qamsel &= 0xf0;			// von der Bedeutung der 4 anderen Bits habe
         qamsel |= QAM_Mode+4; // 4 = QAM-16
         writereg(client, 0x03, qamsel);
-	return 0;
-/*
+	// Und ein reset um das Dingens richtig einzustellen
+  	writereg(client, 0x07, 0x01);
+  	return 0;
+
+/* VES1820:
         struct ves1820 *ves=(struct ves1820 *) client->data;
 
         ves->reg0=(ves->reg0 & 0xe3) | (QAM_Mode << 2);
@@ -413,9 +425,6 @@ dprintk("AT76C651: set QAM\n");
                 ClrBit1820(client);
         return 0;
 */
-  // Und ein reset um das Dingens richtig einzustellen
-  writereg(client, 0x07, 0x01);
-  return 0;
 }
 
 
@@ -424,7 +433,7 @@ int attach_adapter(struct i2c_adapter *adap)
         struct ves1893 *ves;
         struct i2c_client *client;
 
-		unsigned long flags;
+//		unsigned long flags;
 u8 t;
 
         client_template.adapter=adap;
@@ -473,8 +482,11 @@ return -1;
 
         printk("AT76C651: attached to adapter %s\n", adap->name);
 
-		/* mask interrupt */
+        /* mask interrupt */
+        // Wir brauchen keine irqs
+	writereg(client, 0x0b, 0x00);
 
+/*
 // Kein Plan was gewuenscht/benoetigt wird
 // Moegliche Trigger: Pins LOCK1/LOCK2, singal loss, frame rate lost und per frame-timer
 // writereg(client, 0x0b, mask);
@@ -487,7 +499,7 @@ return -1;
 			dprintk("AT76C651: can't request interrupt\n");
 	        return -EBUSY;
 		}
-
+*/
         return 0;
 }
 
@@ -577,6 +589,7 @@ static struct i2c_client client_template = {
 
 /* ---------------------------------------------------------------------- */
 
+/*
 int ves_task(void*dummy)
 {
 	u8 status;
@@ -584,7 +597,7 @@ int ves_task(void*dummy)
 
 	status = readreg(dclient, 0x33);
 
-	/* read ber */
+	/( read ber
 	if (status&(1<<3))
 	{
 //		printk("READ BER\n");
@@ -597,14 +610,14 @@ int ves_task(void*dummy)
 
 	return 0;
 }
-
+*/
 /* ---------------------------------------------------------------------- */
-
+/*
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 {
 	schedule_task(&ves_tasklet);
 }
-
+*/
 /* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
@@ -636,7 +649,7 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
 
-		free_irq(VES_INTERRUPT, NULL);
+//		free_irq(VES_INTERRUPT, NULL);
 
         dprintk("AT76C651: cleanup\n");
 }
