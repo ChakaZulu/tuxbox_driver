@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 
@@ -260,7 +261,7 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 				  fe_code_rate_t fec_inner)
 {
 	u8 buf[16];
-	u32 ratio;
+	u64 ratio;
 	u32 clk = 96000000;
 	u32 k = (1 << 21);
 	u32 sr = symbol_rate;
@@ -284,12 +285,8 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 
 	/*
 	 * CLK ratio:
-	 * 
 	 * system clock frequency is 96000000 Hz
 	 * formula: 2^21 * freq / symrate
-	 *
-	 * FIXME: there might still be integer overflows
-	 * when gcds are very small
 	 */
 	gcd = tda8044_gcd(clk, sr);
 	clk /= gcd;
@@ -299,7 +296,9 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 	k /= gcd;
 	sr /= gcd;
 
-	ratio = tda8044_div(k * clk, sr);
+	ratio = (u64)k * (u64)clk;
+	do_div(ratio, sr);
+
 	buf[0x02] = ratio >> 16;
 	buf[0x03] = ratio >> 8;
 	buf[0x04] = ratio;
