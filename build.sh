@@ -15,5 +15,5 @@ CDKROOT=/dbox2/cdkroot
 CVSROOT=${HOME}/tuxbox-cvs
 KERNEL_VERSION=2.4.20
 
-make KERNEL_LOCATION=${CVSROOT}/cdk/linux-${KERNEL_VERSION} MODULE_DEST=${CDKROOT}/lib/modules/${KERNEL_VERSION}/misc ${1}
+make KERNEL_LOCATION=${CVSROOT}/cdk/linux-${KERNEL_VERSION} MODULE_DEST=${CDKROOT}/lib/modules/${KERNEL_VERSION}-dbox2/misc ARCH=ppc CROSS_COMPILE=powerpc-tuxbox-linux-gnu- ${1}
 
