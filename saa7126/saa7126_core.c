@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.43 2004/08/04 19:57:11 derget Exp $
+ * $Id: saa7126_core.c,v 1.44 2004/09/15 00:53:54 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -244,8 +244,7 @@ struct saa7126
 static struct i2c_driver i2c_driver_saa7126;
 
 
-static int
-saa7126_readbuf (struct i2c_client *client, char reg, char *buf, short len)
+static int saa7126_readbuf (struct i2c_client *client, char reg, char *buf, short len)
 {
 	int ret;
 	struct i2c_msg msg [] = { { addr: client->addr, flags: 0, len: 1, buf: &reg },
@@ -261,8 +260,7 @@ saa7126_readbuf (struct i2c_client *client, char reg, char *buf, short len)
 }
 
 
-static int
-saa7126_writebuf (struct i2c_client *client, u8 reg, u8 *data, u8 datalen)
+static int saa7126_writebuf (struct i2c_client *client, u8 reg, u8 *data, u8 datalen)
 {
 	u8 buf[SAA7126_I2C_BLOCK_SIZE + 1];
 	u8 len;
@@ -284,8 +282,7 @@ saa7126_writebuf (struct i2c_client *client, u8 reg, u8 *data, u8 datalen)
 }
 
 
-static int
-saa7126_writereg(struct i2c_client *client, u8 reg, u8 val)
+static int saa7126_writereg(struct i2c_client *client, u8 reg, u8 val)
 {
 	char msg[2] = { reg, val };
 
@@ -295,8 +292,7 @@ saa7126_writereg(struct i2c_client *client, u8 reg, u8 val)
 	return 0;
 }
 
-static u8
-saa7126_readreg(struct i2c_client *client, u8 reg)
+static u8 saa7126_readreg(struct i2c_client *client, u8 reg)
 {
 	u8 val;
 
@@ -306,8 +302,7 @@ saa7126_readreg(struct i2c_client *client, u8 reg)
 }
 
 
-static int
-saa7126_write_inittab (struct i2c_client *client)
+static int saa7126_write_inittab (struct i2c_client *client, char init)
 {
 	unsigned short i;
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
@@ -324,10 +319,18 @@ saa7126_write_inittab (struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	for (i = 0; inittab[i].id != 0xff; i++)
-		if (inittab[i].id & (1 << (tuxbox_dbox2_mid - 1)))
+	for (i = 0; inittab[i].id != 0xff; i++){
+		if (inittab[i].id & (1 << (tuxbox_dbox2_mid - 1))){
 			saa7126_writebuf(client, inittab[i].reg, inittab[i].buf, inittab[i].len);
-	
+			if (init){	/* need to init these two the first time */
+				if (inittab[i].reg<=0x2d && (inittab[i].reg+inittab[i].len)>0x2d){
+					encoder->reg_2d = inittab[i].buf[(0x2d-inittab[i].reg)];
+				} else if (inittab[i].reg<=0x3a && (inittab[i].reg+inittab[i].len)>0x3a){
+					encoder->reg_3a = inittab[i].buf[(0x3a-inittab[i].reg)];
+				}
+			}
+		}
+	}
 	encoder->standby = 0;
 
 	saa7126_writereg(client, 0x2d, encoder->reg_2d);
@@ -337,30 +340,28 @@ saa7126_write_inittab (struct i2c_client *client)
 }
 
 
-static int
-saa7126_set_mode(struct i2c_client *client, int inp)
+static int saa7126_set_mode(struct i2c_client *client, int inp)
 {
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
-
-	encoder->reg_3a = 0x03;		// by default swithch YUV to RGB-matrix on
+	encoder->reg_3a = 0x03;		/* by default switch YUV to RGB-matrix on */
 
 	switch (inp) {
 	case SAA_MODE_RGB:
-		encoder->reg_2d = 0x0f; // RGB + CVBS (for sync)
+		encoder->reg_2d = 0x0f; /* RGB + CVBS (for sync) */
 		break;
 	case SAA_MODE_FBAS:
-		encoder->reg_2d = 0x08; // 00001000 CVBS only, RGB DAC's off (high impedance mode) !!!
+		encoder->reg_2d = 0x08; /* 00001000 CVBS only, RGB DAC's off (high impedance mode) !!! */
 		break;
 	case SAA_MODE_SVIDEO:
-		encoder->reg_2d = 0xff; // 11111111  croma -> R, luma -> CVBS + G + B
+		encoder->reg_2d = 0xff; /* 11111111  croma -> R, luma -> CVBS + G + B */
 		break;
 	case SAA_MODE_YUV_V:
-		encoder->reg_2d = 0xcf; // reg 2D = 11001111, all DAC's on, RGB + VBS
-		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
+		encoder->reg_2d = 0xcf; /* reg 2D = 11001111, all DAC's on, RGB + VBS */
+		encoder->reg_3a = 0x0b; /* reg 3A = 00001011, bypass RGB-matrix */
 		break;
 	case SAA_MODE_YUV_C:
-		encoder->reg_2d = 0x8f; // reg 2D = 10001111, all DAC's on, RGB + CVBS
-		encoder->reg_3a = 0x0b; // reg 3A = 00001011, bypass RGB-matrix
+		encoder->reg_2d = 0x8f; /* reg 2D = 10001111, all DAC's on, RGB + CVBS */
+		encoder->reg_3a = 0x0b; /* reg 3A = 00001011, bypass RGB-matrix */
 		break;
 	default:
 		return -EINVAL;
@@ -372,8 +373,7 @@ saa7126_set_mode(struct i2c_client *client, int inp)
 }
 
 
-static int
-saa7126_set_norm(struct i2c_client *client, u8 pal)
+static int saa7126_set_norm(struct i2c_client *client, u8 pal)
 {
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
 
@@ -382,12 +382,11 @@ saa7126_set_norm(struct i2c_client *client, u8 pal)
 	else
 		encoder->norm = VIDEO_MODE_NTSC;
 
-	return saa7126_write_inittab(client);
+	return saa7126_write_inittab(client,0);	/* not init */
 }
 
 
-static int
-saa7126_set_standby(struct i2c_client *client, u8 enable)
+static int saa7126_set_standby(struct i2c_client *client, u8 enable)
 {
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
 
@@ -426,8 +425,7 @@ saa7126_set_standby(struct i2c_client *client, u8 enable)
  * -------------------------------------------------------------------------
  */
 
-static int
-saa7126_detect_client(struct i2c_adapter *adapter, int address,
+static int saa7126_detect_client(struct i2c_adapter *adapter, int address,
 		unsigned short flags, int kind)
 {
 	int ret;
@@ -447,7 +445,8 @@ saa7126_detect_client(struct i2c_adapter *adapter, int address,
 
 	client->data = client + 1;
 	encoder = (struct saa7126 *) (client->data);
-
+	memset(encoder, 0x00, sizeof(struct saa7126));
+	
 	client->addr = address;
 	client->data = encoder;
 	client->adapter = adapter;
@@ -485,7 +484,7 @@ saa7126_detect_client(struct i2c_adapter *adapter, int address,
 
 	dprintk("[%s]: chip found @ 0x%x\n", __FILE__,  client->addr);
 
-	saa7126_write_inittab(client);
+	saa7126_write_inittab(client, 1); /* init */
 	/* set video mode */
 	saa7126_set_mode(client, mode);
 
@@ -538,8 +537,7 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *pa
 	dprintk("[%s]: %s\n", __FILE__, __FUNCTION__);
 
 	switch (cmd) {
-	case ENCODER_GET_CAPABILITIES:
-	{
+	case ENCODER_GET_CAPABILITIES:{
 		struct video_encoder_capability *cap = parg;
 		cap->flags = VIDEO_ENCODER_PAL | VIDEO_ENCODER_NTSC;
 		cap->inputs  = 1;
@@ -586,7 +584,6 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *pa
 	case ENCODER_ENABLE_OUTPUT:
 		encoder->enable = !!arg;
 		break;
-
 	default:
 		return -EINVAL;
 	}
@@ -608,8 +605,7 @@ static int saa7126_output_control(struct i2c_client *client, u8 inp)
 
 /* ------------------------------------------------------------------------- */
 
-static int
-saa7126_vps_set_data(struct i2c_client *client, char *buf)
+static int saa7126_vps_set_data(struct i2c_client *client, char *buf)
 {
 	u8 reg_54;
 
@@ -635,8 +631,7 @@ saa7126_vps_set_data(struct i2c_client *client, char *buf)
 	return 0;
 }
 
-static int
-saa7126_vps_get_data(struct i2c_client *client, char *buf)
+static int saa7126_vps_get_data(struct i2c_client *client, char *buf)
 {
 	u8 reg_54;
 
@@ -656,8 +651,7 @@ saa7126_vps_get_data(struct i2c_client *client, char *buf)
 
 /* ------------------------------------------------------------------------- */
 
-static int
-saa7126_wss_get(struct i2c_client *client)
+static int saa7126_wss_get(struct i2c_client *client)
 {
 	if (saa7126_readreg(client, 0x27) & 0x80) {
 
@@ -672,8 +666,7 @@ saa7126_wss_get(struct i2c_client *client)
 	return SAA_WSS_OFF;
 }
 
-static int
-saa7126_wss_set(struct i2c_client *client, int i)
+static int saa7126_wss_set(struct i2c_client *client, int i)
 {
 	if (i == SAA_WSS_OFF) {
 		saa7126_writereg(client, 0x27, 0x00);
@@ -689,8 +682,7 @@ saa7126_wss_set(struct i2c_client *client, int i)
 	return 0;
 }
 
-static int
-saa7126_csync_set(struct i2c_client *client, u8 val)
+static int saa7126_csync_set(struct i2c_client *client, u8 val)
 {
 	u8 reg;
 	if (val == 0) {
@@ -716,8 +708,7 @@ saa7126_csync_set(struct i2c_client *client, u8 val)
 	return 0;
 }
 
-static int
-saa7126_csync_get(struct i2c_client *client)
+static int saa7126_csync_get(struct i2c_client *client)
 {
 	u8 reg;
 	reg = saa7126_readreg(client, 0x3A);
@@ -880,4 +871,3 @@ MODULE_AUTHOR("Gillem <htoa@gmx.net>, Andreas Oberritter <obi@saftware.de>");
 MODULE_LICENSE("GPL");
 MODULE_PARM(mode,"i");
 MODULE_PARM(ntsc,"i");
-
