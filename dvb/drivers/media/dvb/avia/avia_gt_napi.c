@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.140 $
+ *   $Revision: 1.141 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.141  2002/10/09 20:20:36  Jolt
+ *   DMX & Section fixes
+ *
  *   Revision 1.140  2002/10/07 23:12:40  Jolt
  *   Bugfixes
  *
@@ -983,7 +986,7 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 
 					sync_lost = 0;
 
-					avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
+					//avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
 
 				}
 
@@ -1601,7 +1604,7 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 
 		if ((gtx->feed[i].state == DMX_STATE_GO) && (gtx->feed[i].pid == pid)) {
 
-			if (used && (gtx->feed[i].type != DMX_TYPE_HW_SEC))
+			if (used)
 				avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
 			else
 				avia_gt_dmx_queue_irq_disable(gtx->feed[i].index);
@@ -2154,7 +2157,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.140 2002/10/07 23:12:40 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.141 2002/10/09 20:20:36 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
