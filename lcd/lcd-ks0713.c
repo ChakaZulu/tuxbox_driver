@@ -102,7 +102,7 @@ static int LCD_MODE;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define LCD_MAJOR 				222
+#define LCD_MAJOR 				156
 #define LCD_DELAY 				1
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -313,14 +313,14 @@ void lcd_read_dram( unsigned char * dest )
 {
 	int pa,col;
 
-	for(pa=0;pa<=LCD_ROWS;pa++)
+	for(pa=0;pa<LCD_ROWS;pa++)
 	{
 		// set dram pointer
 		lcd_set_pos( pa, 0 );
 
 		lcd_read_dummy();
 
-		for(col=0;col<=LCD_COLS;col++)
+		for(col=0;col<LCD_COLS;col++)
 		{
 			dest[(pa*LCD_COLS)+col] = lcd_read_byte();
 		}
@@ -333,11 +333,11 @@ void lcd_write_dram( unsigned char * source )
 {
 	int pa,col;
 	
-	for(pa=0;pa<=LCD_ROWS;pa++)
+	for(pa=0;pa<LCD_ROWS;pa++)
 	{
 		lcd_set_pos( pa, 0 );
 
-		for(col=0;col<=LCD_COLS;col++)
+		for(col=0;col<LCD_COLS;col++)
 		{
 			lcd_write_byte( source[(pa*LCD_COLS)+col] );
 		}
@@ -380,14 +380,14 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 		col = f_vars.pos;
 	}
 
-	for(/*pa=0*/;(pa<=LCD_ROWS) && i;pa++)
+	for(pa=0;(pa<LCD_ROWS) && i;pa++)
 	{
 		// set dram pointer
 		lcd_set_pos( pa, col );
 
 		lcd_read_dummy();
 
-		for(/*col=0*/;(col<=LCD_COLS) && i;col++,bp++,i--)
+		for(col=0;(col<LCD_COLS) && i;col++,bp++,i--)
 		{
 			*bp = lcd_read_byte();
 		}

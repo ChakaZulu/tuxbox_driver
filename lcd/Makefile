@@ -5,7 +5,7 @@ CURRENT=$(shell uname -r)
 #KERNEL_LOCATION=/usr/src/kernel/2.0.35
 #KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
 #KERNEL_LOCATION=/usr/src/kernel/vger
-KERNEL_LOCATION=/usr/src/linux
+KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #################################################
 # some magic for using linux kernel settings
