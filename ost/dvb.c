@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.70 2002/05/25 16:27:23 obi Exp $
+ * $Id: dvb.c,v 1.71 2002/08/14 05:27:17 obi Exp $
  */
 
 #include <linux/config.h>
@@ -47,8 +47,8 @@
 #include <ost/video.h>
 #include <ost/net.h>
 
-#include <dbox/dvb.h>
-#include <dbox/ves.h>
+//#include <dbox/dvb.h>
+//#include <dbox/ves.h>
 #include <dbox/avia.h>
 #include <dbox/avia_gt_pcm.h>
 #include <dbox/cam.h>
@@ -86,7 +86,7 @@ static int secSetTone (struct dvb_struct * dvb, secToneMode mode)
 	}
 
 	dvb->sec.contTone = mode;
-	dvb_frontend_sec_set_tone(dvb->frontend, mode);
+	dvb_frontend_demod_command(dvb->frontend, FE_SEC_SET_TONE, (void *) mode);
 	return 0;
 }
 
@@ -99,7 +99,7 @@ static int secSetVoltage (struct dvb_struct * dvb, secVoltage voltage)
 	}
 
 	dvb->sec.selVolt = voltage;
-	dvb_frontend_sec_set_voltage(dvb->frontend, voltage);
+	dvb_frontend_demod_command(dvb->frontend, FE_SEC_SET_VOLTAGE, (void *) voltage);
 	return 0;
 }
 
@@ -136,12 +136,12 @@ static int secSendSequence (struct dvb_struct * dvb, struct secCmdSequence * seq
 			continue;
 		}
 
-		dvb_frontend_sec_command(dvb->frontend, &scommands);
+		dvb_frontend_demod_command(dvb->frontend, FE_SEC_COMMAND, (void *) &scommands);
 	}
 
 	if (seq->miniCommand != SEC_MINI_NONE)
 	{
-		dvb_frontend_sec_mini_command(dvb->frontend, seq->miniCommand);
+		dvb_frontend_demod_command(dvb->frontend, FE_SEC_MINI_COMMAND, (void *) seq->miniCommand);
 	}
 
 	ret = secSetVoltage(dvb, seq->voltage);
@@ -173,8 +173,9 @@ static int frontend_init (dvb_struct_t * dvb)
 {
 	FrontendParameters para;
 
-	dvb->frontend->priv = (void *) dvb;
+	dvb->frontend->priv=(void *)dvb;
 	dvb->frontend->complete_cb = tuning_complete_cb;
+	dvb->frontend->start_cb=0;
 	dvb_frontend_init(dvb->frontend);
 
 	dvb->powerstate = FE_POWER_ON;
@@ -182,15 +183,17 @@ static int frontend_init (dvb_struct_t * dvb)
 	switch (dvb->frontend->type)
 	{
 	case DVB_S:
-		para.Frequency = 12480000 - 10600000;
-		para.u.qpsk.SymbolRate = 27500000;
-		para.u.qpsk.FEC_inner = 0;
 		secSetTone(dvb, SEC_TONE_ON);
 		secSetVoltage(dvb, SEC_VOLTAGE_13);
+		para.Frequency = 12480000 - 10600000;
+		para.Inversion = INVERSION_OFF;
+		para.u.qpsk.SymbolRate = 27500000;
+		para.u.qpsk.FEC_inner = 0;
 		break;
 
 	case DVB_C:
 		para.Frequency = 394000000;
+		para.Inversion = INVERSION_OFF;
 		para.u.qam.SymbolRate = 6900000;
 		para.u.qam.FEC_inner = 0;
 		para.u.qam.QAM = QAM_64;
