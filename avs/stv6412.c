@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.13  2002/02/21 17:42:14  gillem
+ *   - more fixes (save old mute/aroute values for correct audio routing)
+ *
  *   Revision 1.12  2002/02/21 17:31:22  gillem
  *   - fix mute
  *
@@ -58,7 +61,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -135,6 +138,11 @@ typedef struct s_stv6412_data {
 
 #define STV6412_DATA_SIZE sizeof(s_stv6412_data)
 
+
+/* hold old values for mute/unmute */
+unsigned char tc_asc;
+unsigned char v_asc;
+
 /* ---------------------------------------------------------------------- */
 
 #define dprintk     if (debug) printk
@@ -198,8 +206,25 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-	stv6412_data.tc_asc = type&1;	// tv & cinch mute
-	stv6412_data.v_asc  = type&1;	// vcr mute
+	if (type==0)
+	{
+		/* save old values */
+		tc_asc = stv6412_data.tc_asc;
+		v_asc  = stv6412_data.v_asc;
+
+		/* set mute */
+		stv6412_data.tc_asc = 0;	// tv & cinch mute
+		stv6412_data.v_asc  = 0;	// vcr mute
+
+	}
+	else /* unmute with old values */
+	{
+		stv6412_data.tc_asc = tc_asc;
+		stv6412_data.v_asc  = v_asc;
+
+		tc_asc = 0;
+		v_asc  = 0;
+	}
 
 	return stv6412_set(client);
 }
@@ -250,7 +275,12 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 				return -EINVAL;
 			}
 
-			stv6412_data.v_asc = type;
+			/* if muted ? yes: save in temp */
+			if ( v_asc == 0 )
+				stv6412_data.v_asc = type;
+			else
+				v_asc = type;
+
 			break;
 		case 1:
 		case 2:
@@ -259,7 +289,12 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 				return -EINVAL;
 			}
 
-			stv6412_data.tc_asc = type;
+			/* if muted ? yes: save in temp */
+			if ( tc_asc == 0 )
+				stv6412_data.tc_asc = type;
+			else
+				tc_asc = type;
+
 			break;
 		default:
 			return -EINVAL;
@@ -516,6 +551,10 @@ int stv6412_init(struct i2c_client *client)
 	/* Data 6 */
 	stv6412_data.a_in  = 1;
 	stv6412_data.r_out = 1;
+
+	/* save mute/unmute values */
+	tc_asc = stv6412_data.tc_asc;
+	v_asc  = stv6412_data.v_asc;
 
 	return stv6412_set(client);
 }
