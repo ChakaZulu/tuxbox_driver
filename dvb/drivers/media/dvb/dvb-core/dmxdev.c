@@ -382,12 +382,6 @@ dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 		ret=dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer2, buffer2_len);
 	}
 	if (ret<0) {
-		int free = dmxdevfilter->buffer.pread - dmxdevfilter->buffer.pwrite;
-		if (free <= 0)
-		{
-			free += dmxdevfilter->buffer.size;
-			
-		}
 		dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread;    
 		dmxdevfilter->buffer.error=-EOVERFLOW;
 	}
