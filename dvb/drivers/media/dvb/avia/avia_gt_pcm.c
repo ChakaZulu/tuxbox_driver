@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.16  2002/08/19 00:02:01  TheDOC
+ *   export the poll-stuff
+ *
  *   Revision 1.15  2002/08/18 18:22:30  tmbinc
  *   added poll()-support for pcm device (untested)
  *
@@ -70,7 +73,7 @@
  *
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -559,7 +562,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad;
 	unsigned short irq_pf;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.15 2002/08/18 18:22:30 tmbinc Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.16 2002/08/19 00:02:01 TheDOC Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -662,6 +665,7 @@ EXPORT_SYMBOL(avia_gt_pcm_set_channels);
 EXPORT_SYMBOL(avia_gt_pcm_set_mpeg_attenuation);
 EXPORT_SYMBOL(avia_gt_pcm_set_pcm_attenuation);
 EXPORT_SYMBOL(avia_gt_pcm_get_block_size);
+EXPORT_SYMBOL(avia_gt_pcm_poll);
 #endif
 
 #if defined(MODULE) && defined(STANDALONE)
