@@ -1,6 +1,6 @@
 
 /*
- * $Id: at76c651.c,v 1.37 2002/10/30 11:16:32 Jolt Exp $
+ * $Id: at76c651.c,v 1.38 2002/11/03 13:45:46 Jolt Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -324,8 +324,6 @@ static int at76c651_set_defaults(struct dvb_i2c_bus *i2c)
 static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
 
-	struct dvb_i2c_bus *i2c = (struct dvb_i2c_bus *) fe->data;
-
 	switch (cmd) {
 
 		case FE_GET_INFO:
@@ -341,7 +339,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 				/*
 				 * Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0) 
 				 */
-				sync = at76c651_readreg(i2c, 0x80);
+				sync = at76c651_readreg(fe->i2c, 0x80);
 
 				*status = 0;
 
@@ -368,9 +366,9 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			{
 				u32 *ber = (u32 *) arg;
 
-				*ber = (at76c651_readreg(i2c, 0x81) & 0x0F) << 16;
-				*ber |= at76c651_readreg(i2c, 0x82) << 8;
-				*ber |= at76c651_readreg(i2c, 0x83);
+				*ber = (at76c651_readreg(fe->i2c, 0x81) & 0x0F) << 16;
+				*ber |= at76c651_readreg(fe->i2c, 0x82) << 8;
+				*ber |= at76c651_readreg(fe->i2c, 0x83);
 				*ber *= 10;
 				
 				break;
@@ -378,22 +376,22 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 		case FE_READ_SIGNAL_STRENGTH:
 			{
-				u8 gain = ~at76c651_readreg(i2c, 0x91);
+				u8 gain = ~at76c651_readreg(fe->i2c, 0x91);
 
 				*(s32 *) arg = (gain << 8) | gain;
 				break;
 			}
 
 		case FE_READ_SNR:
-			*(s32 *) arg = 0xFFFF - ((at76c651_readreg(i2c, 0x8F) << 8) | at76c651_readreg(i2c, 0x90));
+			*(s32 *) arg = 0xFFFF - ((at76c651_readreg(fe->i2c, 0x8F) << 8) | at76c651_readreg(fe->i2c, 0x90));
 			break;
 
 		case FE_READ_UNCORRECTED_BLOCKS:
-			*(u32 *) arg = at76c651_readreg(i2c, 0x82);
+			*(u32 *) arg = at76c651_readreg(fe->i2c, 0x82);
 			break;
 
 		case FE_SET_FRONTEND:
-			return at76c651_set_parameters(i2c, arg);
+			return at76c651_set_parameters(fe->i2c, arg);
 
 		case FE_GET_FRONTEND:
 			break;
@@ -402,10 +400,10 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			break;
 #endif
 		case FE_INIT:
-			return at76c651_set_defaults(i2c);
+			return at76c651_set_defaults(fe->i2c);
 
 		case FE_RESET:
-			return at76c651_reset(i2c);
+			return at76c651_reset(fe->i2c);
 
 		default:
 			return -EINVAL;
@@ -448,7 +446,7 @@ static int at76c651_attach(struct dvb_i2c_bus *i2c)
 
 	at76c651_set_defaults(i2c);
 
-	dvb_register_frontend(at76c651_ioctl, i2c->adapter, i2c, &at76c651_info);
+	dvb_register_frontend(at76c651_ioctl, i2c, NULL, &at76c651_info);
 
 	return 0;
 
@@ -458,7 +456,7 @@ static
 void at76c651_detach(struct dvb_i2c_bus *i2c)
 {
 
-	dvb_unregister_frontend(at76c651_ioctl, i2c->adapter);
+	dvb_unregister_frontend(at76c651_ioctl, i2c);
 
 	at76c651_disable_interrupts(i2c);
 
@@ -468,7 +466,7 @@ static
 int __init at76c651_init(void)
 {
 
-	printk("$Id: at76c651.c,v 1.37 2002/10/30 11:16:32 Jolt Exp $\n");
+	printk("$Id: at76c651.c,v 1.38 2002/11/03 13:45:46 Jolt Exp $\n");
 
 	return dvb_register_i2c_device(THIS_MODULE, at76c651_attach, at76c651_detach);
 
