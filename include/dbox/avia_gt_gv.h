@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.h,v $
+ *   Revision 1.3  2002/04/15 10:40:50  Jolt
+ *   eNX/GTX
+ *
  *   Revision 1.2  2002/04/15 04:44:24  Jolt
  *   eNX/GTX merge
  *
@@ -28,22 +31,30 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
 #ifndef AVIA_GT_GV_H
 #define AVIA_GT_GV_H
 
-extern void enx_gv_cursor_hide(void);
-extern void enx_gv_cursor_show(void);
-extern unsigned short enx_gv_get_stride(void);
-extern void enx_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size);
-extern void enx_gv_hide(void);
-extern void enx_gv_set_input_mode(unsigned char mode);
-extern int enx_gv_set_input_size(unsigned short width, unsigned short height);
-extern int enx_gv_set_pos(unsigned short x, unsigned short y);
-extern void enx_gv_set_size(unsigned short width, unsigned short height);
-extern void enx_gv_show(void);
+#define AVIA_GT_GV_INPUT_MODE_OFF	0x00
+#define AVIA_GT_GV_INPUT_MODE_RGB4	0x02
+#define AVIA_GT_GV_INPUT_MODE_RGB8	0x06
+#define AVIA_GT_GV_INPUT_MODE_RGB16	0x03
+#define AVIA_GT_GV_INPUT_MODE_RGB32	0x07
+
+extern void avia_gt_gv_cursor_hide(void);
+extern void avia_gt_gv_cursor_show(void);
+extern unsigned short avia_gt_gv_get_stride(void);
+extern void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size);
+extern void avia_gt_gv_hide(void);
+extern void avia_gt_gv_set_input_mode(unsigned char mode);
+extern int avia_gt_gv_set_input_size(unsigned short width, unsigned short height);
+extern int avia_gt_gv_set_pos(unsigned short x, unsigned short y);
+extern void avia_gt_gv_set_size(unsigned short width, unsigned short height);
+extern void avia_gt_gv_show(void);
+extern int avia_gt_gv_init(void);
+extern void avia_gt_gv_exit(void);
 
 #endif

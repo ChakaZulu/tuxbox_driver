@@ -1,9 +1,9 @@
 /*
- *   avia_gt_gv.c - AViA eNX graphic viewport driver (dbox-II-project)
+ *   avia_gt_gv.c - AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Florian Schirmer (jolt@tuxbox.org)
+ *   Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.3  2002/04/15 10:40:50  Jolt
+ *   eNX/GTX
+ *
  *   Revision 1.2  2002/04/14 18:14:08  Jolt
  *   eNX/GTX merge
  *
@@ -28,13 +31,12 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/malloc.h>
 #include <linux/version.h>
@@ -42,9 +44,6 @@
 #include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
@@ -53,7 +52,7 @@
 #include <dbox/avia_gt_gv.h>
 
 unsigned short input_height = 576;
-unsigned char input_mode = AVIA_GT_GV_INPUT_MODE_RGB32;
+unsigned char input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
 unsigned short input_width = 720;
 unsigned short output_x = 0;
 unsigned short output_y = 0;
@@ -75,10 +74,10 @@ void avia_gt_gv_cursor_show(void) {
 void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size) {
 
     if (gv_mem_phys)
-	*gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + AVIA_GT_MEM_GV_OFFSET);
+	*gv_mem_phys = (unsigned char *)(ENX_MEM_BASE + AVIA_GT_MEM_GV_OFFS);
 	
     if (gv_mem_lin)
-	*gv_mem_lin = enx_get_mem_addr() + AVIA_GT_MEM_GV_OFFS;
+	*gv_mem_lin = avia_gt_get_mem_addr() + AVIA_GT_MEM_GV_OFFS;
 	
     if (gv_mem_size)
 	*gv_mem_size = AVIA_GT_MEM_GV_SIZE;
@@ -112,28 +111,37 @@ void avia_gt_gv_set_input_mode(unsigned char mode) {
 int avia_gt_gv_set_input_size(unsigned short width, unsigned short height) {
 
     if (width == 720) {
+    
 	enx_reg_s(GMR1)->L = 0;
 	enx_reg_s(GMR1)->F = 0;
+	
     } else if (width == 640) {
+    
 	enx_reg_s(GMR1)->L = 0;
 	enx_reg_s(GMR1)->F = 1;
+	
     } else if (width == 360) {
+    
 	enx_reg_s(GMR1)->L = 1;
 	enx_reg_s(GMR1)->F = 0;
+	
     } else if (width == 320) {
+    
 	enx_reg_s(GMR1)->L = 1;
 	enx_reg_s(GMR1)->F = 1;
+	
     } else {
+    
 	return -EINVAL;
+	
     }
 
-    if ((height == 576) || (height == 480)) {
+    if ((height == 576) || (height == 480)) 
 	enx_reg_s(GMR1)->I = 0;
-    } else if ((height == 288) || (height == 240)) {
+    else if ((height == 288) || (height == 240)) 
 	enx_reg_s(GMR1)->I = 1;
-    } else {
+    else 
 	return -EINVAL;
-    }
     
     input_height = height;
     input_width = width;
@@ -154,17 +162,16 @@ int avia_gt_gv_set_pos(unsigned short x, unsigned short y) {
 #define VID_PIPEDELAY	16
 #define GFX_PIPEDELAY	3
     
-    if (input_width == 720) {
+    if (input_width == 720)
 	input_div = 8;
-    } else if (input_width == 640) {
+    else if (input_width == 640)
 	input_div = 9;
-    } else if (input_width == 360) {
+    else if (input_width == 360)
 	input_div = 16;
-    } else if (input_width == 320) {
+    else if (input_width == 320)
 	input_div = 18;
-    } else {
+    else
 	return -EINVAL;
-    }
 
     enx_reg_s(GVP1)->SPP = (((BLANK_TIME - VID_PIPEDELAY) + x) * 8) % input_div;
     enx_reg_s(GVP1)->XPOS = ((((BLANK_TIME - VID_PIPEDELAY) + x) * 8) / input_div) - GFX_PIPEDELAY;
@@ -187,21 +194,32 @@ void avia_gt_gv_set_size(unsigned short width, unsigned short height) {
 
 void avia_gt_gv_set_stride(void) {
 
-    unsigned char input_bpp = 4;
+    unsigned char input_bpp = 2;
 
     switch(input_mode) {
+    
 	case AVIA_GT_GV_INPUT_MODE_RGB4:
+	
 	    input_bpp = 1;
+	    
 	break;
 	case AVIA_GT_GV_INPUT_MODE_RGB8:
+	
 	    input_bpp = 1;
+	    
 	break;
 	case AVIA_GT_GV_INPUT_MODE_RGB16:
+	
 	    input_bpp = 2;
+	    
 	break;
-	case AVIA_GT_GV_INPUT_MODE_RGB32:
-	    input_bpp = 4;
-	break;
+	// We dont have enough memory to support truecolor mode
+	//case AVIA_GT_GV_INPUT_MODE_RGB32:
+	
+	//    input_bpp = 4;
+	
+	//break;
+	
     }
 
     enx_reg_s(GMR1)->STRIDE = (((input_width * input_bpp) + 3) & ~3) >> 2;
@@ -214,10 +232,10 @@ void avia_gt_gv_show(void) {
     
 }
 
-static int avia_gt_gv_init(void)
+int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.2 2002/04/14 18:14:08 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.3 2002/04/15 10:40:50 Jolt Exp $\n");
     
     //enx_reg_w(RSTR0) &= ~(1 << );	// TODO: which one?
     
@@ -241,12 +259,12 @@ static int avia_gt_gv_init(void)
     enx_reg_s(TCR1)->E = 1;
 
     enx_reg_s(GVSA1)->Addr = AVIA_GT_MEM_GV_OFFS >> 2;
-    printk("avia_gt_gv: GVSA1=0x08%X ENX_FB=0x%08X\n", enx_reg_32(GVSA1), ENX_MEM_GV_OFFSET);
     
     return 0;
+    
 }
 
-static void __exit avia_gt_gv_exit(void)
+void __exit avia_gt_gv_exit(void)
 {
 
 //    avia_gt_gv_hide();

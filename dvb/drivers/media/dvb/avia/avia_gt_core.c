@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.7  2002/04/15 10:40:50  Jolt
+ *   eNX/GTX
+ *
  *   Revision 1.6  2002/04/14 18:06:19  Jolt
  *   eNX/GTX merge
  *
@@ -40,7 +43,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -68,6 +71,7 @@
 #include <asm/uaccess.h>
 
 #include "dbox/avia_gt.h"
+#include "dbox/avia_gt_gv.h"
 #include "dbox/avia_gt_pcm.h"
 #include "dbox/avia_gt_capture.h"
 #include "dbox/avia_gt_pig.h"
@@ -244,7 +248,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.6 2002/04/14 18:06:19 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.7 2002/04/15 10:40:50 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -313,7 +317,7 @@ int __init avia_gt_init(void)
     init_state = 4;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (avia_gt_pcm_init()) {
+    if (avia_gt_gv_init()) {
 
 	avia_gt_exit();
       
@@ -323,7 +327,7 @@ int __init avia_gt_init(void)
 
     init_state = 5;
     
-    if (avia_gt_capture_init()) {
+    if (avia_gt_pcm_init()) {
 
 	avia_gt_exit();
       
@@ -333,7 +337,7 @@ int __init avia_gt_init(void)
 
     init_state = 6;
     
-    if (avia_gt_pig_init()) {
+    if (avia_gt_capture_init()) {
 
 	avia_gt_exit();
       
@@ -342,6 +346,16 @@ int __init avia_gt_init(void)
     }
 
     init_state = 7;
+    
+    if (avia_gt_pig_init()) {
+
+	avia_gt_exit();
+      
+	return -1;
+	
+    }
+
+    init_state = 8;
     
 #endif
 	    
@@ -355,14 +369,17 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (init_state >= 7)
+    if (init_state >= 8)
         avia_gt_pig_exit();
 	
-    if (init_state >= 6)
+    if (init_state >= 7)
         avia_gt_capture_exit();
 	
-    if (init_state >= 5)
+    if (init_state >= 6)
 	avia_gt_pcm_exit();
+	
+    if (init_state >= 5)
+	avia_gt_gv_exit();
 #endif
 
     if (init_state >= 4) {
