@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.21  2003/01/14 08:51:45  jolt
+ *   Fix init
+ *
  *   Revision 1.20  2003/01/14 08:43:17  jolt
  *   - Removed old CAM interface
  *   - Unified FP CAM reset
@@ -79,7 +82,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -441,7 +444,7 @@ static int do_firmread(const char *fn, char **fp)
 	return (int) l;
 }
 
-int cam_init(void)
+int __init cam_init(void)
 {
 	int res;
 		mm_segment_t fs;
@@ -498,7 +501,7 @@ int cam_init(void)
 	return 0;
 }
 
-void cam_fini(void)
+void __exit cam_cleanup(void)
 {
 	int res;
 	immap_t *immap=(immap_t *)IMAP_ADDR ;
@@ -534,3 +537,6 @@ MODULE_DESCRIPTION("DBox2 CAM Driver");
 MODULE_PARM(debug,"i");
 MODULE_PARM(firmware,"s");
 MODULE_LICENSE("GPL");
+
+module_init(cam_init);
+module_exit(cam_cleanup);
