@@ -79,14 +79,6 @@
 #define GTX_REG_BPW	0x0BC
 #define GTX_REG_BPO	0x0BE
 
-/* Infrared */
-#define GTX_REG_CWP	0x0C0
-#define GTX_REG_CWPH	0x0C2
-#define GTX_REG_MSPR	0x0C4
-#define GTX_REG_MSPL	0x0C6
-#define GTX_REG_RTC	0x0C8
-#define GTX_REG_RTP	0x0CA
-
 /* SPI */
 #define GTX_REG_SPID	0x0D0
 #define GTX_REG_SPIC	0x0D2
@@ -116,6 +108,7 @@
 
 /* DAC */
 #define GTX_REG_DPCR	0x110
+#define GTX_REG_DPR	0x112
 
 /* Framer */
 #define GTX_REG_PCRPID	0x120
@@ -263,6 +256,12 @@
 #define GTX_REG_TSR	0x288
 
 /* Infrared */
+#define GTX_REG_CWP	0x2A0
+#define GTX_REG_CWPH	0x2A2
+#define GTX_REG_MSPR	0x2A4
+#define GTX_REG_MSPL	0x2A6
+#define GTX_REG_RTC	0x2A8
+#define GTX_REG_RTP	0x2AA
 #define GTX_REG_RFR	0x2AC
 #define GTX_REG_RPH	0x2AE
 #define GTX_REG_IRQA	0x2B0
