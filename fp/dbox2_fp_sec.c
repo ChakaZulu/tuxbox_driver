@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_sec.c,v 1.2 2003/02/09 19:52:07 obi Exp $
+ * $Id: dbox2_fp_sec.c,v 1.3 2003/02/09 20:00:15 obi Exp $
  *
  * Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
  *
@@ -37,21 +37,6 @@ static u8 sec_high_voltage;
 static u8 sec_tone;
 static int sec_bus_status;
 struct i2c_client * fp_i2c_client;
-
-
-void
-dbox2_fp_sec_init (void)
-{
-	manufacturer_id = fp_get_info()->mID;
-	sec_power = 0;
-	sec_voltage = 0;
-	sec_high_voltage = 0;
-	sec_tone = 0;
-	sec_bus_status = 0;
-	fp_i2c_client = fp_get_i2c();
-
-	dbox2_fp_sec_set(sec_voltage, sec_high_voltage, sec_tone);
-}
 
 
 int
@@ -241,6 +226,17 @@ int
 dbox2_fp_sec_enable_high_voltage (u8 high_voltage)
 {
 	return dbox2_fp_sec_set(sec_power, sec_voltage, high_voltage, sec_tone);
+}
+
+
+void
+dbox2_fp_sec_init (void)
+{
+	manufacturer_id = fp_get_info()->mID;
+	sec_bus_status = 0;
+	fp_i2c_client = fp_get_i2c();
+
+	dbox2_fp_sec_set(0, 0, 0, 0);
 }
 
 
