@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <errno.h>
 #include <unistd.h>
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
@@ -12,37 +13,100 @@
 
 #define FRONT "/dev/dvb/adapter0/frontend0"
 
-/* routine for checking if we have a signal and other status information*/
-int FEReadStatus(int fd, fe_status_t *stat)
+int FEGetInfo(int fd, struct dvb_frontend_info *info)
+{
+
+	int result; 
+	
+	if (!info)
+		return -EINVAL;
+	
+	if ((result = ioctl(fd, FE_GET_INFO, info) < 0)) { 
+
+		perror("FE GET INFO: ");
+		
+		return result;
+		
+	} 
+
+	return 0;
+
+}
+
+int FEDumpInfo(struct dvb_frontend_info *info)
+{
+
+	if (!info)
+		return -EINVAL;
+		
+	switch(info->type) {
+	
+		case FE_QAM:
+		
+			printf("FE Type: QAM\n");
+			
+			break;
+
+		case FE_QPSK:
+		
+			printf("FE Type: QPSK\n");
+			
+			break;
+
+		case FE_OFDM:
+		
+			printf("FE Type: OFDM\n");
+			
+			break;
+			
+		default:
+		
+			printf("FE Type: unknown!\n");
+			
+	}
+	
+	printf("FE Name: %s\n", info->name);
+
+	return 0;
+
+}
+
+int FEDumpStatus(int fd)
 { 
 
-	int ans; 
+	fe_status_t stat;
+	int result; 
 	
-	if ((ans = ioctl(fd, FE_READ_STATUS, stat) < 0)) { 
+	if ((result = ioctl(fd, FE_READ_STATUS, &stat) < 0)) { 
 
 		perror("FE READ STATUS: ");
 		
-		return -1;
+		return result;
 		
 	} 
 	
-	if (*stat & FE_HAS_SIGNAL)
-		printf("FE HAS SIGNAL\n");
+	printf("FE Status:");
+	
+	if (stat & FE_HAS_SIGNAL)
+		printf(" FE_HAS_SIGNAL");
+
+	if (stat & FE_HAS_VITERBI)
+		printf(" FE_HAS_VITERBI");
+
+	if (stat & FE_HAS_SYNC)
+		printf(" FE_HAS_SYNC");
+
+	if (stat & FE_HAS_CARRIER)
+		printf(" FE_HAS_CARRIER");
+
+	if (stat & FE_HAS_LOCK)
+		printf(" FE_HAS_LOCK");
+		
+	printf("\n");
 		
 	return 0;
 	
 }
-
-/* tune qpsk */
-/* freq: frequency of transponder */
-/* vpid, apid, tpid: PIDs of video, audio and teletext TS packets */
-/* diseqc: DiSEqC address of the used LNB */
-/* pol: Polarisation */
-/* srate: Symbol Rate */
-/* fec. FEC */
-/* lnb_lof1: local frequency of lower LNB band */
-/* lnb_lof2: local frequency of upper LNB band */
-/* lnb_slof: switch frequency of LNB */
 
 int set_qpsk_channel(int fd, int freq, int vpid, int apid, int tpid, int diseqc, int pol, 
 					 int srate, int fec, int lnb_lof1, int lnb_lof2, int lnb_slof) 
@@ -84,21 +148,20 @@ int set_qam_channel(int fd, int freq, int vpid, int apid, int tpid, int srate, i
 	struct pollfd pfd[1];
 	struct dvb_frontend_event event;
 //	int demux1, dmeux2, demux3;
-	fe_status_t stat;
 	
 //	frequency = (uint32_t)freq;
 //	symbolrate = (uint32_t)srate; 
 	
-	FEReadStatus(fd, &stat);
 
 }
 
 int main(void)
 {
 
-	int front;
+	int front_fd;
+	struct dvb_frontend_info front_info;
 
-	if ((front = open(FRONT, O_RDWR)) < 0) {
+	if ((front_fd = open(FRONT, O_RDWR)) < 0) {
 	
 		perror("FRONTEND DEVICE");
 
@@ -106,6 +169,12 @@ int main(void)
 		
 	}
 
-	set_qam_channel(front, 510000, 0x0001, 0x0002, 0x0003, 7000, 1);
+	FEGetInfo(front_fd, &front_info);
+	FEDumpInfo(&front_info);
+	FEDumpStatus(front_fd);
+
+//	set_qam_channel(front, 510000, 0x0001, 0x0002, 0x0003, 7000, 1);
+
+	close(front_fd);
 
 }	
