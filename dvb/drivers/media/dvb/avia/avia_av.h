@@ -90,7 +90,7 @@
 #define IRQ_ERR		(1 << 0)
 
 #define Abort				0x8120
-#define Digest				0x0621
+#define Digest				0x0521
 #define Fade				0x0223
 #define Freeze				0x0125
 #define NewPlayMode			0x0028
