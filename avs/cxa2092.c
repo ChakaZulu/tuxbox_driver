@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.23  2002/02/28 21:44:34  gillem
+ *   - fix default routing
+ *
  *   Revision 1.22  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -84,7 +87,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -585,6 +588,11 @@ int cxa2092_init(struct i2c_client *client)
 	/* default values */
 	cxa2092_data.asw1 = 1;
 	cxa2092_data.vsw1 = 5;
+
+	cxa2092_data.vsw2 = 1;
+	cxa2092_data.asw2 = 1;
+
+	cxa2092_data.asw3 = 1;
 
 	return cxa2092_set(client);
 }
