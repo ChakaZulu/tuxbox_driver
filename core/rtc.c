@@ -37,11 +37,14 @@
  *	Based on rtc driver from Paul Gortmaker
  *
  *	$Log: rtc.c,v $
+ *	Revision 1.2  2001/12/08 11:24:29  gillem
+ *	- some fixes for mpc8xx rtc (you need a kernel patch !)
+ *	
  *	Revision 1.1  2001/12/07 14:16:54  gillem
  *	- initial release
  *	
  *
- *	$Revision: 1.1 $
+ *	$Revision: 1.2 $
  *
  */
 
@@ -56,7 +59,6 @@
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
-#include <linux/mc146818rtc.h>
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
@@ -70,7 +72,24 @@
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/time.h>
+#include <linux/8xx_rtc.h>
 #endif
+
+static inline unsigned int readtb(void)
+{
+	unsigned int ret;
+
+	asm volatile("mftb %0" : "=r" (ret) :);
+	return ret;
+}
+
+static inline unsigned int readtbu(void)
+{
+	unsigned int ret;
+
+	asm volatile("mftb %0" : "=r" (ret) :);
+	return ret;
+}
 
 /*
  *	We sponge a minor off of the misc major. No need slurping
@@ -129,6 +148,9 @@ static unsigned long rtc_status = 0;	/* bitmapped status byte.	*/
 static unsigned long rtc_freq = 0;	/* Current periodic IRQ rate	*/
 static unsigned long rtc_irq_data = 0;	/* our output to the world	*/
 
+#define RTC_DROP_TIMEOUT 2		/* 2Hz				*/
+static unsigned long rtc_drop_timer = 0;/* internal drop timer		*/
+
 /*
  *	If this driver ever becomes modularised, it will be really nice
  *	to make the epoch retain its value across module reload...
@@ -138,10 +160,6 @@ static unsigned long epoch = 1900;	/* year corresponding to 0x00	*/
 
 static const unsigned char days_in_mo[] = 
 {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-#ifdef CONFIG_NOKIADBOX2
-//unsigned long m8xx_get_rtc_time(void);
-#endif
 
 #if RTC_IRQ
 /*
@@ -168,9 +186,28 @@ static void rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	rtc_irq_data &= ~0xff;
 #ifndef CONFIG_NOKIADBOX2
 	rtc_irq_data |= (CMOS_READ(RTC_INTR_FLAGS) & 0xF0);
+#else
+	if ( ((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc & RTCSC_ALR )
+	{
+		printk("rtc: alr interrupt\n");
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+		((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_ALR;
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+	}
+	else if ( ((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc & RTCSC_SEC )
+	{
+		printk("rtc: sec interrupt\n");
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+		((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_SEC;
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+	}
+
 #endif
 	if (rtc_status & RTC_TIMER_ON)
+	{
+		rtc_drop_timer = 0;
 		mod_timer(&rtc_irq_timer, jiffies + HZ/rtc_freq + 2*HZ/100);
+	}
 
 	spin_unlock (&rtc_lock);
 
@@ -282,6 +319,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		if (!(rtc_status & RTC_TIMER_ON)) {
 			spin_lock_irq (&rtc_lock);
 			rtc_irq_timer.expires = jiffies + HZ/rtc_freq + 2*HZ/100;
+			rtc_drop_timer = 0;
 			add_timer(&rtc_irq_timer);
 			rtc_status |= RTC_TIMER_ON;
 			spin_unlock_irq (&rtc_lock);
@@ -651,7 +689,7 @@ found:
 	 * is asking for trouble with add-on boards. Change to SA_SHIRQ.
 	 */
 	
-	if(request_8xxirq(rtc_irq, rtc_interrupt, SA_INTERRUPT, "rtc", (void *)&rtc_port)) {
+	if(request_8xxirq(RTC_IRQ, rtc_interrupt, SA_INTERRUPT, "rtc", (void *)&rtc_port)) {
 		/*
 		 * Standard way for sparc to print irq's is to use
 		 * __irq_itoa(). I think for EBus it's ok to use %d.
@@ -674,7 +712,9 @@ found:
 		return -EIO;
 	}
 #endif
+#ifndef CONFIG_NOKIADBOX2
 	request_region(RTC_PORT(0), RTC_IO_EXTENT, "rtc");
+#endif
 #endif /* __sparc__ vs. others */
 
 	misc_register(&rtc_dev);
@@ -723,7 +763,12 @@ found:
 	CMOS_WRITE(((CMOS_READ(RTC_FREQ_SELECT) & 0xF0) | 0x06), RTC_FREQ_SELECT);
 #endif
 	spin_unlock_irq(&rtc_lock);
+#ifndef CONFIG_NOKIADBOX2
 	rtc_freq = 1024;
+#else
+	rtc_freq = 1;
+#endif
+
 #endif
 
 	// test only ;-)
@@ -733,18 +778,37 @@ found:
 
 	printk(KERN_INFO "Real Time Clock Driver v" RTC_VERSION "\n");
 
+	printk("TBSCR: %08X\n",((volatile immap_t *)IMAP_ADDR)->im_sit.sit_tbscr);
+	printk("TBU: %08X\n",readtb());
+	printk("TBF: %08X\n",readtbu());
+	printk("TBREFU: %08X\n",((volatile immap_t *)IMAP_ADDR)->im_sit.sit_tbreff0);
+	printk("TBREFL: %08X\n",((volatile immap_t *)IMAP_ADDR)->im_sit.sit_tbreff1);
 	return 0;
 }
 
 static void __exit rtc_exit (void)
 {
+	if ( rtc_status & RTC_TIMER_ON )
+	{
+		mask_rtc_irq_bit(RTC_PIE);
+		spin_lock_irq (&rtc_lock);
+		rtc_status &= ~RTC_TIMER_ON;
+		del_timer(&rtc_irq_timer);
+		spin_unlock_irq (&rtc_lock);
+	}
+
+//	mask_rtc_irq_bit(RTC_AIE);
+//	mask_rtc_irq_bit(RTC_UIE);
+
 	remove_proc_entry ("driver/rtc", NULL);
 	misc_deregister(&rtc_dev);
 
 #ifdef __sparc__
 	free_irq (rtc_irq, &rtc_port);
 #else
+#ifndef CONFIG_NOKIADBOX2
 	release_region (RTC_PORT (0), RTC_IO_EXTENT);
+#endif
 #if RTC_IRQ
 	free_irq (RTC_IRQ, NULL);
 #endif
@@ -780,14 +844,27 @@ static void rtc_dropped_irq(unsigned long data)
 
 	rtc_irq_data += ((rtc_freq/HZ)<<8);
 	rtc_irq_data &= ~0xff;
+
 #ifndef CONFIG_NOKIADBOX2
 	rtc_irq_data |= (CMOS_READ(RTC_INTR_FLAGS) & 0xF0);	/* restart */
+#else
+	rtc_drop_timer++;
+	if( rtc_drop_timer == RTC_DROP_TIMEOUT )
+	{
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+		((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_SEC;
+		((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+		rtc_drop_timer = 0;
+		printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n", freq);
+	}
 #endif
 	freq = rtc_freq;
 
 	spin_unlock_irq(&rtc_lock);
 
+#ifndef CONFIG_NOKIADBOX2
 	printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n", freq);
+#endif
 
 	/* Now we have new data */
 	wake_up_interruptible(&rtc_wait);
@@ -949,7 +1026,7 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
 	ctrl = CMOS_READ(RTC_CONTROL);
 #else
 // later ?       to_tm( m8xx_get_rtc_time(), rtc_tm );
-	printk("rtc: %x\n",(unsigned long)(((immap_t*)IMAP_ADDR)->im_sit.sit_rtc));
+//	printk("rtc: %x\n",(unsigned long)(((immap_t*)IMAP_ADDR)->im_sit.sit_rtc));
 	to_tm( ((unsigned long)(((immap_t *)IMAP_ADDR)->im_sit.sit_rtc)), rtc_tm );
 	ctrl = 0;
 #endif
@@ -994,7 +1071,7 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
 	alm_tm->tm_hour = CMOS_READ(RTC_HOURS_ALARM);
 	ctrl = CMOS_READ(RTC_CONTROL);
 #else
-	printk("rtcal: %x\n",(unsigned long)(((immap_t*)IMAP_ADDR)->im_sit.sit_rtcal));
+//	printk("rtcal: %x\n",(unsigned long)(((immap_t*)IMAP_ADDR)->im_sit.sit_rtcal));
 	to_tm( ((unsigned long)(((immap_t *)IMAP_ADDR)->im_sit.sit_rtcal)), alm_tm );
 	ctrl = 0;
 #endif
@@ -1031,6 +1108,26 @@ static void mask_rtc_irq_bit(unsigned char bit)
 	val &=  ~bit;
 	CMOS_WRITE(val, RTC_CONTROL);
 	CMOS_READ(RTC_INTR_FLAGS);
+#else
+	switch(bit)
+	{
+		case RTC_AIE:
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &= ~RTCSC_ALE;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &= ~RTCSC_ALR;
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+			break;
+		case RTC_PIE:
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &= ~RTCSC_SIE;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &= ~RTCSC_SEC;
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+			break;
+		case RTC_UIE:
+			break;
+		default:
+			break;
+	}
 #endif
 	rtc_irq_data = 0;
 	spin_unlock_irq(&rtc_lock);
@@ -1038,14 +1135,37 @@ static void mask_rtc_irq_bit(unsigned char bit)
 
 static void set_rtc_irq_bit(unsigned char bit)
 {
+#ifndef CONFIG_NOKIADBOX2
 	unsigned char val;
-
+#endif
 	spin_lock_irq(&rtc_lock);
 #ifndef CONFIG_NOKIADBOX2
 	val = CMOS_READ(RTC_CONTROL);
 	val |= bit;
 	CMOS_WRITE(val, RTC_CONTROL);
 	CMOS_READ(RTC_INTR_FLAGS);
+#else
+	switch(bit)
+	{
+		case RTC_AIE:
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &= ~RTCSC_ALR;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_ALE;
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+			break;
+		case RTC_PIE:
+			printk("%08X\n",((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc);
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = KAPWR_KEY;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_SEC;
+			((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |= RTCSC_SIE;
+			((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
+			printk("%08X\n",((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc);
+			break;
+		case RTC_UIE:
+			break;
+		default:
+			break;
+	}
 #endif
 	rtc_irq_data = 0;
 	spin_unlock_irq(&rtc_lock);
