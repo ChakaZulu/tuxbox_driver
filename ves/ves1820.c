@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.10  2001/03/19 18:19:25  gillem
+    - add ioctl GET_UNCORRECTABLE_BLOCKS
+
     Revision 1.9  2001/03/17 13:34:36  gillem
     - fix for multiple interrupts at same time
 
@@ -25,7 +28,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.9 $
+    $Revision: 1.10 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -48,15 +51,17 @@ EXPORT_SYMBOL(ves_write_reg);
 EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
+EXPORT_SYMBOL(ves_get_unc_packet);
 
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
+
+static int debug = 0;
 
 #ifdef MODULE
 MODULE_PARM(debug,"i");
 #endif
 
-static int debug = 1;
 #define dprintk	if (debug) printk
 
 static struct i2c_driver dvbt_driver;
@@ -100,6 +105,7 @@ typedef struct ves1820_s {
         u8 reg0;
 	u32 ber;
 	u8 sync;
+	u32 uncp; /* uncorrectable packet */
 } ves1820_t;
 
 struct tq_struct ves_tasklet=
@@ -182,6 +188,7 @@ int init(struct i2c_client *client)
         ves->reg0=Init1820PTab[0];
 	ves->ber = 0xFFFFFFFF;
 	ves->sync = 0;
+	ves->uncp = 0;
 
         writereg(client, 0x34, ves->pwm);
         return 0;
@@ -364,7 +371,7 @@ int attach_adapter(struct i2c_adapter *adap)
         printk("ves1820.o: attached to adapter %s\n", adap->name);
 
 	/* mask interrupt */
-	writereg(client, 0x32 , 0x80 | 1 | (1<<2) | (1<<3));
+	writereg(client, 0x32 , 0x80 | 1 | (1<<1) | (1<<2) | (1<<3));
 
 	ves_tasklet.data = (void*)client->data;
 
@@ -430,6 +437,15 @@ void ves_get_frontend(struct frontend *front)
 */
 } 
 
+int ves_get_unc_packet(u32 *uncp)
+{
+	ves1820_t *ves = (ves1820_t*)dclient->data;
+
+	*uncp=ves->uncp;
+
+	return 0;
+}
+
 /* ---------------------------------------------------------------------- */
 
 void inc_use (struct i2c_client *client)
@@ -476,18 +492,30 @@ static void ves_task(void*data)
 
 	status = readreg(dclient, 0x33);
 
-	/* ves synchronized */
-	if (status&1)
+	/* ves (not) synchronized */
+	if ( status&(1|(1<<1)) )
 	{
-		ves->sync = readreg(dclient,0x11)&0x1F;
-		dprintk("ves1820.o: synchronized %02X\n",ves->sync);
+		ves->sync = readreg(dclient,0x11);
+
+		if( ves->sync==0x1f )
+		{
+			dprintk("ves1820.o: synchronized %02X\n",ves->sync);
+		}
+		else
+		{
+			dprintk("ves1820.o: not synchronized %02X\n",ves->sync);
+		}
 	}
-	/* ves not synchronized */
-	if (status&(1<<2))
+
+	/* uncorrectable packet */
+	if ( status&(1<<2) )
 	{
-		ves->sync = readreg(dclient,0x11)&0x1f;
-		dprintk("ves1820.o: not synchronized %02X\n",ves->sync);
+		// TODO: overflow check ???
+		ves->uncp++;
+
+		dprintk("ves1820.o: uncorrectable packet %04X\n",ves->uncp);
 	}
+
 	/* ber changed */
 	if (status&(1<<3))
 	{

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.20 2001/03/17 16:23:48 tmbinc Exp $
+ * $Id: dvb.c,v 1.21 2001/03/19 18:20:24 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -624,7 +624,21 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     case FE_READ_SNR:
       return -ENOSYS;
     case FE_READ_UNCORRECTED_BLOCKS:
-      return -ENOSYS;
+    {
+      uint32_t uncp;
+
+      if ( ves_get_unc_packet(&uncp) < 0 )
+      {
+        return -ENOSYS;
+      }
+      else
+      {
+        if (copy_to_user(parg, &uncp, sizeof(uncp)))
+          return -EFAULT;
+      }
+
+      break;
+    }
     case FE_GET_NEXT_FREQUENCY:
     {
       uint32_t freq;
