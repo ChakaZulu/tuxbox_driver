@@ -58,7 +58,7 @@ dep-files: $(KERNEL_LOCATION)/scripts/mkdep
 	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)" TOPDIR=$(KERNEL_LOCATION)
 
 clean:
-	find . \( -name '*.[oas]' -o -name core -o -name '.*.flags' \) -type f -print | xargs rm -f
+	find . \( -name '*.[oas]' -o -name '.*.flags' \) -type f -print | xargs rm -f
 
 mrproper: clean
 	find . \( -size 0 -o -name .depend \) -type f -print | xargs rm -f
