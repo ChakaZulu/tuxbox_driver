@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.40 2004/02/21 21:56:36 carjay Exp $
+ * $Id: saa7126_core.c,v 1.41 2004/03/11 14:36:14 derget Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -549,8 +549,12 @@ static int saa7126_command(struct i2c_client *client, unsigned int cmd, void *pa
 		switch (arg) {
 		case VIDEO_MODE_NTSC:
 			saa7126_set_norm(client, 0);
+		        saa7126_writereg(client, 0x2d, encoder->reg_2d);
+        		saa7126_writereg(client, 0x3a, encoder->reg_3a);
 		case VIDEO_MODE_PAL:
 			saa7126_set_norm(client, 1);
+		        saa7126_writereg(client, 0x2d, encoder->reg_2d);
+        		saa7126_writereg(client, 0x3a, encoder->reg_3a);
 			break;
 		default:
 			return -EINVAL;
