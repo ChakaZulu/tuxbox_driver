@@ -36,7 +36,7 @@
 
 
 static int dvb_frontend_debug = 0;
-static int dvb_shutdown_timeout = 0;
+static int dvb_shutdown_timeout = 5;
 
 #define dprintk if (dvb_frontend_debug) printk
 
@@ -297,38 +297,6 @@ int dvb_frontend_get_event (struct dvb_frontend_data *fe,
 
 
 static
-struct dvb_frontend_parameters default_param [] = {
-	{						/* NTV on Astra */
-		frequency: 12669500-10600000,
-		inversion: INVERSION_OFF,
-		{ qpsk: { symbol_rate: 22000000, fec_inner: FEC_AUTO } }
-	},
-	{						/* Cable */
-		frequency: 394000000,
-		inversion: INVERSION_OFF,
-		{ qam:  { symbol_rate: 6900000,
-			  fec_inner: FEC_AUTO,
-			  modulation: QAM_64
-			}
-		}
-	},
-	{						/* DVB-T */
-		frequency: 730000000,
-		inversion: INVERSION_OFF,
-		{ ofdm: { bandwidth: BANDWIDTH_8_MHZ,
-			  code_rate_HP: FEC_2_3,
-			  code_rate_LP: FEC_1_2,
-			  constellation: QAM_16,
-			  transmission_mode: TRANSMISSION_MODE_2K,
-			  guard_interval: GUARD_INTERVAL_1_8,
-			  hierarchy_information: HIERARCHY_NONE
-			}
-		}
-	}
-};
-
-
-static
 int dvb_frontend_set_parameters (struct dvb_frontend_data *fe,
 				 struct dvb_frontend_parameters *param,
 				 int first_trial)
@@ -336,8 +304,7 @@ int dvb_frontend_set_parameters (struct dvb_frontend_data *fe,
 	struct dvb_frontend *frontend = &fe->frontend;
 	int err;
 
-	/*dvb_bend_frequency (fe, 0);*/
-	fe->bending = 0;
+	dvb_bend_frequency (fe, 0);
 
 	if (first_trial) {
 		fe->timeout_count = 0;
@@ -366,23 +333,11 @@ static
 void dvb_frontend_init (struct dvb_frontend_data *fe)
 {
 	struct dvb_frontend *frontend = &fe->frontend;
-	struct dvb_frontend_parameters *init_param;
 
 	printk ("DVB: initialising frontend %i:%i (%s)...\n",
 		frontend->i2c->adapter->num, frontend->i2c->id, fe->info->name);
 
 	dvb_frontend_internal_ioctl (frontend, FE_INIT, NULL);
-
-	if (fe->info->type == FE_QPSK) {
-		dvb_frontend_internal_ioctl (frontend, FE_SET_VOLTAGE,
-					     (void*) SEC_VOLTAGE_13);
-		dvb_frontend_internal_ioctl (frontend, FE_SET_TONE,
-					     (void*) SEC_TONE_ON);
-	}
-
-	init_param = &default_param[fe->info->type-FE_QPSK];
-
-	dvb_frontend_set_parameters (fe, init_param, 1);
 }
 
 
@@ -465,7 +420,7 @@ int dvb_frontend_is_exiting (struct dvb_frontend_data *fe)
 	if (fe->exit)
 		return 1;
 
-	if (fe->dvbdev->users == 0 && dvb_shutdown_timeout)
+	if (fe->dvbdev->users == 1 && dvb_shutdown_timeout)
 		if (jiffies - fe->release_jiffies > dvb_shutdown_timeout * HZ)
 			return 1;
 
@@ -539,19 +494,6 @@ int dvb_frontend_thread (void *data)
 
 
 static
-void dvb_frontend_start (struct dvb_frontend_data *fe)
-{
-	dprintk ("%s\n", __FUNCTION__);
-
-	if (!fe->exit && !fe->thread) {
-		if (down_interruptible (&fe->sem))
-			return;
-		kernel_thread (dvb_frontend_thread, fe, 0);
-	}
-}
-
-
-static
 void dvb_frontend_stop (struct dvb_frontend_data *fe)
 {
 	dprintk ("%s\n", __FUNCTION__);
@@ -563,6 +505,23 @@ void dvb_frontend_stop (struct dvb_frontend_data *fe)
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout (5);
 	};
+}
+
+
+static
+void dvb_frontend_start (struct dvb_frontend_data *fe)
+{
+	dprintk ("%s\n", __FUNCTION__);
+
+	if (fe->thread)
+		dvb_frontend_stop (fe);
+
+	if (down_interruptible (&fe->sem))
+		return;
+
+	fe->exit = 0;
+
+	kernel_thread (dvb_frontend_thread, fe, 0);
 }
 
 
@@ -709,7 +668,6 @@ dvb_add_frontend_ioctls (struct dvb_adapter *adapter,
 			fe->frontend.before_ioctl = before_ioctl;
 			fe->frontend.after_ioctl = after_ioctl;
 			fe->frontend.before_after_data = before_after_data;
-			dvb_frontend_start (fe);
 			frontend_count++;
 		}
 	}
@@ -894,7 +852,6 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 			fe->frontend.before_ioctl = ioctl->before_ioctl;
 			fe->frontend.after_ioctl = ioctl->after_ioctl;
 			fe->frontend.before_after_data = ioctl->before_after_data;
-			dvb_frontend_start (fe);
 			break;
 		}
 	}

@@ -15,7 +15,6 @@ EXPORT_SYMBOL(dvb_dmx_init);
 EXPORT_SYMBOL(dvb_dmx_release);
 EXPORT_SYMBOL(dvb_dmx_swfilter_packet);
 EXPORT_SYMBOL(dvb_dmx_swfilter_packets);
-EXPORT_SYMBOL(dvb_crc32);
 
 EXPORT_SYMBOL(dvb_register_frontend);
 EXPORT_SYMBOL(dvb_unregister_frontend);

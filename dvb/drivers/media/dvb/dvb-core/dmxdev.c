@@ -27,6 +27,7 @@
 #include <linux/videodev.h>
 #include <asm/uaccess.h>
 
+#include "compat.h"
 #include "dmxdev.h"
 
 
@@ -556,11 +557,11 @@ dvb_dmxdev_filter_start(dmxdev_filter_t *dmxdevfilter)
 
         if (dmxdevfilter->state<DMXDEV_STATE_SET) 
 	        return -EINVAL;
-        if (dmxdevfilter->state>=DMXDEV_STATE_GO)
+
+	if (dmxdevfilter->state>=DMXDEV_STATE_GO)
 	        dvb_dmxdev_filter_stop(dmxdevfilter); 
 
-	mem=dmxdevfilter->buffer.data;
-	if (!mem) {
+	if (!(mem = dmxdevfilter->buffer.data)) {
                 mem=vmalloc(dmxdevfilter->buffer.size);
 	        spin_lock_irq(&dmxdevfilter->dev->lock);
 		dmxdevfilter->buffer.data=mem;
@@ -701,16 +702,21 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 
 	if (!dmxdev->filter)
 	        return -EINVAL;
-        if (down_interruptible(&dmxdev->mutex))
+
+	if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
-        for (i=0; i<dmxdev->filternum; i++)
+
+	for (i=0; i<dmxdev->filternum; i++)
                 if (dmxdev->filter[i].state==DMXDEV_STATE_FREE)
                         break;
-        if (i==dmxdev->filternum) {
+
+	if (i==dmxdev->filternum) {
 	        up(&dmxdev->mutex);
                 return -EMFILE;
 	}
-        dmxdevfilter=&dmxdev->filter[i];
+
+	dmxdevfilter=&dmxdev->filter[i];
+	sema_init(&dmxdevfilter->mutex, 1);
         dmxdevfilter->dvbdev=dmxdev->dvbdev;
 	file->private_data=dmxdevfilter;
 
@@ -724,12 +730,18 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
         return 0;
 }
 
-int 
-dvb_dmxdev_filter_free(dmxdev_t *dmxdev, dmxdev_filter_t *dmxdevfilter)
+
+static
+int dvb_dmxdev_filter_free(dmxdev_t *dmxdev, dmxdev_filter_t *dmxdevfilter)
 {
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
+	if (down_interruptible(&dmxdevfilter->mutex)) {
+		up(&dmxdev->mutex);
+		return -ERESTARTSYS;
+	}
+	
         dvb_dmxdev_filter_stop(dmxdevfilter);
 	dvb_dmxdev_filter_reset(dmxdevfilter);
         
@@ -741,8 +753,10 @@ dvb_dmxdev_filter_free(dmxdev_t *dmxdev, dmxdev_filter_t *dmxdevfilter)
 	        spin_unlock_irq(&dmxdev->lock);
 		vfree(mem);
 	}
+
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_FREE);
 	wake_up(&dmxdevfilter->buffer.queue);
+	up(&dmxdevfilter->mutex);
 	up(&dmxdev->mutex);
         return 0;
 }
@@ -845,18 +859,19 @@ ssize_t
 dvb_demux_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
         dmxdev_filter_t *dmxdevfilter=dvb_dmxdev_file_to_filter(file);
-	//dmxdev_t *dmxdev=dmxdevfilter->dev;
 	int ret=0;
 
-	// semaphore should not be necessary (I hope ...)
-        //down(&dmxdev->mutex);
+	if (down_interruptible(&dmxdevfilter->mutex))
+		return -ERESTARTSYS;
+
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 	        ret=dvb_dmxdev_read_sec(dmxdevfilter, file, buf, count, ppos);
 	else
 	        ret=dvb_dmxdev_buffer_read(&dmxdevfilter->buffer, 
 				     file->f_flags&O_NONBLOCK, 
 				     buf, count, ppos);
-        //up(&dmxdev->mutex);
+
+	up(&dmxdevfilter->mutex);
 	return ret;
 }
 
@@ -873,29 +888,54 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 		return -ERESTARTSYS;
 
 	switch (cmd) {
-	case DMX_START: 
+	case DMX_START:
+		if (down_interruptible(&dmxdevfilter->mutex)) {
+			up(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
 	        if (dmxdevfilter->state<DMXDEV_STATE_SET)
 		        ret=-EINVAL;
 		else
 		        ret=dvb_dmxdev_filter_start(dmxdevfilter);
+		up(&dmxdevfilter->mutex);
 		break;
 
-	case DMX_STOP: 
+	case DMX_STOP:
+		if (down_interruptible(&dmxdevfilter->mutex)) {
+			up(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
 		ret=dvb_dmxdev_filter_stop(dmxdevfilter);
+		up(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_FILTER: 
+		if (down_interruptible(&dmxdevfilter->mutex)) {
+			up(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
 		ret=dvb_dmxdev_filter_set(dmxdev, dmxdevfilter, 
 				    (struct dmx_sct_filter_params *)parg);
+		up(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_PES_FILTER: 
+		if (down_interruptible(&dmxdevfilter->mutex)) {
+			up(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
 		ret=dvb_dmxdev_pes_filter_set(dmxdev, dmxdevfilter, 
 					       (struct dmx_pes_filter_params *)parg);
+		up(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_BUFFER_SIZE: 
+		if (down_interruptible(&dmxdevfilter->mutex)) {
+			up(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
 	        ret=dvb_dmxdev_set_buffer_size(dmxdevfilter, arg);
+		up(&dmxdevfilter->mutex);
 		break;
         
         case DMX_GET_EVENT: 

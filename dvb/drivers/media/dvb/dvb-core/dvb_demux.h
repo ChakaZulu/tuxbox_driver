@@ -71,7 +71,7 @@ struct dvb_demux_feed {
 	} cb;
 
         struct dvb_demux *demux;
-        void *priv;
+	void *priv;
         int type;
         int state;
         u16 pid;
@@ -96,12 +96,13 @@ struct dvb_demux {
         void *priv;
         int filternum;
         int feednum;
-        int (*start_feed)(struct dvb_demux_feed *);
-        int (*stop_feed)(struct dvb_demux_feed *);
-        int (*write_to_decoder)(struct dvb_demux_feed *, u8 *, size_t);
-        u32 (*crc32)(struct dvb_demux_feed *, u8 *, size_t);
-        void (*memcpy)(struct dvb_demux_feed *, u8 *, u8 *, size_t);
-
+        int (*start_feed) (struct dvb_demux_feed *);
+        int (*stop_feed) (struct dvb_demux_feed *);
+        int (*write_to_decoder) (struct dvb_demux_feed *, u8 *buf, size_t len);
+	u32 (*check_crc32) (struct dvb_demux_feed *, u32 seed,
+			    const u8 *buf, size_t len);
+	void (*memcopy) (struct dvb_demux_feed *, u8 *dst,
+			 const u8 *src, size_t len);
   
         int users;
 #define MAX_DVB_DEMUX_USERS 10
@@ -129,6 +130,5 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux);
 int dvb_dmx_release(struct dvb_demux *dvbdemux);
 void dvb_dmx_swfilter_packet(struct dvb_demux *dvbdmx, const u8 *buf);
 void dvb_dmx_swfilter_packets(struct dvb_demux *dvbdmx, const u8 *buf, int count);
-u32 dvb_crc32(u8 *data, size_t len, u32 seed);
 
 #endif /* _DVB_DEMUX_H_ */
