@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.58 2002/01/31 21:08:13 gillem Exp $
+ * $Id: dvb.c,v 1.59 2002/02/01 08:06:48 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -68,14 +68,34 @@
 
 typedef struct dvb_struct
 {
-	dmxdev_t						dmxdev;
-	dvb_device_t					dvb_dev;
-	struct frontend					front;
+	int				num;
+
+	dmxdev_t			dmxdev;
+	struct frontend			front;
 	struct demod_function_struct	*demod;
-	qpsk_t							qpsk;
-	struct videoStatus				videostate;
-	int								num;
-	dvb_net_t						*dvb_net;
+	qpsk_t				qpsk;
+	struct videoStatus		videostate;
+//        int                     	display_ar;
+        int                     	trickmode;
+#define TRICK_NONE   0
+#define TRICK_FAST   1
+#define TRICK_SLOW   2
+#define TRICK_FREEZE 3
+
+        /* Recording and playback flags */
+
+        int                     rec_mode;
+        int                     playing;
+#define RP_NONE  0
+#define RP_VIDEO 1
+#define RP_AUDIO 2
+#define RP_AV    3
+
+        /* DVB device */
+
+        struct dvb_device dvb_dev;
+        dvb_net_t * dvb_net;
+
 } dvb_struct_t;
 
 static dvb_struct_t dvb;
@@ -892,74 +912,80 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	{
 		case DVB_DEVICE_VIDEO:
 		{
-			if (((file->f_flags&O_ACCMODE)==O_RDONLY) && (cmd!=VIDEO_GET_STATUS))
-				return -EPERM;
+	                if (((file->f_flags&O_ACCMODE)==O_RDONLY) &&
+        	            (cmd!=VIDEO_GET_STATUS))
+                	        return -EPERM;
 
 			switch (cmd)
 			{
 				case VIDEO_STOP:
 				{
 					dvb->videostate.playState=VIDEO_STOPPED;
-					//printk("CHCH [DECODER] ABORT\n");
-					avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-					//avia_command(Abort, 0);
-					break;
+					if (dvb->videostate.streamSource==VIDEO_SOURCE_MEMORY) {
+                                		//AV_Stop(dvb, RP_VIDEO);
+					} else {
+						avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
+						//avia_command(Abort, 0);
+					}
+					dvb->trickmode=TRICK_NONE;
+                		        break;
 				}
 				case VIDEO_PLAY:
 				{
-					//printk("CHCH [DECODER] PLAY\n");
-					avia_command(NewChannel, 0, 0, 0);
-					//avia_command(Play, 0, 0, 0);
-					udelay(10*1000);
-					//avia_flush_pcr();
-					
-					//if (dvb->dmxdev.demux)
-					//	dvb->dmxdev.demux->flush_pcr();
+					dvb->trickmode=TRICK_NONE;
+					if (dvb->videostate.playState==VIDEO_FREEZED) {
+						dvb->videostate.playState=VIDEO_PLAYING;
+						avia_wait(avia_command(Resume));
+					}
+
+					if (dvb->videostate.streamSource==VIDEO_SOURCE_MEMORY) {
+                                		if (dvb->playing==RP_AV) {
+							dvb->playing&=~RP_VIDEO;
+						}
+						//AV_StartPlay(dvb,RP_VIDEO);
+					} else {
+						avia_command(NewChannel, 0, 0, 0);
+						udelay(10*1000);
+					}
 					dvb->videostate.playState=VIDEO_PLAYING;
 					break;
 				}
 				case VIDEO_FREEZE:
 				{
 					dvb->videostate.playState=VIDEO_FREEZED;
-					avia_wait(avia_command(Freeze, 1));
+                        		if (dvb->playing&RP_VIDEO) {
+						//
+					} else {
+						avia_wait(avia_command(Freeze, 1));
+					}
+                        		dvb->trickmode=TRICK_FREEZE;
 					break;
 				}
 				case VIDEO_CONTINUE:
 				{
-					if (dvb->videostate.playState==VIDEO_FREEZED)
-					{
-						dvb->videostate.playState=VIDEO_PLAYING;
+                        		if (dvb->playing&RP_VIDEO) {
+						//
+					}
+
+					if (dvb->videostate.playState==VIDEO_FREEZED) {
 						avia_wait(avia_command(Resume));
 					}
+					dvb->videostate.playState=VIDEO_PLAYING;
+					dvb->trickmode=TRICK_NONE;
 					break;
 				}
 				case VIDEO_SELECT_SOURCE:
 				{
-					if (dvb->videostate.playState==VIDEO_STOPPED)
-					{
-						dvb->videostate.streamSource=(videoStreamSource_t) arg;
-						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
-							return -EINVAL;
-						//printk("CHCH [DECODER] SETSTREAMTYPE\n");
-						avia_command(SetStreamType, 0xB);
-						
-						avia_flush_pcr();
-					
-						if (dvb->dmxdev.demux)
-						    dvb->dmxdev.demux->flush_pcr();
-						
-						
-						
-						//avia_command(SelectStream, 0, 0);
-						//avia_command(SelectStream, 2, 0);
-						//avia_command(SelectStream, 3, 0);
-						
-						//udelay(1000*10);
-						//avia_command(NewChannel,0,0,0);
-						//wDR(0x468, 0xFFFF);	// new audio config
-
-					} else
+					if (((videoStreamSource_t) arg)!=VIDEO_SOURCE_DEMUX)
 						return -EINVAL;
+
+					dvb->videostate.streamSource=(videoStreamSource_t) arg;
+
+					avia_command(SetStreamType, 0xB);
+					avia_flush_pcr();
+					
+					if (dvb->dmxdev.demux)
+					    dvb->dmxdev.demux->flush_pcr();
 					break;
 				}
 				case VIDEO_SET_BLANK:
@@ -969,57 +995,142 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_GET_STATUS:
 				{
-					if(copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
+					if (copy_to_user(parg, &dvb->videostate,
+						sizeof(struct videoStatus)))
 						return -EFAULT;
 					break;
 				}
 				case VIDEO_GET_EVENT:
 				{
-					return -ENOTSUPP;
+					//FIXME: write firmware support for this [*ggg*]
+					return -EOPNOTSUPP;
 				}
 				case VIDEO_SET_DISPLAY_FORMAT:
 				{
-					switch ((videoDisplayFormat_t)arg)
+					videoDisplayFormat_t format=(videoDisplayFormat_t) arg;
+					u16 val=0;
+
+					switch (format)
 					{
 						case VIDEO_PAN_SCAN:
-							printk("SWITCH PAN SCAN\n");
-							dvb->videostate.displayFormat = VIDEO_PAN_SCAN;
-							wDR(ASPECT_RATIO_MODE, 1);
-							return 0;
+							val=1;
+							break;
 						case VIDEO_LETTER_BOX:
-							printk("SWITCH LETTER BOX\n");
-							dvb->videostate.displayFormat = VIDEO_LETTER_BOX;
-							wDR(ASPECT_RATIO_MODE, 2);
-							return 0;
+							val=2;
+							break;
 						case VIDEO_CENTER_CUT_OUT:
-							printk("SWITCH CENTER CUT OUT\n");
-							dvb->videostate.displayFormat = VIDEO_CENTER_CUT_OUT;
-							wDR(ASPECT_RATIO_MODE, 0);
-							return 0;
+							val=0;
+							break;
 						default:
 							return -ENOTSUPP;
 					}
 
-					return -ENOTSUPP;
+					dvb->videostate.displayFormat=format;
+					//dvb->videostate.videoFormat=format; ??? ich glaube wohl nicht ...
+					wDR(ASPECT_RATIO_MODE, val);
+
+					break;
+				}
+				case VIDEO_SET_FORMAT:
+				{
+					videoFormat_t format=(videoFormat_t) arg;
+					u16 val=0;
+
+					switch (format)
+					{
+						case VIDEO_FORMAT_4_3:
+							val=2;
+							break;
+						case VIDEO_FORMAT_16_9:
+							val=3;
+							break;
+						case VIDEO_FORMAT_20_9:
+							val=3;
+							break;
+						default:
+							return -ENOTSUPP;
+					}
+
+					dvb->videostate.videoFormat = format;
+					//dvb->display_ar=arg; ???
+					wDR(FORCE_CODED_ASPECT_RATIO, val);
+
+					break;
 				}
 				case VIDEO_STILLPICTURE:
 				{
+					struct videoDisplayStillPicture pic;
+
+					if(copy_from_user(&pic, parg,
+						sizeof(struct videoDisplayStillPicture))) {
+						return -EFAULT;
+					}
+
+					//ring_buffer_flush(&dvb->avout);
+					//play_iframe(dvb, pic.iFrame, pic.size,
+					//	file->f_flags&O_NONBLOCK);
 					return -ENOTSUPP;
 				}
 				case VIDEO_FAST_FORWARD:
 				{
+					/*//note: arg is ignored by firmware
+					if (dvb->playing&RP_VIDEO)
+						outcom(dvb, COMTYPE_REC_PLAY,
+							__Scan_I, 2, AV_PES, 0);
+					else
+						vidcom(dvb, 0x16, arg);
+
+					dvb->trickmode=TRICK_FAST;
+					dvb->videostate.playState=VIDEO_PLAYING;
+					break*/
 					return -ENOTSUPP;
 				}
 				case VIDEO_SLOWMOTION:
 				{
+                        		/*if (dvb->playing&RP_VIDEO) {
+                                		outcom(dvb, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
+                                		vidcom(dvb, 0x22, arg);
+                        		} else {
+                                		vidcom(dvb, 0x0d, 0);
+                                		vidcom(dvb, 0x0e, 0);
+                                		vidcom(dvb, 0x22, arg);
+                        		}
+                        		dvb->trickmode=TRICK_SLOW;
+                        		dvb->videostate.playState=VIDEO_PLAYING;
+                        		break;*/
 					return -ENOTSUPP;
 				}
 				case VIDEO_GET_CAPABILITIES:
 				{
+                        		/*int cap=VIDEO_CAP_MPEG1|
+                                		VIDEO_CAP_MPEG2|
+                                		VIDEO_CAP_SYS|
+                                		VIDEO_CAP_PROG;
+
+                        		if (copy_to_user(parg, &cap, sizeof(cap)))
+                                		ret=-EFAULT;
+                        		break;*/
 					return -ENOTSUPP;
 				}
 				case VIDEO_CLEAR_BUFFER:
 				{
+                        		/*ring_buffer_flush(&dvb->avout);
+                        		reset_ipack(&dvb->ipack[1]);
+
+                        		if (dvb->playing==RP_AV) {
+                                		outcom(dvb, COMTYPE_REC_PLAY,
+                                      		 __Play, 2, AV_PES, 0);
+                                		if (dvb->trickmode==TRICK_FAST)
+		                                        outcom(dvb, COMTYPE_REC_PLAY,
+                		                               __Scan_I, 2, AV_PES, 0);
+		                                if (dvb->trickmode==TRICK_SLOW) {
+		                                        outcom(dvb, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
+                		                        vidcom(dvb, 0x22, arg);
+	                	                }
+		                                if (dvb->trickmode==TRICK_FREEZE)
+        		                                vidcom(dvb, 0x000e, 1);
+		                        }
+		                        break;*/
 					return -ENOTSUPP;
 				}
 				case VIDEO_SET_ID:
@@ -1028,31 +1139,6 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case VIDEO_SET_STREAMTYPE:
 				{
-					return -ENOTSUPP;
-				}
-				case VIDEO_SET_FORMAT:
-				{
-					switch ((videoFormat_t)arg)
-					{
-						case VIDEO_FORMAT_4_3:
-							printk("SWITCH 4:3\n");
-							dvb->videostate.videoFormat = VIDEO_FORMAT_4_3;
-							wDR(FORCE_CODED_ASPECT_RATIO, 2);
-							return 0;
-						case VIDEO_FORMAT_16_9:
-							printk("SWITCH 16:9\n");
-							dvb->videostate.videoFormat = VIDEO_FORMAT_16_9;
-							wDR(FORCE_CODED_ASPECT_RATIO, 3);
-							return 0;
-						case VIDEO_FORMAT_20_9:
-							printk("SWITCH 20:9\n");
-							dvb->videostate.videoFormat = VIDEO_FORMAT_20_9;
-							wDR(FORCE_CODED_ASPECT_RATIO, 4);
-							return 0;
-						default:
-							return -ENOTSUPP;
-					}
-
 					return -ENOTSUPP;
 				}
 				case VIDEO_SET_SYSTEM:
@@ -1648,7 +1734,9 @@ unsigned int dvb_poll(struct dvb_device *dvbdev, int type, struct file *file, po
 	return 0;
 }
 
-/* device register */
+/******************************************************************************
+ * driver registration
+ ******************************************************************************/
 
 static int dvb_register(struct dvb_struct *dvb)
 {
@@ -1671,6 +1759,17 @@ static int dvb_register(struct dvb_struct *dvb)
 
 	// audiostate
 
+        // init and register dvb device structure
+/* new
+        dvbd->priv=(void *) dvb;
+        dvbd->open=dvbdev_open;
+        dvbd->close=dvbdev_close;
+        dvbd->read=dvbdev_read;
+        dvbd->write=dvbdev_write;
+        dvbd->ioctl=dvbdev_ioctl;
+        dvbd->poll=dvbdev_poll;
+        dvbd->device_type=dvbdev_device_type;
+*/
 	dvbd->priv=(void *)dvb;
 	dvbd->open=dvb_open;
 	dvbd->close=dvb_close;
