@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.6  2001/07/23 15:43:32  gillem
+ *   - add rgb control
+ *
  *   Revision 1.5  2001/07/21 19:20:42  gillem
  *   - fix default values
  *
@@ -37,7 +40,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -84,7 +87,7 @@ typedef struct s_stv6412_data {
  /* Data 3 */
  unsigned char rgb_tri			: 1;
  unsigned char rgb_gain			: 3;
- unsigned char rgb_sc			: 2;
+ unsigned char rgb_vsc			: 2;
  unsigned char fblk				: 2;
  /* Data 4 */
  unsigned char it_enable		: 1;
@@ -181,10 +184,17 @@ inline int stv6412_set_vsw( struct i2c_client *client, int sw, int type )
 
     switch(sw)
 	{
-        case 0:
+        case 0:	// vcr
             stv6412_data.v_vsc = type;
             break;
-        case 2:
+        case 1:	// rgb
+			if (type<0 || type>2)
+			{
+				return -EINVAL;
+		    }
+            stv6412_data.rgb_vsc = type;
+            break;
+        case 2: // tv
             stv6412_data.t_vsc = type;
             break;
         default:
@@ -214,7 +224,6 @@ inline int stv6412_set_asw( struct i2c_client *client, int sw, int type )
 			{
 				return -EINVAL;
 		    }
-
             stv6412_data.tc_asc = type;
             break;
         default:
@@ -293,6 +302,9 @@ inline int stv6412_get_vsw( int sw )
         case 0:
             return stv6412_data.v_vsc;
             break;
+		case 1:
+			return stv6412_data.rgb_vsc;
+			break;
         case 2:
 			return stv6412_data.t_vsc;
             break;
@@ -434,9 +446,10 @@ int stv6412_init(struct i2c_client *client)
 	/* Data 3 */
 	stv6412_data.rgb_tri  = 1;
 	stv6412_data.rgb_gain = 3;
-	stv6412_data.rgb_sc   = 1;
-	stv6412_data.fblk     = 1;
+	stv6412_data.rgb_vsc  = 1;
+	stv6412_data.fblk     = 0;
 	/* Data 4 */
+	stv6412_data.v_coc = 1;
 	stv6412_data.v_cgc = 1;
 	/* Data 5 */
 	stv6412_data.e_aig = 1;
@@ -446,7 +459,7 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.r_out = 1;
 
 	for(i=0;i<7;i++)
-		printk("%02X ",((char*)(&stv6412_data))[i]);
+		printk("%02X ",((char*)(&stv6412_data))[i]&0xff);
 	printk("\n");
 	return stv6412_set(client);
 }
