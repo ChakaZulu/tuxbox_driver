@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.205 2004/06/04 14:03:01 ghostrider Exp $
+ * $Id: avia_gt_dmx.c,v 1.206 2004/06/04 14:21:00 diemade Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1345,7 +1345,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 	
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.205 2004/06/04 14:03:01 ghostrider Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.206 2004/06/04 14:21:00 diemade Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 	ucode_info = avia_gt_dmx_get_ucode_info();
