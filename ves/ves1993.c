@@ -306,7 +306,7 @@ static int dump(struct i2c_client *client)
 static int ves_set_sec(int power, int tone){
      
 	dprintk("VES1993: Set SEC\n"); 
-	fp_sagem_set_SECpower(power);
+	fp_sagem_set_SECpower(power,tone);
 
 	return 0;
 }
@@ -605,8 +605,8 @@ static struct i2c_client client_template = {
 
 int ves_send_diseqc(u8 *cmd, unsigned int len)
 {
-  //return fp_send_diseqc(2,cmd,len);
-	return 0;
+  return fp_send_diseqc(2,cmd,len);
+	//return 0;
 }
 
 /* ---------------------------------------------------------------------- */
