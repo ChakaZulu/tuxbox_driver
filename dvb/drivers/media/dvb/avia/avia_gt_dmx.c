@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.163 2003/01/19 14:40:42 gandalfx Exp $
+ * $Id: avia_gt_dmx.c,v 1.164 2003/03/09 17:47:34 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -84,6 +84,9 @@ extern void avia_set_pcr(u32 hi, u32 lo);
 static void gtx_pcr_interrupt(unsigned short irq);
 static s8 section_filter_umap[32];
 static sFilter_Definition_Entry filter_definition_table[32];
+static s8 video_queue_client = -1;
+static s8 audio_queue_client = -1;
+static s8 teletext_queue_client = -1;
 
 static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*64bytes. BEWARE OF THE ALIGNING!
 									// DO NOT CHANGE UNLESS YOU KNOW WHAT YOU'RE DOING!
@@ -99,6 +102,75 @@ static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*
 };
 
 static const u8 queue_system_map[] = {2, 0, 1};
+
+static void avia_gt_dmx_enable_disable_system_queue_irqs(void) {
+	unsigned queue_nr;
+	s8 new_video_queue_client = -1;
+	s8 new_audio_queue_client = -1;
+	s8 new_teletext_queue_client = -1;
+	u32 write_pos;
+
+	for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr < AVIA_GT_DMX_QUEUE_COUNT; queue_nr++)
+	{
+		if (queue_list[queue_nr].running == 0) {
+			continue;
+		}
+		if ( (new_video_queue_client == -1) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid != 0xFFFF) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid == queue_list[queue_nr].pid) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].mode == queue_list[queue_nr].mode) ) {
+			new_video_queue_client = queue_nr;
+		}
+
+		if ( (new_audio_queue_client == -1) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_AUDIO].pid != 0xFFFF) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_AUDIO].pid == queue_list[queue_nr].pid) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_AUDIO].mode == queue_list[queue_nr].mode) ) {
+			new_audio_queue_client = queue_nr;
+		}
+
+		if ( (new_teletext_queue_client == -1) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].pid != 0xFFFF) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].pid == queue_list[queue_nr].pid) &&
+		     (queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].mode == queue_list[queue_nr].mode) ) {
+			new_teletext_queue_client = queue_nr;
+		}
+	}
+
+	if ( (video_queue_client == -1) && (audio_queue_client == -1) &&
+	     ( (new_video_queue_client != -1) || (new_audio_queue_client != -1) ) ) {
+		video_queue_client = new_video_queue_client;
+		audio_queue_client = new_audio_queue_client;
+		write_pos = avia_gt_dmx_queue_get_write_pos(AVIA_GT_DMX_QUEUE_VIDEO);
+		queue_list[AVIA_GT_DMX_QUEUE_VIDEO].hw_write_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_VIDEO].hw_read_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_VIDEO].write_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_VIDEO].read_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_VIDEO].overflow_count = 0;
+		avia_gt_dmx_queue_irq_enable(AVIA_GT_DMX_QUEUE_VIDEO);
+	}
+	else if ( (new_video_queue_client == -1) && (new_audio_queue_client == -1) && ((video_queue_client != -1) || (audio_queue_client != -1)) ) {
+		avia_gt_dmx_queue_irq_disable(AVIA_GT_DMX_QUEUE_VIDEO);
+	}
+
+	video_queue_client = new_video_queue_client;
+	audio_queue_client = new_audio_queue_client;
+
+	if ( (new_teletext_queue_client != -1) && (teletext_queue_client == -1) ) {
+		teletext_queue_client = new_teletext_queue_client;
+		write_pos = avia_gt_dmx_queue_get_write_pos(AVIA_GT_DMX_QUEUE_AUDIO);
+		queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].hw_write_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].hw_read_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].write_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].read_pos = write_pos;
+		queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].overflow_count = 0;
+		avia_gt_dmx_queue_irq_enable(AVIA_GT_DMX_QUEUE_TELETEXT);
+	}
+	else if ( (new_teletext_queue_client == -1) && (teletext_queue_client != -1) ) {
+		avia_gt_dmx_queue_irq_disable(AVIA_GT_DMX_QUEUE_TELETEXT);
+	}
+	teletext_queue_client = new_teletext_queue_client;
+}
 
 static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
@@ -511,7 +583,7 @@ u16 avia_gt_dmx_queue_data_get16(struct avia_gt_dmx_queue *queue, u8 peek)
 
 u32 avia_gt_dmx_queue_data_get32(struct avia_gt_dmx_queue *queue, u8 peek)
 {
-	
+
 	u32 data;
 
 	avia_gt_dmx_queue_data_get(queue, &data, sizeof(u32), peek);
@@ -537,13 +609,13 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, void *src, u32 c
 	}
 
 	if (count > bytes_free) {
-	
+
 		printk(KERN_ERR "avia_gt_dmx: queue_data_put: %d bytes requested, %d available\n", count, bytes_free);
 
 		count = bytes_free;
-		
+
 	}
-	
+
 	if ((queue_list[queue->index].write_pos + count) >= queue_list[queue->index].size) {
 
 		done = queue_list[queue->index].size - queue_list[queue->index].write_pos;
@@ -847,6 +919,10 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 void avia_gt_dmx_queue_irq_disable(u8 queue_nr)
 {
 
+	queue_list[queue_nr].running = 0;
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_USER_START) {
+		avia_gt_dmx_enable_disable_system_queue_irqs();
+	}
 	avia_gt_free_irq(avia_gt_dmx_get_queue_irq(queue_nr));
 
 }
@@ -854,6 +930,10 @@ void avia_gt_dmx_queue_irq_disable(u8 queue_nr)
 s32 avia_gt_dmx_queue_irq_enable(u8 queue_nr)
 {
 
+	queue_list[queue_nr].running = 1;
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_USER_START) {
+		avia_gt_dmx_enable_disable_system_queue_irqs();
+	}
 	return avia_gt_alloc_irq(avia_gt_dmx_get_queue_irq(queue_nr), avia_gt_dmx_queue_interrupt);
 
 }
@@ -924,6 +1004,11 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt
 	}
 
 	avia_gt_dmx_queue_reset(queue_nr);
+	queue_list[queue_nr].pid = pid;
+	queue_list[queue_nr].mode = mode;
+	if (queue_nr < AVIA_GT_DMX_QUEUE_USER_START) {
+		avia_gt_dmx_enable_disable_system_queue_irqs();
+	}
 	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, filt_tab_idx, (mode == AVIA_GT_DMX_QUEUE_MODE_SEC8) ? 1 : 0,no_of_filter);
 	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
 
@@ -942,6 +1027,7 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 
 	}
 
+	queue_list[queue_nr].pid = 0xFFFF;
 	avia_gt_dmx_queue_irq_disable(queue_nr);
 	avia_gt_dmx_set_pid_table(queue_nr, 0, 1, 0);
 
@@ -952,6 +1038,14 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 static void avia_gt_dmx_bh_task(void *tl_data) {
 
 	int queue_nr = *((u8 *) tl_data);
+	struct avia_gt_dmx_queue *queue_info = &queue_list[queue_nr].info;
+	void *priv_data;
+	AviaGtDmxQueueProc *cb_proc;
+	u16 pid1 = 0xFFFF;
+	u16 pid2;
+	u16 packet_pid;
+	u8 head[3];
+	unsigned avail;
 
 	queue_list[queue_nr].write_pos = queue_list[queue_nr].hw_write_pos;
 
@@ -961,8 +1055,68 @@ static void avia_gt_dmx_bh_task(void *tl_data) {
 		queue_list[queue_nr].read_pos = queue_list[queue_nr].hw_write_pos;
 		return;
 	}
-	
-	queue_list[queue_nr].cb_proc(&queue_list[queue_nr].info, queue_list[queue_nr].priv_data);
+
+	/*
+	 * Resync for video, audio and teletext
+	 */
+
+	if (queue_nr <= AVIA_GT_DMX_QUEUE_TELETEXT) {
+		if (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT) {
+			pid1 = queue_list[AVIA_GT_DMX_QUEUE_TELETEXT].pid;
+			pid2 = pid1;
+		}
+		else {
+			if (queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid != 0xFFFF) {
+				pid1 = queue_list[AVIA_GT_DMX_QUEUE_VIDEO].pid;
+				pid2 = pid1;
+			}
+			if (queue_list[AVIA_GT_DMX_QUEUE_AUDIO].pid != 0xFFFF) {
+				pid2 = queue_list[AVIA_GT_DMX_QUEUE_AUDIO].pid;
+				if (pid1 == 0xFFFF) {
+					pid1 = pid2;
+				}
+			}
+		}
+
+		avail = avia_gt_dmx_queue_get_bytes_avail(queue_info);
+
+		while (avail >= 188) {
+			avia_gt_dmx_queue_data_get(queue_info,head,sizeof(head),1);
+
+			packet_pid = ((head[1] & 0x1F) << 8) | head[2];
+			if ( (head[0] == 0x47) &&
+			     ( (packet_pid == pid1) || (packet_pid == pid2) ) ) {
+				break;
+			}
+			avail--;
+			avia_gt_dmx_queue_data_get8(queue_info,0);
+		}
+
+		if (avail < 188) {
+			return;
+		}
+	}
+
+	if ( (queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) && (video_queue_client != -1) ) {
+		cb_proc = queue_list[video_queue_client].cb_proc;
+		priv_data = queue_list[video_queue_client].priv_data;
+	}
+	else if ( (queue_nr == AVIA_GT_DMX_QUEUE_VIDEO) && (audio_queue_client != 1) ) {
+		cb_proc = queue_list[audio_queue_client].cb_proc;
+		priv_data = queue_list[audio_queue_client].priv_data;
+	}
+	else if ( (queue_nr == AVIA_GT_DMX_QUEUE_TELETEXT) && (teletext_queue_client != -1) ) {
+		cb_proc = queue_list[teletext_queue_client].cb_proc;
+		priv_data = queue_list[teletext_queue_client].priv_data;
+	}
+	else {
+		cb_proc = queue_list[queue_nr].cb_proc;
+		priv_data = queue_list[queue_nr].priv_data;
+	}
+
+	if (cb_proc) {
+		cb_proc(queue_info, priv_data);
+	}
 }
 /*
 static void avia_gt_dmx_queue_task(void *tl_data)
@@ -2063,7 +2217,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.163 2003/01/19 14:40:42 gandalfx Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.164 2003/03/09 17:47:34 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2155,6 +2309,8 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].mem_addr = queue_addr;
 		queue_addr += queue_list[queue_nr].size;
 
+		queue_list[queue_nr].pid = 0xFFFF;
+		queue_list[queue_nr].running = 0;
 		queue_list[queue_nr].info.index = queue_nr;
 		queue_list[queue_nr].info.bytes_avail = avia_gt_dmx_queue_get_bytes_avail;
 		queue_list[queue_nr].info.bytes_free = avia_gt_dmx_queue_get_bytes_free;

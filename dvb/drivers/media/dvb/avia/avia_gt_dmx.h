@@ -80,6 +80,9 @@ typedef struct {
 	u32 read_pos;
 	u32 size;
 	u32 write_pos;
+	u16 pid;
+	u8 mode;
+	u8 running;
 	struct tq_struct task_struct;
 
 } sAviaGtDmxQueue;
