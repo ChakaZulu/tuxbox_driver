@@ -43,29 +43,29 @@
  */
 
 #define SET_PWM(data,pwm) do { 		\
-	(int) data &= ~0xff; 		\
-	(int) data |= pwm; 		\
+	(long) data &= ~0xff; 		\
+	(long) data |= pwm; 		\
 } while (0)
 
 #define SET_REG0(data,reg0) do {	\
-	(int) data &= ~(0xff << 8); 	\
-	(int) data |= reg0 << 8; 	\
+	(long) data &= ~(0xff << 8); 	\
+	(long) data |= reg0 << 8; 	\
 } while (0)
 
 #define SET_TUNER(data,type) do {	\
-	(int) data &= ~(0xff << 16); 	\
-	(int) data |= type << 16;	\
+	(long) data &= ~(0xff << 16); 	\
+	(long) data |= type << 16;	\
 } while (0)
 
 #define SET_DEMOD_ADDR(data,type) do {	\
-	(int) data &= ~(0xff << 24); 	\
-	(int) data |= type << 24;	\
+	(long) data &= ~(0xff << 24); 	\
+	(long) data |= type << 24;	\
 } while (0)
 
-#define GET_PWM(data) ((u8) ((int) data & 0xff))
-#define GET_REG0(data) ((u8) (((int) data >> 8) & 0xff))
-#define GET_TUNER(data) ((u8) (((int) data >> 16) & 0xff))
-#define GET_DEMOD_ADDR(data) ((u8) (((int) data >> 24) & 0xff))
+#define GET_PWM(data) ((u8) ((long) data & 0xff))
+#define GET_REG0(data) ((u8) (((long) data >> 8) & 0xff))
+#define GET_TUNER(data) ((u8) (((long) data >> 16) & 0xff))
+#define GET_DEMOD_ADDR(data) ((u8) (((long) data >> 24) & 0xff))
 
 #define XIN 69600000UL
 #define FIN (XIN >> 4)
@@ -88,7 +88,7 @@ struct dvb_frontend_info ves1820_info = {
 #endif
 	.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 		FE_CAN_QAM_128 | FE_CAN_QAM_256 | 
-		FE_CAN_FEC_AUTO | FE_CAN_INVERSION_AUTO |
+		FE_CAN_FEC_AUTO |
 		FE_CAN_CLEAN_SETUP | FE_CAN_RECOVER
 };
 
@@ -170,7 +170,7 @@ int tuner_write (struct dvb_i2c_bus *i2c, u8 addr, u8 data [4])
 static
 int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 {
-        u32 div;
+        u32 div, ifreq;
 	static u8 addr [] = { 0x61, 0x62 };
 	static u8 byte3 [] = { 0x8e, 0x85 };
 	int tuner_type = GET_TUNER(fe->data);
@@ -179,7 +179,13 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 	if (tuner_type == 0xff)     /*  PLL not reachable over i2c ...  */
 		return 0;
 
-	div = (freq + 36125000 + 31250) / 62500;
+	if (strstr (fe->i2c->adapter->name, "Technotrend"))
+		ifreq = 35937500;
+	else
+		ifreq = 36125000;
+
+	div = (freq + ifreq + 31250) / 62500;
+
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = byte3[tuner_type];
@@ -198,24 +204,25 @@ int tuner_set_tv_freq (struct dvb_frontend *fe, u32 freq)
 
 
 static
-int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0)
+int ves1820_setup_reg0 (struct dvb_frontend *fe, u8 reg0,
+			fe_spectral_inversion_t inversion)
 {
 	reg0 |= GET_REG0(fe->data) & 0x62;
-	
-	ves1820_writereg (fe, 0x00, reg0 & 0xfe);
-        ves1820_writereg (fe, 0x00, reg0 | 0x01);
 
-	/**
-	 *  check lock and toggle inversion bit if required...
-	 */
-	if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
-		ddelay(10);
-		if (!(ves1820_readreg (fe, 0x11) & 0x08)) {
-			reg0 ^= 0x20;
-			ves1820_writereg (fe, 0x00, reg0 & 0xfe);
-        		ves1820_writereg (fe, 0x00, reg0 | 0x01);
-		}
+	switch (inversion) {
+	case INVERSION_OFF:
+		reg0 &= ~0x20;
+		break;
+	case INVERSION_ON:
+		reg0 |= 0x20;
+		break;
+	case INVERSION_AUTO:
+	default:
+		return -EINVAL;
 	}
+
+	ves1820_writereg (fe, 0x00, reg0 & 0xfe);
+	ves1820_writereg (fe, 0x00, reg0 | 0x01);
 
 	SET_REG0(fe->data, reg0);
 
@@ -302,7 +309,7 @@ int ves1820_set_parameters (struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p)
 {
 	static const u8 reg0x00 [] = { 0x00, 0x04, 0x08, 0x0c, 0x10 };
-	static const u8 reg0x01 [] = {  140,  140,  106,  120,   92 };
+	static const u8 reg0x01 [] = {  140,  140,  106,  100,   92 };
 	static const u8 reg0x05 [] = {  135,  100,   70,   54,   38 };
 	static const u8 reg0x08 [] = {  162,  116,   67,   52,   35 };
 	static const u8 reg0x09 [] = {  145,  150,  106,  126,  107 };
@@ -320,7 +327,7 @@ int ves1820_set_parameters (struct dvb_frontend *fe,
         ves1820_writereg (fe, 0x08, reg0x08[real_qam]);
         ves1820_writereg (fe, 0x09, reg0x09[real_qam]);
 
-	ves1820_setup_reg0 (fe, reg0x00[real_qam]);
+	ves1820_setup_reg0 (fe, reg0x00[real_qam], p->inversion);
 
 	return 0;
 }
@@ -397,15 +404,31 @@ int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		return ves1820_set_parameters (fe, arg);
 
 	case FE_GET_FRONTEND:
-		/*  XXX FIXME: implement! */
-/*
-                struct frontend *front = (struct frontend *)arg;
-                
-                front->afc=(int)((char)(readreg(client,0x19)));
-                front->afc=(front->afc*(int)(front->param.u.qam.SymbolRate/8))/128;
-*/
-		break;
+	{
+		struct dvb_frontend_parameters *p = (struct dvb_frontend_parameters *)arg;
+		u8 reg0 = GET_REG0(fe->data);
+		int sync;
+		s8 afc = 0;
 
+                sync = ves1820_readreg (fe, 0x11);
+		if (sync & 2)
+			/* AFC only valid when carrier has been recovered */
+			afc = ves1820_readreg(fe, 0x19);
+		printk ("%s: AFC (%d) %dHz (sync & 2 = %d)\n", __FILE__, afc,
+				-((s32)(p->u.qam.symbol_rate >> 3) * afc >> 7), sync & 2);
+
+
+		p->inversion = reg0 & 0x20 ? INVERSION_ON : INVERSION_OFF;
+		p->u.qam.modulation = ((reg0 >> 2) & 7) + QAM_16;
+
+		p->u.qam.fec_inner = FEC_NONE;
+
+		p->frequency = ((p->frequency + 31250) / 62500) * 62500;
+		// To prevent overflow, shift symbol rate first a
+		// couple of bits.
+		p->frequency -= (s32)(p->u.qam.symbol_rate >> 3) * afc >> 7;
+		break;
+	}
 	case FE_SLEEP:
 		ves1820_writereg (fe, 0x1b, 0x02);  /* pdown ADC */
 		ves1820_writereg (fe, 0x00, 0x80);  /* standby */
@@ -423,7 +446,7 @@ int ves1820_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 
 static
-int probe_tuner (struct dvb_i2c_bus *i2c)
+long probe_tuner (struct dvb_i2c_bus *i2c)
 {
 	static const
 	struct i2c_msg msg1 = { addr: 0x61, flags: 0, buf: NULL, len: 0 };
@@ -468,7 +491,7 @@ u8 read_pwm (struct dvb_i2c_bus *i2c)
 
 
 static
-int probe_demod_addr (struct dvb_i2c_bus *i2c)
+long probe_demod_addr (struct dvb_i2c_bus *i2c)
 {
 	u8 b [] = { 0x00, 0x1a };
 	u8 id;
@@ -491,8 +514,8 @@ static
 int ves1820_attach (struct dvb_i2c_bus *i2c)
 {
 	void *data = NULL;
-	int demod_addr;
-	int tuner_type;
+	long demod_addr;
+	long tuner_type;
 
 	if ((demod_addr = probe_demod_addr(i2c)) < 0)
 		return -ENODEV;
@@ -538,4 +561,3 @@ module_exit(exit_ves1820);
 MODULE_DESCRIPTION("VES1820 DVB-C frontend driver");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler");
 MODULE_LICENSE("GPL");
-
