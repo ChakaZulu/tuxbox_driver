@@ -19,7 +19,9 @@ BUILD_DATE=$(shell date)
 # when compiling module(s)
 
 M_OBJS	     = lcd.o
-LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o
+LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o lcd-paint.o
+APPL         = test_lcd
+APPL_SOURCE  = test_lcd.c
 
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
@@ -39,4 +41,7 @@ clean:
 lcd.o: $(LCD_OBJS)
 	$(LD) -m elf32ppclinux -r -o $@ $(LCD_OBJS)
 
+appl:
+	powerpc-linux-gcc -o $(APPL) $(APPL_SOURCE)
+	 
 include $(KERNEL_LOCATION)/Rules.make
