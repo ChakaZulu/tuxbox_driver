@@ -103,6 +103,8 @@ struct dvb_demux {
         int (*start_feed)(struct dvb_demux_feed *);
         int (*stop_feed)(struct dvb_demux_feed *);
         int (*write_to_decoder)(struct dvb_demux_feed *, u8 *, size_t);
+        u32 (*crc32)(struct dvb_demux_feed *, u8 *, size_t);
+        void (*memcpy)(struct dvb_demux_feed *, u8 *, u8 *, size_t);
 
   
         int users;

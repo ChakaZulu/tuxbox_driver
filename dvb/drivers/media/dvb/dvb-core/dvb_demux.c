@@ -180,7 +180,18 @@ void dvb_set_crc32(u8 *data, int length)
         data[length+2] = (crc>>8)&0xff;
         data[length+3] = (crc)&0xff;
 }
-  
+
+
+u32 dvb_hal_crc32(struct dvb_demux_feed *dvbdmxfeed, u8 *src, size_t len)
+{
+	return dvb_crc32(src, len, 0);
+}
+
+void dvb_hal_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, u8 *src, size_t len)
+{
+	memcpy(dst, src, len);
+}
+
 
 /******************************************************************************
  * Software filter functions
@@ -246,7 +257,8 @@ dvb_dmx_swfilter_section_feed(struct dvb_demux_feed *dvbdmxfeed)
         if (!(f=dvbdmxfeed->filter))
                 return 0;
         if ((dvbdmxfeed->check_crc) && 
-	    (dvb_crc32(dvbdmxfeed->secbuf, dvbdmxfeed->seclen, 0)))
+	    (dvbdmxfeed->demux->crc32(dvbdmxfeed, dvbdmxfeed->secbuf, 
+	                              dvbdmxfeed->seclen)))
 		return -1;
         do 
                 if (dvb_dmx_swfilter_sectionfilter(dvbdmxfeed, f)<0)
@@ -283,16 +295,18 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
                         if (tmp>0 && tmp!=3) {
 				if (p+tmp>=187)
 					return -1;
-                                memcpy(dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
-                                       buf+p+1, tmp);
+                                dvbdmxfeed->demux->memcpy(dvbdmxfeed,
+				                          dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
+                                                          (u8 *)&buf[p+1], tmp);
                                 dvbdmxfeed->seclen=section_length(dvbdmxfeed->secbuf);
 				if (dvbdmxfeed->seclen>4096) 
 					return -1;
                         }
                         rest=dvbdmxfeed->seclen-dvbdmxfeed->secbufp;
                         if (rest==buf[p] && dvbdmxfeed->seclen) {
-                                memcpy(dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
-                                       buf+p+1, buf[p]);
+                                dvbdmxfeed->demux->memcpy(dvbdmxfeed,
+				                          dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
+                                                          (u8 *)&buf[p+1], buf[p]);
                                 dvbdmxfeed->secbufp+=buf[p];
                                 dvb_dmx_swfilter_section_feed(dvbdmxfeed);
                         }
@@ -304,8 +318,9 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
                             ((dvbdmxfeed->seclen=section_length(buf+p))<=count)) {
 				if (dvbdmxfeed->seclen>4096) 
 					return -1;
-                                memcpy(dvbdmxfeed->secbuf, buf+p, 
-                                       dvbdmxfeed->seclen);
+                                dvbdmxfeed->demux->memcpy(dvbdmxfeed,
+				                          dvbdmxfeed->secbuf, (u8 *)&buf[p], 
+                                                          dvbdmxfeed->seclen);
                                 dvbdmxfeed->secbufp=dvbdmxfeed->seclen;
                                 p+=dvbdmxfeed->seclen;
                                 count=188-p;
@@ -315,7 +330,8 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
                                 if (count && buf[p]==0xff) 
                                         count=0;
                         } else { // section continues to following TS packet
-                                memcpy(dvbdmxfeed->secbuf, buf+p, count);
+                                dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf,
+				                          (u8 *)&buf[p], count);
                                 dvbdmxfeed->secbufp+=count;
                                 count=0;
                         }
@@ -334,7 +350,8 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
 		
 		if (tmp>count)
 			return -1;
-		memcpy(dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, buf+p, tmp);
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		                          (u8 *)&buf[p], tmp);
 		dvbdmxfeed->seclen=section_length(dvbdmxfeed->secbuf);
 		if (dvbdmxfeed->seclen>4096) 
 			return -1;
@@ -343,11 +360,13 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
 	if (rest<0)
 		return -1;
 	if (rest<=count) {	// section completed in this TS packet
-		memcpy(dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, buf+p, rest);
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		                          (u8 *)&buf[p], rest);
 		dvbdmxfeed->secbufp+=rest;
 		dvb_dmx_swfilter_section_feed(dvbdmxfeed);
 	} else 	{	// section continues in following ts packet
-		memcpy(dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, buf+p, count);
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		                          (u8 *)&buf[p], count);
 		dvbdmxfeed->secbufp+=count;
 	}
         return 0;
@@ -1135,6 +1154,11 @@ dvb_dmx_init(struct dvb_demux *dvbdemux)
         dvbdemux->playing=dvbdemux->recording=0;
         memset(dvbdemux->pid2feed, 0, (DMX_MAX_PID+1)*sizeof(struct dvb_demux_feed *));
         dvbdemux->tsbufp=0;
+		
+	if (!dvbdemux->crc32)
+		dvbdemux->crc32 = dvb_hal_crc32;
+	if (!dvbdemux->memcpy)
+		dvbdemux->memcpy = dvb_hal_memcpy;
 
         dmx->frontend=0;
         dmx->reg_list.next=dmx->reg_list.prev=&dmx->reg_list;
