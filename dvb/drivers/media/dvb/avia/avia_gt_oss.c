@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_oss.c,v 1.25 2004/01/30 08:24:42 zwen Exp $
+ * $Id: avia_gt_oss.c,v 1.26 2004/05/31 22:56:02 carjay Exp $
  *
  * AViA eNX/GTX oss driver (dbox-II-project)
  *
@@ -33,8 +33,11 @@
 #include "avia_av.h"
 #include "avia_gt_pcm.h"
 
+
 static int avia_oss_dsp_dev;
 static int avia_oss_mixer_dev;
+
+static u8 users;	/* only one user possible, we do not mix */
 
 static
 int avia_oss_dsp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
@@ -268,11 +271,29 @@ unsigned int avia_oss_dsp_poll(struct file *file, struct poll_table_struct *wait
 	return avia_gt_pcm_poll(file, wait);
 }
 
+static int avia_oss_dsp_open(struct inode *inode, struct file *file)
+{
+	if (!users){ 
+		users++;
+		return 0;
+	} else {
+		return -EBUSY;
+	}
+}
+
+static int avia_oss_dsp_release(struct inode *inode, struct file *file)
+{
+	users=0;
+	return 0;
+}
+
 static struct file_operations dsp_fops = {
 	.ioctl = avia_oss_dsp_ioctl,
 	.owner = THIS_MODULE,
 	.poll = avia_oss_dsp_poll,
 	.write = avia_oss_dsp_write,
+	.open = avia_oss_dsp_open,
+	.release = avia_oss_dsp_release
 };
 
 static struct file_operations mixer_fops = {
@@ -283,7 +304,7 @@ static struct file_operations mixer_fops = {
 static
 int __init avia_oss_init(void)
 {
-	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.25 2004/01/30 08:24:42 zwen Exp $\n");
+	printk(KERN_INFO "avia_oss: $Id: avia_gt_oss.c,v 1.26 2004/05/31 22:56:02 carjay Exp $\n");
 
 	avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 
@@ -315,4 +336,3 @@ module_exit(avia_oss_cleanup);
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("AViA eNX/GTX OSS driver");
 MODULE_LICENSE("GPL");
-
