@@ -107,7 +107,7 @@ void dvb_set_crc32(u8 *data, int length)
 {
 	u32 crc;
 
-	crc = crc32_le(~0, data, length);
+	crc = crc32_be(~0, data, length);
 
 	data[length]   = (crc >> 24) & 0xff;
 	data[length+1] = (crc >> 16) & 0xff;
@@ -118,7 +118,7 @@ void dvb_set_crc32(u8 *data, int length)
 
 static u32 dvb_dmx_crc32 (struct dvb_demux_feed *f, const u8 *src, size_t len)
 {
-	return (f->feed.sec.crc_val = crc32_le (f->feed.sec.crc_val, src, len));
+	return (f->feed.sec.crc_val = crc32_be (f->feed.sec.crc_val, src, len));
 }
 
 
@@ -190,6 +190,7 @@ static inline int dvb_dmx_swfilter_section_feed (struct dvb_demux_feed *feed)
 	struct dvb_demux_filter *f = feed->filter;
 	struct dmx_section_feed *sec = &feed->feed.sec;
 	u8 *buf = sec->secbuf;
+	int section_syntax_indicator;
 
 	if (sec->secbufp != sec->seclen)
 		return -1;
@@ -200,8 +201,12 @@ static inline int dvb_dmx_swfilter_section_feed (struct dvb_demux_feed *feed)
 	if (!f)
 		return 0;
 
-	if (sec->check_crc && demux->check_crc32(feed, sec->secbuf, sec->seclen))
-		return -1;
+	if (sec->check_crc) {
+		section_syntax_indicator = ((sec->secbuf[1] & 0x80) != 0);
+		if (section_syntax_indicator &&
+		    demux->check_crc32(feed, sec->secbuf, sec->seclen))
+			return -1;
+	}
 
 	do {
 		if (dvb_dmx_swfilter_sectionfilter(feed, f) < 0)
@@ -268,7 +273,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8
 		p += buf[p] + 1; 		// skip rest of last section
 		count = 188 - p;
 
-		while (count) {
+		while (count > 0) {
 
 			sec->crc_val = ~0;
 
@@ -405,7 +410,7 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf, size_t cou
 
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
-	int p = 0,i, j;
+	int p = 0, i, j;
 
 	spin_lock(&demux->lock);
 
@@ -435,6 +440,50 @@ void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
 			}
 		} else 
 			p++;
+	}
+
+bailout:
+	spin_unlock(&demux->lock);
+}
+
+void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
+{
+	int p = 0,i, j;
+	u8 tmppack[188];
+	spin_lock(&demux->lock);
+
+	if ((i = demux->tsbufp)) {
+		if (count < (j=204-i)) {
+			memcpy(&demux->tsbuf[i], buf, count);
+			demux->tsbufp += count;
+			goto bailout;
+		}
+		memcpy(&demux->tsbuf[i], buf, j);
+		if ((demux->tsbuf[0] == 0x47)|(demux->tsbuf[0]==0xB8))  {
+			memcpy(tmppack, demux->tsbuf, 188);
+			if (tmppack[0] == 0xB8) tmppack[0] = 0x47;
+			dvb_dmx_swfilter_packet(demux, tmppack);
+		}
+		demux->tsbufp = 0;
+		p += j;
+	}
+
+	while (p < count) {
+		if ((buf[p] == 0x47)|(buf[p] == 0xB8)) {
+			if (count-p >= 204) {
+				memcpy(tmppack, buf+p, 188);
+				if (tmppack[0] == 0xB8) tmppack[0] = 0x47;
+				dvb_dmx_swfilter_packet(demux, tmppack);
+				p += 204;
+			} else {
+				i = count-p;
+				memcpy(demux->tsbuf, buf+p, i);
+				demux->tsbufp=i;
+				goto bailout;
+			}
+		} else { 
+			p++;
+		}
 	}
 
 bailout:

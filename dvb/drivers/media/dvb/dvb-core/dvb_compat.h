@@ -68,7 +68,7 @@ void cond_resched (void)
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-extern u32 crc32_le (u32 crc, unsigned char const *p, size_t len);
+extern u32 crc32_be (u32 crc, unsigned char const *p, size_t len);
 #else
 #include <linux/crc32.h>
 #endif

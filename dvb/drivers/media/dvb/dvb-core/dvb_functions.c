@@ -1,4 +1,3 @@
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/string.h>
@@ -7,6 +6,10 @@
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
+
+/* needed for 2.4/makelinks 2.6 stuff, don't submit
+   to mainline kernel */
+#include <linux/version.h>
 
 void dvb_kernel_thread_setup (const char *thread_name)
 {

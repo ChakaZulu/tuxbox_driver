@@ -348,18 +348,17 @@ int dvb_unregister_adapter(struct dvb_adapter *adap)
 
 static int __init init_dvbdev(void)
 {
+	int retval;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	dvb_devfs_handle = devfs_mk_dir (NULL, "dvb", NULL);
 #else
 	devfs_mk_dir("dvb");
 #endif
 #ifndef CONFIG_DVB_DEVFS_ONLY
-	if(register_chrdev(DVB_MAJOR,"DVB", &dvb_device_fops)) {
+	if ((retval = register_chrdev(DVB_MAJOR,"DVB", &dvb_device_fops)))
 		printk("video_dev: unable to get major %d\n", DVB_MAJOR);
-		return -EIO;
-	}
 #endif
-	return 0;
+	return retval;
 }
 
 

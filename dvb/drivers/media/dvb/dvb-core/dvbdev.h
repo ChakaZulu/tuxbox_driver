@@ -27,7 +27,6 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/version.h>
 #include <linux/devfs_fs_kernel.h>
 
 #define DVB_MAJOR 250
@@ -45,6 +44,7 @@
 
 struct dvb_adapter {
 	int num;
+#include <linux/version.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 	devfs_handle_t devfs_handle;
 #endif

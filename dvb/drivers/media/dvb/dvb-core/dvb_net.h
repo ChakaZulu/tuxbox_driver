@@ -34,7 +34,11 @@
 
 struct dvb_net {
 	struct dvb_device *dvbdev;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	struct net_device device[DVB_NET_DEVICES_MAX];
+#else
+	struct net_device *device[DVB_NET_DEVICES_MAX];
+#endif
 	int state[DVB_NET_DEVICES_MAX];
 	struct dmx_demux *demux;
 };

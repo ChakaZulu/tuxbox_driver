@@ -24,8 +24,6 @@
 #ifndef __DVB_FUNCTIONS_H__
 #define __DVB_FUNCTIONS_H__
 
-#include <linux/version.h>
-
 /**
  *  a sleeping delay function, waits i ms
  *
@@ -48,7 +46,7 @@ extern int dvb_usercopy(struct inode *inode, struct file *file,
 
 extern void dvb_kernel_thread_setup (const char *thread_name);
 
-
+#include <linux/version.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 #include "dvb_compat.h"
 #endif
