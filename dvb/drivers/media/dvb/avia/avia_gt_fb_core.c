@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.34  2002/08/11 11:33:24  TheDOC
+ *   whoever did this crap, shame on you! 4 and 8 bit-modes are fixed now, 16 bit needs to be fixed, can't test this right now...
+ *
  *   Revision 1.33  2002/07/19 22:59:21  waldi
  *   * use sun8x16 font
  *   * color 0 is transparent
@@ -146,7 +149,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.33 $
+ *   $Revision: 1.34 $
  *
  */
 
@@ -467,19 +470,13 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int 
 	switch (current_par.bpp) {
 #ifdef FBCON_HAS_CFB4
 		case 4:
-			if (!regno)
-				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
-			else
-				avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			avia_gt_gv_set_clut(regno, transp, red, green, blue);
 			break;
 #endif
 
 #ifdef FBCON_HAS_CFB8
 		case 8:
-			if (!regno)
-				avia_gt_gv_set_clut(0, 0xffff, 0, 0, 0);
-			else
-				avia_gt_gv_set_clut(regno, transp, red, green, blue);
+			avia_gt_gv_set_clut(regno, transp, red, green, blue);
 			break;
 #endif
 
@@ -490,7 +487,7 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int 
 			blue >>= 11;
 			transp >>= 15;
 
-			if (!regno)
+			if (!regno) // WHY?!?!??!?!?!?!? TELL ME!!!!!!!!!!!!!
 				fbcon_cfb16_cmap[0] = 0xfc0f;
 			if (regno < 16)
 				fbcon_cfb16_cmap[regno] = (transp << 15) | (red << 10) | (green << 5) | (blue);
@@ -614,7 +611,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.33 2002/07/19 22:59:21 waldi Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.34 2002/08/11 11:33:24 TheDOC Exp $\n");
 
     gt_info = avia_gt_get_info();
 
