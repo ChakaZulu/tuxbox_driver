@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.137 $
+ *   $Revision: 1.138 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.138  2002/10/07 08:24:14  Jolt
+ *   NAPI cleanups
+ *
  *   Revision 1.137  2002/10/06 22:05:13  Jolt
  *   NAPI cleanups
  *
@@ -1006,7 +1009,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	u32 chunk1;
 	int i;
 	u32 need_payload;
-	u32 datlen;
+	u32 payload_len;
 	u8 pusi;
 
 	if (gtxfeed->state != DMX_STATE_GO) {
@@ -1096,9 +1099,10 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				
 					while (buf_len >= 188) {
 					
-						datlen = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &pusi);
-						
-						if (!datlen)
+						payload_len = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &pusi);
+
+						// BUG! BUG! BUG!						
+						if (!payload_len)
 							continue;
 					
 						for (i = USER_QUEUE_START - 1; i < LAST_USER_QUEUE; i++) {
@@ -1108,15 +1112,15 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								(gtx->feed[i].output & TS_PACKET) &&
 								(gtx->feed[i].output & TS_PAYLOAD_ONLY)) {
 
-								if ((queue->read_pos + datlen) > queue->size) {
+								if ((queue->read_pos + payload_len) > queue->size) {
 										
 									chunk1 = queue->size - queue->read_pos;
 											
-									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, datlen - chunk1, &gtx->feed[i].feed.ts, 0);
+									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
 											
 								} else {
 										
-									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, datlen, NULL, 0, &gtx->feed[i].feed.ts, 0);
+									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
 											
 								}
 										
@@ -1124,7 +1128,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									
 						}
 								
-						queue_info->get_data(queue_nr, NULL, datlen, 0);
+						queue_info->get_data(queue_nr, NULL, payload_len, 0);
 							
 						buf_len -= 188;
 						
@@ -1212,11 +1216,11 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 				// let's rock
 				while (queue_info->bytes_avail(queue_nr) > padding)	{
 				
-					int tr = 188, r = 0;
+					int r = 0;
 					
-					tr = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &pusi);
+					payload_len = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &pusi);
 					
-					if (!tr)
+					if (!payload_len)
 						continue;
 
 					if (pusi) {							// Start einer neuen Section
@@ -1252,11 +1256,11 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 								
 							}
 							
-							tr -= next_sec_offs + 1;
+							payload_len -= next_sec_offs + 1;
 							
 						} else {
 
-							tr--;
+							payload_len--;
 
 						}
 
@@ -1266,20 +1270,20 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 					} else if (gtxfeed->sec_recv == 0) {	// kein Paketstart und keine bereits angefangene section im Puffer
 
-						queue_info->get_data(queue_nr, NULL, tr, 0);
+						queue_info->get_data(queue_nr, NULL, payload_len, 0);
 
 						continue;
 						
 					}
 
-					while (tr) {
+					while (payload_len) {
 
 						if (gtxfeed->sec_recv) {				// haben bereits einen Anfang
 
 							r = gtxfeed->sec_len - gtxfeed->sec_recv;
 
-							if (r > tr)										// ein kleines Teilstück kommt hinzu
-								r = tr;
+							if (r > payload_len)										// ein kleines Teilstück kommt hinzu
+								r = payload_len;
 
 							if (gtxfeed->check_crc)
 								gtxfeed->sec_crc = queue_info->crc32(queue_nr, r, gtxfeed->sec_crc);
@@ -1293,11 +1297,11 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 						} else {													// neue Section
 
-							if ((queue_info->get_data8(queue_nr, 1) == 0xFF) || (tr < 3)) {
+							if ((queue_info->get_data8(queue_nr, 1) == 0xFF) || (payload_len < 3)) {
 
 								// Get rid of padding bytes
-								if (tr)
-									queue_info->get_data(queue_nr, NULL, tr, 0);
+								if (payload_len)
+									queue_info->get_data(queue_nr, NULL, payload_len, 0);
 
 								break;
 
@@ -1311,8 +1315,8 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 								gtxfeed->sec_len = r;
 
-								if (r > tr)									// keine komplette Section
-									r = tr;
+								if (r > payload_len)									// keine komplette Section
+									r = payload_len;
 
 								if (gtxfeed->check_crc)
 									gtxfeed->sec_crc = queue_info->crc32(queue_nr, r, gtxfeed->sec_crc);
@@ -1350,7 +1354,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 							
 						}
 						
-						tr -= r;
+						payload_len -= r;
 						
 					}
 					
@@ -2108,7 +2112,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.137 2002/10/06 22:05:13 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.138 2002/10/07 08:24:14 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
