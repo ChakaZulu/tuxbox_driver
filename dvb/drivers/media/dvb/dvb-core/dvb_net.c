@@ -483,6 +483,21 @@ int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		dvbnetif->if_num=result;
 		break;
 	}
+	case NET_GET_IF:
+	{
+		struct net_device *netdev;
+		struct dvb_net_priv *priv_data;
+		struct dvb_net_if *dvbnetif=(struct dvb_net_if *)parg;
+
+		if (dvbnetif->if_num >= dvbnet->dev_num ||
+		    !dvbnet->state[dvbnetif->if_num])
+			return -EFAULT;
+
+		netdev=(struct net_device*)&dvbnet->device[dvbnetif->if_num];
+		priv_data=(struct dvb_net_priv*)netdev->priv;
+		dvbnetif->pid=priv_data->pid;
+		break;
+	}
 	case NET_REMOVE_IF:
 		return dvb_net_remove_if(dvbnet, (int) parg);
 	default:

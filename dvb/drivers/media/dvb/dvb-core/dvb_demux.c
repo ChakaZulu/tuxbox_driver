@@ -231,11 +231,9 @@ dvb_dmx_add_feed_to_chain(int pid, struct dvb_demux_feed * feed) {
 			index = last;
 		}
 		chain[index].next = i;
-			printk("l2: %d\n",pid);
 	}
 	else {
 		feed->demux->pid2feedindex[pid] = i;
-			printk("l1: %d\n",pid);
 	}
 	return (0);
 }
@@ -252,7 +250,6 @@ dvb_dmx_remove_feed_from_chain (u16 pid, struct dvb_demux_feed * feed) {
 			chain[index].feed = 0;
 			feed->demux->pid2feedindex[pid] = chain[index].next;
 			chain[index].next=0xff;
-			printk("u1: %d\n",pid);
 		}
 		else {
 			while ((next = chain[index].next) != 0xff) { 
@@ -260,7 +257,6 @@ dvb_dmx_remove_feed_from_chain (u16 pid, struct dvb_demux_feed * feed) {
 					chain[next].feed  = 0;
 					chain[index].next = chain[next].next;
 					chain[next].next  = 0xff;
-					printk("u2: %d\n",pid);
 					break;
 				}
 				index = next;
@@ -524,10 +520,8 @@ void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 	while (index != 0xff) {
 		dvb_dmx_swfilter_packet_type (demux->feedchain[index].feed, buf);
 		index = demux->feedchain[index].next;
-			if ((jiffies - last) > 100) {
-				printk("hallo feed %d %d\n", index, (int) ts_pid(buf));
+			if ((jiffies - last) > 100)
 				last = jiffies;
-			}
 	}
 }
 
@@ -553,7 +547,6 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf, int count)
 }
 
 
-static inline
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
 	int p = 0,i, j;

@@ -80,5 +80,12 @@ int try_module_get(struct module *mod)
 #endif
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20)
+
+extern struct page * vmalloc_to_page(void *addr);
+
+#endif
+
+
 #endif
 

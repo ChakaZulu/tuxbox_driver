@@ -48,6 +48,7 @@ struct dvb_adapter {
 	devfs_handle_t devfs_handle;
 	struct list_head list_head;
 	struct list_head device_list;
+	const char *name;
 };
 
 
@@ -70,7 +71,7 @@ struct dvb_device {
 };
 
 
-extern int dvb_register_adapter (struct dvb_adapter **padap, char *name);
+extern int dvb_register_adapter (struct dvb_adapter **padap, const char *name);
 extern int dvb_unregister_adapter (struct dvb_adapter *adap);
 
 extern int dvb_register_device (struct dvb_adapter *adap,

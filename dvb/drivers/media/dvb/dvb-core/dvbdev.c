@@ -279,7 +279,7 @@ skip:
 }
 
 
-int dvb_register_adapter(struct dvb_adapter **padap, char *name)
+int dvb_register_adapter(struct dvb_adapter **padap, const char *name)
 {
 	char dirname[10];
 	struct dvb_adapter *adap;
@@ -308,6 +308,7 @@ int dvb_register_adapter(struct dvb_adapter **padap, char *name)
 	sprintf(dirname, "adapter%d", num);
 	adap->devfs_handle = devfs_mk_dir(dvb_devfs_handle, dirname, NULL);
 	adap->num = num;
+	adap->name = name;
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 

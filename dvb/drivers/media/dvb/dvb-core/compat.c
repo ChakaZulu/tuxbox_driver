@@ -128,3 +128,26 @@ EXPORT_SYMBOL(crc32_le);
 
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20))
+struct page * vmalloc_to_page(void *vmalloc_addr)
+{
+	unsigned long addr = (unsigned long) vmalloc_addr;
+	struct page *page = NULL;
+	pgd_t *pgd = pgd_offset_k(addr);
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+
+	if (!pgd_none(*pgd)) {
+		pmd = pmd_offset(pgd, addr);
+		if (!pmd_none(*pmd)) {
+			ptep = pte_offset(pmd, addr);
+			pte = *ptep;
+			if (pte_present(pte))
+				page = pte_page(pte);
+		}
+	}
+	return page;
+}
+EXPORT_SYMBOL(vmalloc_to_page);
+#endif
+
