@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.12  2001/04/25 07:36:58  fnbrd
+ *   Fixed mute/unmute.
+ *
  *   Revision 1.11  2001/04/24 12:54:58  fnbrd
  *   vout5mute war falsch, gehort laut Spec nach data3 nicht data2.
  *
@@ -55,7 +58,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -178,8 +181,11 @@ inline int cxa2126_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
 	}
 
-    cxa2126_data.tvmute1 = (type>>1)&1;
-    cxa2126_data.zcd     = type&1;
+    // (Un-)mute immediately, 1 -> Mute
+    cxa2126_data.tvmute1 = type&1;
+    cxa2126_data.zcd     = 0;
+//    cxa2126_data.tvmute1 = cxa2126_data.tvamute = (type>>1)&1;
+//    cxa2126_data.zcd     = type&1;
 
 	return cxa2126_set(client);
 }
@@ -277,6 +283,7 @@ int cxa2126_get_volume(void)
 
 inline int cxa2126_get_mute(void)
 {
+  dprintk("tvmute1: %d\n", cxa2126_data.tvmute1);
     return cxa2126_data.tvmute1;
 }
 
@@ -485,7 +492,7 @@ int cxa2126_init(struct i2c_client *client)
     cxa2126_data.vsw1 = 0;
 
     return cxa2126_set(client);
-    
+
 }
 
 /* ---------------------------------------------------------------------- */
