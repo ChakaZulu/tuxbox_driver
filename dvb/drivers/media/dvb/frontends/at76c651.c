@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.3 2001/03/16 00:56:34 fnbrd Exp $
+    $Id: at76c651.c,v 1.4 2001/03/16 12:27:29 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -17,10 +17,6 @@
 
     Das Datenblatt findet sich unter http://www.atmel.com/atmel/acrobat/doc1293.pdf
 
-    $Log: at76c651.c,v $
-    Revision 1.3  2001/03/16 00:56:34  fnbrd
-    Log mit grossem L. :-)
-
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +31,11 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    $Log: at76c651.c,v $
+    Revision 1.4  2001/03/16 12:27:29  fnbrd
+    Symbolrate wird berechnet.
+
 
 */
 
@@ -246,26 +247,66 @@ return;
 //        writereg(client, 0x34, ves->pwm);
 }
 
+// Tabelle zum Berechnen des Exponenten zur gegebenen Symbolrate (fref=69.6 MHz)
+u32 expTab[] = {
+  67969, 135938, 271875, 543750,
+  1087500, 2175000, 4350000, 8700000
+};
+/*
+// Tabelle zum Berechnen des Exponenten zur gegebenen Symbolrate (fref=4.35 MHz)
+u32 expTab[] = {
+  4249, 8497, 16993, 33985,
+  67969, 135938, 271875, 543750
+};
+*/
+
 int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 {
         struct ves1820 *ves=(struct ves1820 *) client->data;
-        s32 BDR;
-        s32 BDRI;
-        s16 SFIL=0;
+#define FREF 69600000UL
+        u32 mantisse;
+        u8 exp;
+	int i;
+
+        if (Symbolrate > FREF/2)
+                Symbolrate=FREF/2;
+        if (Symbolrate < 500000)
+                Symbolrate=500000;
+
+        ves->srate=Symbolrate;
+	dprintk("AT76C651: set Symbolrate\n");
+	dprintk("exp: %02x mantisse: %x\n", exp, mantisse);
+
+        for(i=7; i>0; i--)
+          if(Symbolrate>expTab[i-1])
+            break;
+        exp=i;
+  	mantisse= ((float)Symbolrate/FREF)*(1<<(30-exp));
+        // Exponent und Mantisse Bits 0-4 setzen
+        writereg(client, 0x02, ((mantisse&0x0000001f)<<3)|exp);
+        mantisse>>=5;
+        // Mantisse Bits 5-12
+        writereg(client, 0x01, mantisse&0x000000ff);
+        mantisse>>=8;
+        // Mantisse Bits 13-20
+        writereg(client, 0x00, mantisse&0x000000ff);
+	// Und ein reset um das Dingens richtig einzustellen
+  	writereg(client, 0x07, 0x01);
+  	return 0;
+
+/* VES1820:
+
 // #define XIN 57840000UL
 // #define FIN (57840000UL>>4)
         // the dbox seems to use another crystal, 69.6 Mhz.
-#define XIN 69600000UL
-#define FIN (XIN>>4)
+//#define XIN 69600000UL
+//#define FIN (XIN>>4)
+        s32 BDR;
+        s32 BDRI;
+        s16 SFIL=0;
         s16 NDEC = 0;
         u32 tmp, ratio;
 
-dprintk("AT76C651: set Symbolrate\n");
-return 0;
-
-// Den Rest muss ich noch studieren :-)
-
-/*
         if (Symbolrate > XIN/2)
                 Symbolrate=XIN/2;
         if (Symbolrate < 500000)
@@ -315,9 +356,6 @@ return 0;
 
         return 0;
 */
-  // Und ein reset um das Dingens richtig einzustellen
-  writereg(client, 0x07, 0x01);
-  return 0;
 }
 
 typedef enum QAM_TYPE
