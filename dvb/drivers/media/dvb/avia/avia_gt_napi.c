@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.74 $
+ *   $Revision: 1.75 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.75  2002/04/19 10:07:27  Jolt
+ *   DMX merge
+ *
  *   Revision 1.74  2002/04/18 18:17:37  happydude
  *   deactivate pcr pid failsafe
  *
@@ -271,7 +274,7 @@
 
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
-
+static unsigned char dmx_chip_type;
 
 #ifdef ENX
 #undef rh
@@ -283,8 +286,12 @@ static unsigned char* gtxreg;
 #define gtx_dmx
 #endif
 
-				// #undef GTX_SECTIONS
+// #undef GTX_SECTIONS
+
+static char *ucode = 0;
+
 #ifdef MODULE
+MODULE_PARM(ucode,"s");
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 #ifdef ENX
 MODULE_DESCRIPTION("Avia GTX demux driver");
@@ -292,16 +299,6 @@ MODULE_DESCRIPTION("Avia GTX demux driver");
 MODULE_DESCRIPTION("Avia eNX demux driver");
 #endif
 #endif
-
-/* parameter stuff */
-
-#define DMX_AUTO -1
-#define DMX_GTX	0
-#define DMX_ENX	1
-
-static int debug = 0;
-static int type = DMX_AUTO;
-static char *ucode = 0;
 
 static gtx_demux_t gtx;
 
@@ -2080,46 +2077,28 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 	return 0;
 }
 
-#ifdef MODULE
-
-MODULE_PARM(debug,"i");
-MODULE_PARM(ucode,"s");
-
-MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
-
-int init_module(void)
+int __init avia_gt_dmx_init(void)
 {
-	struct dbox_info_struct dinfo;
-	
-	if (type == DMX_AUTO)
-	{
-			dbox_get_info(&dinfo);
-	
-		if ( dinfo.enxID != 0xFFFFFFFF )
-		{
-			printk("gen_dmx: found enx\n");
-		}
-				else if ( dinfo.gtxID != 0xFFFFFFFF )
-		{
-			printk("gen_dmx: found gtx\n");
-		}
-		else
-		{
-			printk("gen_dmx: found nothing\n");
-		}
-	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.74 2002/04/18 18:17:37 happydude Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_napi.c,v 1.75 2002/04/19 10:07:27 Jolt Exp $\n");
 
-	return gtx_dmx_init();
+    dmx_chip_type = avia_gt_get_chip_type();
+    
+    if ((dmx_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (dmx_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+	
+	printk("avia_gt_dmx: Unsupported chip type\n");
+		
+	return -EIO;
+			
+    }
+			    
+    return gtx_dmx_init();
+
 }
 
-void cleanup_module(void)
+void __exit avia_gt_dmx_exit(void)
 {
-	printk(KERN_INFO "dmx: close\n");
+
 	gtx_dmx_close();
+
 }
-
-EXPORT_SYMBOL(cleanup_module);
-
-#endif
