@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.47  2002/11/19 14:22:25  Jolt
+ *   Fixes
+ *
  *   Revision 1.46  2002/11/19 13:53:24  Jolt
  *   More work on AVIA API
  *
@@ -194,7 +197,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.46 $
+ *   $Revision: 1.47 $
  *
  */
 
@@ -256,7 +259,7 @@ static spinlock_t avia_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
-static u8 bypass_mode = 0;
+static u8 bypass_mode = 1;
 static u16 pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
@@ -1351,8 +1354,6 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
 				avia_av_decoder_start(0, 1);
-			else
-				avia_av_decoder_start(1, 1);
 		
 			break;
 
@@ -1633,7 +1634,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.46 2002/11/19 13:53:24 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.47 2002/11/19 14:22:25 Jolt Exp $\n");
 
 	aviamem = 0;
 
