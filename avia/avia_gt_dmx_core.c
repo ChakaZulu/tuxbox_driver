@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.69 $
+ *   $Revision: 1.70 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.70  2002/04/12 14:28:13  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.69  2002/03/19 18:32:25  happydude
  *   allow seperate setting of pcr pid
  *
@@ -248,8 +251,7 @@
 #include <ost/demux.h>
 
 #include <dbox/info.h>
-#include <dbox/gtx.h>
-#include <dbox/enx.h>
+#include <dbox/avia_gt.h>
 #include <dbox/gtx-dmx.h>
 #include <dbox/avia.h>
 #include "crc32.h"
@@ -942,8 +944,8 @@ static void gtx_dmx_set_pcr_source(int pid)
 	enx_reg_h(PCR_PID)=(1<<13)|pid;
 	enx_reg_h(FC)|=0x100;							 // force discontinuity
 	discont=1;
-	enx_free_irq(1, 5);
-	enx_allocate_irq(1, 5, gtx_pcr_interrupt);			 // pcr reception
+	avia_gt_free_irq(1, 5);
+	avia_gt_alloc_irq(1, 5, gtx_pcr_interrupt);			 // pcr reception
 #else
 	rh(PCRPID)=(1<<13)|pid;
 	rh(FCR)|=0x100;							 // force discontinuity
@@ -963,8 +965,8 @@ int gtx_dmx_init(void)
 
 	printk(KERN_DEBUG "gtx_dmx: \n");
 #ifdef enx_dmx
-	gtxmem=enx_get_mem_addr();
-	gtxreg=enx_get_reg_addr();
+	gtxmem=avia_gt_get_mem_addr();
+	gtxreg=avia_gt_get_reg_addr();
 #else	
 	gtxmem=gtx_get_mem();
 	gtxreg=gtx_get_reg();
@@ -994,8 +996,6 @@ int gtx_dmx_init(void)
 	enx_reg_w(RSTR0) &= ~(1 << 9);
 	enx_reg_w(RSTR0) &= ~(1 << 23);
 	enx_reg_w(RSTR0) &= ~(1 << 31);
-	enx_reg_w(RSTR0) &= ~(1 << 28);
-	enx_reg_w(RSTR0) &= ~(1 << 0);
 	
 	enx_reg_w(CFGR0) &= ~(1 << 3);
 	enx_reg_w(CFGR0) &= ~(1 << 1);
@@ -1009,10 +1009,7 @@ int gtx_dmx_init(void)
 
 	enx_reg_h(AVI_0) = 0xF;					// 0x6CF geht nicht (ordentlich)
 	enx_reg_h(AVI_1) = 0xA;
-
-	enx_reg_w(PCMN)=0x80808080;
-	enx_reg_h(PCMC) = 0xF80a;
-//	enx_reg_h(PCMC) = 0xF4C0; // -> Viel rauschen ;)
+	
 	enx_reg_w(CFGR0) &= ~3; 				// disable clip mode
 
 	printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
@@ -1032,6 +1029,8 @@ int gtx_dmx_init(void)
 
 	rh(AVI)=0x71F;
 	rh(AVI+2)=0xF;
+	
+	//gtx_pcm_set_mpeg_attenuation(0x80, 0x80);
 #endif
 
 	GtxDmxInit(&gtx);
@@ -1054,12 +1053,12 @@ void gtx_dmx_close(void)
 #ifdef enx_dmx
 	for (i=1; i<16; i++)
 	{
-		enx_free_irq(3, i);
-		enx_free_irq(4, i);
+		avia_gt_free_irq(3, i);
+		avia_gt_free_irq(4, i);
 	}
-	enx_free_irq(5, 6);
-	enx_free_irq(5, 7);
-	enx_free_irq(1, 5);					 // PCR
+	avia_gt_free_irq(5, 6);
+	avia_gt_free_irq(5, 7);
+	avia_gt_free_irq(1, 5);					 // PCR
 #else
 	for (j=0; j<2; j++)
 		for (i=0; i<16; i++)
@@ -1554,7 +1553,7 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 			gtxfeed->int_nr=5;
 			gtxfeed->int_bit=gtxfeed->index+6;
 		}
-		enx_allocate_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
+		avia_gt_alloc_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
 #else	
 		gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
 #endif
@@ -1567,7 +1566,7 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 	{
 		gtxfeed->tap=0;
 #ifdef enx_dmx
-		enx_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
+		avia_gt_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
 #else
 		gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
 #endif
@@ -2098,7 +2097,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.69 2002/03/19 18:32:25 happydude Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.70 2002/04/12 14:28:13 Jolt Exp $\n");
 
 	return gtx_dmx_init();
 }
