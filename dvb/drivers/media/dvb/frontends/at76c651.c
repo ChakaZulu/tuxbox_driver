@@ -1,22 +1,12 @@
 /*
 
-    $Id: at76c651.c,v 1.14 2001/04/29 21:09:32 fnbrd Exp $
+    $Id: at76c651.c,v 1.15 2001/04/30 06:21:22 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
     Homepage: http://dbox2.elxsi.de
 
     Copyright (C) 2001 fnbrd (fnbrd@gmx.de)
-
-    Teile sind noch Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
-
-    da zum Vergleich noch Reste des ves1820-Treibers vorhanden sind
-
-    Habe mal angefangen in der Hoffnung das einer der Fachmaenner mir weiterhelfen
-    kann oder es selbst machen will.
-
-    Das Datenblatt findet sich unter http://www.atmel.com/atmel/acrobat/doc1293.pdf
-
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.15  2001/04/30 06:21:22  fnbrd
+    Aufraeumarbeiten.
+
     Revision 1.14  2001/04/29 21:09:32  fnbrd
     Doppeltes init abgestellt.
 
@@ -86,10 +79,8 @@ static void ves_get_frontend(struct frontend *front);
 static void ves_tuner_i2c(int an);
 static int ves_get_unc_packet(u32 *uncp);
 static int tuner_set_freq(int freq);
-static int tuner_initialized=0;
 static int attach_adapter(struct i2c_adapter *adap);
 static int detach_client(struct i2c_client *client);
-static void at_restart(void);
 
 struct demod_function_struct at76c651={
 	write_reg:		ves_write_reg,
@@ -134,7 +125,7 @@ struct tuner_data
 struct tuner_data *tunerdata=0;
 
 static struct i2c_driver tuner_driver = {
-        "AT Tuner driver",
+        "AT76c651 tuner driver",
         TUNER_I2C_DRIVERID,
         I2C_DF_NOTIFY,
         &tuner_attach_adapter,
@@ -145,7 +136,7 @@ static struct i2c_driver tuner_driver = {
 };
 
 static struct i2c_client client_template_tuner = {
-        "AT tuner",
+        "AT76c651 tuner",
         TUNER_I2C_DRIVERID,
         0,
         0x61, // = 0xc2 >> 1
@@ -170,28 +161,24 @@ static int tuner_detach_client(struct i2c_client *tuner_client)
 
 static int tuner_attach_adapter(struct i2c_adapter *adap)
 {
-        struct i2c_client *client;
+struct i2c_client *client;
 
-        client_template_tuner.adapter=adap;
-
-        if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
-                return -ENOMEM;
-
-        memcpy(client, &client_template_tuner, sizeof(struct i2c_client));
-        dclient_tuner=client;
-
-        client->data=tunerdata=kmalloc(sizeof(struct tuner_data),GFP_KERNEL);
-
-        if (tunerdata==NULL) {
-          kfree(client);
-          return -ENOMEM;
-        }
-
-        printk("AT76C651: attaching tuner at 0x%02x\n", (client->addr)<<1);
-        i2c_attach_client(client);
-
-        printk("AT76C651: tuner attached to adapter %s\n", adap->name);
-
+  client_template_tuner.adapter=adap;
+//  if(i2c_master_send(&client_template_tuner, NULL, 0))
+//    return -1;
+  if(NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+    return -ENOMEM;
+  memcpy(client, &client_template_tuner, sizeof(struct i2c_client));
+  dclient_tuner=client;
+  client->data=tunerdata=kmalloc(sizeof(struct tuner_data),GFP_KERNEL);
+  if (tunerdata==NULL) {
+    kfree(client);
+    return -ENOMEM;
+  }
+  memset(tunerdata, 0, sizeof(tunerdata));
+  printk("AT76C651: attaching tuner at 0x%02x\n", (client->addr)<<1);
+  i2c_attach_client(client);
+  printk("AT76C651: tuner attached to adapter %s\n", adap->name);
   return 0;
 }
 
@@ -216,7 +203,7 @@ static int tuner_init(void)
 	ves_tuner_i2c(0); //disable tuner access on at76c651
 //	tuner_set_freq(1198000000);
 
-	printk("AT76C651: DBox2 tuner driver init fertig\n");
+//	printk("AT76C651: DBox2 tuner driver init fertig\n");
 	return 0;
 }
 
@@ -233,22 +220,60 @@ static int tuner_close(void)
 	return 0;
 }
 
+static int writereg(struct i2c_client *client, u8 reg, u8 data)
+{
+        int ret;
+        u8 msg[2];
+
+        msg[0]=reg; msg[1]=data;
+        ret=i2c_master_send(client, msg, 2);
+        if (ret!=2)
+                printk("writereg error\n");
+    /*    printk("writereg: [%02x]=0x%02x\n", reg, data); */
+        mdelay(10);
+        return ret;
+}
+
+static u8 readreg(struct i2c_client *client, u8 reg)
+{
+        struct i2c_adapter *adap=client->adapter;
+        unsigned char mm1[1];
+        unsigned char mm2[] = {0x00};
+        struct i2c_msg msgs[2];
+
+        msgs[0].flags=0;
+        msgs[1].flags=I2C_M_RD;
+        msgs[0].addr=msgs[1].addr=client->addr;
+        mm1[0]=reg;
+        msgs[0].len=1; msgs[1].len=1;
+        msgs[0].buf=mm1; msgs[1].buf=mm2;
+        i2c_transfer(adap, msgs, 2);
+
+        return mm2[0];
+}
+
+inline void at_restart(void)
+{
+  // AT neu starten
+  writereg(dclient, 0x07, 0x01);
+}
+
 static int set_tuner_dword(u32 tw)
 {
-	char msg[4];
-	int len=4;
-	dprintk("AT76C651: set_tuner_dword: 0x%08x\n", tw);
+char msg[4];
+int len=4;
 
-	*((u32*)(msg))=tw;
-
-	ves_tuner_i2c(1); //enable tuner access on at76c651
-	if (i2c_master_send(dclient_tuner, msg, len)!=len)
-	{
-		return -1;
-	}
-	ves_tuner_i2c(0); //disable tuner access on at76c651
-	tunerdata->lastwrite=tw;
-	return -1;
+  if(tunerdata->lastwrite==tw)
+    return 0; // Nichts zu tun
+//  dprintk("AT76C651: set_tuner_dword: 0x%08x\n", tw);
+  *((u32*)(msg))=tw;
+  ves_tuner_i2c(1); //enable tuner access on at76c651
+  if (i2c_master_send(dclient_tuner, msg, len)!=len)
+    return -1;
+  ves_tuner_i2c(0); //disable tuner access on at76c651
+  tunerdata->lastwrite=tw;
+  at_restart(); // Und den AT neu starten
+  return 0;
 }
 
 static int tuner_set_freq(int freq)
@@ -315,7 +340,6 @@ static int tuner_set_freq(int freq)
   }
   if(dw) {
     set_tuner_dword(dw);
-    at_restart(); // Und den AT neu starten
     return 0;
   }
   else
@@ -335,55 +359,17 @@ typedef struct at76c651 {
 } at76c651_t;
 
 
-static int writereg(struct i2c_client *client, u8 reg, u8 data)
-{
-        int ret;
-        u8 msg[2];
-
-        msg[0]=reg; msg[1]=data;
-        ret=i2c_master_send(client, msg, 2);
-        if (ret!=2)
-                printk("writereg error\n");
-    /*    printk("writereg: [%02x]=0x%02x\n", reg, data); */
-        mdelay(10);
-        return ret;
-}
-
-static u8 readreg(struct i2c_client *client, u8 reg)
-{
-        struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[1];
-        unsigned char mm2[] = {0x00};
-        struct i2c_msg msgs[2];
-
-        msgs[0].flags=0;
-        msgs[1].flags=I2C_M_RD;
-        msgs[0].addr=msgs[1].addr=client->addr;
-        mm1[0]=reg;
-        msgs[0].len=1; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
-        i2c_transfer(adap, msgs, 2);
-
-        return mm2[0];
-}
-
 // Tuner an i2c an/abhaengen
 static void ves_tuner_i2c(int an)
 {
   if(an) {
     writereg(dclient, 0x0c, 0xc2|1);
-    dprintk("AT76C651: tuner now attached to i2c at 0xc2\n");
+//    dprintk("AT76C651: tuner now attached to i2c at 0xc2\n");
   }
   else {
     writereg(dclient, 0x0c, 0xc2);
-    dprintk("AT76C651: tuner now detached from i2c\n");
+//    dprintk("AT76C651: tuner now detached from i2c\n");
   }
-}
-
-// Und ein Restart
-static void at_restart(void)
-{
-	writereg(dclient, 0x07, 0x01);
 }
 
 static int init(struct i2c_client *client)
@@ -396,8 +382,6 @@ static int init(struct i2c_client *client)
 	// BBFREQ
 	writereg(client, 0x04, 0x3f);
 	writereg(client, 0x05, 0xee);
-
-	set_tuner_dword(0x19628e06); // (370000)
 
 	// SYMRATE 6900000
 	writereg(client, 0x00, 0xf4);
@@ -419,8 +403,9 @@ static int init(struct i2c_client *client)
 	writereg(client, 0x30, 0x90);
 //	writereg(client, 0x30, 0x94);
 
+	set_tuner_dword(0x19628e06); // (370000)
         // Und ein Restart
-	at_restart();
+//	at_restart(); // Wird bei set_tuner_dword gemacht
 //	writereg(client, 0x07, 0x01);
 
         /* mask interrupt */
@@ -435,7 +420,7 @@ static int init(struct i2c_client *client)
 	ves->ber=0;
 
 	ves->pwm=readreg(client, 0x17);
-        dprintk("AT76C651: pwm=%02x\n", ves->pwm);
+//        dprintk("AT76C651: pwm=%02x\n", ves->pwm);
 /*
         if (ves->pwm == 0xff) // Richtig?
            ves->pwm=0x48;
@@ -469,53 +454,7 @@ static int init(struct i2c_client *client)
         // Wir enablen mal den Tuner (staendig, zum testen) (addr c2)
         ves_tuner_i2c(1);
 */
-
 	return 0;
-
-/* VES1820:
-
-        struct i2c_adapter *adap=client->adapter;
-        struct i2c_msg msgs[2];
-        unsigned char mm1[] = {0xff};
-        unsigned char mm2[] = {0x00};
-        int i;
-
-        msgs[0].flags=0; // write
-        msgs[1].flags=1; // read
-        msgs[0].addr=msgs[1].addr=(0x28<<1);
-        mm1[0]=0xff;
-        msgs[0].len=1; msgs[1].len=1;
-        msgs[0].buf=mm1; msgs[1].buf=mm2;
-        i2c_transfer(adap, msgs, 2);
-        ves->pwm=*mm2;
-        printk("AT76C651: pwm=%02x\n", ves->pwm);
-        if (ves->pwm == 0xff)
-                ves->pwm=0x48;
-
-        if (writereg(client, 0, 0)<0)
-                printk("AT76C651: send error\n");
-        for (i=0; i<53; i++)
-                writereg(client, i, Init1820PTab[i]);
-
-        writereg(client, 0, Init1820PTab[0]&~1);
-        writereg(client, 0, Init1820PTab[0]|1);
-        mdelay(1000);
-
-        ves->inversion=0;
-        ves->srate=0;
-        ves->reg0=Init1820PTab[0];
-
-        writereg(client, 0x34, ves->pwm);
-        return 0;
-*/
-}
-
-static int init0(struct i2c_client *client)
-{
-  if(tuner_initialized)
-	return init(client);
- else
-   return 0;
 }
 
 /*
@@ -550,12 +489,12 @@ static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
 //	int i;
         u32 tmp;
 	u32 fref;
+	dprintk("AT76C651: SetSymbolrate %u\n", Symbolrate);
         if(Symbolrate > FREF/2)
           Symbolrate=FREF/2;
         if(Symbolrate < 500000)
           Symbolrate=500000;
         ves->srate=Symbolrate;
-	dprintk("AT76C651: SetSymbolrate %u\n", Symbolrate);
         // Ich Kernel-Dummy, Kernel nix float -> haendisch div.
         // Wenn's nur nicht so lange her waere
 //  	mantisse= ((float)Symbolrate/FREF)*(1<<(30-exp));
@@ -584,7 +523,7 @@ static int SetSymbolrate(struct i2c_client* client, u32 Symbolrate)
           exp=6;
 	dprintk("AT76C651: exp: %02x mantisse: %x <- someone should correct this\n", exp, mantisse);
 	dprintk("AT76C651: Not changed, fixed to 6900000 (exp 0x06, mantisse 0x1E8f80).\n");
-return 0;
+/*
         // Exponent und Mantisse Bits 0-4 setzen
         writereg(client, 0x02, ((mantisse&0x0000001f)<<3)|exp);
         mantisse>>=5;
@@ -595,6 +534,7 @@ return 0;
         writereg(client, 0x00, mantisse&0x000000ff);
 	// Und ein reset um das Dingens richtig einzustellen
   	writereg(client, 0x07, 0x01);
+*/
   	return 0;
 }
 
@@ -618,13 +558,10 @@ static int SetQAM(struct i2c_client* client, QAM_TYPE QAM_Mode)
 {
   u8 qamsel;
   if(QAM_Mode<0 || QAM_Mode>4) {
-    dprintk("AT76C651: set QAM unknow type: %d\n", (int)QAM_Mode);
+    dprintk("AT76C651: SetQAM unknow type: %d\n", (int)QAM_Mode);
     return -1;
   }
-  dprintk("AT76C651: set QAM %s\n", qamstr[QAM_Mode]);
-
-//dprintk("AT76C651: set QAM (not supported, fixed to QAM 64)\n");
-//return 0;
+  dprintk("AT76C651: SetQAM %s\n", qamstr[QAM_Mode]);
 
 	// Read QAMSEL
 	qamsel=readreg(client, 0x03);
@@ -695,13 +632,6 @@ static int attach_adapter(struct i2c_adapter *adap)
         struct ves1893 *ves;
         struct i2c_client *client;
 
-//		unsigned long flags;
-
-        client_template.adapter=adap;
-
-/*        if (i2c_master_send(&client_template,NULL,0))
-                return -1;
-*/
         client_template.adapter=adap;
 
         if (readreg(&client_template, 0x0e)!=0x65) {
@@ -714,8 +644,6 @@ static int attach_adapter(struct i2c_adapter *adap)
             printk("no AT76C651 found, but a AT76C651B\n");
           return -1;
         }
-
-//        printk("feID: 1820 %x\n", readreg(&client_template, 0x1a));
 
         if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
                 return -ENOMEM;
@@ -765,7 +693,7 @@ static int detach_client(struct i2c_client *client)
 
 static void ves_init(void)
 {
-  init0(dclient);
+  init(dclient);
 }
 
 static void ves_set_frontend(struct frontend *front)
@@ -858,7 +786,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.14 2001/04/29 21:09:32 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.15 2001/04/30 06:21:22 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
@@ -870,8 +798,8 @@ int init_module(void) {
                 printk("AT76C651: not found.\n");
                 return -EBUSY;
         }
-	tuner_init();
-	tuner_initialized=1;
+	if((res=tuner_init()))
+          return res;
 //	ves_init(); // wird bei register_demod aufgerufen
 	if (register_demod(&at76c651))
  		printk("at76c651.o: can't register demod.\n");
@@ -888,7 +816,9 @@ void cleanup_module(void)
                        "module not removed.\n");
         }
 
-//	free_irq(VES_INTERRUPT, NULL);
+#ifndef DONT_USE_IRQ
+	free_irq(VES_INTERRUPT, NULL);
+#endif
 
         dprintk("AT76C651: cleanup\n");
 	tuner_close();
