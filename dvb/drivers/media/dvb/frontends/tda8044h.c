@@ -1,5 +1,5 @@
 /* 
- *   $Id: tda8044h.c,v 1.9 2002/04/24 12:08:38 obi Exp $
+ *   $Id: tda8044h.c,v 1.10 2002/05/18 21:01:48 derget Exp $
  *   
  *   tda8044h.c - Philips TDA8044H (d-box 2 project) 
  *
@@ -23,6 +23,11 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.10  2002/05/18 21:01:48  derget
+ *   fixx wegem lock problem von zapit (untested)
+ *   sync wurde nie richtig gelesen !
+ *   danke an TheTobe
+ *
  *   Revision 1.9  2002/04/24 12:08:38  obi
  *   made framing byte hack nicer
  *
@@ -57,7 +62,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -399,7 +404,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		FrontendStatus *status=(FrontendStatus*)arg;
 		
-		int sync=tda->sync;
+		int sync=readreg(client, 2);
 		
 		*status=0;
 		
