@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.19  2002/03/06 12:54:52  gillem
+ *   - fix include path
+ *
  *   Revision 1.18  2002/03/06 09:36:33  gillem
  *   - clean module unload (set into standby)
  *
@@ -72,7 +75,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -103,8 +106,7 @@
 #include <linux/i2c.h>
 #include <linux/video_encoder.h>
 #include <dbox/info.h>
-
-#include "saa7126_core.h"
+#include <dbox/saa7126_core.h>
 
 #ifndef CONFIG_DEVFS_FS
 #error no devfs
