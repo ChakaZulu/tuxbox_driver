@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_proc.c,v 1.13 2003/11/24 08:44:25 obi Exp $
+ * $Id: avia_av_proc.c,v 1.14 2004/01/21 20:02:29 carjay Exp $
  *
  * AViA 500/600 proc driver (dbox-II-project)
  *
@@ -38,6 +38,8 @@ static u32 *dram_copy;
 static int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 	int nr = 0;
+	int audiotype;
+	long mpegheader=0;
 
 	nr = sprintf(buf, "Bitstream Settings:\n");
 
@@ -47,11 +49,14 @@ static int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t o
 	nr += sprintf(buf + nr, "F_RATE:  %d\n", avia_av_dram_read(FRAME_RATE) & 0xFFFF);
 	nr += sprintf(buf + nr, "B_RATE:  %d\n", avia_av_dram_read(BIT_RATE) & 0xFFFF);
 	nr += sprintf(buf + nr, "VB_SIZE: %d\n", avia_av_dram_read(VBV_SIZE) & 0xFFFF);
-	nr += sprintf(buf + nr, "A_TYPE:  %d\n", avia_av_dram_read(AUDIO_TYPE) & 0xFFFF);
-	nr += sprintf(buf + nr, "MR_PIC_PTS: %08x\n", avia_av_dram_read(MR_PIC_PTS));
-	nr += sprintf(buf + nr, "MR_PIC_STC: %08x\n", avia_av_dram_read(MR_PIC_STC));
-	nr += sprintf(buf + nr, "MR_AUD_PTS: %08x\n", avia_av_dram_read(MR_AUD_PTS));
-	nr += sprintf(buf + nr, "MR_AUD_STC: %08x\n", avia_av_dram_read(MR_AUD_STC));
+	audiotype=avia_av_dram_read(AUDIO_TYPE)&0xFFFF;
+	nr += sprintf(buf + nr, "A_TYPE:  %d\n",audiotype);
+	if (audiotype==3) mpegheader=(((avia_av_dram_read(MPEG_AUDIO_HEADER1) & 0xFFFF))<<16)|((avia_av_dram_read(MPEG_AUDIO_HEADER2))&0xFFFF);
+	nr += sprintf(buf + nr, "MPEG_AUDIO_HEADER: 0x%04lx\n",mpegheader);
+	nr += sprintf(buf + nr, "MR_PIC_PTS: 0x%04x\n", avia_av_dram_read(MR_PIC_PTS));
+	nr += sprintf(buf + nr, "MR_PIC_STC: 0x%04x\n", avia_av_dram_read(MR_PIC_STC));
+	nr += sprintf(buf + nr, "MR_AUD_PTS: 0x%04x\n", avia_av_dram_read(MR_AUD_PTS));
+	nr += sprintf(buf + nr, "MR_AUD_STC: 0x%04x\n", avia_av_dram_read(MR_AUD_STC));
 
 	return nr;
 }
@@ -101,7 +106,7 @@ int avia_av_proc_init(void)
 	struct proc_dir_entry *proc_bus_avia;
 	struct proc_dir_entry *proc_bus_avia_dram;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.13 2003/11/24 08:44:25 obi Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.14 2004/01/21 20:02:29 carjay Exp $\n");
 
 	if (!proc_bus) {
 		printk("avia_av_proc: /proc/bus does not exist");
