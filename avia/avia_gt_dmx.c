@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.141  2002/11/11 21:35:32  wjoost
+ *   SPTS: Software-Demultiplexing Audio-/Video-Queue
+ *
  *   Revision 1.140  2002/11/04 20:43:36  wjoost
  *   IRQ-Handling fuers streamen geaendert
  *
@@ -230,7 +233,7 @@
  *
  *
  *
- *   $Revision: 1.140 $
+ *   $Revision: 1.141 $
  *
  */
 
@@ -1131,13 +1134,53 @@ u32 avia_gt_dmx_queue_crc32(u8 queue_nr, u32 count, u32 seed)
 		crc = avia_gt_accel_crc32(queue_list[queue_nr].mem_addr + queue_list[queue_nr].read_pos, chunk1_size, seed);
 		
 		return avia_gt_accel_crc32(queue_list[queue_nr].mem_addr, count - chunk1_size, crc);
-	
+
 	} else {
-	
+
 		return avia_gt_accel_crc32(queue_list[queue_nr].mem_addr + queue_list[queue_nr].read_pos, count, seed);
-	
+
 	}
-	
+
+}
+
+u32 avia_gt_dmx_queue_data_peek(u8 queue_nr, u32 index, void *dest, u32 count)
+{
+	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
+	u32 done = 0;
+	u32 read_pos;
+
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
+		printk("avia_gt_dmx: queue_data_peek: queue %d out of bounce\n", queue_nr);
+		return 0;
+	}
+
+	if (count + index > bytes_avail) {
+		printk("avia_gt_dmx: queue_data_peek: %d bytes requested, %d available\n", count, bytes_avail);
+		return 0;
+	}
+
+	read_pos = queue_list[queue_nr].read_pos + index;
+	if (read_pos >queue_list[queue_nr].size)
+	{
+		read_pos -= queue_list[queue_nr].size;
+	}
+
+	if ((read_pos > queue_list[queue_nr].write_pos) &&
+		(count >= (queue_list[queue_nr].size - read_pos))) {
+
+		done = queue_list[queue_nr].size - read_pos;
+
+		if (dest)
+			memcpy(dest, gt_info->mem_addr + queue_list[queue_nr].mem_addr + read_pos, done);
+
+		read_pos = 0;
+
+	}
+
+	if ((dest) && (count - done))
+		memcpy(((u8 *)dest) + done, gt_info->mem_addr + queue_list[queue_nr].mem_addr + read_pos, count - done);
+
+	return count;
 }
 
 u32 avia_gt_dmx_queue_data_get(u8 queue_nr, void *dest, u32 count, u8 peek)
@@ -1156,13 +1199,13 @@ u32 avia_gt_dmx_queue_data_get(u8 queue_nr, void *dest, u32 count, u8 peek)
 	}
 
 	if (count > bytes_avail) {
-	
+
 		printk("avia_gt_dmx: queue_data_move: %d bytes requested, %d availible\n", count, bytes_avail);
-		
+
 		count = bytes_avail;
-		
+
 	}
-	
+
 	read_pos = queue_list[queue_nr].read_pos;
 
 	if ((read_pos > queue_list[queue_nr].write_pos) &&
@@ -1211,7 +1254,7 @@ u16 avia_gt_dmx_queue_data_get16(u8 queue_nr, u8 peek)
 
 u32 avia_gt_dmx_queue_data_get32(u8 queue_nr, u8 peek)
 {
-	
+
 	u32 data;
 
 	avia_gt_dmx_queue_data_get(queue_nr, &data, sizeof(u32), peek);
@@ -2048,7 +2091,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.140 2002/11/04 20:43:36 wjoost Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.141 2002/11/11 21:35:32 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2151,6 +2194,7 @@ int __init avia_gt_dmx_init(void)
 		queue_list[queue_nr].info.get_data8 = avia_gt_dmx_queue_data_get8;
 		queue_list[queue_nr].info.get_data16 = avia_gt_dmx_queue_data_get16;
 		queue_list[queue_nr].info.get_data32 = avia_gt_dmx_queue_data_get32;
+		queue_list[queue_nr].info.peek_data = avia_gt_dmx_queue_data_peek;
 		queue_list[queue_nr].info.nr = queue_nr;
 		queue_list[queue_nr].info.put_data = avia_gt_dmx_queue_data_put;
 

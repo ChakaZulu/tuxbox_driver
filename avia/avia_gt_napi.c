@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.145 $
+ *   $Revision: 1.146 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.146  2002/11/11 21:35:32  wjoost
+ *   SPTS: Software-Demultiplexing Audio-/Video-Queue
+ *
  *   Revision 1.145  2002/11/07 20:07:32  wjoost
  *   streamen des aktuellen Programms im SPTS-Modus gefixed.
  *
@@ -983,13 +986,13 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 			case DMX_MESSAGE_SECTION_COMPLETED:
 
 				if (queue_info->bytes_avail(queue_nr) < sizeof(comp_msg))	{
-									
+
 					printk("avia_gt_napi: short section completed message.\n");
 
 					avia_gt_dmx_queue_reset(queue_nr);
-										
+
 					return;
-										
+
 				}
 
 				queue_info->get_data(queue_nr, &comp_msg, sizeof(comp_msg), 0);
@@ -1020,6 +1023,96 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 
 }
 
+void avia_gt_handle_ts_data(gtx_demux_t *gtx, sAviaGtDmxQueue *queue,sAviaGtDmxQueueInfo *queue_info, u8 queue_nr, gtx_demux_feed_t *gtxfeed, u32 buf_len)
+{
+	u32 i;
+	int chunk1;
+	u32 need_payload = 0;
+	sDVBTsHeader ts_header;
+	s32 payload_len;
+
+	for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+
+		if ((gtx->feed[i].state == DMX_STATE_GO) &&
+			(gtx->feed[i].pid == gtxfeed->pid) &&
+			(gtx->feed[i].output & TS_PACKET)) {
+
+			if (!((gtxfeed->output^gtx->feed[i].output) & TS_PAYLOAD_ONLY)) {
+
+				if ((queue->read_pos + buf_len) > queue->size) {
+
+					chunk1 = queue->size - queue->read_pos;
+					gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
+
+				} else {
+
+					gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+
+				}
+
+			} else if (gtx->feed[i].output & TS_PAYLOAD_ONLY) {
+
+				need_payload++;
+
+			}
+
+		}
+
+	}
+
+	// Emuliere Payload only für feeds die mit TS-Header laufen
+
+	if (need_payload > 0) {
+
+		while (buf_len >= 188) {
+
+			payload_len = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &ts_header);
+
+			if (payload_len < 0)
+				return;
+
+			if (!payload_len)
+				continue;
+
+			for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
+
+				if ((gtx->feed[i].state == DMX_STATE_GO) &&
+					(gtx->feed[i].pid == gtxfeed->pid) &&
+					(gtx->feed[i].output & TS_PACKET) &&
+					(gtx->feed[i].output & TS_PAYLOAD_ONLY)) {
+
+					if ((queue->read_pos + payload_len) > queue->size) {
+
+						chunk1 = queue->size - queue->read_pos;
+
+						gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
+
+					} else {
+
+						gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
+
+					}
+
+				}
+
+			}
+
+			queue_info->get_data(queue_nr, NULL, payload_len, 0);
+
+			buf_len -= 188;
+
+		}
+
+	} else {
+
+		gtxfeed->sec_ccn = 16;
+
+		queue_info->get_data(queue_nr, NULL, buf_len, 0);
+
+	}
+
+}
+
 void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 {
 
@@ -1039,6 +1132,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	sDVBTsHeader ts_header;
 	unsigned char pid1_high, pid1_low;
 #ifdef AVIA_SPTS
+	u16 pid;
 	unsigned char pid2_high, pid2_low;
 #endif
 
@@ -1113,86 +1207,35 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 				buf_len -= buf_len % 188;
 
-				for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
-
-					if ((gtx->feed[i].state == DMX_STATE_GO) &&
-						(gtx->feed[i].pid == gtxfeed->pid) &&
-						(gtx->feed[i].output & TS_PACKET)) {
-
-						if (!((gtxfeed->output^gtx->feed[i].output) & TS_PAYLOAD_ONLY)) {
-
-
-							if ((queue->read_pos + buf_len) > queue->size) {
-
-								chunk1 = queue->size - queue->read_pos;
-								gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, buf_len - chunk1, &gtx->feed[i].feed.ts, 0);
-
-							} else {
-
-								gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, buf_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
-
-							}
-							
-						} else if (gtx->feed[i].output & TS_PAYLOAD_ONLY) {
-						
-							need_payload++;
-
-						}
-						
-					}
-					
+#ifdef AVIA_SPTS
+				if (queue_nr != 0)
+				{
+#endif
+					avia_gt_handle_ts_data(gtx,queue,queue_info,queue_nr,gtxfeed,buf_len);
+#ifdef AVIA_SPTS
 				}
-
-				// Emuliere Payload only für feeds die mit TS-Header laufen
-
-				if (need_payload > 0) {
-
-					while (buf_len >= 188) {
-					
-						payload_len = avia_gt_napi_strip_header_ts(gtxfeed, queue_nr, &ts_header);
-
-						if (payload_len < 0)
-							return;
-							
-						if (!payload_len)
-							continue;
-
-						for (i = USER_QUEUE_START; i < LAST_USER_QUEUE; i++) {
-
-							if ((gtx->feed[i].state == DMX_STATE_GO) &&
-								(gtx->feed[i].pid == gtxfeed->pid) &&
-								(gtx->feed[i].output & TS_PACKET) &&
-								(gtx->feed[i].output & TS_PAYLOAD_ONLY)) {
-
-								if ((queue->read_pos + payload_len) > queue->size) {
-
-									chunk1 = queue->size - queue->read_pos;
-
-									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, payload_len - chunk1, &gtx->feed[i].feed.ts, 0);
-											
-								} else {
-										
-									gtx->feed[i].cb.ts(gt_info->mem_addr + queue->mem_addr + queue->read_pos, payload_len, NULL, 0, &gtx->feed[i].feed.ts, 0);
-											
-								}
-										
-							}
-
+				else
+				{
+					payload_len = 0;
+					queue_info->get_data(queue_nr, ts_header_old, 3, 1);
+					pid = ((ts_header_old[1] & 0x1F) << 8) | ts_header_old[2];
+					while (buf_len >= 188)
+					{
+						queue_info->peek_data(queue_nr, payload_len, ts_header_old, 3);
+						if ( pid != ( ((ts_header_old[1] & 0x1F) << 8) | ts_header_old[2]) )
+						{
+							i = (pid != gtxfeed->pid);
+							avia_gt_handle_ts_data(gtx,queue,queue_info,0,&gtx->feed[i],payload_len);
+							payload_len = 0;
 						}
-
-						queue_info->get_data(queue_nr, NULL, payload_len, 0);
-							
+						pid = ((ts_header_old[1] & 0x1F) << 8) | ts_header_old[2];
+						payload_len += 188;
 						buf_len -= 188;
-
 					}
-					
-				} else {
-				
-					gtxfeed->sec_ccn = 16;
-					
-					queue_info->get_data(queue_nr, NULL, buf_len, 0);
-					
+					i = (pid != gtxfeed->pid);
+					avia_gt_handle_ts_data(gtx,queue,queue_info,0,&gtx->feed[i],payload_len);
 				}
+#endif
 
 				return;
 
@@ -1200,9 +1243,9 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 			// handle prefiltered section
 			case DMX_TYPE_HW_SEC:
-			
+
 				while (queue_info->bytes_avail(queue_nr) > 0) {
-				
+
 					while ((queue_info->bytes_avail(queue_nr)) && (queue_info->get_data8(queue_nr, 1) == 0xFF))
 						queue_info->get_data(queue_nr, NULL, 1, 0);
 
@@ -1213,7 +1256,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 					gtxfeed->sec_len = (((section_header[1] & 0x0F) << 8) | section_header[2]) + 3;
 
 					if (gtxfeed->sec_len > 4096) {
-					
+
 						dprintk(KERN_ERR "avia_gt_napi: section length %d > 4096!\n", gtxfeed->sec_len);
 
 						gtxfeed->filter->invalid = 1;
@@ -1223,11 +1266,11 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 						dmx_set_filter(gtxfeed->filter);
 
 						return;
-						
+
 					}
 
 					if (gtxfeed->sec_len > queue_info->bytes_avail(queue_nr)) {
-					
+
 						dprintk(KERN_ERR "avia_gt_napi: incomplete section: want %d have %d!\n", gtxfeed->sec_len, queue_info->bytes_avail(queue_nr));
 						
 						return;
@@ -1655,7 +1698,18 @@ static void dmx_update_pid(gtx_demux_t *gtx, int pid)
 					{
 						avia_gt_dmx_set_queue_irq(gtx->feed[i].index,0,-1);
 					}
-					avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
+#ifdef AVIA_SPTS
+					if (i == 1)
+					{
+						avia_gt_dmx_queue_irq_enable(gtx->feed[0].index);
+					}
+					else
+					{
+#endif
+						avia_gt_dmx_queue_irq_enable(gtx->feed[i].index);
+#ifdef AVIA_SPTS
+					}
+#endif
 					gtx->feed[i].irq_is_active = 1;
 				}
 			}
@@ -2212,7 +2266,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.145 2002/11/07 20:07:32 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.146 2002/11/11 21:35:32 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

@@ -42,6 +42,7 @@ typedef struct {
 	u8 (*get_data8)(u8 queue_nr, u8 peek);
 	u16 (*get_data16)(u8 queue_nr, u8 peek);
 	u32 (*get_data32)(u8 queue_nr, u8 peek);
+	u32 (*peek_data)(u8 queue_nr, u32 index, void *dest, u32 count);
 	u32	(*put_data)(u8 queue_nr, void *src, u32 count, u8 src_is_user_space);
 	u8 nr;
 
