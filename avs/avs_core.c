@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.11  2001/04/18 09:06:28  Jolt
+ *   Small fixes
+ *
  *   Revision 1.10  2001/04/16 21:39:20  Jolt
  *   Autodetect
  *
@@ -52,7 +55,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -155,6 +158,7 @@ static int type  = CXAAUTO;
 #ifdef MODULE
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
+MODULE_PARM(type,"i");
 #endif
 
 /* ---------------------------------------------------------------------- */

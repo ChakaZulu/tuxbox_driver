@@ -1,2 +1,5 @@
+*.o
+*.flags
+*~
 ?00*.ux
 ucode.*
