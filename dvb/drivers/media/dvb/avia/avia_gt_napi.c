@@ -20,8 +20,12 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.119 $
+ *   $Revision: 1.120 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.120  2002/09/13 23:06:27  Jolt
+ *   - Directly pass hw sections to napi
+ *   - Enable hw crc for hw sections
+ *
  *   Revision 1.119  2002/09/13 19:23:40  Jolt
  *   NAPI cleanup
  *
@@ -595,6 +599,78 @@ static int gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
 }
 
+static int avia_gt_napi_handle_section(gtx_demux_feed_t *gtxfeed, u8 queue_nr, u16 sec_len)
+{
+
+	gtx_demux_secfilter_t *secfilter = (gtx_demux_secfilter_t *)NULL;
+	sAviaGtDmxQueue *queue = avia_gt_dmx_get_queue_info(queue_nr);
+	int ok,i;
+	int recover = 0;
+	u32 chunk1;
+
+	// FIXME
+	if (sec_len < (DMX_MAX_FILTER_SIZE + 2))
+		queue->info.move_data(queue_nr, gtxfeed->sec_buffer, sec_len, 1);
+	else
+		queue->info.move_data(queue_nr, gtxfeed->sec_buffer, DMX_MAX_FILTER_SIZE + 2, 1);
+		
+	/*
+	 * linux_dvb_api.pdf, allocate_filter():
+	 * [..] Note that on most demux hardware it is not possible to filter on
+	 * the section length field of the section header thus this field is
+	 * ignored, even though it is included in filter value and filter mask
+	 * fields.
+	 */
+	 
+	for (secfilter = gtxfeed->secfilter; secfilter; secfilter = secfilter->next) {
+	
+		ok = 1;
+		i = 0;
+		
+		while ((i < DMX_MAX_FILTER_SIZE) && ok) {
+		
+			if (i == 1)
+				i = 3;
+
+			if (((gtxfeed->sec_buffer[i] ^ secfilter->filter.filter_value[i]) & secfilter->filter.filter_mask[i]))
+				ok = 0;
+			else
+				i++;
+				
+		}
+
+		if (ok)	{
+		
+			recover++;
+
+			if ((queue->read_pos + sec_len) > (queue->mem_addr + queue->size)) {
+				
+				chunk1 = queue->mem_addr + queue->size - queue->read_pos;
+				gtxfeed->cb.sec(gt_info->mem_addr + queue->read_pos, chunk1, gt_info->mem_addr + queue->mem_addr, sec_len - chunk1, &secfilter->filter, 0);
+					
+			} else {
+				
+				gtxfeed->cb.sec(gt_info->mem_addr + queue->read_pos, sec_len, NULL, 0, &secfilter->filter, 0);
+					
+			}
+				
+		} else if (i >= 10) {
+		
+			recover++;
+			
+		}
+
+	}
+	
+	queue->info.move_data(queue_nr, NULL, sec_len, 0);
+
+	gtxfeed->sec_len = 0;
+	gtxfeed->sec_recv = 0;
+
+	return recover;
+
+}
+
 void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 {
 
@@ -738,9 +814,9 @@ void avia_gt_napi_message_callback(u8 queue_nr, void *data)
 									
 				if (!(blocked & (1 << comp_msg.filter_index))) {
 									
-						sync_lost = 0;
-						
-						avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
+					sync_lost = 0;
+
+					avia_gt_dmx_fake_queue_irq(comp_msg.filter_index);
 									
 				}
 									
@@ -904,11 +980,21 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 									return;
 									
 								}
+
+								if ((gtxfeed->check_crc) && (queue_info->crc32(queue_nr, gtxfeed->sec_len, 0))) {
+
+									printk("avia_gt_napi: section CRC invalid\n");
+									
+									queue_info->move_data(queue_nr, NULL, gtxfeed->sec_len, 0);
+									
+									gtxfeed->sec_len = 0;
+									gtxfeed->sec_recv = 0;
+									
+									continue;
+									
+								}
 								
-								queue_info->move_data(queue_nr, gtxfeed->sec_buffer, gtxfeed->sec_len, 0);
-								gtxfeed->sec_recv = gtxfeed->sec_len;
-								
-								if (gtx_handle_section(gtxfeed) == 0) {
+								if (avia_gt_napi_handle_section(gtxfeed, queue_nr, gtxfeed->sec_len) == 0) {
 									
 									gtxfeed->filter->invalid = 1;
 									dmx_set_filter(gtxfeed->filter);
@@ -1848,7 +1934,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.119 2002/09/13 19:23:40 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.120 2002/09/13 23:06:27 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
