@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.83 2003/12/19 20:25:04 derget Exp $
+ * $Id: avia_av_core.c,v 1.84 2003/12/19 21:30:29 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -770,16 +770,16 @@ void avia_av_set_default(void)
 	avia_av_dram_write(UCODE_MEMORY, 0);
 
 	/* set pal or ntsc */
-	switch(tv_standard) {
-		case AVIA_AV_VIDEO_SYSTEM_PAL:
-			avia_av_dram_write(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
-			break;
-		case AVIA_AV_VIDEO_SYSTEM_NTSC:
-			avia_av_dram_write(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
-			break;
-		default:
-			break; 
-			}
+	switch (tv_standard) {
+	case AVIA_AV_VIDEO_SYSTEM_PAL:
+		avia_av_dram_write(MEMORY_MAP, PAL_16MB_WO_ROM_SRAM);
+		break;
+	case AVIA_AV_VIDEO_SYSTEM_NTSC:
+		avia_av_dram_write(MEMORY_MAP, NTSC_16MB_WO_ROM_SRAM);
+		break;
+	default:
+		break; 
+	}
 }
 
 /* ---------------------------------------------------------------------- */
@@ -815,27 +815,24 @@ int avia_av_set_ppc_siumcr(void)
 
 /* ---------------------------------------------------------------------- */
 
-
-void avia_av_set_video_system(int video_system)
-{               
+int avia_av_set_video_system(int video_system)
+{
 	if (video_system == tv_standard) 
-		return;
+		return 0;
 
 	switch (video_system) {
-                        
-		case AVIA_AV_VIDEO_SYSTEM_PAL:
-			tv_standard = 0;
-			avia_av_standby(1);
-			avia_av_standby(0);
-			break;
-		case AVIA_AV_VIDEO_SYSTEM_NTSC:
-			tv_standard = 1;
-			avia_av_standby(1);
-			avia_av_standby(0);
-			break;
-		default:
-			break;
-		}
+	case AVIA_AV_VIDEO_SYSTEM_PAL:
+	case AVIA_AV_VIDEO_SYSTEM_NTSC:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	tv_standard = video_system;
+	avia_av_standby(1);
+	avia_av_standby(0);
+
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1422,7 +1419,14 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.83 2003/12/19 20:25:04 derget Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.84 2003/12/19 21:30:29 obi Exp $\n");
+
+	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
+		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
+		return -EINVAL;
+
+	if (!firmware)
+		return -EINVAL;
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();

@@ -351,7 +351,7 @@ void avia_av_write(const u8 mode, u32 address, const u32 data);
 u32 avia_av_cmd(u32 cmd, ...);
 void avia_av_dram_memcpy32(u32 dst, u32 *src, int dwords);
 
-void avia_av_set_video_system(int video_system);
+int avia_av_set_video_system(int video_system);
 
 #define avia_av_gbus_write(a,d)	avia_av_write(TM_GBUS, a, d)
 #define avia_av_gbus_read(a)	avia_av_read(TM_GBUS, a)
