@@ -74,20 +74,20 @@ gtx_validate_color (GTXDriverData *gdrv,
   switch (state->destination->format)
     {
     case DSPF_LUT8:
-	  if (gtx)
+      if (gtx)
         gtx_out16 (gdrv->mmio_base, GTX_BCLR, state->color_index);
-//	  else if (enx)
+//    else if (enx)
 	  
       break;
     case DSPF_RGB332:
-	  if (gtx)
+      if (gtx)
         gtx_out16 (gdrv->mmio_base, GTX_BCLR, PIXEL_RGB332 (state->color.r,
                                                             state->color.g,
                                                             state->color.b));
-//	  else if (enx)
-//        gtx_out16 (gdrv->mmio_base, ENX_BCLR, PIXEL_RGB332 (state->color.r,
-//                                                        state->color.g,
-//                                                        state->color.b));
+//    else if (enx)
+//      gtx_out16 (gdrv->mmio_base, ENX_BCLR, PIXEL_RGB332 (state->color.r,
+//                                                           state->color.g,
+//                                                           state->color.b));
       break;
     case DSPF_ARGB1555:
       if (gtx)
@@ -309,11 +309,14 @@ gtxBlit (void *drv, void *dev,
     {
       int odd = odd1, w = width;
 
-      if (gtx) {
-        gtx_out32 (mmio, GTX_CDA, cda); /* Set destination address */
-        gtx_out32 (mmio, GTX_CSA, csa); /* Set source address */
-	  } else if (enx) {
-	  }
+      if (gtx) 
+        {
+          gtx_out32 (mmio, GTX_CDA, cda); /* Set destination address */
+          gtx_out32 (mmio, GTX_CSA, csa); /* Set source address */
+        } 
+//    else if (enx) 
+//    {
+//    }
 
       while (w > 0)
         {
@@ -339,10 +342,10 @@ driver_probe (GraphicsDevice *device)
 {
      switch (dfb_gfxcard_get_accelerator( device )) {
           case FB_ACCEL_CCUBE_AVIA_GTX:
-		  	   gtx = 1;
+               gtx = 1;
                return 1;
           case FB_ACCEL_CCUBE_AVIA_ENX:
-		  	   enx = 1;
+               enx = 1;
                return 1;
      }
      return 0;
@@ -462,6 +465,3 @@ driver_close_driver (GraphicsDevice *device,
 
   dfb_gfxcard_unmap_mmio( device, gdrv->mmio_base, -1 );
 }
-
-
-
