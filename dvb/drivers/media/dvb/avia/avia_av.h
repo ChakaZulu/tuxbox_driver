@@ -21,13 +21,16 @@
  *
  *
  *   $Log: avia_av.h,v $
+ *   Revision 1.10  2002/11/16 16:53:14  Jolt
+ *   AVIA API work
+ *
  *   Revision 1.9  2002/10/03 12:47:58  Jolt
  *   AViA AV cleanups
  *
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -35,9 +38,17 @@
 #ifndef AVIA_AV_H
 #define AVIA_AV_H
 
+#define AVIA_AV_PLAY_STATE_PAUSED	0x01
+#define AVIA_AV_PLAY_STATE_PLAYING	0x02
+#define AVIA_AV_PLAY_STATE_STOPPED	0x03
+
 #define AVIA_AV_STREAM_TYPE_SPTS	0x01
 #define AVIA_AV_STREAM_TYPE_PES		0x02
 #define AVIA_AV_STREAM_TYPE_ES		0x03
+
+#define AVIA_AV_TYPE_AUDIO			0x01
+#define AVIA_AV_TYPE_VIDEO			0x02
+#define AVIA_AV_TYPE_AC3			0x03
 
 #define TM_DRAM  0x00
 #define TM_GBUS  0x80
@@ -292,5 +303,11 @@ extern void avia_flush_pcr(void);
 #define PROC_STATE_PLAY			0x0004
 #define PROC_STATE_FREEZE		0x0020
 #define PROC_STATE_NEWCHANNEL		0x0080
+
+int avia_av_pid_set(u8 type, u16 pid);
+int avia_av_play_state_set_audio(u8 new_play_state);
+int avia_av_play_state_set_video(u8 new_play_state);
+int avia_av_stream_type_set_audio(u8 new_stream_type);
+int avia_av_stream_type_set_video(u8 new_stream_type);
 
 #endif

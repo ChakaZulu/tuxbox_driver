@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.41  2002/11/16 16:53:14  Jolt
+ *   AVIA API work
+ *
  *   Revision 1.40  2002/11/12 22:59:35  Jolt
  *   AViA crash[TM] handler
  *
@@ -176,7 +179,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.40 $
+ *   $Revision: 1.41 $
  *
  */
 
@@ -240,8 +243,11 @@ static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
 static u16 sample_rate = 44100;
 
+static u16 pid_ac3 = 0xFFFF;
 static u16 pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
+static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
+static u8 play_state_video = AVIA_AV_PLAY_STATE_STOPPED;
 static u8 stream_type_audio = AVIA_AV_STREAM_TYPE_SPTS;
 static u8 stream_type_video = AVIA_AV_STREAM_TYPE_SPTS;
 
@@ -643,7 +649,7 @@ u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 
 	dprintk("SA: 0x%X -> end -> S: 0x%X\n", status_addr, rDR(status_addr));
 	
-	if (rDR(status_addr) == 0x05)
+	if (rDR(status_addr) >= 0x05)
 		printk("avia_av: warning - command @ 0x%X failed\n", status_addr);
 
 	return rDR(status_addr);
@@ -1291,26 +1297,204 @@ u16 avia_get_sample_rate(void)
 
 }
 
-int avia_av_pid_set_audio(u16 pid)
+int avia_av_pid_set(u8 type, u16 pid)
 {
 
-	pid_audio = pid;
+	if ((pid > 0x1FFF) && (pid != 0xFFFF))
+		return -EINVAL;
+		
+	switch(type) {
+	
+		case AVIA_AV_TYPE_AC3:
 
-	avia_command(SelectStream, 0x03, pid_audio);
+			avia_command(SelectStream, 0x02, pid);
+			
+			pid_ac3 = pid;
+
+			break;
+			
+		case AVIA_AV_TYPE_AUDIO:
+
+			avia_command(SelectStream, 0x03, pid);
+			
+			pid_audio = pid;
+
+			break;
+	
+		case AVIA_AV_TYPE_VIDEO:
+
+			avia_command(SelectStream, 0x00, pid);
+			
+			pid_video = pid;
+
+			break;
+			
+		default:
+		
+			printk("avia_av: invalid pid type\n");
+		
+			return -EINVAL;
+			
+	}
 	
 	return 0;	
 
 }
 
-
-int avia_av_pid_set_video(u16 pid)
+int avia_av_play_state_set_audio(u8 new_play_state)
 {
 
-	pid_video = pid;
-
-	avia_command(SelectStream, 0x03, pid_video);
+	if (new_play_state == play_state_audio)
+		return 0;
+		
+	switch(new_play_state) {
 	
-	return 0;	
+		case AVIA_AV_PLAY_STATE_PAUSED:
+		
+			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
+				return -EINVAL;
+		
+			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
+				avia_command(Pause, 0x01, 0x01);
+			else
+				avia_command(Pause, 0x01, 0x01);
+		
+			break;
+
+		case AVIA_AV_PLAY_STATE_PLAYING:
+
+			if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED) {
+			
+				avia_command(Resume);
+				
+			} else {
+			
+				avia_command(SelectStream, 0x03, pid_audio);	//FIXME AC3
+			
+				if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
+				
+					avia_command(Play, 0x00, 0xFFFF, pid_audio);
+					
+				} else {
+
+					avia_command(Play, 0x00, pid_video, pid_audio);
+				
+//FIXME					if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
+//FIXME						avia_command(Pause, 0x01, 0x01);
+
+				}
+			
+			}
+		
+			break;
+
+		case AVIA_AV_PLAY_STATE_STOPPED:
+
+			if ((play_state_audio != AVIA_AV_PLAY_STATE_PAUSED) &&
+				(play_state_audio != AVIA_AV_PLAY_STATE_PLAYING))
+				return -EINVAL;
+
+			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
+			
+				avia_command(Play, 0x00, 0xFFFF, 0xFFFF);
+				avia_flush_pcr();
+				
+			} else {
+			
+				avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
+				
+			}
+		
+			break;
+			
+		default:
+		
+			printk("avia_av: invalid audio play state\n");
+		
+			return -EINVAL;
+			
+	}
+	
+	play_state_audio = new_play_state;
+
+	return 0;
+
+}
+
+int avia_av_play_state_set_video(u8 new_play_state)
+{
+
+	if (new_play_state == play_state_video)
+		return 0;
+		
+	switch(new_play_state) {
+	
+		case AVIA_AV_PLAY_STATE_PAUSED:
+		
+			if (play_state_video != AVIA_AV_PLAY_STATE_PLAYING)
+				return -EINVAL;
+		
+			avia_command(Freeze, 0x01);
+		
+			break;
+
+		case AVIA_AV_PLAY_STATE_PLAYING:
+		
+			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
+			
+				avia_command(Resume);
+				
+			} else {
+
+				avia_command(SelectStream, 0x00, pid_video);
+			
+				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
+				
+					avia_command(Play, 0x00, pid_video, 0xFFFF);
+					
+				} else {
+
+					avia_command(Play, 0x00, pid_video, pid_audio);
+				
+					if (play_state_audio == AVIA_AV_PLAY_STATE_PAUSED)
+						avia_command(Pause, 0x01, 0x01);
+
+				}
+			
+			}
+		
+			break;
+
+		case AVIA_AV_PLAY_STATE_STOPPED:
+
+			if ((play_state_video != AVIA_AV_PLAY_STATE_PAUSED) &&
+				(play_state_video != AVIA_AV_PLAY_STATE_PLAYING))
+				return -EINVAL;
+				
+			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
+			
+				avia_command(Play, 0x00, 0xFFFF, 0xFFFF);
+				avia_flush_pcr();
+				
+			} else {
+			
+				avia_command(SelectStream, 0x00, 0xFFFF);
+				
+			}
+
+			break;
+			
+		default:
+		
+			printk("avia_av: invalid video play state\n");
+		
+			return -EINVAL;
+			
+	}
+	
+	play_state_video = new_play_state;
+
+	return 0;
 
 }
 
@@ -1327,13 +1511,13 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 		
 					avia_command(SetStreamType, 0x08, 0x0000);
 					
-				break;
+					break;
 			
 				case AVIA_AV_STREAM_TYPE_PES:
 
 					avia_command(SetStreamType, 0x0A, 0x0000);
 					
-				break;
+					break;
 			
 				case AVIA_AV_STREAM_TYPE_SPTS:
 				
@@ -1341,16 +1525,12 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 				
 					return -EINVAL;
 				
-				break;
-			
 				default:
 
 					printk("avia_av: invalid audio stream type\n");
 		
 					return -EINVAL;
 			
-				break;
-		
 			}
 			
 		break;
@@ -1363,13 +1543,13 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 		
 					avia_command(SetStreamType, 0x09, 0x0000);
 					
-				break;
+					break;
 			
 				case AVIA_AV_STREAM_TYPE_PES:
 
 					avia_command(SetStreamType, 0x0B, 0x0000);
 					
-				break;
+					break;
 			
 				case AVIA_AV_STREAM_TYPE_SPTS:
 				
@@ -1377,16 +1557,12 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 				
 					return -EINVAL;
 				
-				break;
-			
 				default:
 
 					printk("avia_av: invalid audio stream type\n");
 		
 					return -EINVAL;
 			
-				break;
-		
 			}
 			
 		break;
@@ -1401,36 +1577,32 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 					
 					return -EINVAL;
 					
-				break;
-			
 				case AVIA_AV_STREAM_TYPE_PES:
 
 					printk("avia_av: video SPTS with audio PES stream type is not supported\n");
 					
 					return -EINVAL;
 					
-				break;
-			
 				case AVIA_AV_STREAM_TYPE_SPTS:
 
 					// AViA 500 doesn't support SetStreamType 0x10/0x11
 					// So we Reset the AViA 500 back to SPTS mode
 					
-//FIXME				if (avia 500) {
+					if (aviarev) {
 					
 						avia_command(Reset);				
 
 						avia_command(SelectStream, 0x00, pid_video);
 						avia_command(SelectStream, 0x03, pid_audio);
 						
-//FIXME				} else {
+					} else {
 					
 						avia_command(SetStreamType, 0x10, pid_audio);
 						avia_command(SetStreamType, 0x11, pid_video);
 						
-//FIXME				}
+					}
 					
-				break;
+					break;
 			
 				default:
 
@@ -1438,9 +1610,8 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 		
 					return -EINVAL;
 			
-				break;
-		
 			}
+			
 		break;
 		
 		default:
@@ -1449,8 +1620,6 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 			
 			return -EINVAL;
 			
-		break;
-		
 	}
 
 	stream_type_audio = new_stream_type_audio;
@@ -1459,28 +1628,6 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 	return 0;
 	
 }	
-
-int avia_av_stream_type_set_audio(u8 stream_type)
-{
-	
-	// SPTS is only supported if both video and audio are in SPTS mode
-	if ((stream_type != AVIA_AV_STREAM_TYPE_SPTS) && (stream_type_video == AVIA_AV_STREAM_TYPE_SPTS))
-		stream_type_video = stream_type;
-		
-	return avia_av_stream_type_set(stream_type_video, stream_type);
-
-}
-
-int avia_av_stream_type_set_video(u8 stream_type)
-{
-	
-	// SPTS is only supported if both video and audio are in SPTS mode
-	if ((stream_type != AVIA_AV_STREAM_TYPE_SPTS) && (stream_type_audio == AVIA_AV_STREAM_TYPE_SPTS))
-		stream_type_audio = stream_type;
-		
-	return avia_av_stream_type_set(stream_type, stream_type_audio);
-
-}
 
 /* ---------------------------------------------------------------------- */
 
@@ -1491,6 +1638,10 @@ EXPORT_SYMBOL(avia_set_pcr);
 EXPORT_SYMBOL(avia_flush_pcr);
 EXPORT_SYMBOL(avia_standby);
 EXPORT_SYMBOL(avia_get_sample_rate);
+
+EXPORT_SYMBOL(avia_av_pid_set);
+EXPORT_SYMBOL(avia_av_play_state_set_audio);
+EXPORT_SYMBOL(avia_av_play_state_set_video);
 
 /* ---------------------------------------------------------------------- */
 
@@ -1509,7 +1660,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.40 2002/11/12 22:59:35 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.41 2002/11/16 16:53:14 Jolt Exp $\n");
 
 	aviamem = 0;
 
