@@ -1,19 +1,24 @@
 /*
 
-    $Id: at76c651.c,v 1.1 2001/03/15 12:43:41 fnbrd Exp $
+    $Id: at76c651.c,v 1.2 2001/03/16 00:54:10 fnbrd Exp $
 
-    AT76C651  - DVB demux driver
+    AT76C651  - DVB demux driver (dbox-II-project)
 
-    (c) fnbrd
+    Homepage: http://dbox2.elxsi.de
+
+    Copyright (C) 2001 fnbrd (fnbrd@gmx.de)
+
+    Teile sind noch Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
+
+    da zum Vergleich noch Reste des ves1820-Treibers vorhanden sind
 
     Habe mal angefangen in der Hoffnung das einer der Fachmaenner mir weiterhelfen
     kann oder es selbst machen will.
 
     Das Datenblatt findet sich unter http://www.atmel.com/atmel/acrobat/doc1293.pdf
 
-    Und da ich auch keine Ahnung habe, ob man sich eine Driver-ID willkuerlich waehlen
-    kann, benutzt diese Modul noch die des VES1820. Ist wahrscheinlich nicht sehr gut.
-    
+    $log$
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -54,6 +59,7 @@ EXPORT_SYMBOL(ves_init);
 EXPORT_SYMBOL(ves_set_frontend);
 EXPORT_SYMBOL(ves_get_frontend);
 
+// Ist der beliebig oder von der Hardware vorgegeben?
 #define VES_INTERRUPT		14
 static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs);
 
@@ -172,6 +178,8 @@ int init(struct i2c_client *client)
 //        ves->reg0=Init1820PTab[0];
         // PWM setzen
         writereg(client, 0x17, ves->pwm);
+        // Und ein Reset
+	writereg(client, 0x07, 0x01);
 
         // Noch mehr noetig?
 
@@ -230,7 +238,7 @@ void SetPWM(struct i2c_client* client)
 dprintk("AT76C651: set PWM\n");
 return;
 
-        writereg(client, 0x17, ves->pwm); // Angepasst an AT...
+        writereg(client, 0x17, ves->pwm); // Angepasst an AT... muss aber noch ueberprueft werden
 
 //        writereg(client, 0x34, ves->pwm);
 }
@@ -251,6 +259,9 @@ int SetSymbolrate(struct i2c_client* client, u32 Symbolrate, int DoCLB)
 
 dprintk("AT76C651: set Symbolrate\n");
 return 0;
+
+// Den Rest muss ich noch studieren :-)
+
 /*
         if (Symbolrate > XIN/2)
                 Symbolrate=XIN/2;
@@ -301,6 +312,9 @@ return 0;
 
         return 0;
 */
+  // Und ein reset um das Dingens richtig einzustellen
+  writereg(client, 0x07, 0x01);
+  return 0;
 }
 
 typedef enum QAM_TYPE
@@ -358,6 +372,9 @@ dprintk("AT76C651: set QAM\n");
                 ClrBit1820(client);
         return 0;
 */
+  // Und ein reset um das Dingens richtig einzustellen
+  writereg(client, 0x07, 0x01);
+  return 0;
 }
 
 
@@ -417,7 +434,9 @@ return -1;
 
 		/* mask interrupt */
 
-// Kein Plan was gewuenscht wird
+// Kein Plan was gewuenscht/benoetigt wird
+// Moegliche Trigger: Pins LOCK1/LOCK2, singal loss, frame rate lost und per frame-timer
+// writereg(client, 0x0b, mask);
 
 		writereg(client, 0x32 , 0x80 | (1<<3));
 
@@ -493,7 +512,8 @@ void dec_use (struct i2c_client *client)
 
 static struct i2c_driver dvbt_driver = {
         "AT76C651 DVB DECODER",
-        I2C_DRIVERID_VES1820,
+        I2C_DRIVERID_EXP2, // experimental use id
+//        I2C_DRIVERID_VES1820,
         I2C_DF_NOTIFY,
         attach_adapter,
         detach_client,
@@ -504,7 +524,8 @@ static struct i2c_driver dvbt_driver = {
 
 static struct i2c_client client_template = {
         "AT76C651",
-        I2C_DRIVERID_VES1820,
+        I2C_DRIVERID_EXP2, // experimental use id
+//        I2C_DRIVERID_VES1820,
         0,
         0x0d,
 //        (0x10 >> 1),
@@ -557,7 +578,7 @@ int init_module(void) {
         if (!dclient)
         {
                 i2c_del_driver(&dvbt_driver);
-                printk("AT76C651: VES not found.\n");
+                printk("AT76C651: not found.\n");
                 return -EBUSY;
         }
 
