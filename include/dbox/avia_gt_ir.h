@@ -24,6 +24,9 @@
 #ifndef AVIA_GT_IR_H
 #define AVIA_GT_IR_H
 
+extern void avia_gt_ir_set_duty_cycle(u32 new_duty_cycle);
+extern void avia_gt_ir_set_frequency(u32 new_frequency);
+extern void avia_gt_ir_send_pulse(unsigned short period_high, unsigned short period_low);
 extern int avia_gt_ir_init(void);
 extern void avia_gt_ir_exit(void);
 	    
