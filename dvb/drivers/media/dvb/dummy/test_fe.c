@@ -23,23 +23,19 @@ int FEGetEvent(int fd)
 	struct dvb_frontend_event event;
 	int result; 
 	
-	if ((result = ioctl(fd, FE_GET_EVENT, &event) < 0)) { 
+	while (!(ioctl(fd, FE_GET_EVENT, &event))) { 
 
-		perror("FE_GET_EVENT");
-		
-		return result;
-		
-	} 
-
-	printf("FE Event Status:");
+		printf("FE Event Status:");
 	
-	FEDumpStatus(&event.status);
+		FEDumpStatus(&event.status);
 	
-	printf("\n");
+		printf("\n");
 
-	printf("FE Event Parameters:\n");
+		printf("FE Event Parameters:\n");
 
-	FEDumpParameters(fd, &event.parameters);
+		FEDumpParameters(fd, &event.parameters);
+		
+	}
 
 	return 0;
 
@@ -347,7 +343,7 @@ int main (void)
 	struct dvb_frontend_info fe_info;
 	struct dvb_frontend_parameters fe_param;
 
-	if ((fe_fd = open(FRONT, O_RDWR)) < 0) {
+	if ((fe_fd = open(FRONT, O_RDWR | O_NONBLOCK)) < 0) {
 	
 		perror("FRONTEND DEVICE");
 
