@@ -1,20 +1,9 @@
-#ifndef __FB_H
-#define __FB_H
+#ifndef __FB_H__
+#define __FB_H__
 
-#define CCUBEFB_BLEV0	0	
-#define CCUBEFB_BLEV1	1	
+#define AVIA_GT_GV_SET_BLEV	0	/* blend level */
+#define AVIA_GT_GV_SET_POS	1	/* position of graphics frame */
+#define AVIA_GT_GV_HIDE		2	/* hide framebuffer */
+#define AVIA_GT_GV_SHOW		3	/* show framebuffer */
 
-#define GTXFB_BLEV0	0	/* Blend level for pixels with Transparency class 0 */
-#define GTXFB_BLEV1	1	/* Blend level for pixels with Transparency class 1 */
-
-#define ENXFB_BLEV10	0	/* Blend level for pixels with Transparency class 0 Plane 1 */
-#define ENXFB_BLEV11  	1       /* Blend level for pixels with Transparency class 1 Plane 1 */
-#define ENXFB_BLEV20  	2	/* Blend level for pixels with Transparency class 0 Plane 2 */
-#define ENXFB_BLEV21  	3	/* Blend level for pixels with Transparency class 1 Plane 2 */
-
-#define CCUBEFB_XPOS	4	/* X position of graphics frame (scaled to gfx coordinates) */
-#define	CCUBEFB_YPOS	5	/* Y position of graphics frame (lines) */
-
-#define CCBUBEFB_FBCON_BLACK 6  /* schwarzer consolen hintergrund */
- 
-#endif
+#endif /* __FB_H__ */
