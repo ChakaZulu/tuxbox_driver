@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.196 2003/11/24 09:53:01 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.197 2003/12/19 00:53:30 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -124,7 +124,7 @@ void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 
 	for (sys_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO; sys_queue_nr < AVIA_GT_DMX_QUEUE_USER_START; sys_queue_nr++) {
 		if ((new_queue_client[sys_queue_nr] != -1) && (queue_client[sys_queue_nr] == -1)) {
-			printk(KERN_INFO "avia_gt_dmx: client++ on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
+			dprintk(KERN_INFO "avia_gt_dmx: client++ on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
 			queue_client[sys_queue_nr] = new_queue_client[sys_queue_nr];
 			write_pos = avia_gt_dmx_queue_get_write_pos(sys_queue_nr);
 			queue_list[sys_queue_nr].hw_write_pos = write_pos;
@@ -135,7 +135,7 @@ void avia_gt_dmx_enable_disable_system_queue_irqs(void)
 			avia_gt_dmx_queue_irq_enable(sys_queue_nr);
 		}
 		else if ((new_queue_client[sys_queue_nr] == -1) && (queue_client[sys_queue_nr] != -1)) {
-			printk(KERN_INFO "avia_gt_dmx: client-- on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
+			dprintk(KERN_INFO "avia_gt_dmx: client-- on queue %d (mode %d)\n", sys_queue_nr, queue_list[sys_queue_nr].mode);
 			avia_gt_dmx_queue_irq_disable(sys_queue_nr);
 		}
 
@@ -2021,7 +2021,7 @@ void avia_gt_dmx_set_ucode_info(void)
 			AVIA_GT_UCODE_CAP_PES |
 			AVIA_GT_UCODE_CAP_TS);
 		ucode_info.qid_offset = 0;
-		ucode_info.queue_mode_pes = 1;
+		ucode_info.queue_mode_pes = 5;
 		break;
 	case 0xb102:
 	case 0xb107:
@@ -2063,7 +2063,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.196 2003/11/24 09:53:01 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.197 2003/12/19 00:53:30 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
