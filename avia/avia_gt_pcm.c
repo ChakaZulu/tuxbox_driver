@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.18  2002/09/25 18:50:52  Jolt
+ *   Added 24000 and 12000 sample rate support
+ *
  *   Revision 1.17  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -78,7 +81,7 @@
  *
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -351,29 +354,36 @@ void avia_gt_pcm_set_pcm_attenuation(unsigned char left, unsigned char right)
 int avia_gt_pcm_set_rate(unsigned short rate)
 {
 
-	unsigned char divider_mode = (unsigned char)0;
+	unsigned char divider_mode = 3;
 
 	switch(rate) {
 
-	case 48000:
-	case 44100:
+		case 48000:
+		case 44100:
 
-		divider_mode = 3;
+			divider_mode = 3;
+		
 		break;
 
-	case 22050:
+		case 24000:
+		case 22050:
 
-		divider_mode = 2;
+			divider_mode = 2;
+		
 		break;
 
-	case 11025:
+		case 12000:
+		case 11025:
 
-		divider_mode = 1;
+			divider_mode = 1;
+		
 		break;
 
-	default:
+		default:
 
-		return -EINVAL;
+			return -EINVAL;
+			
+		break;
 
 	}
 
@@ -568,7 +578,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad  = (unsigned short)0;
 	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.17 2002/08/22 13:39:33 Jolt Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.18 2002/09/25 18:50:52 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
