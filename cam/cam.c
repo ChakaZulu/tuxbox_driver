@@ -21,6 +21,10 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.9  2001/04/09 17:43:15  TripleDES
+ *   added sagem/philips? init
+ *   -it depends now on info
+ *
  *   Revision 1.8  2001/03/15 22:44:18  mhc
  *   - bugfix
  *
@@ -40,7 +44,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -73,6 +77,7 @@
 #include <asm/semaphore.h>
 
 #include <dbox/fp.h>
+#include <dbox/info.h>
 
 #include <linux/devfs_fs_kernel.h>
 
@@ -81,6 +86,7 @@
 #endif
 
 static devfs_handle_t devfs_handle[3];
+static struct dbox_info_struct info;
 
 /* ---------------------------------------------------------------------- */
 
@@ -626,7 +632,8 @@ int cam_init(void)
 	int res;
    	mm_segment_t fs;
 	u32 *microcode;
-
+	char caminit[11]={0x50,0x08,0x23,0x84,0x01,0x04,0x17,0x02,0x10,0x00,0x91};
+		
 	init_waitqueue_head(&queuewait);
 
 	code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
@@ -717,6 +724,20 @@ int cam_init(void)
 		panic("Could not allocate CAM IRQ!");
 	}
 
+        dbox_get_info(&info);
+        switch (info.mID)
+	{
+	  case DBOX_MID_SAGEM:
+	  {
+		  cam_write_message(caminit,11);
+		  }
+	  case DBOX_MID_PHILIPS:	  
+	  {
+         	  cam_write_message(caminit,11);
+		  }
+	}	
+	
+        
 	return 0;
 }
 
