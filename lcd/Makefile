@@ -6,6 +6,7 @@ CURRENT=$(shell uname -r)
 #KERNEL_LOCATION=/usr/src/kernel/$(CURRENT)
 #KERNEL_LOCATION=/usr/src/kernel/vger
 KERNEL_LOCATION=/LinuxPPC/usr/src/linux
+#arch/ppc/8xx_io
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
@@ -23,7 +24,7 @@ LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
+EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"' -I$(KERNEL_LOCATION)/arch/ppc/8xx_io
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
