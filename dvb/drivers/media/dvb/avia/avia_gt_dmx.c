@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.121  2002/09/10 16:31:38  Jolt
+ *   SW sections fix
+ *
  *   Revision 1.120  2002/09/10 13:44:44  Jolt
  *   DMX/NAPI cleanup
  *
@@ -167,7 +170,7 @@
  *
  *
  *
- *   $Revision: 1.120 $
+ *   $Revision: 1.121 $
  *
  */
 
@@ -1227,8 +1230,9 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr)
 
 	}
 
+	queue_list[queue_nr].write_pos = avia_gt_dmx_get_queue_write_pointer(queue_nr);
 	queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
-//	avia_gt_dmx_set_queue_write_pointer(queue_nr, queue_list[queue_nr].read_pos);
+	avia_gt_dmx_set_queue_write_pointer(queue_nr, queue_list[queue_nr].read_pos);
 
 	return 0;
 
@@ -1665,7 +1669,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.120 2002/09/10 13:44:44 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.121 2002/09/10 16:31:38 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
