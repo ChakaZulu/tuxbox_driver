@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.178 2003/04/20 21:24:54 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.179 2003/04/20 22:22:05 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -583,7 +583,7 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 {
 
-	if ((fe_status) & FE_HAS_LOCK) {
+	if (fe_status & FE_HAS_LOCK) {
 
 		if (avia_gt_chip(ENX)) {
 		
@@ -591,8 +591,9 @@ static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 			enx_reg_set(FC, FH, 1);
 
 		} else if (avia_gt_chip(GTX)) {
-		
-			//FIXME
+	
+			gtx_reg_set(FCR, FE, 1);
+			gtx_reg_set(FCR, FH, 1);
 			
 		}
 	
@@ -603,8 +604,8 @@ static void avia_gt_napi_before_after_tune(fe_status_t fe_status, void *data)
 			enx_reg_set(FC, FE, 0);
 	
 		} else if (avia_gt_chip(GTX)) {
-		
-			//FIXME
+	
+			gtx_reg_set(FCR, FE, 0);
 			
 		}
 	
@@ -643,7 +644,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.178 2003/04/20 21:24:54 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.179 2003/04/20 22:22:05 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
