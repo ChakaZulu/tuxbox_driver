@@ -18,13 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dreambox.h,v 1.2 2003/02/19 17:35:59 obi Exp $
+ * $Id: hardware_dreambox.h,v 1.1 2003/03/05 09:51:20 waldi Exp $
  */
 
 #ifndef TUXBOX_HARDWARE_DREAMBOX_H
 #define TUXBOX_HARDWARE_DREAMBOX_H
-
-#include <tuxbox/tuxbox_hardware.h>
 
 #define TUXBOX_HARDWARE_DREAMBOX_ID_DM5600		0x51510950
 #define TUXBOX_HARDWARE_DREAMBOX_ID_DM7000		0x418108D1

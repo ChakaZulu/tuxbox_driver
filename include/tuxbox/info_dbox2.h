@@ -1,5 +1,5 @@
 /*
- * tuxbox_hardware_dreambox.h - TuxBox hardware info - dreambox
+ * tuxbox_info_dbox2.h - TuxBox hardware info - dbox2
  *
  * Copyright (C) 2003 Florian Schirmer <jolt@tuxbox.org>
  *                    Bastian Blank <waldi@tuxbox.org>
@@ -18,17 +18,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_pci.h,v 1.2 2003/03/03 20:47:01 obi Exp $
+ * $Id: info_dbox2.h,v 1.1 2003/03/05 09:51:21 waldi Exp $
  */
 
-#ifndef TUXBOX_HARDWARE_PCI_H
-#define TUXBOX_HARDWARE_PCI_H
+#ifndef TUXBOX_INFO_DBOX2_H
+#define TUXBOX_INFO_DBOX2_H
 
-#include <tuxbox/tuxbox_hardware.h>
+#include <tuxbox/info.h>
 
-#define TUXBOX_HARDWARE_TTPCI_CAPABILITIES	\
-	(TUXBOX_CAPABILITIES_IR_RC | \
-	 TUXBOX_CAPABILITIES_NETWORK | \
-	 TUXBOX_CAPABILITIES_HDD)
+typedef enum tuxbox_dbox2_av
+{
+	TUXBOX_DBOX2_AV_GTX			= 1,
+	TUXBOX_DBOX2_AV_ENX			= 2,
+}
+tuxbox_dbox2_av_t;
 
-#endif /* TUXBOX_HARDWARE_PCI_H */
+typedef enum tuxbox_dbox2_mid
+{
+	TUXBOX_DBOX2_MID_NOKIA			= 1,
+	TUXBOX_DBOX2_MID_PHILIPS		= 2,
+	TUXBOX_DBOX2_MID_SAGEM			= 3,
+}
+tuxbox_dbox2_mid_t;
+
+#endif

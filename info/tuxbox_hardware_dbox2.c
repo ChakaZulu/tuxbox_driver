@@ -18,23 +18,23 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.c,v 1.3 2003/03/04 23:06:26 waldi Exp $
+ * $Id: tuxbox_hardware_dbox2.c,v 1.4 2003/03/05 09:51:20 waldi Exp $
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/errno.h>
-#include <linux/i2c.h>
 #include <asm/io.h>
 
-#include <tuxbox/tuxbox_hardware_dbox2.h>
+#include "tuxbox_internal.h"
+#include <tuxbox/hardware_dbox2.h>
+#include <tuxbox/info_dbox2.h>
 
 extern struct proc_dir_entry *proc_bus_tuxbox;
 struct proc_dir_entry *proc_bus_tuxbox_dbox2 = NULL;
 
 tuxbox_dbox2_av_t tuxbox_dbox2_av;
-u8 tuxbox_dbox2_fp_revision;
 tuxbox_dbox2_mid_t tuxbox_dbox2_mid;
 
 static int vendor_read (void)
@@ -52,19 +52,16 @@ static int vendor_read (void)
 		case TUXBOX_DBOX2_MID_NOKIA:
 			tuxbox_vendor = TUXBOX_VENDOR_NOKIA;
 			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_GTX;
-			tuxbox_dbox2_fp_revision = 0x81;
 			break;
 
 		case TUXBOX_DBOX2_MID_PHILIPS:
 			tuxbox_vendor = TUXBOX_VENDOR_PHILIPS;
 			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_ENX;
-			tuxbox_dbox2_fp_revision = 0x30;
 			break;
 
 		case TUXBOX_DBOX2_MID_SAGEM:
 			tuxbox_vendor = TUXBOX_VENDOR_SAGEM;
 			tuxbox_dbox2_av = TUXBOX_DBOX2_AV_ENX;
-			tuxbox_dbox2_fp_revision = 0x23;
 			break;
 	}
 

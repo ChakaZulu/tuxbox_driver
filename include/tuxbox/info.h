@@ -18,11 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_info.h,v 1.4 2003/03/04 23:06:28 waldi Exp $
+ * $Id: info.h,v 1.1 2003/03/05 09:51:21 waldi Exp $
  */
 
 #ifndef TUXBOX_INFO_H
 #define TUXBOX_INFO_H
+
+#include <tuxbox/kernel.h>
 
 typedef enum tuxbox_capabilities
 {
@@ -56,8 +58,8 @@ tuxbox_submodel_t;
 typedef enum tuxbox_vendor
 {
 	TUXBOX_VENDOR_NOKIA			= 1,
-	TUXBOX_VENDOR_PHILIPS			= 2,
-	TUXBOX_VENDOR_SAGEM			= 3,
+	TUXBOX_VENDOR_SAGEM			= 2,
+	TUXBOX_VENDOR_PHILIPS			= 3,
 	TUXBOX_VENDOR_DREAM_MM			= 4,
 	TUXBOX_VENDOR_TECHNOTREND		= 5,
 }

@@ -1,8 +1,7 @@
 /*
- * tuxbox_hardware.h - TuxBox hardware info
+ * tuxbox_internal.h - TuxBox hardware info - internal definitions
  *
- * Copyright (C) 2003 Florian Schirmer <jolt@tuxbox.org>
- *                    Bastian Blank <waldi@tuxbox.org>
+ * Copyright (C) 2003 Bastian Blank <waldi@tuxbox.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +17,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware.h,v 1.3 2003/03/04 23:06:28 waldi Exp $
+ * $Id: tuxbox_internal.h,v 1.1 2003/03/05 09:51:20 waldi Exp $
  */
 
-#ifndef TUXBOX_HARDWARE_H
-#define TUXBOX_HARDWARE_H
+#ifndef TUXBOX_INTERNAL_H
+#define TUXBOX_INTERNAL_H
 
 #include <linux/proc_fs.h>
 
-#include <tuxbox/tuxbox_info.h>
+#include <tuxbox/info.h>
 
 extern tuxbox_capabilities_t tuxbox_capabilities;
 extern tuxbox_model_t tuxbox_model;
@@ -41,4 +40,4 @@ int tuxbox_hardware_read (void);
 int tuxbox_hardware_proc_create (void);
 void tuxbox_hardware_proc_destroy (void);
 
-#endif
+#endif /* TUXBOX_INTERNAL_H */

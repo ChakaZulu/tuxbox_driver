@@ -18,23 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.h,v 1.3 2003/03/04 23:06:28 waldi Exp $
+ * $Id: hardware_dbox2.h,v 1.1 2003/03/05 09:51:20 waldi Exp $
  */
 
 #ifndef TUXBOX_HARDWARE_DBOX2_H
 #define TUXBOX_HARDWARE_DBOX2_H
-
-#include <tuxbox/tuxbox_hardware.h>
-#include <tuxbox/tuxbox_info_dbox2.h>
 
 #define TUXBOX_HARDWARE_DBOX2_CAPABILITIES		( TUXBOX_CAPABILITIES_IR_RC | \
 							  TUXBOX_CAPABILITIES_IR_KEYBOARD | \
 		                                          TUXBOX_CAPABILITIES_LCD | \
 							  TUXBOX_CAPABILITIES_NETWORK | \
 							  TUXBOX_CAPABILITIES_CAM_EMBEDDED )
-
-extern tuxbox_dbox2_av_t tuxbox_dbox2_av;
-extern u8 tuxbox_dbox2_fp_revision;
-extern tuxbox_dbox2_mid_t tuxbox_dbox2_mid;
 
 #endif

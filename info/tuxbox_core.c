@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_core.c,v 1.4 2003/03/04 23:06:26 waldi Exp $
+ * $Id: tuxbox_core.c,v 1.5 2003/03/05 09:51:20 waldi Exp $
  */
 
 #include <linux/module.h>
@@ -26,8 +26,9 @@
 #include <linux/version.h>
 #include <linux/unistd.h>
 #include <linux/init.h>
-#include <tuxbox/tuxbox_info.h>
-#include <tuxbox/tuxbox_hardware.h>
+
+#include "tuxbox_internal.h"
+#include <tuxbox/info.h>
 
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
@@ -138,6 +139,6 @@ module_init(tuxbox_init);
 module_exit(tuxbox_exit);
 
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>, Bastian Blank <waldi@tuxbox.org>");
-MODULE_DESCRIPTION("TuxBox info");
+MODULE_DESCRIPTION("TuxBox hardware info");
 MODULE_LICENSE("GPL");
 

@@ -1,8 +1,7 @@
 /*
- * tuxbox_info_dbox2.h - TuxBox hardware info - dbox2
+ * tuxbox/kernel.h - TuxBox hardware info - kernel
  *
- * Copyright (C) 2003 Florian Schirmer <jolt@tuxbox.org>
- *                    Bastian Blank <waldi@tuxbox.org>
+ * Copyright (C) 2003 Bastian Blank <waldi@tuxbox.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,25 +17,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_info_dbox2.h,v 1.2 2003/03/04 23:06:28 waldi Exp $
+ * $Id: kernel.h,v 1.1 2003/03/05 09:51:21 waldi Exp $
  */
 
-#ifndef TUXBOX_INFO_DBOX2_H
-#define TUXBOX_INFO_DBOX2_H
+#ifndef TUXBOX_KERNEL_H
+#define TUXBOX_KERNEL_H
 
-typedef enum tuxbox_dbox2_av
-{
-	TUXBOX_DBOX2_AV_GTX			= 1,
-	TUXBOX_DBOX2_AV_ENX			= 2,
-}
-tuxbox_dbox2_av_t;
-
-typedef enum tuxbox_dbox2_mid
-{
-	TUXBOX_DBOX2_MID_NOKIA			= 1,
-	TUXBOX_DBOX2_MID_PHILIPS		= 2,
-	TUXBOX_DBOX2_MID_SAGEM			= 3,
-}
-tuxbox_dbox2_mid_t;
-
+#ifdef __KERNEL__
+#if defined(MODULE) && defined (TUXBOX_MODULE_PARAMETER)
+#define TUXBOX_INFO(arg) static tuxbox_##arg##_t tuxbox_##arg; MODULE_PARM(tuxbox_##arg,'i');
+#else
+#define TUXBOX_INFO(arg) extern tuxbox_##arg##_t tuxbox_##arg;
 #endif
+#endif /* __KERNEL__ */
+
+#endif /* TUXBOX_KERNEL_H */
