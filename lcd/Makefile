@@ -17,7 +17,7 @@ MODULE_DEST= /LinuxPPC/lib/modules/2.4.1/misc/
 # when compiling module(s)
 
 M_OBJS	     = lcd.o
-LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o lcd-paint.o
+LCD_OBJS     = lcd-console.o lcd-font.o lcd-ks0713.o
 APPL         = test_lcd
 APPL_SOURCE  = test_lcd.c
 
