@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.165 2003/04/12 06:03:32 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.166 2003/04/13 20:13:20 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -59,6 +59,7 @@
 #include "avia_gt_dmx.h"
 #include "avia_gt_accel.h"
 #include "avia_gt_napi.h"
+#include "avia_gt_ucode.h"
 
 //#define dprintk printk
 
@@ -400,52 +401,57 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 int avia_gt_dmx_load_ucode(void)
 {
 
-	int fd = (int)0;
+	int fd = 0;
 	loff_t file_size;
 	mm_segment_t fs;
-	u8 ucode_buf[2048];
+	u8 ucode_fs_buf[2048];
+	u8 *ucode_buf = ucode_fs_buf;
 
 	fs = get_fs();
 	set_fs(get_ds());
 
 	if ((fd = open(ucode, 0, 0)) < 0) {
 
-		printk (KERN_ERR "avia_gt_dmx: Unable to load firmware file '%s'\n", ucode);
+		printk (KERN_INFO "avia_gt_dmx: No firmware found at %s, using compiled-in version.\n", ucode);
 
 		set_fs(fs);
 
-		return -EFAULT;
+		/* fall back to compiled-in ucode */
+		ucode_buf = (u8 *) avia_gt_dmx_ucode_img;
+		file_size = avia_gt_dmx_ucode_size;
 
 	}
 
-	file_size = lseek(fd, 0L, 2);
+	else {
+		file_size = lseek(fd, 0L, 2);
 
-	if (file_size <= 0) {
+		if ((file_size <= 0) || (file_size > 2048)) {
 
-		printk (KERN_ERR "avia_gt_dmx: Firmware wrong size '%s'\n", ucode);
+			printk (KERN_ERR "avia_gt_dmx: Firmware wrong size '%s'\n", ucode);
 
-		sys_close(fd);
+			sys_close(fd);
+			set_fs(fs);
+
+			return -EFAULT;
+
+		}
+
+		lseek(fd, 0L, 0);
+
+		if (read(fd, ucode_buf, file_size) != file_size) {
+
+			printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
+
+			sys_close(fd);
+			set_fs(fs);
+
+			return -EIO;
+
+		}
+
+		close(fd);
 		set_fs(fs);
-
-		return -EFAULT;
-
 	}
-
-	lseek(fd, 0L, 0);
-
-	if (read(fd, ucode_buf, file_size) != file_size) {
-
-		printk (KERN_ERR "avia_gt_dmx: Failed to read firmware file '%s'\n", ucode);
-
-		sys_close(fd);
-		set_fs(fs);
-
-		return -EIO;
-
-	}
-
-	close(fd);
-	set_fs(fs);
 
 	/* queues should be stopped */
 	if (file_size > 0x400)
@@ -2222,7 +2228,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.165 2003/04/12 06:03:32 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.166 2003/04/13 20:13:20 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
