@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.22  2003/01/14 10:26:36  jolt
+ *   Remove hardcoded CODE_BASE. It's a module param now (mio=0x?????).
+ *
  *   Revision 1.21  2003/01/14 08:51:45  jolt
  *   Fix init
  *
@@ -82,7 +85,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.21 $
+ *   $Revision: 1.22 $
  *
  */
 
@@ -115,23 +118,16 @@
 #include <asm/semaphore.h>
 
 #include <dbox/fp.h>
-#include <dbox/info.h>
 
-
-static struct dbox_info_struct info;
-
-static int debug=0;
+static int debug = 0;
+static int mio = 0;
 static char *firmware=0;
 
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
-#define I2C_DRIVERID_CAM     0x6E
-#define CAM_INTERRUPT	SIU_IRQ3
-
-#define CAM_CODE_BASE_02	0xC040000	//for Philips
-#define CAM_CODE_BASE		0xC000000
+#define I2C_DRIVERID_CAM	0x6E
+#define CAM_INTERRUPT		SIU_IRQ3
 #define CAM_CODE_SIZE		0x20000
-
 #define CAM_QUEUE_SIZE		0x800
 
 static int attach_adapter(struct i2c_adapter *adap);
@@ -447,20 +443,28 @@ static int do_firmread(const char *fn, char **fp)
 int __init cam_init(void)
 {
 	int res;
-		mm_segment_t fs;
+	mm_segment_t fs;
 	u32 *microcode;
-//	char caminit[11]={0x50,0x08,0x23,0x84,0x01,0x04,0x17,0x02,0x10,0x00,0x91};
 
-	dbox_get_info(&info);
+	printk("$Id: cam.c,v 1.22 2003/01/14 10:26:36 jolt Exp $\n");
+	
+	if (!mio) {
+	
+		printk("cam: mio address unknown\n");
+		
+		return -EINVAL;
+		
+	}
+	
+	if (!(code_base = ioremap(mio, CAM_CODE_SIZE))) {
+	
+		printk("cam: could not map mio=0x%08X\n", mio);
+		
+		return -EFAULT;
+		
+	}
+
 	init_waitqueue_head(&queuewait);
-
-	if (info.mID==2)	// special handling for philips
-		code_base=ioremap(CAM_CODE_BASE_02, CAM_CODE_SIZE);
-	else
-		code_base=ioremap(CAM_CODE_BASE, CAM_CODE_SIZE);
-
-	if (!code_base)
-		panic("couldn't map CAM-io.\n");
 
 	/* load microcode */
 	fs = get_fs();
@@ -535,6 +539,7 @@ EXPORT_SYMBOL(cam_read_message);
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 CAM Driver");
 MODULE_PARM(debug,"i");
+MODULE_PARM(mio,"i");
 MODULE_PARM(firmware,"s");
 MODULE_LICENSE("GPL");
 
