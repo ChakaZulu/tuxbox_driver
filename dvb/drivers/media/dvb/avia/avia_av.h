@@ -96,7 +96,7 @@ extern void avia_flush_pcr(void);
 #define AUDIO_CLOCK_SELECTION			0xec
 #define AUDIO_CONFIG					0xe0
 #define AUDIO_DAC_MODE					0xe8
-#define AUDIO_EMTPINESS					0x2cc
+#define AUDIO_EMPTINESS					0x2cc
 #define AUDIO_PTS_DELAY					0x1c0
 #define AUDIO_PTS_REPEAT_THRESHOLD_1	0x1c8
 #define AUDIO_PTS_REPEAT_THRESHOLD_2	0x1d0
@@ -105,12 +105,14 @@ extern void avia_flush_pcr(void);
 #define AUDIO_TYPE						0x3f0
 
 #define AV_SYNC_MODE		0x1b0
+
 #define BACKGROUND_COLOR	0x9c
 #define BIT_RATE			0x3c0
 #define BITSTREAM_SOURCE	0x1a4
 #define BORDER_COLOR		0x98
 
 #define BUFF_INT_SRC			0x2b4
+
 #define COMMAND					0x40
 #define CUR_PIC_DISPLAYED		0x2d0
 #define DATE_TIME				0x324
@@ -153,6 +155,12 @@ extern void avia_flush_pcr(void);
 
 #define MR_AUD_PTS		0x30c
 #define MR_AUD_STC		0x310
+#define MR_PIC_PTS		0x2f0
+#define MR_PIC_STC		0x2f4
+
+#define MRC_ID				0x2A0
+#define MRC_STATUS		0x2A8
+
 #define N_AUD_DECODED	0x2f8
 #define N_AUD_ERRORS	0x320
 #define N_AUD_SLOWDOWN1	0x300
