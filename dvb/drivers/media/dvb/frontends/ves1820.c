@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.12  2001/03/29 19:10:03  gillem
+    - fix a patch from tmb
+
     Revision 1.11  2001/03/29 02:13:25  tmbinc
     Added register_demod, unregister_dmod. be sure to use new load script
 
@@ -31,7 +34,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.11 $
+    $Revision: 1.12 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -435,12 +438,12 @@ void ves_get_frontend(struct frontend *front)
 
 	front->sync = ves->sync;
 	front->vber = ves->ber;
-
+/*
 	front->sync=readreg(dclient,0x11);
 	front->vber = readreg(dclient,0x14);
 	front->vber|=(readreg(dclient,0x15)<<8);
 	front->vber|=(readreg(dclient,0x16)<<16);
-
+*/
 } 
 
 int ves_get_unc_packet(u32 *uncp)
