@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.49 $
+ *   $Revision: 1.50 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.50  2001/08/15 14:57:44  tmbinc
+ *   fixed queue-reset
+ *
  *   Revision 1.49  2001/07/15 17:08:45  Toerli
  *   Flimmern bei Sagem beseitigt
  *
@@ -459,7 +462,7 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 #endif  
 }
 
-void gtx_set_queue_rptr(int queue, u32 read)
+void gtx_set_system_queue_rptr(int queue, u32 read)
 {
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
@@ -503,8 +506,8 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 	default:
 		return;
 	}
-//	gtx_set_system_queue_wptr(feed->index, feed->readptr);
-	gtx_set_queue_rptr(rqueue, feed->readptr);
+	gtx_set_system_queue_wptr(rqueue, feed->readptr);
+	gtx_set_system_queue_rptr(rqueue, feed->readptr);
 }
 
 static __u32 datamask=0;
@@ -1794,7 +1797,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.49 2001/07/15 17:08:45 Toerli Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.50 2001/08/15 14:57:44 tmbinc Exp $\n");
 
 	return gtx_dmx_init();
 }
