@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.18  2002/03/06 09:36:33  gillem
+ *   - clean module unload (set into standby)
+ *
  *   Revision 1.17  2001/12/01 06:53:46  gillem
  *   - malloc.h -> slab.h
  *
@@ -69,7 +72,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -908,6 +911,8 @@ int saa7126_init(void)
 #ifdef MODULE
 void cleanup_module(void)
 {
+	saa7126_power_save(1);
+
 	i2c_del_driver(&driver);
 
 	devfs_unregister ( devfs_handle );
