@@ -29,10 +29,19 @@ int main(int argc, char **argv)
   }
 
   flt.pid=0;
+  if (argc>=2)
+  {
+    int pid;
+    sscanf(argv[1], "%x", &pid);
+    flt.pid=pid;
+  }
   memset(&flt.filter.filter, 0, DMX_FILTER_SIZE);
   memset(&flt.filter.mask, 0, DMX_FILTER_SIZE);
   flt.filter.mask[0]  =0xFF;
-  flt.filter.filter[0]=0;                 // PAT
+  if (flt.pid)
+    flt.filter.filter[0]=2;                 // PMT
+  else
+    flt.filter.filter[0]=0;                 // PAT
   flt.timeout=10000;
   flt.flags=DMX_ONESHOT;
 
@@ -53,10 +62,40 @@ int main(int argc, char **argv)
   
   printf("%d bytes.\n", r);
   
-  printf("TSID: %04x\n", (buffer[3]<<8)|buffer[4]);
-  for (i=0; i<(r-8-4)/4; i++)
-    printf("%04x PMT: %04x\n", (buffer[i*4+8]<<8)|(buffer[i*4+9]), ((buffer[i*4+10]&~0xE0)<<8)|(buffer[i*4+11]));
-  
+  if (!flt.pid)         // PAT
+  {
+    printf("TSID: %04x\n", (buffer[3]<<8)|buffer[4]);
+    for (i=0; i<(r-8-4)/4; i++)
+      printf("%04x PMT: %04x\n", (buffer[i*4+8]<<8)|(buffer[i*4+9]), ((buffer[i*4+10]&~0xE0)<<8)|(buffer[i*4+11]));
+  } else
+  {
+    int pilen, dp;
+    printf("Program: %04x\n", (buffer[3]<<8)|buffer[4]);
+    printf("PCR-PID: %04x\n", ((buffer[8]&0x1F)<<8)|buffer[9]);
+    pilen=((buffer[10]&0xF)<<8)|buffer[11];
+    dp=12;
+    while (dp<(pilen+12))
+      printf("%02x ", buffer[dp++]);
+    printf("\n");
+    printf("%d bytes.\n", r-4-dp);
+    while (dp<r-4)
+    {
+      int epid, esinfo, i;
+      printf("---------\n");
+      printf("stream type: %x\n", buffer[dp++]);
+      epid=(buffer[dp++]&0x1F)<<8;
+      epid|=buffer[dp++];
+      printf("epid         %x\n", epid);
+      esinfo=(buffer[dp++]&0xF)<<8;
+      esinfo|=buffer[dp++];
+      printf("%d bytes info: ", esinfo);
+      for (i=0; i<esinfo; i++)
+      {
+        printf(" %02x", buffer[dp++]);
+      }
+      printf("\n");
+    }
+  }
   close(fd);
   return 0;
 }
