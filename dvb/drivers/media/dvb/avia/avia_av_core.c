@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.42  2002/11/17 01:12:19  Jolt
+ *   Ultra fast zapping support :D
+ *
  *   Revision 1.41  2002/11/16 16:53:14  Jolt
  *   AVIA API work
  *
@@ -179,7 +182,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.41 $
+ *   $Revision: 1.42 $
  *
  */
 
@@ -1354,10 +1357,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
 				return -EINVAL;
 		
-			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
-				avia_command(Pause, 0x01, 0x01);
-			else
-				avia_command(Pause, 0x01, 0x01);
+			avia_command(Pause, 0x01, 0x01);
 		
 			break;
 
@@ -1377,7 +1377,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 					
 				} else {
 
-					avia_command(Play, 0x00, pid_video, pid_audio);
+					avia_command(NewChannel, 0x00, pid_video, pid_audio);
 				
 //FIXME					if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED)
 //FIXME						avia_command(Pause, 0x01, 0x01);
@@ -1396,14 +1396,12 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
 			
-				avia_command(Play, 0x00, 0xFFFF, 0xFFFF);
+				avia_command(Abort, 0x01);
 				avia_flush_pcr();
 				
-			} else {
-			
-				avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
-				
 			}
+			
+			avia_command(SelectStream, 0x03, 0xFFFF);	//FIXME AC3
 		
 			break;
 			
@@ -1473,15 +1471,13 @@ int avia_av_play_state_set_video(u8 new_play_state)
 				
 			if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
 			
-				avia_command(Play, 0x00, 0xFFFF, 0xFFFF);
+				avia_command(Abort, 0x01);
 				avia_flush_pcr();
 				
-			} else {
-			
-				avia_command(SelectStream, 0x00, 0xFFFF);
-				
 			}
-
+			
+			avia_command(SelectStream, 0x00, 0xFFFF);
+				
 			break;
 			
 		default:
@@ -1660,7 +1656,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.41 2002/11/16 16:53:14 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.42 2002/11/17 01:12:19 Jolt Exp $\n");
 
 	aviamem = 0;
 
