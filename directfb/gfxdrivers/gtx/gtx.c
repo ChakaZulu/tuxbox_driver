@@ -458,11 +458,11 @@ driver_get_info (GraphicsDevice     *device,
   info->device_data_size = sizeof (GTXDeviceData);
 }
 
-
 static DFBResult
-driver_init_driver (GraphicsDevice      *device,
+driver_init_driver( GraphicsDevice      *device,
                     GraphicsDeviceFuncs *funcs,
-                    void                *driver_data)
+                    void                *driver_data,
+                    void                *device_data )
 {
   GTXDriverData *gdrv = (GTXDriverData*) driver_data;
 
@@ -478,7 +478,6 @@ driver_init_driver (GraphicsDevice      *device,
 
   return DFB_OK;
 }
-
 
 static DFBResult
 driver_init_device( GraphicsDevice     *device,
