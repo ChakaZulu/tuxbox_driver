@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.6  2002/09/19 21:09:20  Jolt
+ *   Removed old sw crc dependency
+ *
  *   Revision 1.5  2002/09/13 22:53:55  Jolt
  *   HW CRC support
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -50,7 +53,6 @@
 
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_accel.h>
-#include "crc32.c"
 
 static sAviaGtInfo *gt_info = NULL;
 static u8 max_transaction_size = 0;
@@ -150,7 +152,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.5 2002/09/13 22:53:55 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.6 2002/09/19 21:09:20 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	
