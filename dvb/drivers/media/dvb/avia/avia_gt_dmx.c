@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.168 2003/04/17 07:29:48 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.169 2003/04/25 05:08:19 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -219,65 +219,45 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_audio(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
-
-    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO, irq_proc, cb_proc, priv_data);
-
+	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_AUDIO, irq_proc, cb_proc, priv_data);
 }
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_message(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
-
-    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_MESSAGE, irq_proc, cb_proc, priv_data);
-
+	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_MESSAGE, irq_proc, cb_proc, priv_data);
 }
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_teletext(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
-
-    return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT, irq_proc, cb_proc, priv_data);
-
+	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_TELETEXT, irq_proc, cb_proc, priv_data);
 }
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_user(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
+	u8 queue_nr;
 
-    u8 queue_nr;
-
-    for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr <= AVIA_GT_DMX_QUEUE_USER_END; queue_nr++) {
-
+	for (queue_nr = AVIA_GT_DMX_QUEUE_USER_START; queue_nr <= AVIA_GT_DMX_QUEUE_USER_END; queue_nr++)
 		if (!queue_list[queue_nr].busy)
 			return avia_gt_dmx_alloc_queue(queue_nr, irq_proc, cb_proc, priv_data);
 
-	}
-
 	return NULL;
-
 }
 
 struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue_video(AviaGtDmxQueueProc *irq_proc, AviaGtDmxQueueProc *cb_proc, void *priv_data)
 {
-
 	return avia_gt_dmx_alloc_queue(AVIA_GT_DMX_QUEUE_VIDEO, irq_proc, cb_proc, priv_data);
-
 }
 
 s32 avia_gt_dmx_free_queue(u8 queue_nr)
 {
-
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
 		printk(KERN_CRIT "avia_gt_dmx: free_queue: queue %d out of bounce\n", queue_nr);
-
 		return -EINVAL;
-
 	}
 
 	if (!queue_list[queue_nr].busy) {
-
 		printk(KERN_ERR "avia_gt_dmx: free_queue: queue %d not busy\n", queue_nr);
-
 		return -EFAULT;
-
 	}
 
 	avia_gt_dmx_queue_irq_disable(queue_nr);
@@ -289,32 +269,24 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 	queue_list[queue_nr].priv_data = NULL;
 
 	return 0;
-
 }
 
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
 	if (hw_sections == 1) {
-
 		switch (risc_mem_map->Version_no) {
-
-			case 0x0013:
-			case 0x0014:
-
-				return 1;
-
+		case 0x0013:
+		case 0x0014:
+			return 1;
+		default:
 			break;
-
 		}
-
-	} else if (hw_sections == 2) {
-
+	}
+	else if (hw_sections == 2) {
 		return 1;
-
 	}
 
 	return 0;
-
 }
 
 unsigned char avia_gt_dmx_map_queue(unsigned char queue_nr)
@@ -1006,37 +978,29 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 
 int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi, u8 filt_tab_idx, u8 no_of_filter)
 {
-
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
 		printk(KERN_CRIT "avia_gt_dmx: queue_start queue (%d) out of bounce\n", queue_nr);
-
 		return -EINVAL;
-
 	}
 
 	avia_gt_dmx_queue_reset(queue_nr);
 	queue_list[queue_nr].pid = pid;
 	queue_list[queue_nr].mode = mode;
-	if (queue_nr < AVIA_GT_DMX_QUEUE_USER_START) {
+
+	if (queue_nr < AVIA_GT_DMX_QUEUE_USER_START)
 		avia_gt_dmx_enable_disable_system_queue_irqs();
-	}
+
 	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, filt_tab_idx, (mode == AVIA_GT_DMX_QUEUE_MODE_SEC8) ? 1 : 0,no_of_filter);
 	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
 
 	return 0;
-
 }
 
 int avia_gt_dmx_queue_stop(u8 queue_nr)
 {
-
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
 		printk(KERN_CRIT "avia_gt_dmx: queue_stop queue (%d) out of bounce\n", queue_nr);
-
 		return -EINVAL;
-
 	}
 
 	queue_list[queue_nr].pid = 0xFFFF;
@@ -1044,7 +1008,6 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 	avia_gt_dmx_set_pid_table(queue_nr, 0, 1, 0);
 
 	return 0;
-
 }
 
 static void avia_gt_dmx_bh_task(void *tl_data)
@@ -2229,7 +2192,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.168 2003/04/17 07:29:48 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.169 2003/04/25 05:08:19 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2362,9 +2325,7 @@ int __init avia_gt_dmx_init(void)
 
 void __exit avia_gt_dmx_exit(void)
 {
-
 	avia_gt_dmx_reset(0);
-
 }
 
 #if defined(STANDALONE)
