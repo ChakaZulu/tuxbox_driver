@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.4  2002/11/05 00:02:58  Jolt
+ *   Decoder work
+ *
  *   Revision 1.3  2002/11/04 23:35:45  Jolt
  *   tuxindent'ed
  *
@@ -35,7 +38,7 @@
  *
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -55,6 +58,8 @@
 #include <linux/init.h>
 
 #include "../dvb-core/dvbdev.h"
+#include <linux/dvb/video.h>
+#include <linux/dvb/audio.h>
 
 #include "avia_av.h"
 #include "avia_av_napi.h"
@@ -62,15 +67,17 @@
 static struct dvb_device *audio_dev;
 static u8 dev_registered = 0;
 static struct dvb_device *video_dev;
+static struct audio_status audiostate;
+static struct video_status videostate;
+
+static u16 audio_pid;
+static u16 video_pid;
 
 static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 
-#if 0
-	struct dvb_struct *dvb = (struct dvb_struct *)dvbdev->priv;
-	void *parg = (void *)arg;
 	int ret = 0;
-	u32 new_mode;
+//FIXME	u32 new_mode;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != VIDEO_GET_STATUS))
 		return -EPERM;
@@ -79,27 +86,29 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_STOP:
 
-			dvb->videostate.playState = VIDEO_STOPPED;
+			videostate.play_state = VIDEO_STOPPED;
 			avia_command(SelectStream, 0x00, 0xFFFF);
 
 			break;
 
 		case VIDEO_PLAY:
 
-			if ((dvb->audiostate.playState != AUDIO_PLAYING) && (dvb->videostate.playState != VIDEO_PLAYING)) {
+			if ((audiostate.play_state != AUDIO_PLAYING) && (videostate.play_state != VIDEO_PLAYING)) {
 
-				switch (dvb->videostate.streamSource) {
+				switch (videostate.stream_source) {
 
 					case VIDEO_SOURCE_DEMUX:
 
-						printk("avia: playing vpid 0x%X apid: 0x%X\n", dvb->video_pid, dvb->audio_pid);
+						printk("avia: playing vpid 0x%X apid: 0x%X\n", video_pid, audio_pid);
+//FIXME
+#if 0 
 #ifdef AVIA_SPTS
-						if (dvb->video_stream_type != STREAM_TYPE_SPTS_ES) {
+						if (video_stream_type != STREAM_TYPE_SPTS_ES) {
 
 							if (!aviarev) {
 
-								avia_command(SetStreamType, 0x10, dvb->audio_pid);
-								avia_command(SetStreamType, 0x11, dvb->video_pid);
+								avia_command(SetStreamType, 0x10, audio_pid);
+								avia_command(SetStreamType, 0x11, video_pid);
 
 							} else {
 
@@ -107,30 +116,34 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 							}
 
-							dvb->video_stream_type = STREAM_TYPE_SPTS_ES;
-							dvb->audio_stream_type = STREAM_TYPE_SPTS_ES;
+							video_stream_type = STREAM_TYPE_SPTS_ES;
+							audio_stream_type = STREAM_TYPE_SPTS_ES;
 
 						}
 #else
-						if ((dvb->video_stream_type != STREAM_TYPE_DPES_PES) ||
-							(dvb->audio_stream_type != STREAM_TYPE_DPES_PES)) {
+						if ((video_stream_type != STREAM_TYPE_DPES_PES) ||
+							(audio_stream_type != STREAM_TYPE_DPES_PES)) {
 
 							avia_command(SetStreamType, 0x0B, 0x0000);
-							dvb->video_stream_type = STREAM_TYPE_DPES_PES;
-							dvb->audio_stream_type = STREAM_TYPE_DPES_PES;
+							video_stream_type = STREAM_TYPE_DPES_PES;
+							audio_stream_type = STREAM_TYPE_DPES_PES;
 
 						}
 #endif
-						avia_command(SelectStream, 0x00, dvb->video_pid);
-						avia_command(SelectStream, (dvb->audiostate.bypassMode) ? 0x03 : 0x02, dvb->audio_pid);
-						avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
+
+
+#endif
+
+						avia_command(SelectStream, 0x00, video_pid);
+						avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
+						avia_command(Play, 0x00, video_pid, audio_pid);
 
 						break;
 
 					case VIDEO_SOURCE_MEMORY:
 
-						dvb->video_stream_type = STREAM_TYPE_DPES_PES;
-						dvb->audio_stream_type = STREAM_TYPE_DPES_PES;
+//FIXME						video_stream_type = STREAM_TYPE_DPES_PES;
+//FIXME						audio_stream_type = STREAM_TYPE_DPES_PES;
 						avia_command(SelectStream, 0x0B, 0x0000);
 						avia_command(Play, 0x00, 0x0000, 0x0000);
 
@@ -142,8 +155,8 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 				}
 
-				dvb->audiostate.playState = AUDIO_PLAYING;
-				dvb->videostate.playState = VIDEO_PLAYING;
+				audiostate.play_state = AUDIO_PLAYING;
+				videostate.play_state = VIDEO_PLAYING;
 
 			}
 
@@ -151,7 +164,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_FREEZE:
 
-			dvb->videostate.playState = VIDEO_FREEZED;
+			videostate.play_state = VIDEO_FREEZED;
 			avia_command(Freeze, 0x01);
 
 			break;
@@ -159,27 +172,27 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 		case VIDEO_CONTINUE:
 
 			avia_command(Resume);
-			dvb->videostate.playState = VIDEO_PLAYING;
+			videostate.play_state = VIDEO_PLAYING;
 
 			break;
 
 		case VIDEO_SELECT_SOURCE:
 
-			if ((dvb->audiostate.playState == AUDIO_STOPPED) && (dvb->videostate.playState == VIDEO_STOPPED)) {
+			if ((audiostate.play_state == AUDIO_STOPPED) && (videostate.play_state == VIDEO_STOPPED)) {
 
-				switch ((videoStreamSource_t) arg) {
+				switch ((video_stream_source_t)parg) {
 
 					case VIDEO_SOURCE_DEMUX:
 
-						if (dvb->videostate.streamSource != VIDEO_SOURCE_DEMUX)
-							dvb_select_source(dvb, 0);
+//FIXME						if (videostate.stream_source != VIDEO_SOURCE_DEMUX)
+//FIXME							dvb_select_source(dvb, 0);
 
 						break;
 
 					case VIDEO_SOURCE_MEMORY:
 
-						if (dvb->videostate.streamSource != VIDEO_SOURCE_MEMORY)
-							dvb_select_source(dvb, 1);
+//FIXME						if (videostate.stream_source != VIDEO_SOURCE_MEMORY)
+//FIXME							dvb_select_source(dvb, 1);
 
 						break;
 
@@ -201,13 +214,13 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_SET_BLANK:
 
-			dvb->videostate.videoBlank = (boolean) arg;
+			videostate.video_blank = (int)parg;
 
 			break;
 
 		case VIDEO_GET_STATUS:
 
-			if (copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
+			if (copy_to_user(parg, &videostate, sizeof(struct video_status)))
 				ret = -EFAULT;
 
 			break;
@@ -221,7 +234,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 		case VIDEO_SET_DISPLAY_FORMAT:
 			{
 
-				videoDisplayFormat_t format = (videoDisplayFormat_t) arg;
+				video_displayformat_t format = (video_displayformat_t)parg;
 
 				u16 val = 0;
 
@@ -255,7 +268,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 				if (ret < 0)
 					break;
 
-				dvb->videostate.displayFormat = format;
+				videostate.display_format = format;
 				wDR(ASPECT_RATIO_MODE, val);
 
 				break;
@@ -264,15 +277,15 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_SET_FORMAT:
 
-			dvb->videostate.videoFormat = (videoFormat_t) arg;
+			videostate.video_format = (video_format_t)parg;
 
-			switch (dvb->videostate.videoFormat) {
+			switch (videostate.video_format) {
 
-				case VIDEO_FORMAT_AUTO:
-
-					wDR(FORCE_CODED_ASPECT_RATIO, 0);
-
-					break;
+//FIXME				case VIDEO_FORMAT_AUTO:
+//FIXME
+//FIXME					wDR(FORCE_CODED_ASPECT_RATIO, 0);
+//FIXME
+//FIXME					break;
 
 				case VIDEO_FORMAT_4_3:
 
@@ -286,11 +299,11 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 					break;
 
-				case VIDEO_FORMAT_20_9:
-
-					wDR(FORCE_CODED_ASPECT_RATIO, 4);
-
-					break;
+//FIXME				case VIDEO_FORMAT_20_9:
+//FIXME
+//FIXME					wDR(FORCE_CODED_ASPECT_RATIO, 4);
+//FIXME
+//FIXME					break;
 
 				default:
 
@@ -304,7 +317,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_STILLPICTURE:
 
-			if (dvb->videostate.playState == VIDEO_STOPPED)
+			if (videostate.play_state == VIDEO_STOPPED)
 				ret = -EOPNOTSUPP;
 			else
 				ret = -EINVAL;
@@ -340,59 +353,59 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_SET_STREAMTYPE:
 
-			if ((streamType_t) arg > STREAM_TYPE_DPES_PES) {
-
-				ret = -EINVAL;
-
-				break;
-
-			}
-
-			if (dvb->video_stream_type == (streamType_t) arg)
-				break;
-
-			if (rDR(PROC_STATE) != PROC_STATE_IDLE)
-				avia_command(Abort, 1);
-
-			if ((streamType_t) arg == STREAM_TYPE_SPTS_ES) {
-
-				if (!aviarev) {
-
-					avia_command(SetStreamType, 0x10, dvb->audio_pid);
-					avia_command(SetStreamType, 0x11, dvb->video_pid);
-
-				} else {		// AVIA 500 doesn't support SetStreamType with type 0x10/0x11
-
-					avia_command(Reset);
-
-				}
-
-				dvb->video_stream_type = STREAM_TYPE_SPTS_ES;
-				dvb->audio_stream_type = STREAM_TYPE_SPTS_ES;
-
-				break;
-
-			}
-
-			if ((streamType_t) arg == STREAM_TYPE_DPES_PES) {
-				new_mode = 0x09;
-			} else {
-				new_mode = 0x08;
-			}
-
-			if (dvb->audio_stream_type == STREAM_TYPE_SPTS_ES) {
-				dvb->audio_stream_type = (streamType_t) arg;
-			}
-
-			if (dvb->audio_stream_type == STREAM_TYPE_DPES_PES) {
-				new_mode |= 0x02;
-			}
-
-			avia_command(SetStreamType, new_mode, 0x0000);
-
-			dvb->video_stream_type = (streamType_t) arg;
-
-			break;
+//FIXME			if ((streamType_t) arg > STREAM_TYPE_DPES_PES) {
+//FIXME
+//FIXME				ret = -EINVAL;
+//FIXME
+//FIXME				break;
+//FIXME
+//FIXME			}
+//FIXME
+//FIXME			if (video_stream_type == (streamType_t) arg)
+//FIXME				break;
+//FIXME
+//FIXME			if (rDR(PROC_STATE) != PROC_STATE_IDLE)
+//FIXME				avia_command(Abort, 1);
+//FIXME
+//FIXME			if ((streamType_t) arg == STREAM_TYPE_SPTS_ES) {
+//FIXME
+//FIXME				if (!aviarev) {
+//FIXME
+//FIXME					avia_command(SetStreamType, 0x10, audio_pid);
+//FIXME					avia_command(SetStreamType, 0x11, video_pid);
+//FIXME
+//FIXME				} else {		// AVIA 500 doesn't support SetStreamType with type 0x10/0x11
+//FIXME
+//FIXME					avia_command(Reset);
+//FIXME
+//FIXME				}
+//FIXME
+//FIXME				video_stream_type = STREAM_TYPE_SPTS_ES;
+//FIXME				audio_stream_type = STREAM_TYPE_SPTS_ES;
+//FIXME
+//FIXME				break;
+//FIXME
+//FIXME			}
+//FIXME
+//FIXME			if ((streamType_t) arg == STREAM_TYPE_DPES_PES) {
+//FIXME				new_mode = 0x09;
+//FIXME			} else {
+//FIXME				new_mode = 0x08;
+//FIXME			}
+//FIXME
+//FIXME			if (audio_stream_type == STREAM_TYPE_SPTS_ES) {
+//FIXME				audio_stream_type = (streamType_t) arg;
+//FIXME			}
+//FIXME
+//FIXME			if (audio_stream_type == STREAM_TYPE_DPES_PES) {
+//FIXME				new_mode |= 0x02;
+//FIXME			}
+//FIXME
+//FIXME			avia_command(SetStreamType, new_mode, 0x0000);
+//FIXME
+//FIXME			video_stream_type = (streamType_t)arg;
+//FIXME
+//FIXME			break;
 
 		default:
 
@@ -403,9 +416,6 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 	}
 
 	return ret;
-#endif
-
-	return 0;
 
 }
 
@@ -424,42 +434,42 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 	switch (cmd) {
 		case AUDIO_STOP:
-			avia_command(SelectStream, (dvb->audiostate.bypassMode) ? 0x03 : 0x02, 0xFFFF);
-			dvb->audiostate.playState = AUDIO_STOPPED;
+			avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, 0xFFFF);
+			audiostate.play_state = AUDIO_STOPPED;
 			break;
 
 		case AUDIO_PLAY:
-			if ((dvb->audiostate.playState != AUDIO_PLAYING) || (dvb->audio_stream_type == STREAM_TYPE_SPTS_ES)) {
-				switch (dvb->audiostate.streamSource) {
+			if ((audiostate.play_state != AUDIO_PLAYING) || (audio_stream_type == STREAM_TYPE_SPTS_ES)) {
+				switch (audiostate.stream_source) {
 					case AUDIO_SOURCE_DEMUX:
-						printk("avia: playing apid: 0x%X\n", dvb->audio_pid);
+						printk("avia: playing apid: 0x%X\n", audio_pid);
 #ifdef AVIA_SPTS
-						if (dvb->audio_stream_type != STREAM_TYPE_SPTS_ES) {
+						if (audio_stream_type != STREAM_TYPE_SPTS_ES) {
 							if (!aviarev) {
-								avia_command(SetStreamType, 0x10, dvb->audio_pid);
-								avia_command(SetStreamType, 0x11, dvb->video_pid);
+								avia_command(SetStreamType, 0x10, audio_pid);
+								avia_command(SetStreamType, 0x11, video_pid);
 							} else {
 								avia_command(Reset);
 							}
-							dvb->audio_stream_type = STREAM_TYPE_SPTS_ES;
-							dvb->video_stream_type = STREAM_TYPE_SPTS_ES;
+							audio_stream_type = STREAM_TYPE_SPTS_ES;
+							video_stream_type = STREAM_TYPE_SPTS_ES;
 						}
 #else
-						if (dvb->audio_stream_type != STREAM_TYPE_DPES_PES) {
-							if (dvb->video_stream_type == STREAM_TYPE_DPES_PES) {
+						if (audio_stream_type != STREAM_TYPE_DPES_PES) {
+							if (video_stream_type == STREAM_TYPE_DPES_PES) {
 								avia_command(SetStreamType, 0x0B, 0x0000);
 							} else {
 								avia_command(SetStreamType, 0x0A, 0x0000);
 							}
-							dvb->audio_stream_type = STREAM_TYPE_DPES_PES;
+							audio_stream_type = STREAM_TYPE_DPES_PES;
 						}
 #endif
-						avia_command(SelectStream, (dvb->audiostate.bypassMode) ? 0x03 : 0x02, dvb->audio_pid);
-						if (dvb->audiostate.playState != AUDIO_PLAYING) {
-							if (dvb->videostate.playState == VIDEO_PLAYING) {
-								avia_command(Play, 0x00, dvb->video_pid, dvb->audio_pid);
+						avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
+						if (audiostate.play_state != AUDIO_PLAYING) {
+							if (videostate.play_state == VIDEO_PLAYING) {
+								avia_command(Play, 0x00, video_pid, audio_pid);
 							} else {
-								avia_command(Play, 0x00, 0xFFFF, dvb->audio_pid);
+								avia_command(Play, 0x00, 0xFFFF, audio_pid);
 							}
 						}
 						break;
@@ -472,37 +482,37 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 					default:
 						return -EINVAL;
 				}
-				dvb->audiostate.playState = AUDIO_PLAYING;
+				audiostate.play_state = AUDIO_PLAYING;
 			}
 			break;
 
 		case AUDIO_PAUSE:
-			if (dvb->audiostate.playState == AUDIO_PLAYING) {
+			if (audiostate.play_state == AUDIO_PLAYING) {
 				//avia_command(Pause, 1, 1); // freeze video, pause audio
 				avia_command(Pause, 1, 2);	// pause audio (v2.0 silicon only)
-				dvb->audiostate.playState = AUDIO_PAUSED;
+				audiostate.play_state = AUDIO_PAUSED;
 			} else {
 				ret = -EINVAL;
 			}
 			break;
 
 		case AUDIO_CONTINUE:
-			if (dvb->audiostate.playState == AUDIO_PAUSED) {
-				dvb->audiostate.playState = AUDIO_PLAYING;
+			if (audiostate.play_state == AUDIO_PAUSED) {
+				audiostate.play_state = AUDIO_PLAYING;
 				avia_command(Resume);
 			}
 			break;
 
 		case AUDIO_SELECT_SOURCE:
-			if ((dvb->audiostate.playState == AUDIO_STOPPED) && (dvb->videostate.playState == VIDEO_STOPPED)) {
-				switch ((audioStreamSource_t) arg) {
+			if ((audiostate.play_state == AUDIO_STOPPED) && (videostate.play_state == VIDEO_STOPPED)) {
+				switch ((audiostream_source_t) arg) {
 					case AUDIO_SOURCE_DEMUX:
-						if (dvb->audiostate.streamSource != AUDIO_SOURCE_DEMUX)
+						if (audiostate.stream_source != AUDIO_SOURCE_DEMUX)
 							ret = dvb_select_source(dvb, 0);
 						break;
 
 					case AUDIO_SOURCE_MEMORY:
-						if (dvb->audiostate.streamSource != AUDIO_SOURCE_MEMORY)
+						if (audiostate.stream_source != AUDIO_SOURCE_MEMORY)
 							ret = dvb_select_source(dvb, 1);
 						break;
 
@@ -533,36 +543,36 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				/*
 				 * unmute gt mpeg 
 				 */
-				avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 1,
-												 (dvb->audiomixer.volume_right + 1) >> 1);
+				avia_gt_pcm_set_mpeg_attenuation((audiomixer.volume_left + 1) >> 1,
+												 (audiomixer.volume_right + 1) >> 1);
 			}
 			wDR(NEW_AUDIO_CONFIG, 1);
-			dvb->audiostate.muteState = (boolean) arg;
+			audiostate.muteState = (boolean) arg;
 			break;
 
 		case AUDIO_SET_AV_SYNC:
-			dvb->audiostate.AVSyncState = (boolean) arg;
+			audiostate.AVSyncState = (boolean) arg;
 			wDR(AV_SYNC_MODE, arg ? 0x06 : 0x00);
 			break;
 
 		case AUDIO_SET_BYPASS_MODE:
 			if (arg) {
 				avia_command(SelectStream, 0x02, 0xffff);
-				avia_command(SelectStream, 0x03, dvb->audio_pid);
+				avia_command(SelectStream, 0x03, audio_pid);
 				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 1);
 			} else {
 				avia_command(SelectStream, 0x03, 0xffff);
-				avia_command(SelectStream, 0x02, dvb->audio_pid);
+				avia_command(SelectStream, 0x02, audio_pid);
 				wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
 			}
 			wDR(NEW_AUDIO_CONFIG, 1);
-			dvb->audiostate.bypassMode = (boolean) arg;
+			audiostate.bypass_mode = (boolean) arg;
 			break;
 
 		case AUDIO_CHANNEL_SELECT:
-			dvb->audiostate.channelSelect = (audioChannelSelect_t) arg;
+			audiostate.channelSelect = (audioChannelSelect_t) arg;
 
-			switch (dvb->audiostate.channelSelect) {
+			switch (audiostate.channelSelect) {
 				case AUDIO_STEREO:
 					wDR(AUDIO_DAC_MODE, rDR(AUDIO_DAC_MODE) & ~0x30);
 					wDR(NEW_AUDIO_CONFIG, 1);
@@ -585,7 +595,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_GET_STATUS:
-			if (copy_to_user(parg, &dvb->audiostate, sizeof(struct audioStatus)))
+			if (copy_to_user(parg, &audiostate, sizeof(struct audioStatus)))
 				ret = -EFAULT;
 			break;
 
@@ -605,16 +615,16 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 			break;
 
 		case AUDIO_SET_MIXER:
-			memcpy(&dvb->audiomixer, parg, sizeof(struct audioMixer));
+			memcpy(&audiomixer, parg, sizeof(struct audioMixer));
 
-			if (dvb->audiomixer.volume_left > AUDIO_MIXER_MAX_VOLUME)
-				dvb->audiomixer.volume_left = AUDIO_MIXER_MAX_VOLUME;
+			if (audiomixer.volume_left > AUDIO_MIXER_MAX_VOLUME)
+				audiomixer.volume_left = AUDIO_MIXER_MAX_VOLUME;
 
-			if (dvb->audiomixer.volume_right > AUDIO_MIXER_MAX_VOLUME)
-				dvb->audiomixer.volume_right = AUDIO_MIXER_MAX_VOLUME;
+			if (audiomixer.volume_right > AUDIO_MIXER_MAX_VOLUME)
+				audiomixer.volume_right = AUDIO_MIXER_MAX_VOLUME;
 
-			avia_gt_pcm_set_mpeg_attenuation((dvb->audiomixer.volume_left + 1) >> 1,
-											 (dvb->audiomixer.volume_right + 1) >> 1);
+			avia_gt_pcm_set_mpeg_attenuation((audiomixer.volume_left + 1) >> 1,
+											 (audiomixer.volume_right + 1) >> 1);
 			break;
 
 		case AUDIO_SET_STREAMTYPE:
@@ -623,7 +633,7 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				break;
 			}
 
-			if (dvb->audio_stream_type == (streamType_t) arg)
+			if (audio_stream_type == (streamType_t) arg)
 				break;
 
 			if (rDR(PROC_STATE) != PROC_STATE_IDLE)
@@ -631,13 +641,13 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 			if ((streamType_t) arg == STREAM_TYPE_SPTS_ES) {
 				if (!aviarev) {
-					avia_command(SetStreamType, 0x10, dvb->audio_pid);
-					avia_command(SetStreamType, 0x11, dvb->video_pid);
+					avia_command(SetStreamType, 0x10, audio_pid);
+					avia_command(SetStreamType, 0x11, video_pid);
 				} else {		// AVIA 500 doesn't support SetStreamType with types 0x10, 0x11
 					avia_command(Reset);
 				}
-				dvb->audio_stream_type = STREAM_TYPE_SPTS_ES;
-				dvb->video_stream_type = STREAM_TYPE_SPTS_ES;
+				audio_stream_type = STREAM_TYPE_SPTS_ES;
+				video_stream_type = STREAM_TYPE_SPTS_ES;
 				break;
 			}
 
@@ -647,17 +657,17 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 				new_mode = 0x08;
 			}
 
-			if (dvb->video_stream_type == STREAM_TYPE_SPTS_ES) {
-				dvb->video_stream_type = (streamType_t) arg;
+			if (video_stream_type == STREAM_TYPE_SPTS_ES) {
+				video_stream_type = (streamType_t) arg;
 			}
 
-			if (dvb->video_stream_type == STREAM_TYPE_DPES_PES) {
+			if (video_stream_type == STREAM_TYPE_DPES_PES) {
 				new_mode |= 0x01;
 			}
 
 			avia_command(SetStreamType, new_mode, 0x0000);
 
-			dvb->audio_stream_type = (streamType_t) arg;
+			audio_stream_type = (streamType_t)arg;
 
 			break;
 
@@ -788,7 +798,7 @@ void avia_av_napi_unregister(void)
 int avia_av_napi_init(void)
 {
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.3 2002/11/04 23:35:45 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.4 2002/11/05 00:02:58 Jolt Exp $\n");
 
 	return 0;
 
