@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.2 2001/03/16 00:54:10 fnbrd Exp $
+    $Id: at76c651.c,v 1.3 2001/03/16 00:56:34 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -17,7 +17,10 @@
 
     Das Datenblatt findet sich unter http://www.atmel.com/atmel/acrobat/doc1293.pdf
 
-    $log$
+    $Log: at76c651.c,v $
+    Revision 1.3  2001/03/16 00:56:34  fnbrd
+    Log mit grossem L. :-)
+
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
