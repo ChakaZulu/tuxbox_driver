@@ -3,7 +3,7 @@
 
 #pragma pack(1)
 
-typedef struct {
+struct dvb_ts_header {
 
 	u32 synch_byte: 8;
 	u32 transport_error_indicator: 1;
@@ -15,7 +15,7 @@ typedef struct {
 	u32 payload: 1;
 	u32 continuity_counter: 4;
 
-} sDVBTsHeader;
+};
 
 #pragma pack()
 

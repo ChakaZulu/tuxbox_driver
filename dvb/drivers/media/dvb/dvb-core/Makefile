@@ -7,7 +7,7 @@ M_OBJS = dmxdev.o dvb_i2c.o dvb_demux.o dvb_filter.o dvb_frontend.o dvb_net.o dv
 # 2.4.0 Kernel Option
 obj-m = $(M_OBJS)
 
-EXTRA_CFLAGS=-I../../../../include -DEXPORT_SYMTAB -D__DVB_PACK__
+EXTRA_CFLAGS=-I../../../../include -DEXPORT_SYMTAB -D__DVB_PACK__ -MD -Werror
 
 here:
 	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)

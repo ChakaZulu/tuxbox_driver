@@ -232,7 +232,7 @@ dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *dvbdmxfeed,
 	u8 xor, neq=0;
 
         for (i=0; i<DVB_DEMUX_MASK_MAX; i++) {
-		xor=filter->filter_value[i]^dvbdmxfeed->secbuf[i];
+		xor=filter->filter_value[i]^dvbdmxfeed->feed.sec.secbuf[i];
 		if (f->maskandmode[i]&xor)
 			return 0;
 		neq|=f->maskandnotmode[i]&xor;
@@ -240,32 +240,32 @@ dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *dvbdmxfeed,
 	if (f->doneq & !neq)
 		return 0;
 
-        return dvbdmxfeed->cb.sec(dvbdmxfeed->secbuf, dvbdmxfeed->seclen, 
+        return dvbdmxfeed->cb.sec(dvbdmxfeed->feed.sec.secbuf, dvbdmxfeed->feed.sec.seclen, 
                                   0, 0, filter, DMX_OK); 
 }
 
 static inline int
 dvb_dmx_swfilter_section_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-        u8 *buf=dvbdmxfeed->secbuf;
+        u8 *buf=dvbdmxfeed->feed.sec.secbuf;
         struct dvb_demux_filter *f;
 
-        if (dvbdmxfeed->secbufp!=dvbdmxfeed->seclen)
+        if (dvbdmxfeed->feed.sec.secbufp!=dvbdmxfeed->feed.sec.seclen)
                 return -1;
         if (!dvbdmxfeed->feed.sec.is_filtering)
                 return 0;
         if (!(f=dvbdmxfeed->filter))
                 return 0;
-        if ((dvbdmxfeed->check_crc) && 
-	    (dvbdmxfeed->demux->crc32(dvbdmxfeed, dvbdmxfeed->secbuf, 
-	                              dvbdmxfeed->seclen)))
+        if ((dvbdmxfeed->feed.sec.check_crc) && 
+	    (dvbdmxfeed->demux->crc32(dvbdmxfeed, dvbdmxfeed->feed.sec.secbuf, 
+	                              dvbdmxfeed->feed.sec.seclen)))
 		return -1;
         do 
                 if (dvb_dmx_swfilter_sectionfilter(dvbdmxfeed, f)<0)
                         return -1;
         while ((f=f->next) && dvbdmxfeed->feed.sec.is_filtering);
 
-        dvbdmxfeed->secbufp=dvbdmxfeed->seclen=0;
+        dvbdmxfeed->feed.sec.secbufp=dvbdmxfeed->feed.sec.seclen=0;
         memset(buf, 0, DVB_DEMUX_MASK_MAX);
         return 0;
 }
@@ -291,23 +291,23 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
 			return -1;
                 if (buf[p] && ccok) { // rest of previous section?
                         // did we have enough data in last packet to calc length?
-			int tmp=3-dvbdmxfeed->secbufp;
+			int tmp=3-dvbdmxfeed->feed.sec.secbufp;
                         if (tmp>0 && tmp!=3) {
 				if (p+tmp>=187)
 					return -1;
                                 dvbdmxfeed->demux->memcpy(dvbdmxfeed,
-				                          dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
+				                          dvbdmxfeed->feed.sec.secbuf+dvbdmxfeed->feed.sec.secbufp,
                                                           (u8 *)&buf[p+1], tmp);
-                                dvbdmxfeed->seclen=section_length(dvbdmxfeed->secbuf);
-				if (dvbdmxfeed->seclen>4096) 
+                                dvbdmxfeed->feed.sec.seclen=section_length(dvbdmxfeed->feed.sec.secbuf);
+				if (dvbdmxfeed->feed.sec.seclen>4096) 
 					return -1;
                         }
-                        rest=dvbdmxfeed->seclen-dvbdmxfeed->secbufp;
-                        if (rest==buf[p] && dvbdmxfeed->seclen) {
+                        rest=dvbdmxfeed->feed.sec.seclen-dvbdmxfeed->feed.sec.secbufp;
+                        if (rest==buf[p] && dvbdmxfeed->feed.sec.seclen) {
                                 dvbdmxfeed->demux->memcpy(dvbdmxfeed,
-				                          dvbdmxfeed->secbuf+dvbdmxfeed->secbufp,
+				                          dvbdmxfeed->feed.sec.secbuf+dvbdmxfeed->feed.sec.secbufp,
                                                           (u8 *)&buf[p+1], buf[p]);
-                                dvbdmxfeed->secbufp+=buf[p];
+                                dvbdmxfeed->feed.sec.secbufp+=buf[p];
                                 dvb_dmx_swfilter_section_feed(dvbdmxfeed);
                         }
                 }
@@ -315,14 +315,14 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
                 count=188-p;
                 while (count>0) {
                         if ((count>2) &&  // enough data to determine sec length?
-                            ((dvbdmxfeed->seclen=section_length(buf+p))<=count)) {
-				if (dvbdmxfeed->seclen>4096) 
+                            ((dvbdmxfeed->feed.sec.seclen=section_length(buf+p))<=count)) {
+				if (dvbdmxfeed->feed.sec.seclen>4096) 
 					return -1;
                                 dvbdmxfeed->demux->memcpy(dvbdmxfeed,
-				                          dvbdmxfeed->secbuf, (u8 *)&buf[p], 
-                                                          dvbdmxfeed->seclen);
-                                dvbdmxfeed->secbufp=dvbdmxfeed->seclen;
-                                p+=dvbdmxfeed->seclen;
+				                          dvbdmxfeed->feed.sec.secbuf, (u8 *)&buf[p], 
+                                                          dvbdmxfeed->feed.sec.seclen);
+                                dvbdmxfeed->feed.sec.secbufp=dvbdmxfeed->feed.sec.seclen;
+                                p+=dvbdmxfeed->feed.sec.seclen;
                                 count=188-p;
                                 dvb_dmx_swfilter_section_feed(dvbdmxfeed);
 
@@ -330,9 +330,9 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
                                 if (count && buf[p]==0xff) 
                                         count=0;
                         } else { // section continues to following TS packet
-                                dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf,
+                                dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->feed.sec.secbuf,
 				                          (u8 *)&buf[p], count);
-                                dvbdmxfeed->secbufp+=count;
+                                dvbdmxfeed->feed.sec.secbufp+=count;
                                 count=0;
                         }
                 }
@@ -342,32 +342,32 @@ dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf
 	// section continued below
 	if (!ccok)
 		return -1;
-	if (!dvbdmxfeed->secbufp) // any data in last ts packet?
+	if (!dvbdmxfeed->feed.sec.secbufp) // any data in last ts packet?
 		return -1;
 	// did we have enough data in last packet to calc section length?
-	if (dvbdmxfeed->secbufp<3) {
-		int tmp=3-dvbdmxfeed->secbufp;
+	if (dvbdmxfeed->feed.sec.secbufp<3) {
+		int tmp=3-dvbdmxfeed->feed.sec.secbufp;
 		
 		if (tmp>count)
 			return -1;
-		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->feed.sec.secbuf+dvbdmxfeed->feed.sec.secbufp, 
 		                          (u8 *)&buf[p], tmp);
-		dvbdmxfeed->seclen=section_length(dvbdmxfeed->secbuf);
-		if (dvbdmxfeed->seclen>4096) 
+		dvbdmxfeed->feed.sec.seclen=section_length(dvbdmxfeed->feed.sec.secbuf);
+		if (dvbdmxfeed->feed.sec.seclen>4096) 
 			return -1;
 	}
-	rest=dvbdmxfeed->seclen-dvbdmxfeed->secbufp;
+	rest=dvbdmxfeed->feed.sec.seclen-dvbdmxfeed->feed.sec.secbufp;
 	if (rest<0)
 		return -1;
 	if (rest<=count) {	// section completed in this TS packet
-		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->feed.sec.secbuf+dvbdmxfeed->feed.sec.secbufp, 
 		                          (u8 *)&buf[p], rest);
-		dvbdmxfeed->secbufp+=rest;
+		dvbdmxfeed->feed.sec.secbufp+=rest;
 		dvb_dmx_swfilter_section_feed(dvbdmxfeed);
 	} else 	{	// section continues in following ts packet
-		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->secbuf+dvbdmxfeed->secbufp, 
+		dvbdmxfeed->demux->memcpy(dvbdmxfeed, dvbdmxfeed->feed.sec.secbuf+dvbdmxfeed->feed.sec.secbufp, 
 		                          (u8 *)&buf[p], count);
-		dvbdmxfeed->secbufp+=count;
+		dvbdmxfeed->feed.sec.secbufp+=count;
 	}
         return 0;
 }
@@ -396,7 +396,7 @@ dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf)
                 if (!dvbdmxfeed->feed.sec.is_filtering)
                         break;
                 if (dvb_dmx_swfilter_section_packet(dvbdmxfeed, buf)<0)
-                        dvbdmxfeed->seclen=dvbdmxfeed->secbufp=0;
+                        dvbdmxfeed->feed.sec.seclen=dvbdmxfeed->feed.sec.secbufp=0;
                 break;
 
         default:
@@ -801,7 +801,7 @@ dmx_section_feed_set(struct dmx_section_feed_s* feed,
                 return -ENOSYS;
 	}
 
-        dvbdmxfeed->check_crc=check_crc;
+        dvbdmxfeed->feed.sec.check_crc=check_crc;
 #ifdef NOBUFS
         dvbdmxfeed->buffer=0;
 #else
@@ -857,8 +857,8 @@ dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 		up(&dvbdmx->mutex);
                 return -EINVAL;
 	}
-        dvbdmxfeed->secbufp=0;
-        dvbdmxfeed->seclen=0;
+        dvbdmxfeed->feed.sec.secbufp=0;
+        dvbdmxfeed->feed.sec.seclen=0;
         
         if (!dvbdmx->start_feed) {
 		up(&dvbdmx->mutex);
@@ -952,7 +952,7 @@ static int dvbdmx_allocate_section_feed(dmx_demux_t *demux,
         dvbdmxfeed->cb.sec=callback;
         dvbdmxfeed->demux=dvbdmx;
         dvbdmxfeed->pid=0xffff;
-        dvbdmxfeed->secbufp=0;
+        dvbdmxfeed->feed.sec.secbufp=0;
         dvbdmxfeed->filter=0;
         dvbdmxfeed->buffer=0;
 

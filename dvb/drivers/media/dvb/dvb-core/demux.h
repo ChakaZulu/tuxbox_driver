@@ -144,6 +144,13 @@ struct dmx_section_feed_s {
         int is_filtering; /* Set to non-zero when filtering in progress */ 
         struct dmx_demux_s* parent; /* Back-pointer */
         void* priv; /* Pointer to private data of the API client */ 
+
+        int check_crc;
+
+        u8 secbuf[4096];
+        int secbufp;
+        int seclen;
+
         int (*set) (struct dmx_section_feed_s* feed, 
 		    __u16 pid, 
 		    size_t circular_buffer_size, 

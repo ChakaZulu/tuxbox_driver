@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.156 $
+ *   $Revision: 1.157 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.157  2002/11/04 16:37:58  Jolt
+ *   HW CRC support
+ *
  *   Revision 1.156  2002/11/04 09:09:16  Jolt
  *   Cleanups / First soft section parts
  *
@@ -510,9 +513,11 @@
 #include "avia_gt.h"
 #include "avia_gt_dmx.h"
 #include "avia_gt_napi.h"
+#include "avia_gt_accel.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 static struct dvb_demux demux;
+static int hw_crc = 1;
 static int hw_dmx_ts = 0;
 static int hw_dmx_pes = 0;
 static int hw_dmx_sec = 1;
@@ -552,6 +557,42 @@ void avia_gt_dmx_queue_start(struct avia_gt_dmx_queue *queue, u8 mode, u16 pid, 
 	avia_gt_dmx_queue_reset(queue->index);
 	avia_gt_dmx_set_pid_control_table(queue->index, mode, queue->index, 0, 0, 0, 1, 0, 0, 0);
 	avia_gt_dmx_set_pid_table(queue->index, wait_pusi, 0, pid);
+
+}
+
+static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, u8 *src, size_t len)
+{
+
+	u32 crc32;
+	
+	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
+	
+		crc32 = (u32)dvbdmxfeed->feed.sec.priv;
+		dvbdmxfeed->feed.sec.priv = NULL;
+	
+	} else {
+	
+		crc32 = dvb_crc32(src, len, 0);
+	
+	}
+
+	return crc32;
+
+}
+
+static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, u8 *src, size_t len)
+{
+	
+	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc)) {
+	
+		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
+			dvbdmxfeed->feed.sec.priv = (void *)avia_gt_accel_crc32(src - gt_info->mem_addr, len, (u32)dvbdmxfeed->feed.sec.priv);
+		else
+			dvbdmxfeed->feed.sec.priv = (void *)dvb_crc32(src, len, (u32)dvbdmxfeed->feed.sec.priv);
+			
+	}
+
+	memcpy(dst, src, len);
 
 }
 
@@ -655,64 +696,6 @@ static void avia_gt_napi_queue_callback_generic(struct avia_gt_dmx_queue *queue,
 
 }
 
-static void avia_gt_napi_queue_callback_section_sw(struct avia_gt_dmx_queue *queue, void *data)
-{
-
-	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)data;
-	u32 bytes_avail;
-	u32 chunk1;
-	u8 ts_buf[188];
-	
-	if ((bytes_avail = queue->bytes_avail(queue)) < 188)
-		return;
-		
-	if (queue->get_data8(queue, 1) != 0x47) {
-	
-		printk("avia_gt_napi: lost sync on queue %d\n", queue->index);
-	
-		queue->get_data(queue, NULL, bytes_avail, 0);
-		
-		return;
-		
-	}
-
-	// Align size on ts paket size
-	bytes_avail -= bytes_avail % 188;
-	
-	// Does the buffer wrap around?
-	if (bytes_avail > queue->get_buf1_size(queue)) {
-	
-		chunk1 = queue->get_buf1_size(queue);
-		chunk1 -= chunk1 % 188;
-		
-		// Do we have at least one complete packet before buffer wraps?
-		if (chunk1) {
-
-			dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->get_buf1_ptr(queue), chunk1 / 188);
-			queue->get_data(queue, NULL, chunk1, 0);
-			bytes_avail -= chunk1;
-			
-		}
-
-		// Handle the wrapped packet				
-		queue->get_data(queue, ts_buf, 188, 0);
-		dvb_dmx_swfilter_packet(dvbdmxfeed->demux, ts_buf);
-		bytes_avail -= 188;
-					
-	}
-	
-	// Remaining packets after the buffer has wrapped
-	if (bytes_avail) {
-
-		dvb_dmx_swfilter_packets(dvbdmxfeed->demux, gt_info->mem_addr + queue->get_buf1_ptr(queue), bytes_avail / 188);
-		queue->get_data(queue, NULL, bytes_avail, 0);
-				
-	}
-		
-	return;				
-
-}
-
 static int avia_gt_napi_start_feed_generic(struct dvb_demux_feed *dvbdmxfeed)
 {
 
@@ -749,42 +732,13 @@ static int avia_gt_napi_start_feed_pes(struct dvb_demux_feed *dvbdmxfeed)
 
 }
 
-static int avia_gt_napi_start_feed_section_hw(struct dvb_demux_feed *dvbdmxfeed)
-{
-
-	if (!hw_dmx_sec)
-		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
-
-	return -EINVAL;
-
-}
-
-static int avia_gt_napi_start_feed_section_sw(struct dvb_demux_feed *dvbdmxfeed)
-{
-
-	struct avia_gt_dmx_queue *queue = avia_gt_napi_queue_alloc(dvbdmxfeed, avia_gt_napi_queue_callback_section_sw);
-	
-	if (!queue)
-		return -EBUSY;
-
-	dvbdmxfeed->priv = queue;
-		
-	avia_gt_dmx_queue_start(queue, AVIA_GT_DMX_QUEUE_MODE_TS, dvbdmxfeed->pid, 1);
-
-	return 0;
-
-}
-
 static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 {
 
-	if (!hw_dmx_sec)
+	if ((!hw_dmx_sec) || (!hw_sections))
 		return avia_gt_napi_start_feed_generic(dvbdmxfeed);
 
-	if (hw_sections)
-		return avia_gt_napi_start_feed_section_hw(dvbdmxfeed);
-	else
-		return avia_gt_napi_start_feed_section_sw(dvbdmxfeed);
+	return -EINVAL;
 
 }
 
@@ -888,7 +842,7 @@ struct dvb_demux *avia_gt_napi_get_demux(void)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.156 2002/11/04 09:09:16 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.157 2002/11/04 16:37:58 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -913,6 +867,13 @@ int __init avia_gt_napi_init(void)
 	demux.start_feed = avia_gt_napi_start_feed;
 	demux.stop_feed = avia_gt_napi_stop_feed;
 	demux.write_to_decoder = avia_gt_napi_write_to_decoder;
+	
+	if (hw_crc) {
+	
+		demux.crc32 = avia_gt_napi_crc32;
+		demux.memcpy = avia_gt_napi_memcpy;
+		
+	}
 	
 	if (dvb_dmx_init(&demux)) {
 	

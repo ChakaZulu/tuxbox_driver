@@ -78,7 +78,6 @@ struct dvb_demux_feed {
         u8 *buffer;
         int buffer_size;
         int descramble;
-        int check_crc;
 
         struct timespec timeout; 
         struct dvb_demux_filter *filter;
@@ -87,9 +86,6 @@ struct dvb_demux_feed {
         int ts_type;
         dmx_ts_pes_t pes_type;
 
-        u8 secbuf[4096];
-        int secbufp;
-        int seclen;
         int cc;
 
         u16 peslen;
