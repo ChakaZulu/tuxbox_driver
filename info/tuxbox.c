@@ -21,12 +21,15 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.2  2002/12/30 22:13:14  Jolt
+ *   Style changes
+ *
  *   Revision 1.1  2002/12/30 17:46:18  Jolt
  *   Tuxbox info module
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -220,7 +223,7 @@ static int tuxbox_read_proc(char *buf, char **start, off_t offset, int len,	int 
 			
 	}
 
-	return sprintf(buf, "version=%d\nmanufacturer=%d\nmodel=%d\n", TUXBOX_VERSION, manufacturer, TUXBOX_MODEL_DBOX2);
+	return sprintf(buf, "TUXBOX_VERSION=%d\nTUXBOX_MANUFACTURER=%d\nTUXBOX_MODEL=%d\n", TUXBOX_VERSION, manufacturer, TUXBOX_MODEL_DBOX2);
 
 }
 
