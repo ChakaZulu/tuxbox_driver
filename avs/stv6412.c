@@ -21,11 +21,14 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.2  2001/05/26 13:46:59  gillem
+ *   - add stv6411 data struct
+ *
  *   Revision 1.1  2001/05/26 09:19:50  gillem
  *   - initial release
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -48,12 +51,61 @@
 /* ---------------------------------------------------------------------- */
 
 /*
- * cxa2092 data struct
- * thanks to sony for great support
+ * stv6412 data struct (stv6411)
  *
  */
 
 typedef struct s_stv6412_data {
+ /* Data 0 */
+ unsigned char res1				: 3;
+ unsigned char tv_gain			: 1;
+ unsigned char tv_mono			: 1;
+ unsigned char tv_aoc			: 3;
+ /* Data 1 */
+ unsigned char res2				: 3;
+ unsigned char cinch_gain		: 1;
+ unsigned char res3				: 1;
+ unsigned char cinch_aoc		: 3;
+ /* Data 2 */
+ unsigned char res4				: 1;
+ unsigned char vcr_mono			: 1;
+ unsigned char res5				: 3;
+ unsigned char vcr_aoc			: 3;
+ /* Data 3 */
+ unsigned char res6				: 1;
+ unsigned char tv_chroma_mute	: 1;
+ unsigned char tv_chroma_oc		: 3;
+ unsigned char tv_rf_oc			: 2;
+ unsigned char tv_rc_oc			: 1;
+ /* Data 4 */
+ unsigned char tv_rgb_oc		: 2;
+ unsigned char tv_fb_oc			: 2;
+ unsigned char rgb_gain			: 2;
+ unsigned char res7				: 1;
+ unsigned char rcs_encode_clamp	: 1;
+ /* Data 5 */
+ unsigned char res8				: 4;
+ unsigned char vcr_chroma_mute	: 1;
+ unsigned char chroma_oc		: 3;
+ /* Data 6 */
+ unsigned char res9				: 1;
+ unsigned char res10			: 1;
+ unsigned char res11			: 2;
+ unsigned char vcr_sb			: 2;
+ unsigned char tv_sb			: 2;
+ /* Data 7 */
+ unsigned char vcr_off			: 1;
+ unsigned char res12			: 1;	/* set to 1 !!! */
+ unsigned char tv_off			: 1;
+ unsigned char encode_clamp_off	: 1;
+ unsigned char tv_clamp_off		: 1;
+ unsigned char astb_clamp_off	: 1;
+ unsigned char vcr_clamp_off	: 1;
+ unsigned char rgb_clamp_off	: 1;
+ /* Data 8 */
+ unsigned char res13			: 6;
+ unsigned char rfm_off			: 1;
+ unsigned char cinch_off		: 1;
 } s_stv6412_data;
 
 #define STV6412_DATA_SIZE sizeof(s_stv6412_data)
@@ -113,6 +165,8 @@ int stv6412_command(struct i2c_client *client, unsigned int cmd, void *arg )
 int stv6412_init(struct i2c_client *client)
 {
 	memset((void*)&stv6412_data,0,STV6412_DATA_SIZE);
+
+	stv6412_data.res12 = 1;
 
 	return stv6412_set(client);
 }
