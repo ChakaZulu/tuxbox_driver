@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.192 2003/11/24 09:41:21 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.193 2003/11/29 21:58:45 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -406,10 +406,8 @@ static int avia_gt_napi_start_feed_section(struct dvb_demux_feed *dvbdmxfeed)
 
 static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, const u8 *buf, size_t count)
 {
-	/*
-	 * count is always 188 with current dvb-core,
-	 * so there is always exactly one ts packet in buf.
-	 */
+	/* count is always 188 with current dvb-core,
+	   so there is always exactly one ts packet in buf. */
 
 	const struct ts_header *ts = (const struct ts_header *)buf;
 	int pes_offset;
@@ -418,31 +416,68 @@ static int avia_gt_napi_write_to_decoder(struct dvb_demux_feed *dvbdmxfeed, cons
 	if (ts->sync_byte != 0x47)
 		return -EINVAL;
 
-	if ((dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO) || (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)) {
+	switch (dvbdmxfeed->pes_type) {
+	case DMX_TS_PES_AUDIO:
+		/* audio goes through the video queue, too, because spts
+		   mode is used */
 		if ((err = avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, 0)) < 0)
 			return err;
 
-		if ((!need_audio_pts) || (dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO))
-			return 0;
+		if (!need_audio_pts)
+			break;
 
 		if (!((ts->payload_unit_start_indicator) && (ts->payload)))
-			return 0;
+			break;
 
 		pes_offset = sizeof(struct ts_header);
 
-		if (ts->adaptation_field)
+		if (ts->adaptation_field) {
 			pes_offset += buf[4] + 1;
+			if (pes_offset > (188 - sizeof(struct ts_header) - sizeof(struct pes_header)))
+				break;
+		}
 
-		if (pes_offset > (188 - sizeof(struct ts_header) - sizeof(struct pes_header)))
-			return 0;
-
-		if (avia_av_audio_pts_to_stc((const struct pes_header *)&buf[pes_offset]) == 0)
+		if (!avia_av_audio_pts_to_stc((const void *)&buf[pes_offset]))
 			need_audio_pts = 0;
+		break;
 
-		return 0;
+	case DMX_TS_PES_VIDEO:
+		if ((err = avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_VIDEO, buf, count, 0)) < 0)
+			return err;
+		break;
+
+	case DMX_TS_PES_TELETEXT:
+		if ((err = avia_gt_dmx_queue_write(AVIA_GT_DMX_QUEUE_TELETEXT, buf, count, 0)) < 0)
+			return err;
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
-	return -EINVAL;
+	return 0;
+}
+
+/**
+ * does this feed need a demux output queue?
+ */
+static int avia_gt_napi_is_clipmode_feed(struct dvb_demux_feed *dvbdmxfeed)
+{
+	/* don't put anything but audio, video and teletext
+	   into the demux output queues */
+	if (dvbdmxfeed->pes_type > DMX_TS_PES_TELETEXT)
+		return 0;
+	/* packets being processed by neither the mpeg
+	   decoder nor the vbi teletext encoder stay in the
+	   software demux layer */
+	if (!(dvbdmxfeed->ts_type & TS_DECODER))
+		return 0;
+	/* ... as well as sections - they don't have a
+	   valid ts_type field */
+	if (dvbdmxfeed->type == DMX_TYPE_SEC)
+		return 0;
+
+	return 1;
 }
 
 static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
@@ -453,28 +488,24 @@ static int avia_gt_napi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	/*
-	 * do not put anything but audio and video into demux queues for now during ts
-	 * playback. pcr will go through software demux and teletext is not yet done.
-	 */
-	if ((dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) &&
-		(((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) &&
-		  (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO)) ||
-		 (!(dvbdmxfeed->ts_type & TS_DECODER)) ||
-		 (dvbdmxfeed->type == DMX_TYPE_SEC)))
+	if (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) {
+		if (!avia_gt_napi_is_clipmode_feed(dvbdmxfeed))
 			return 0;
-
-	if ((dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) &&
-		(dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) &&
-		(dvbdmxfeed->ts_type & TS_DECODER))
+		/* we need to set the decoder's stc. this is done
+		   when the first audio pes packet is being processed
+		   by the write_to_decoder function */
+		if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)
 			need_audio_pts = 1;
-
-	if (mode == 0)	/* Dual PES mode */
-		if ((dvbdmx->dmx.frontend->source != DMX_MEMORY_FE) &&
-			((dvbdmxfeed->pes_type == DMX_TS_PES_VIDEO) ||
-			 (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)) &&
-			(dvbdmxfeed->ts_type & TS_DECODER))
-				dvbdmxfeed->ts_type |= TS_PAYLOAD_ONLY;
+	}
+	else {
+		if (mode == 0) {
+			/* and, in case of dual pes mode, the decoder
+			   wants to have audio and video pes instead of ts */
+			if ((dvbdmxfeed->pes_type <= DMX_TS_PES_VIDEO) &&
+				(dvbdmxfeed->ts_type & TS_DECODER))
+					dvbdmxfeed->ts_type |= TS_PAYLOAD_ONLY;
+		}
+	}
 
 	if ((dvbdmxfeed->type == DMX_TYPE_TS) || (dvbdmxfeed->type == DMX_TYPE_PES)) {
 		if ((dvbdmxfeed->pes_type == DMX_TS_PES_PCR) && (dvbdmxfeed->ts_type & TS_DECODER)) {
@@ -512,15 +543,8 @@ static int avia_gt_napi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	/*
-	 * only audio and video have a
-	 * demux queue during ts playback
-	 */
-	if ((dvbdmx->dmx.frontend->source == DMX_MEMORY_FE) &&
-		(((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) &&
-		  (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO)) ||
-		 (!(dvbdmxfeed->ts_type & TS_DECODER)) ||
-		 (dvbdmxfeed->type == DMX_TYPE_SEC)))
+	if (dvbdmx->dmx.frontend->source == DMX_MEMORY_FE)
+		if (!avia_gt_napi_is_clipmode_feed(dvbdmxfeed))
 			return 0;
 
 	if ((dvbdmxfeed->type != DMX_TYPE_SEC) && (dvbdmxfeed->ts_type & TS_DECODER))
@@ -686,7 +710,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.192 2003/11/24 09:41:21 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.193 2003/11/29 21:58:45 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
