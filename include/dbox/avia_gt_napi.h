@@ -227,5 +227,6 @@ typedef struct filter_param_table_3_s {
 } filter_param_table_3_t;
 
 extern void avia_gt_dmx_force_discontinuity(void);
+extern void avia_gt_dmx_set_pcr_pid(u16 pid);
 
 #endif

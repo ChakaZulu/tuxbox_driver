@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.81 $
+ *   $Revision: 1.82 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.82  2002/05/02 12:37:35  Jolt
+ *   Merge
+ *
  *   Revision 1.81  2002/05/02 04:56:47  Jolt
  *   Merge
  *
@@ -298,12 +301,6 @@ MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
 
 static gtx_demux_t gtx;
 
-static Pcr_t gtx_read_transport_pcr(void);
-static Pcr_t gtx_read_latched_clk(void);
-static Pcr_t gtx_read_current_clk(void);
-static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2);
-static s32 gtx_bound_delta(s32 bound, s32 delta);
-
 static void gtx_task(void *);
 static int GtxDmxInit(gtx_demux_t *gtxdemux);
 static int GtxDmxCleanup(gtx_demux_t *gtxdemux);
@@ -380,10 +377,10 @@ void enx_tdp_trace(void)
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
 
-    if (avia_gt_chip(ENX))
-	enx_reg_16n(0x2700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
-    else if (avia_gt_chip(GTX))
-	rh(RISC + 0x700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
+	if (avia_gt_chip(ENX))
+		enx_reg_16n(0x2700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
+	else if (avia_gt_chip(GTX))
+		rh(RISC + 0x700 + entry * 2) = ((!!wait_pusi) << 15) | ((!!invalid) << 14) | pid;
 
 }
 
@@ -530,241 +527,6 @@ static void gtx_queue_interrupt(unsigned short irq)
 
 	if (gtx_tasklet.data)
 		schedule_task(&gtx_tasklet);
-}
-
-static Pcr_t gtx_read_transport_pcr(void)
-{
-
-    Pcr_t pcr;
-
-    if (avia_gt_chip(ENX)) {
-    
-	pcr.hi = enx_reg_16(TP_PCR_2) << 16;
-	pcr.hi |= enx_reg_16(TP_PCR_1);
-	pcr.lo = enx_reg_16(TP_PCR_0) & 0x81FF;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	pcr.hi = rh(PCR2) << 16;
-	pcr.hi |= rh(PCR1);
-	pcr.lo = rh(PCR0) & 0x81FF;
-
-    }
-
-    return pcr;
-
-}
-
-static Pcr_t gtx_read_latched_clk(void)
-{
-
-    Pcr_t pcr;
-
-    if (avia_gt_chip(ENX)) {
-    
-	pcr.hi = enx_reg_16(LC_STC_2) << 16;
-	pcr.hi |= enx_reg_16(LC_STC_1);
-	pcr.lo = enx_reg_16(LC_STC_0) & 0x81FF;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	pcr.hi = rh(LSTC2) << 16;
-	pcr.hi |= rh(LSTC1);
-	pcr.lo = rh(LSTC0) & 0x81FF;
-
-    }
-
-    return pcr;
-    
-}
-
-static Pcr_t gtx_read_current_clk(void)
-{
-
-    Pcr_t pcr;
-
-    if (avia_gt_chip(ENX)) {
-    
-	pcr.hi =enx_reg_16(STC_COUNTER_2)<<16;
-	pcr.hi|=enx_reg_16(STC_COUNTER_1);
-	pcr.lo =enx_reg_16(STC_COUNTER_0)&0x81FF;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	pcr.hi =rh(STC2)<<16;
-	pcr.hi|=rh(STC1);
-	pcr.lo =rh(STC0)&0x81FF;
-
-    }
-    
-    return pcr;
-
-}
-
-static void gtx_set_pcr(Pcr_t pcr)
-{
-
-    if (avia_gt_chip(ENX)) {
-    
-	enx_reg_16(STC_COUNTER_2) = pcr.hi >> 16;
-	enx_reg_16(STC_COUNTER_1) = pcr.hi & 0xFFFF;
-	enx_reg_16(STC_COUNTER_0) = pcr.lo & 0x81FF;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	rh(STC2) = pcr.hi >> 16;
-	rh(STC1) = pcr.hi & 0xFFFF;
-    	rh(STC0) = pcr.lo & 0x81FF;
-
-    }
-
-}
-
-static s32 gtx_calc_diff(Pcr_t clk1, Pcr_t clk2)
-{
-	s32 delta;
-	delta=(s32)clk1.hi;
-	delta-=(s32)clk2.hi;
-	delta*=(s32)2;
-	delta+=(s32)((clk1.lo>>15)&1);
-	delta-=(s32)((clk2.lo>>15)&1);
-	delta*=(s32)300;
-	delta+=(s32)(clk1.lo & 0x1FF);
-	delta-=(s32)(clk2.lo & 0x1FF);
-	return delta;
-}
-
-static s32 gtx_bound_delta(s32 bound, s32 delta)
-{
-	if (delta>bound)
-		delta=bound;
-	if (delta<-bound)
-		delta=-bound;
-	return delta;
-}
-
-static int discont=1, large_delta_count, deltaClk_max, deltaClk_min, deltaPCR_AVERAGE;
-
-static Pcr_t oldClk;
-
-extern void avia_set_pcr(u32 hi, u32 lo);
-
-static void gtx_pcr_interrupt(unsigned short irq)
-{
-	Pcr_t TPpcr;
-	Pcr_t latchedClk;
-	Pcr_t currentClk;
-	s32 delta_PCR_AV;
-
-	s32 deltaClk, elapsedTime;
-	
-	TPpcr=gtx_read_transport_pcr();
-	latchedClk=gtx_read_latched_clk();
-	currentClk=gtx_read_current_clk();
-
-	if (discont)
-	{
-		oldClk=currentClk;
-		discont=0;
-		large_delta_count=0;
-		dprintk(/* KERN_DEBUG*/	"gtx_dmx: we have a discont:\n");
-		dprintk(KERN_DEBUG "gtx_dmx: new stc: %08x%08x\n", TPpcr.hi, TPpcr.lo);
-		deltaPCR_AVERAGE=0;
-
-    if (avia_gt_chip(ENX))
-		enx_reg_16(FC)|=0x100;							 // force discontinuity
-    else if (avia_gt_chip(GTX))
-		rh(FCR)|=0x100;							 // force discontinuity
-
-		gtx_set_pcr(TPpcr);
-		avia_set_pcr(TPpcr.hi, TPpcr.lo);
-		return;
-	}
-
-	elapsedTime=latchedClk.hi-oldClk.hi;
-	if (elapsedTime > TIME_HI_THRESHOLD)
-	{
-		dprintk("gtx_dmx: elapsed time disc.\n");
-		goto WE_HAVE_DISCONTINUITY;
-	}
-	deltaClk=TPpcr.hi-latchedClk.hi;
-	if ((deltaClk < -MAX_HI_DELTA) || (deltaClk > MAX_HI_DELTA))
-	{
-		dprintk("gtx_dmx: large_delta disc.\n");
-		if (large_delta_count++>MAX_DELTA_COUNT)
-			goto WE_HAVE_DISCONTINUITY; 
-		return;
-	} else
-		large_delta_count=0;
-	
-	deltaClk=gtx_calc_diff(TPpcr, latchedClk);
-	deltaPCR_AVERAGE*=99;
-	deltaPCR_AVERAGE+=deltaClk*10;
-	deltaPCR_AVERAGE/=100;
-	
-	if ((deltaPCR_AVERAGE < -0x20000) || (deltaPCR_AVERAGE > 0x20000))
-	{
-		dprintk("gtx_dmx: tmb pcr\n");
-		goto WE_HAVE_DISCONTINUITY;
-	}
-
-	delta_PCR_AV=deltaClk-deltaPCR_AVERAGE/10;
-	if (delta_PCR_AV > deltaClk_max)
-		deltaClk_max=delta_PCR_AV;
-	if (delta_PCR_AV < deltaClk_min)
-		deltaClk_min=delta_PCR_AV;
-
-	elapsedTime=gtx_calc_diff(latchedClk, oldClk);
-	if (elapsedTime > TIME_THRESHOLD)
-		goto WE_HAVE_DISCONTINUITY;
-
-//	printk("elapsed %08x, delta %c%08x\n", elapsedTime, deltaClk<0?'-':'+', deltaClk<0?-deltaClk:deltaClk);
-//	printk("%x (%x)\n", deltaClk, gtx_bound_delta(MAX_DAC, deltaClk));
-/*	deltaClk=gtx_bound_delta(MAX_DAC, deltaClk);
-
-	rw(DPCR)=((-deltaClk)<<16)|0x0009; */
-
-    if (avia_gt_chip(ENX)) {
-    
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*1);
-
-	enx_reg_16(DAC_PC)=deltaClk;
-	enx_reg_16(DAC_CP)=9;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	deltaClk=-gtx_bound_delta(MAX_DAC, deltaClk*16);
-
-	rw(DPCR)=(deltaClk<<16)|9;
-
-    }
-
-	oldClk=latchedClk;
-	return;
-WE_HAVE_DISCONTINUITY:
-	dprintk("gtx_dmx: WE_HAVE_DISCONTINUITY\n");
-	discont=1;
-}
-
-static void gtx_dmx_set_pcr_source(int pid)
-{
-
-    if (avia_gt_chip(ENX)) {
-    
-		enx_reg_16(PCR_PID) = (1 << 13) | pid;
-		avia_gt_free_irq(ENX_IRQ_PCR);
-		avia_gt_alloc_irq(ENX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
-
-    } else if (avia_gt_chip(GTX)) {
-
-		rh(PCRPID) = (1 << 13) | pid;
-		avia_gt_free_irq(GTX_IRQ_PCR);
-		avia_gt_alloc_irq(GTX_IRQ_PCR, gtx_pcr_interrupt);			 // pcr reception
-
-    }
-	
-	avia_gt_dmx_force_discontinuity();
-
 }
 
 extern int register_demux(struct dmx_demux_s *demux);
@@ -1717,6 +1479,13 @@ static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
 	return -EINVAL;
 }
 
+static void gtx_dmx_set_pcr_pid(int pid)
+{
+
+	avia_gt_dmx_set_pcr_pid((u16)pid);
+
+}
+
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
 	dmx_demux_t *dmx=&gtxdemux->dmx;
@@ -1796,7 +1565,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->connect_frontend = dmx_connect_frontend;
 	dmx->disconnect_frontend = dmx_disconnect_frontend;
 	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
-	dmx->set_pcr_pid = gtx_dmx_set_pcr_source;
+	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
 	
 	gtx_tasklet.data=gtxdemux;
 
@@ -1823,7 +1592,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.81 2002/05/02 04:56:47 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.82 2002/05/02 12:37:35 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
     
