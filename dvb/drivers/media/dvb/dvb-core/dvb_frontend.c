@@ -52,18 +52,10 @@ struct dvb_fe_events {
 };
 
 
-struct dvb_fe_notifier_callbacks {
-	struct list_head list_head;
-	void (*callback) (fe_status_t s, void *data);
-	void *data;
-};
-
-
 struct dvb_frontend_data {
 	struct dvb_frontend_info *info;
 	struct dvb_frontend frontend;
 	struct dvb_device *dvbdev;
-	struct list_head notifier_callbacks;
 	struct dvb_frontend_parameters parameters;
 	struct dvb_fe_events events;
 	struct semaphore sem;
@@ -92,8 +84,17 @@ struct dvb_frontend_ioctl_data {
 };
 
 
+struct dvb_frontend_notifier_data {
+	struct list_head list_head;
+	struct dvb_adapter *adapter;
+	void (*callback) (fe_status_t s, void *data);
+	void *data;
+};
+
+
 static LIST_HEAD(frontend_list);
 static LIST_HEAD(frontend_ioctl_list);
+static LIST_HEAD(frontend_notifier_list);
 
 static DECLARE_MUTEX(frontend_mutex);
 
@@ -192,9 +193,6 @@ static
 void dvb_call_frontend_notifiers (struct dvb_frontend_data *fe,
 				  fe_status_t s)
 {
-        struct list_head *e;
-	struct dvb_fe_notifier_callbacks *c;
-
 	dprintk ("%s\n", __FUNCTION__);
 
 	if ((fe->status & FE_HAS_LOCK) && !(s & FE_HAS_LOCK))
@@ -211,10 +209,8 @@ void dvb_call_frontend_notifiers (struct dvb_frontend_data *fe,
 	/**
 	 *   now tell the Demux about the TS status changes...
 	 */
-	list_for_each (e, &fe->notifier_callbacks) {
-		c = list_entry (e, struct dvb_fe_notifier_callbacks, list_head);
-		c->callback (fe->status, c->data);
-	}
+	if (fe->frontend.notifier_callback)
+		fe->frontend.notifier_callback(fe->status, fe->frontend.notifier_data);
 }
 
 
@@ -717,41 +713,45 @@ dvb_add_frontend_notifier (struct dvb_adapter *adapter,
 			   void (*callback) (fe_status_t s, void *data),
 			   void *data)
 {
-        struct list_head *entry;
+	struct dvb_frontend_notifier_data *notifier;
+	struct list_head *entry;
+	int frontend_count = 0;
 
 	dprintk ("%s\n", __FUNCTION__);
 
 	if (down_interruptible (&frontend_mutex))
 		return -ERESTARTSYS;
 
+	notifier = kmalloc (sizeof(struct dvb_frontend_notifier_data), GFP_KERNEL);
+
+	if (!notifier) {
+		up (&frontend_mutex);
+		return -ENOMEM;
+	}
+
+	notifier->adapter = adapter;
+	notifier->callback = callback;
+	notifier->data = data;
+
+	list_add_tail (&notifier->list_head, &frontend_notifier_list);
+
 	list_for_each (entry, &frontend_list) {
 		struct dvb_frontend_data *fe;
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter) {
-			struct dvb_fe_notifier_callbacks *e;
-
-			e = kmalloc (sizeof(struct dvb_fe_notifier_callbacks),
-				     GFP_KERNEL);
-
-			if (!e) {
-				up (&frontend_mutex);
-				return -ENOMEM;
-			}
-
-			e->callback = callback;
-			e->data = data;
-			list_add_tail (&e->list_head, &fe->notifier_callbacks);
-
-			up (&frontend_mutex);
-			return 0;
+		if (fe->frontend.i2c->adapter == adapter &&
+		    fe->frontend.notifier_callback == NULL)
+		{
+			fe->frontend.notifier_callback = callback;
+			fe->frontend.notifier_data = data;
+			frontend_count++;
 		}
 	}
 
 	up (&frontend_mutex);
 
-	return -ENODEV;
+	return frontend_count;
 }
 
 
@@ -759,7 +759,7 @@ void
 dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 			      void (*callback) (fe_status_t s, void *data))
 {
-        struct list_head *entry;
+	struct list_head *entry;
 
 	dprintk ("%s\n", __FUNCTION__);
 
@@ -771,18 +771,11 @@ dvb_remove_frontend_notifier (struct dvb_adapter *adapter,
 
 		fe = list_entry (entry, struct dvb_frontend_data, list_head);
 
-		if (fe->frontend.i2c->adapter == adapter) {
-			struct list_head *e0, *n0;
+		if (fe->frontend.i2c->adapter == adapter &&
+		    fe->frontend.notifier_callback == callback)
+		{
+			fe->frontend.notifier_callback = NULL;
 
-			list_for_each_safe (e0, n0, &fe->notifier_callbacks) {
-				struct dvb_fe_notifier_callbacks *e;
-
-				e = list_entry (e0,
-						struct dvb_fe_notifier_callbacks,
-						list_head);
-				list_del (&e->list_head);
-				kfree (e);
-			}
 		}
 	}
 
@@ -835,7 +828,6 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 	init_MUTEX (&fe->events.sem);
 	fe->events.eventw = fe->events.eventr = 0;
 	fe->events.overflow = 0;
-	INIT_LIST_HEAD (&fe->notifier_callbacks);
 
 	fe->frontend.ioctl = ioctl;
 	fe->frontend.i2c = i2c;
@@ -853,6 +845,20 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 			fe->frontend.before_ioctl = ioctl->before_ioctl;
 			fe->frontend.after_ioctl = ioctl->after_ioctl;
 			fe->frontend.before_after_data = ioctl->before_after_data;
+			break;
+		}
+	}
+
+	list_for_each (entry, &frontend_notifier_list) {
+		struct dvb_frontend_notifier_data *notifier;
+
+		notifier = list_entry (entry,
+				       struct dvb_frontend_notifier_data,
+				       list_head);
+
+		if (notifier->adapter == i2c->adapter) {
+			fe->frontend.notifier_callback = notifier->callback;
+			fe->frontend.notifier_data = notifier->data;
 			break;
 		}
 	}
