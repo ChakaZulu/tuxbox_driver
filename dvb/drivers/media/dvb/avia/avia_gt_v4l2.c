@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_v4l2.c,v $
+ *   Revision 1.2  2002/12/20 22:30:43  Jolt
+ *   Misc fixes / tweaks
+ *
  *   Revision 1.1  2002/12/20 22:02:41  Jolt
  *   - V4L2 compatible pig interface
  *   - Removed old pig interface
@@ -29,7 +32,7 @@
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -45,10 +48,12 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
+#include <linux/videodev.h>
 
-#include "../../../../include/linux/videodev.h"
 #include "avia_gt.h"
 #include "avia_gt_pig.h"
+
+static struct v4l2_device device_info;
 
 static int avia_gt_v4l2_open(struct v4l2_device	*device, int flags, void **idptr)
 {
@@ -101,6 +106,27 @@ static int avia_gt_v4l2_ioctl(void *id, unsigned int cmd, void *arg)
 			else
 				return avia_gt_pig_hide(0);
 
+		case VIDIOC_QUERYCAP:
+		{
+			struct v4l2_capability *capability = arg;
+
+			strcpy(capability->name, device_info.name);
+			capability->type = V4L2_TYPE_CAPTURE;
+//			capability->flags = V4L2_FLAG_READ | V4L2_FLAG_WRITE | V4L2_FLAG_STREAMING | V4L2_FLAG_PREVIEW;
+			capability->flags = V4L2_FLAG_PREVIEW;
+			capability->inputs = 1;
+			capability->outputs = 1;
+			capability->audios = 0;
+			capability->maxwidth = 720;	//CHECKME
+			capability->maxheight = 576;	//CHECKME
+			capability->minwidth = 32;	//CHECKME
+			capability->minheight = 32;	//CHECKME
+			capability->maxframerate = 30;
+			
+			return 0;
+			
+		}
+
 		case VIDIOC_S_WIN:
 		{
 			struct v4l2_window* window = (struct v4l2_window *)arg; 
@@ -150,7 +176,7 @@ static int avia_gt_v4l2_initialize(struct v4l2_device *v)
 
 }
 
-static struct v4l2_device device = {
+static struct v4l2_device device_info = {
 
 	.name = "AViA eNX/GTX v4l2",
 	.type = V4L2_TYPE_CAPTURE,
@@ -172,18 +198,18 @@ static int unit_video = 0;
 static int __init avia_gt_v4l2_init(void)
 {
 
-    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.1 2002/12/20 22:02:41 Jolt Exp $\n");
+    printk("avia_gt_v4l2: $Id: avia_gt_v4l2.c,v 1.2 2002/12/20 22:30:43 Jolt Exp $\n");
 	
-	device.minor = unit_video;
+	device_info.minor = unit_video;
 
-	return v4l2_register_device(&device);
+	return v4l2_register_device(&device_info);
 
 }
 
 static void __exit avia_gt_v4l2_exit(void)
 {
 
-	v4l2_unregister_device(&device);
+	v4l2_unregister_device(&device_info);
 
 }
 
