@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.48  2002/11/20 12:03:46  Jolt
+ *   SPTS mode support (which is now default)
+ *
  *   Revision 1.47  2002/11/19 14:22:25  Jolt
  *   Fixes
  *
@@ -197,7 +200,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.47 $
+ *   $Revision: 1.48 $
  *
  */
 
@@ -259,7 +262,7 @@ static spinlock_t avia_lock;
 static spinlock_t avia_register_lock;
 static wait_queue_head_t avia_cmd_wait;
 static wait_queue_head_t avia_cmd_state_wait;
-static u8 bypass_mode = 1;
+static u8 bypass_mode = 0;
 static u16 pid_audio = 0xFFFF;
 static u16 pid_video = 0xFFFF;
 static u8 play_state_audio = AVIA_AV_PLAY_STATE_STOPPED;
@@ -1192,22 +1195,16 @@ static int init_avia(void)
 
 	avia_av_event_init();
 
-//	avia_command(Abort, 0);
+	avia_command(Abort, 0);
 
 //      wDR(OSD_BUFFER_START, 0x1f0000);
 //      wDR(OSD_BUFFER_END,   0x200000);
 
-//	avia_command(Reset);
+	avia_command(Reset);
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
 	
-	avia_flush_pcr();
-	avia_command(SetStreamType, 0x0B, 0x0000);
-//	avia_command(SelectStream, 0, 0);
-//	avia_command(SelectStream, 3, 0);
-//	avia_command(Play, 0, 0, 0);
-
 	return 0;
 }
 
@@ -1260,6 +1257,8 @@ void avia_av_bypass_mode_set(u8 enable)
 		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) | 1);
 
 	wDR(NEW_AUDIO_CONFIG, 1);
+	
+	//FIXME change stream
 
 	bypass_mode = enable;
 
@@ -1297,32 +1296,6 @@ int avia_av_pid_set(u8 type, u16 pid)
 
 }
 
-int avia_av_decoder_start(u8 start_video, u8 start_audio)
-{
-
-	if (rDR(0x2A0) == 0x02)
-		avia_command(Play, 0, 0x0100, 0x0200);
-
-	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-
-	if (start_video)
-		avia_command(SelectStream, 0x00, 0x0000);
-		
-	if (start_audio)
-		avia_command(SelectStream, 0x03, 0x0000);
-	
-	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
-
-	if (start_video)
-		avia_command(SelectStream, 0x00, 0x0000);
-
-	if (start_audio)
-		avia_command(SelectStream, 0x03, 0x0000);
-
-	return 0;
-	
-}
-
 int avia_av_play_state_set_audio(u8 new_play_state)
 {
 
@@ -1338,14 +1311,16 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			dprintk("avia_av: pausing audio decoder\n");
 		
-//			avia_command(SelectStream, 0x02, 0xFFFF);
-//			avia_command(SelectStream, 0x03, 0xFFFF);
+			if (bypass_mode)
+				avia_command(SelectStream, 0x02, 0xFFFF);
+			else
+				avia_command(SelectStream, 0x03, 0xFFFF);
 		
 			break;
 
 		case AVIA_AV_PLAY_STATE_PLAYING:
 
-			dprintk("avia_av: starting audio decoder\n");
+			dprintk("avia_av: starting audio decoder (apid=0x%04X)\n", pid_audio);
 
 			if (bypass_mode)
 				avia_command(SelectStream, 0x02, pid_audio);
@@ -1353,7 +1328,7 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 				avia_command(SelectStream, 0x03, pid_audio);
 
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
-				avia_av_decoder_start(0, 1);
+				avia_command(Play, 0, 0xFFFF, pid_audio);
 		
 			break;
 
@@ -1365,8 +1340,10 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			dprintk("avia_av: stopping audio decoder\n");
 
-			avia_command(SelectStream, 0x02, 0xFFFF);
-			avia_command(SelectStream, 0x03, 0xFFFF);
+			if (bypass_mode)
+				avia_command(SelectStream, 0x02, 0xFFFF);
+			else
+				avia_command(SelectStream, 0x03, 0xFFFF);
 		
 			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
 				wDR(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
@@ -1406,20 +1383,20 @@ int avia_av_play_state_set_video(u8 new_play_state)
 
 		case AVIA_AV_PLAY_STATE_PLAYING:
 		
-//			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
+			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
 			
 //				avia_command(Resume);
 				
-//			} else {
+			} else {
 
-				dprintk("avia_av: starting video decoder\n");
+				dprintk("avia_av: starting video decoder (vpid=0x%04X)\n", pid_video);
+
+				avia_command(SelectStream, 0x00, pid_video);
 
 				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
-					avia_av_decoder_start(1, 0);
-				else
-					avia_av_decoder_start(1, 1);
+					avia_command(Play, 0, pid_video, 0xFFFF);
 
-//			}
+			}
 		
 			break;
 
@@ -1457,6 +1434,11 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 
 	if ((play_state_video != AVIA_AV_PLAY_STATE_STOPPED) || (play_state_audio != AVIA_AV_PLAY_STATE_STOPPED))
 		return -EBUSY;
+		
+	if ((new_stream_type_video == stream_type_video) && (new_stream_type_audio == stream_type_audio))
+		return 0;
+
+	dprintk("avia_av: setting stream type %d/%d\n", new_stream_type_video, new_stream_type_audio);
 
 	switch(new_stream_type_video) {
 	
@@ -1545,16 +1527,16 @@ int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio)
 					// AViA 500 doesn't support SetStreamType 0x10/0x11
 					// So we Reset the AViA 500 back to SPTS mode
 					
-					if (aviarev) {
+//					if (aviarev) {
 					
-						avia_command(Reset);				
+//						avia_command(Reset);				
 
-					} else {
+//					} else {
 					
-						avia_command(SetStreamType, 0x10, pid_audio);
-						avia_command(SetStreamType, 0x11, pid_video);
+//						avia_command(SetStreamType, 0x10, pid_audio);
+//						avia_command(SetStreamType, 0x11, pid_video);
 						
-					}
+//					}
 					
 					break;
 			
@@ -1615,6 +1597,7 @@ EXPORT_SYMBOL(avia_av_bypass_mode_set);
 EXPORT_SYMBOL(avia_av_pid_set);
 EXPORT_SYMBOL(avia_av_play_state_set_audio);
 EXPORT_SYMBOL(avia_av_play_state_set_video);
+EXPORT_SYMBOL(avia_av_stream_type_set);
 EXPORT_SYMBOL(avia_av_sync_mode_set);
 
 /* ---------------------------------------------------------------------- */
@@ -1634,7 +1617,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.47 2002/11/19 14:22:25 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.48 2002/11/20 12:03:46 Jolt Exp $\n");
 
 	aviamem = 0;
 

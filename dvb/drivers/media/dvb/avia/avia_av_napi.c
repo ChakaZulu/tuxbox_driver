@@ -22,6 +22,9 @@
  *
  *
  *   $Log: avia_av_napi.c,v $
+ *   Revision 1.12  2002/11/20 12:03:46  Jolt
+ *   SPTS mode support (which is now default)
+ *
  *   Revision 1.11  2002/11/18 11:40:18  Jolt
  *   Support for AC3 and non sync mode
  *
@@ -59,7 +62,7 @@
  *
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -78,6 +81,8 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
+#include "../dvb-core/demux.h"
+#include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvbdev.h"
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
@@ -91,13 +96,81 @@ static struct dvb_device *audio_dev;
 static struct dvb_device *video_dev;
 static struct audio_status audiostate;
 static struct video_status videostate;
+static u8 have_audio = 0;
+static u8 have_video = 0;
+
+int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	if ((dvbdmxfeed->type != DMX_TYPE_TS) && (dvbdmxfeed->type != DMX_TYPE_PES))
+		return -EINVAL;
+
+	if ((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) && (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO))
+		return -EINVAL;
+
+	if (!(dvbdmxfeed->ts_type & TS_DECODER))
+		return -EINVAL;
+
+	if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO) {
+
+		avia_av_pid_set(AVIA_AV_TYPE_AUDIO, dvbdmxfeed->pid);
+
+		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
+		else
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_SPTS, AVIA_AV_STREAM_TYPE_SPTS);
+
+		if (audiostate.play_state == AUDIO_PLAYING)
+			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
+
+		have_audio = 1;
+
+	} else {
+			
+		avia_av_pid_set(AVIA_AV_TYPE_VIDEO, dvbdmxfeed->pid);
+
+		if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_PES, AVIA_AV_STREAM_TYPE_PES);
+		else
+			avia_av_stream_type_set(AVIA_AV_STREAM_TYPE_SPTS, AVIA_AV_STREAM_TYPE_SPTS);
+
+		if (videostate.play_state == VIDEO_PLAYING)
+			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
+
+		have_video = 1;
+		
+	}
+
+	return 0;
+		
+}
+
+int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
+{
+
+	if ((dvbdmxfeed->type != DMX_TYPE_TS) && (dvbdmxfeed->type != DMX_TYPE_PES))
+		return -EINVAL;
+
+	if ((dvbdmxfeed->pes_type != DMX_TS_PES_AUDIO) && (dvbdmxfeed->pes_type != DMX_TS_PES_VIDEO))
+		return -EINVAL;
+
+	if (!(dvbdmxfeed->ts_type & TS_DECODER))
+		return -EINVAL;
+
+	if (dvbdmxfeed->pes_type == DMX_TS_PES_AUDIO)
+		have_audio = 0;
+	else
+		have_video = 0;
+
+	return 0;
+	
+}
 
 static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 	
-	unsigned long arg = (unsigned long) parg;
+	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
-//FIXME	u32 new_mode;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != VIDEO_GET_STATUS))
 		return -EPERM;
@@ -113,11 +186,9 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_PLAY:
 
-//FIXME		avia_command(SelectStream, (audiostate.bypass_mode) ? 0x03 : 0x02, audio_pid);
-			avia_av_pid_set(AVIA_AV_TYPE_VIDEO, 0x0000);
-			avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
+			if (have_video)
+				avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_PLAYING);
 
-			audiostate.play_state = AUDIO_PLAYING;
 			videostate.play_state = VIDEO_PLAYING;
 
 			break;
@@ -138,7 +209,7 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 
 		case VIDEO_SELECT_SOURCE:
 			{
-				video_stream_source_t source = (video_stream_source_t) parg;
+				video_stream_source_t source = (video_stream_source_t)parg;
 
 				if (videostate.play_state == VIDEO_STOPPED) {
 
@@ -306,10 +377,8 @@ static int avia_av_napi_video_ioctl(struct inode *inode, struct file *file, unsi
 static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
 
-	unsigned long arg = (unsigned long) parg;
+	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
-
-//	FIXME: u32 new_mode;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) && (cmd != AUDIO_GET_STATUS))
 		return -EPERM;
@@ -326,8 +395,8 @@ static int avia_av_napi_audio_ioctl(struct inode *inode, struct file *file, unsi
 
 		case AUDIO_PLAY:
 
-			avia_av_pid_set(AVIA_AV_TYPE_AUDIO, 0x0000);
-			avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
+			if (have_audio)
+				avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_PLAYING);
 
 			audiostate.play_state = AUDIO_PLAYING;
 			
@@ -552,7 +621,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.11 2002/11/18 11:40:18 Jolt Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.12 2002/11/20 12:03:46 Jolt Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av.h,v $
+ *   Revision 1.12  2002/11/20 12:03:46  Jolt
+ *   SPTS mode support (which is now default)
+ *
  *   Revision 1.11  2002/11/18 11:40:18  Jolt
  *   Support for AC3 and non sync mode
  *
@@ -33,7 +36,7 @@
  *
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -315,8 +318,7 @@ void avia_av_bypass_mode_set(u8 enable);
 int avia_av_pid_set(u8 type, u16 pid);
 int avia_av_play_state_set_audio(u8 new_play_state);
 int avia_av_play_state_set_video(u8 new_play_state);
-int avia_av_stream_type_set_audio(u8 new_stream_type);
-int avia_av_stream_type_set_video(u8 new_stream_type);
+int avia_av_stream_type_set(u8 new_stream_type_video, u8 new_stream_type_audio);
 int avia_av_sync_mode_set(u8 new_sync_mode);
 
 #endif

@@ -24,5 +24,7 @@
 #ifndef AVIA_AV_NAPI_H
 #define AVIA_AV_NAPI_H
 
+int avia_av_napi_decoder_start(struct dvb_demux_feed *dvbdmxfeed);
+int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed);
 
 #endif

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.149  2002/11/20 12:03:46  Jolt
+ *   SPTS mode support (which is now default)
+ *
  *   Revision 1.148  2002/11/17 22:37:52  Jolt
  *   PCR fixes / changes
  *
@@ -254,7 +257,7 @@
  *
  *
  *
- *   $Revision: 1.148 $
+ *   $Revision: 1.149 $
  *
  */
 
@@ -1628,12 +1631,6 @@ int avia_gt_dmx_set_pid_control_table(u8 entry, u8 type, u8 queue, u8 fork, u8 c
 	dprintk("avia_gt_dmx_set_pid_control_table, entry %d, type %d, queue %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
 		entry,type,queue,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
 
-#ifdef AVIA_SPTS
-	// Route audio stream into video queue
-	if (queue == 1)
-		queue = 0;
-#endif
-
 	if (risc_mem_map->Version_no[0] < 0xA0)
 		queue++;
 
@@ -2131,7 +2128,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.148 2002/11/17 22:37:52 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.149 2002/11/20 12:03:46 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
