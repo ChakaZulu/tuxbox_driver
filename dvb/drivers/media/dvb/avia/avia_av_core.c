@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.95 2004/11/16 14:15:39 carjay Exp $
+ * $Id: avia_av_core.c,v 1.96 2004/11/16 14:48:17 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -928,6 +928,7 @@ static int avia_av_init(void)
 	u32 *microcode = NULL;
 	u32 val = 0;
 	mm_segment_t fs;
+	u32 irq_mask;
 
 	/* remap avia memory */
 	if (!aviamem)
@@ -1078,7 +1079,10 @@ static int avia_av_init(void)
 	avia_av_dram_write(INT_STATUS, 0);
 
 	/* enable interrupts */
-	avia_av_dram_write(INT_MASK, IRQ_AUD | IRQ_END_L | IRQ_END_C | IRQ_SEQ_V | IRQ_INIT_AUDD);
+	irq_mask = IRQ_AUD | IRQ_END_L | IRQ_END_C | IRQ_SEQ_V;
+	if (!avia_av_is500())
+		irq_mask |= IRQ_INIT_AUDD;
+	avia_av_dram_write(INT_MASK, irq_mask);
 
 	if (avia_av_wait(PROC_STATE, PROC_STATE_IDLE, 100) < 0) {
 		printk(KERN_ERR "avia_av: timeout waiting for decoder init to complete. (%08x)\n",
@@ -1507,7 +1511,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.95 2004/11/16 14:15:39 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.96 2004/11/16 14:48:17 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
