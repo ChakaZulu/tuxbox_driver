@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.5  2001/02/17 19:50:14  gillem
+ *   - bugfix ...
+ *
  *   Revision 1.4  2001/02/17 19:45:21  gillem
  *   - some changes
  *
@@ -56,7 +59,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -537,7 +540,7 @@ u32 avia_wait(u32 sa)
 		return -1;
 	}
 
-	dprintk(KERN_IBFO "AVIA: COMMAND run\n");
+	dprintk(KERN_INFO "AVIA: COMMAND run\n");
 
 	run_cmd++;
 
