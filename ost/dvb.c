@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.34 2001/06/24 11:16:42 gillem Exp $
+ * $Id: dvb.c,v 1.35 2001/06/24 11:35:05 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -1102,6 +1102,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						return -EFAULT;
 					break;
 				}
+				/* QPSK-Stuff */
 				case QPSK_TUNE:
 				{
 					struct qpskParameters para;
@@ -1154,6 +1155,35 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					return -ENOTSUPP;
 				}
 				case QPSK_READ_REGISTER:
+				{
+					return -ENOTSUPP;
+				}
+				case QPSK_GET_STATUS:
+				{
+					return -ENOTSUPP;
+				}
+				/* QAM-Stuff */
+				case QAM_TUNE:
+				{
+					return -ENOTSUPP;
+				}
+				case QAM_GET_EVENT:
+				{
+					return -ENOTSUPP;
+				}
+				case QAM_FE_INFO:
+				{
+					return -ENOTSUPP;
+				}
+				case QAM_WRITE_REGISTER:
+				{
+					return -ENOTSUPP;
+				}
+				case QAM_READ_REGISTER:
+				{
+					return -ENOTSUPP;
+				}
+				case QAM_GET_STATUS:
 				{
 					return -ENOTSUPP;
 				}
