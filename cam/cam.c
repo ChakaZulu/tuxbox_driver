@@ -390,11 +390,11 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.27 2003/09/30 05:45:34 obi Exp $\n");
+	printk("$Id: cam.c,v 1.28 2003/10/16 08:44:10 alexw Exp $\n");
 	
 	if (!mio) {
 	
-		printk("cam: mio address unknown\n");
+		printk("CAM: mio address unknown\n");
 		
 		return -EINVAL;
 		
@@ -402,7 +402,7 @@ int __init cam_init(void)
 	
 	if (!(code_base = ioremap(mio, CAM_CODE_SIZE))) {
 	
-		printk("cam: could not map mio=0x%08X\n", mio);
+		printk("CAM: could not map mio=0x%08X\n", mio);
 		
 		return -EFAULT;
 		
@@ -418,8 +418,9 @@ int __init cam_init(void)
 	/* read firmware */
 	if (do_firmread(firmware, (char**)&microcode) == 0)
 	{
+		printk("CAM: firmware not found, setting up dummy\n");
 		set_fs(fs);
-		return -EIO;
+		return 0;
 	}
 
 	set_fs(fs);
@@ -428,13 +429,13 @@ int __init cam_init(void)
 
 	vfree(microcode);
 
-	 if ((res = i2c_add_driver(&cam_driver)))
+	if ((res = i2c_add_driver(&cam_driver)))
 	{
 		printk("CAM: Driver registration failed, module not inserted.\n");
 		return res;
 	}
 
-	 if ( ! dclient )
+	if ( ! dclient )
 	{
 	  i2c_del_driver ( &cam_driver );
 	  printk ( "CAM: cam not found.\n" );
