@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.44 $
+ *   $Revision: 1.45 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.45  2001/06/18 20:14:08  tmbinc
+ *   fixed state sets in sections, now it works as expected (multiple filter on one pid)
+ *
  *   Revision 1.44  2001/06/15 00:17:26  TripleDES
  *   fixed queue-reset problem - solves zap problem with enx
  *
@@ -1290,7 +1293,7 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
   printk("CHCH [DEMUX] STOP %d\n", gtxfeed->index);
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
   gtx_reset_queue(gtxfeed);
-  gtxfeed->state=DMX_STATE_ALLOCATED;
+  gtxfeed->state=DMX_STATE_READY;
   return 0;  
 }
 
@@ -1366,7 +1369,7 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
   gtx_demux_secfilter_t *gtxsecfilter=0;
   int i;
   
-  dprintk("gtx_dmx: allocating a filter.\n");
+  dprintk("gtx_dmx: dmx_section_feed_allocate_filter.\n");
 
 	for (i=0; i<32; i++)
 		if (gtx->secfilter[i].state==DMX_STATE_FREE)
@@ -1396,7 +1399,7 @@ static int dmx_section_feed_release_filter(dmx_section_feed_t *feed,
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_secfilter_t *f, *gtxfilter=(gtx_demux_secfilter_t*)filter;
 
-  dprintk("gtx_dmx: releasing section feed filter.\n");
+  dprintk("gtx_dmx: dmx_section_feed_release_filter.\n");
   if (gtxfilter->feed!=gtxfeed)
   {
   	dprintk("FAILED (gtxfilter->feed!=gtxfeed) (%p != %p)\n", gtxfilter->feed, gtxfeed);
@@ -1427,8 +1430,9 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
-  
-  dprintk("gtx_dmx: set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
+
+  dprintk("gtx_dmx: dmx_section_feed_set.\n");
+	dprintk("gtx_dmx: set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
   
   if (pid>0x1FFF)
     return -EINVAL;
@@ -1453,8 +1457,6 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
   dmx_set_filter(gtxfeed->filter);
 
   dprintk("gtx_dmx: SEC: filtering pid %d (on %d) -> %p\n", pid, gtxfeed->index, gtxfeed->secfilter);
-  gtxfeed->output=TS_PACKET;
-  gtxfeed->state=DMX_STATE_READY;
   
   return 0;
 }
@@ -1487,6 +1489,7 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
   filter->no_of_filters=numflt-1;
   dprintk("gtx_dmx: section filtering start (%d filter)\n", numflt);
 #endif
+  dprintk("gtx_dmx: dmx_section_feed_start_filtering.\n");
   
   dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
   
@@ -1495,6 +1498,7 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 
 static int dmx_section_feed_stop_filtering(struct dmx_section_feed_s* feed)
 {
+  dprintk("gtx_dmx: dmx_section_feed_stop_filtering.\n");
   dmx_ts_feed_stop_filtering((dmx_ts_feed_t*)feed);
   return 0;
 }
@@ -1503,6 +1507,8 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 {
   gtx_demux_t *gtx=(gtx_demux_t*)demux;
   gtx_demux_feed_t *gtxfeed;
+
+  dprintk("gtx_dmx: dmx_allocate_section_feed.\n");
 
   if (!(gtxfeed=GtxDmxFeedAlloc(gtx, DMX_TS_PES_OTHER)))
   {
@@ -1530,6 +1536,9 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   gtxfeed->sec_buffer=kmalloc(16384, GFP_KERNEL);
   gtxfeed->sec_recv=0;
   gtxfeed->sec_len=0;
+
+  gtxfeed->output=TS_PACKET;
+  gtxfeed->state=DMX_STATE_READY;
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
   {
@@ -1549,6 +1558,9 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 static int dmx_release_section_feed (struct dmx_demux_s* demux,  dmx_section_feed_t* feed)
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+
+  dprintk("gtx_dmx: dmx_release_section_feed.\n");
+
   if (gtxfeed->secfilter)
   {
     dprintk("gtx_dmx: BUSY.\n");
@@ -1709,7 +1721,7 @@ MODULE_PARM_DESC(debug, "debug level - 0 off; 1 on");
 
 int init_module(void)
 {
-  dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.44 2001/06/15 00:17:26 TripleDES Exp $\n");
+  dprintk("gtx_dmx: $Id: avia_gt_napi.c,v 1.45 2001/06/18 20:14:08 tmbinc Exp $\n");
   return gtx_dmx_init();
 }
 
