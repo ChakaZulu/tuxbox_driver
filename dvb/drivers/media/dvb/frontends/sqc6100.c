@@ -1,9 +1,10 @@
 /*
- * $Id: sqc6100.c,v 1.4 2003/12/14 15:38:33 wjoost Exp $
+ * $Id: sqc6100.c,v 1.5 2003/12/20 22:29:42 obi Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
- * (C) 2003 Andreas Oberritter <obi@saftware.de>
+ * (C) 2003 Andreas Oberritter <obi@linuxtv.org>,
+ *          Wolfram Joost <dbox2@frokaschwei.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -864,6 +865,6 @@ static void __exit sqc6100_module_exit(void)
 module_init(sqc6100_module_init);
 module_exit(sqc6100_module_exit);
 
-MODULE_AUTHOR("Andreas Oberritter <obi@saftware.de>, Wolfram Joost <dbox2@frokaschwei.de>");
+MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>, Wolfram Joost <dbox2@frokaschwei.de>");
 MODULE_DESCRIPTION("Infineon SQC6100 DVB-T Frontend Driver");
 MODULE_LICENSE("GPL");

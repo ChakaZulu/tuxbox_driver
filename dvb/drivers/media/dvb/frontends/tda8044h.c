@@ -3,8 +3,8 @@
  *
  * Philips TDA8044H QPSK demodulator driver
  *
- * Copyright (C) 2001 Felix Domke <tmbinc@gmx.net>
- * Copyright (C) 2002-2003 Andreas Oberritter <obi@saftware.de>
+ * Copyright (C) 2001 Felix Domke <tmbinc@elitedvb.net>
+ * Copyright (C) 2002-2003 Andreas Oberritter <obi@linuxtv.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
