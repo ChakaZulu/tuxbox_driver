@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.14  2001/07/03 20:23:11  gillem
+ *   - some changes
+ *
  *   Revision 1.13  2001/07/03 19:55:05  gillem
  *   - add ioctl to set rgb/fbas/svideo
  *   - remove module option svideo
@@ -56,7 +59,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -620,7 +623,7 @@ static int saa7126_mode( int inp )
 				return -EINVAL;
 	}
 
-	saa7126_sendcmd( &client_template, 0x2d, b );
+	saa7126_output_control( b );
 
 	return 0;
 }
