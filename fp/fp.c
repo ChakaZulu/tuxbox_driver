@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.31  2001/07/31 03:01:39  Hunz
+ *   DiSEqC fix (sagem still untested)
+ *
  *   Revision 1.30  2001/07/31 01:40:28  Hunz
  *   experimental sagem-diseqc support
  *
@@ -94,7 +97,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.30 $
+ *   $Revision: 1.31 $
  *
  */
 
@@ -979,7 +982,7 @@ int fp_sec_status(void) {
   return sec_bus_status;
 }
 
-int fp_send_diseqc(u8 *cmd, unsigned int len)
+int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 {
 	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0};
 	unsigned char status_cmd;
@@ -987,15 +990,15 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 
 	if (sec_bus_status == -1)
 	  return -1;
-
-	switch(fp_id) {
-	case 0x5A: // NOKIA
+	
+        switch(style) {
+	case 1: // NOKIA
 		msg[1]=0x1B;
 		sleeptime=2300;
 		sleep_perbyte=300;
 		status_cmd=0x2D;
 	break;
-	case 0x52: // SAGEM / PHILLIPS?
+	case 2: // SAGEM / PHILLIPS?
 		msg[1]=0x28;
 
 	/* this values are measured/calculated for nokia

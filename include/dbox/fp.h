@@ -26,7 +26,7 @@ int fp_set_tuner_dword(int type, u32 tw);
 int fp_set_sec(int power,int tone);
 int fp_do_reset(int type);
 int fp_cam_reset(void);
-int fp_send_diseqc(u8 *cmd,unsigned int len);
+int fp_send_diseqc(int style, u8 *cmd,unsigned int len);
 int fp_sec_status(void);
 int fp_sagem_set_SECpower(int power);
 

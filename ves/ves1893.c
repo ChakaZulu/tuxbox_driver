@@ -44,6 +44,7 @@ static void ves_reset(void);
 static int ves_read_reg(int reg);
 static int ves_get_unc_packet(u32 *uncp);
 static int mitel_set_freq(unsigned int freq);
+static int ves_send_diseqc(u8 *cmd, unsigned int len);
 
 struct demod_function_struct ves1893={
 		write_reg:			ves_write_reg, 
@@ -53,7 +54,7 @@ struct demod_function_struct ves1893={
 		get_unc_packet: ves_get_unc_packet,
 		set_frequency:	mitel_set_freq,
 		set_sec:				fp_set_sec,
-		send_diseqc:		fp_send_diseqc,
+		send_diseqc:		ves_send_diseqc,
 		sec_status:			fp_sec_status};
 
 static int debug = 9;
@@ -485,6 +486,10 @@ void cleanup_module(void)
 }
 #endif
 
+int ves_send_diseqc(u8 *cmd, unsigned int len)
+{
+	return fp_send_diseqc(1,cmd,len);
+}
 
 /*
  * Local variables:

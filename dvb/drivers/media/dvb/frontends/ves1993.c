@@ -44,8 +44,8 @@ static int ves_read_reg(int reg);
 static int mitel_set_freq(int freq);
 static int ves_set_sec(int power,int tone);
 static int ves_get_unc_packet(u32 *uncp);
+static int ves_send_diseqc(u8 *cmd, unsigned int len);
 //static int fp_set_sec(void);
-//static int fp_send_diseqc(void);
 //static int fp_sec_status(void);
 
 
@@ -57,7 +57,7 @@ struct demod_function_struct ves1993={
 		get_unc_packet:		ves_get_unc_packet,
 		set_frequency:		mitel_set_freq,
 		set_sec:		ves_set_sec,								// das hier stimmt nicht, oder?
-		send_diseqc:		fp_send_diseqc,
+		send_diseqc:		ves_send_diseqc,
 		sec_status:		fp_sec_status};
 
 static int debug = 0;
@@ -609,6 +609,10 @@ static struct i2c_client client_template = {
         NULL
 };
 
+int ves_send_diseqc(u8 *cmd, unsigned int len)
+{
+        return fp_send_diseqc(2,cmd,len);
+}
 
 /* ---------------------------------------------------------------------- */
 
