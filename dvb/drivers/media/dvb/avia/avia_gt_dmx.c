@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.140  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.139  2002/10/09 20:58:31  Jolt
  *   Fix
  *
@@ -227,7 +230,7 @@
  *
  *
  *
- *   $Revision: 1.139 $
+ *   $Revision: 1.140 $
  *
  */
 
@@ -260,11 +263,11 @@
 #include <asm/div64.h>
 
 //#define DEBUG
-#include <ost/demux.h>
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_dmx.h>
-#include <dbox/avia_gt_accel.h>
-#include <dbox/avia_gt_napi.h>
+#include "../dvb-core/demux.h"
+#include "avia_gt.h"
+#include "avia_gt_dmx.h"
+#include "avia_gt_accel.h"
+#include "avia_gt_napi.h"
 
 //#define dprintk printk
 
@@ -1997,7 +2000,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.139 2002/10/09 20:58:31 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.140 2002/10/20 20:38:26 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

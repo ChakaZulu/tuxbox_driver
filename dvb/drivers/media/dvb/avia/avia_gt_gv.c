@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.26  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.25  2002/10/11 09:57:54  Jolt
  *   HW copy stuff
  *
@@ -100,7 +103,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 
@@ -117,9 +120,9 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_gv.h>
-#include <dbox/avia_gt_accel.h>
+#include "avia_gt.h"
+#include "avia_gt_gv.h"
+#include "avia_gt_accel.h"
 
 static u16 input_height = 576;
 static u8 input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
@@ -635,7 +638,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.25 2002/10/11 09:57:54 Jolt Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.26 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

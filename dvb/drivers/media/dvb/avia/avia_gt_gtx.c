@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.18  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.17  2002/09/15 18:06:26  Jolt
  *   Cleanup
  *
@@ -136,7 +139,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -163,7 +166,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/avia_gt.h"
+#include "avia_gt.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
@@ -289,7 +292,7 @@ void avia_gt_gtx_reset(void)
 void avia_gt_gtx_init(void)
 {
 
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.17 2002/09/15 18:06:26 Jolt Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.18 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

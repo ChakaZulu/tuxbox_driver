@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.20  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.19  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -82,7 +85,7 @@
  *
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -96,8 +99,8 @@
 #include <linux/wait.h>
 #include <linux/init.h>
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_ir.h>
+#include "avia_gt.h"
+#include "avia_gt_ir.h"
 
 DECLARE_WAIT_QUEUE_HEAD(rx_wait);
 DECLARE_WAIT_QUEUE_HEAD(tx_wait);
@@ -442,7 +445,7 @@ int __init avia_gt_ir_init(void)
 	u16 rx_irq = 0;
 	u16 tx_irq = 0;
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.19 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.20 2002/10/20 20:38:26 Jolt Exp $\n");
 
     do_gettimeofday(&last_timestamp);
 	

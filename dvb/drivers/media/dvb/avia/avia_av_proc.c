@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_proc.c,v $
+ *   Revision 1.3  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.2  2002/10/03 12:47:57  Jolt
  *   AViA AV cleanups
  *
@@ -30,7 +33,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -50,8 +53,8 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
-#include <dbox/avia_av.h>
-#include <dbox/avia_av_proc.h>
+#include "avia_av.h"
+#include "avia_av_proc.h"
 
 int avia_av_proc_read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
@@ -77,7 +80,7 @@ int avia_av_proc_init(void)
 
 	struct proc_dir_entry *proc_bus_avia;
 
-	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.2 2002/10/03 12:47:57 Jolt Exp $\n");
+	printk("avia_av_proc: $Id: avia_av_proc.c,v 1.3 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	if (!proc_bus) {
 	

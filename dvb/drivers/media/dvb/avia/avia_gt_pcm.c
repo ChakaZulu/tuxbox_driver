@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pcm.c,v $
+ *   Revision 1.20  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.19  2002/10/03 11:12:42  thegoodguy
  *   Reenable full volume
  *
@@ -84,7 +87,7 @@
  *
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -104,8 +107,8 @@
 #include <linux/init.h>
 #include <linux/byteorder/swab.h>
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_pcm.h>
+#include "avia_gt.h"
+#include "avia_gt_pcm.h"
 
 DECLARE_WAIT_QUEUE_HEAD(pcm_wait);
 
@@ -581,7 +584,7 @@ int avia_gt_pcm_init(void)
 	unsigned short irq_ad  = (unsigned short)0;
 	unsigned short irq_pf  = (unsigned short)0;
 
-	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.19 2002/10/03 11:12:42 thegoodguy Exp $\n");
+	printk("avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.20 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

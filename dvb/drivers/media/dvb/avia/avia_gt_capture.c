@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.23  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.22  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -80,7 +83,7 @@
  *
  *
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -106,8 +109,8 @@
 #error no devfs
 #endif
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_capture.h>
+#include "avia_gt.h"
+#include <linux/dvb/avia/avia_gt_capture.h>
 
 //#undef dprintk
 //#define dprintk printk
@@ -461,7 +464,7 @@ void avia_gt_capture_reset(unsigned char reenable)
 int __init avia_gt_capture_init(void)
 {
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.22 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.23 2002/10/20 20:38:26 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 

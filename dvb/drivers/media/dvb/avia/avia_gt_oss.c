@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_oss.c,v $
+ *   Revision 1.13  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.12  2002/10/03 13:32:36  alexw
  *   changed output volume to avoid clipping
  *
@@ -62,7 +65,7 @@
  *
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -82,7 +85,7 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
-#include <dbox/avia_gt_pcm.h>
+#include "avia_gt_pcm.h"
 
 int dsp_dev	= 0;
 int mixer_dev = 0;
@@ -363,7 +366,7 @@ static struct file_operations mixer_fops = {
 static int __init avia_oss_init(void)
 {
 
-    printk("avia_oss: $Id: avia_gt_oss.c,v 1.12 2002/10/03 13:32:36 alexw Exp $\n");
+    printk("avia_oss: $Id: avia_gt_oss.c,v 1.13 2002/10/20 20:38:26 Jolt Exp $\n");
 
     avia_gt_pcm_set_pcm_attenuation(0x70, 0x70);
 

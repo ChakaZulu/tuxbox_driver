@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_dvr.c,v $
+ *   Revision 1.10  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.9  2002/10/03 12:47:57  Jolt
  *   AViA AV cleanups
  *
@@ -72,9 +75,9 @@
 #include <asm/uaccess.h>
 #include <linux/devfs_fs_kernel.h>
 
-#include <dbox/avia_av.h>
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_dmx.h>
+#include "avia_av.h"
+#include "avia_gt.h"
+#include "avia_gt_dmx.h"
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
@@ -440,7 +443,7 @@ static ssize_t aiframe_write (struct file *file, const char *buf, size_t count,l
 int __init avia_gt_dvr_init(void)
 {
 
-    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.9 2002/10/03 12:47:57 Jolt Exp $\n");
+    printk("avia_gt_dvr: $Id: avia_gt_dvr.c,v 1.10 2002/10/20 20:38:26 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
 		

@@ -1,5 +1,5 @@
 /*
- * $Id: at76c651.c,v 1.31 2002/09/09 18:45:53 obi Exp $
+ * $Id: at76c651.c,v 1.32 2002/10/20 20:38:27 Jolt Exp $
  *
  * Sagem DVB-C Frontend Driver (at76c651/dat7021)
  *
@@ -31,8 +31,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include <dbox/dvb_frontend.h>
-#include <dbox/fp.h>
+#include "../dvb-core/dvb_frontend.h"
 
 
 static int debug = 0;
@@ -628,7 +627,7 @@ int __init init_at76c651 (void)
 {
 	int res;
 
-	printk("$Id: at76c651.c,v 1.31 2002/09/09 18:45:53 obi Exp $\n");
+	printk("$Id: at76c651.c,v 1.32 2002/10/20 20:38:27 Jolt Exp $\n");
 	
 	if ((res = i2c_add_driver(&at76c651_i2c_driver)))
 	{

@@ -18,7 +18,7 @@ AVIA_GT_MODS = avia_gt_accel.o avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_
 AVIA_GT      = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o
 AVIA_GT_FB   = avia_gt_fb_core.o $(FB_GEN)
 
-EXTRA_CFLAGS = -I../include -DEXPORT_SYMTAB -Werror
+EXTRA_CFLAGS = -I../../../../../include -I../../../../include -DEXPORT_SYMTAB -Werror
 
 ifeq ($(DEBUG), 1)
 EXTRA_CFLAGS	+= -DDEBUG

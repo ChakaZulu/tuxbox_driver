@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.37  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.36  2002/10/03 12:47:57  Jolt
  *   AViA AV cleanups
  *
@@ -164,7 +167,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.36 $
+ *   $Revision: 1.37 $
  *
  */
 
@@ -193,9 +196,9 @@
 #include <asm/uaccess.h>
 
 #include <dbox/fp.h>
-#include <dbox/avia_av.h>
-#include <dbox/avia_av_event.h>
-#include <dbox/avia_av_proc.h>
+#include "avia_av.h"
+#include "avia_av_event.h"
+#include "avia_av_proc.h"
 #include <dbox/info.h>
 
 /* ---------------------------------------------------------------------- */
@@ -1484,7 +1487,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.36 2002/10/03 12:47:57 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.37 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	aviamem = 0;
 

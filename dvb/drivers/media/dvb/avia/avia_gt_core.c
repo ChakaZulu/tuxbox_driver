@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.24  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.23  2002/10/05 15:01:12  Jolt
  *   New NAPI compatible VBI interface
  *
@@ -96,7 +99,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.23 $
+ *   $Revision: 1.24 $
  *
  */
 
@@ -124,15 +127,15 @@
 #include <asm/uaccess.h>
 
 #include <dbox/info.h>
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_accel.h>
-#include <dbox/avia_gt_dmx.h>
-#include <dbox/avia_gt_gv.h>
-#include <dbox/avia_gt_pcm.h>
-#include <dbox/avia_gt_capture.h>
-#include <dbox/avia_gt_pig.h>
-#include <dbox/avia_gt_ir.h>
-#include <dbox/avia_gt_vbi.h>
+#include "avia_gt.h"
+#include "avia_gt_accel.h"
+#include "avia_gt_dmx.h"
+#include "avia_gt_gv.h"
+#include "avia_gt_pcm.h"
+#include <linux/dvb/avia/avia_gt_capture.h>
+#include <linux/dvb/avia/avia_gt_pig.h>
+#include "avia_gt_ir.h"
+#include "avia_gt_vbi.h"
 
 #ifdef MODULE
 MODULE_PARM(chip_type, "i");
@@ -289,7 +292,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct	*dbox_info	= (struct dbox_info_struct *)NULL;
 	int											 result			=	(int)0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.23 2002/10/05 15:01:12 Jolt Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.24 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.9  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.8  2002/10/13 21:16:15  Jolt
  *   HW copy
  *
@@ -47,7 +50,7 @@
  *
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -58,8 +61,8 @@
 #include <linux/slab.h>
 #include <asm/errno.h>
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_accel.h>
+#include "avia_gt.h"
+#include "avia_gt_accel.h"
 
 static sAviaGtInfo *gt_info = NULL;
 static u8 max_transaction_size = 0;
@@ -202,7 +205,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.8 2002/10/13 21:16:15 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.9 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	

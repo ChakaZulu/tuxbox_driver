@@ -54,13 +54,11 @@ typedef struct gtx_demux_feed_s
   {
     dmx_ts_feed_t ts;
     dmx_section_feed_t sec;
-    dmx_pes_feed_t pes;
   } feed;
   union
   {
     dmx_ts_cb ts;
     dmx_section_cb sec;
-    dmx_pes_cb pes;
   } cb;
 
   struct gtx_demux_s *demux;

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_event.c,v $
+ *   Revision 1.3  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.2  2002/10/03 12:47:57  Jolt
  *   AViA AV cleanups
  *
@@ -30,7 +33,7 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -49,8 +52,8 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
-#include <dbox/avia_av.h>
-#include <dbox/avia_av_event.h>
+#include "avia_av.h"
+#include "avia_av_event.h"
 #include <dbox/event.h>
 
 static u32 event_delay;
@@ -120,7 +123,7 @@ static void avia_av_event_timer_function(unsigned long data)
 int avia_av_event_init(void)
 {
 
-	printk("avia_av_event: $Id: avia_av_event.c,v 1.2 2002/10/03 12:47:57 Jolt Exp $\n");
+	printk("avia_av_event: $Id: avia_av_event.c,v 1.3 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	event_delay = 0;
 

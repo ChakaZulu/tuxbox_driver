@@ -1,5 +1,5 @@
 /*
-   $Id: ves1820.c,v 1.34 2002/10/08 23:18:42 obi Exp $
+   $Id: ves1820.c,v 1.35 2002/10/20 20:38:27 Jolt Exp $
 
     VES1820  - Single Chip Cable Channel Receiver driver module
                used on the the Siemens DVB-C cards
@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include <dbox/dvb_frontend.h>
+#include "../dvb-core/dvb_frontend.h"
 #include <dbox/fp.h>
 
 
@@ -592,7 +592,7 @@ int __init init_ves1820(void)
 {
         int res;
 
-	printk("$Id: ves1820.c,v 1.34 2002/10/08 23:18:42 obi Exp $\n");
+	printk("$Id: ves1820.c,v 1.35 2002/10/20 20:38:27 Jolt Exp $\n");
 
         if ((res = i2c_add_driver(&ves1820_i2c_driver)))
         {

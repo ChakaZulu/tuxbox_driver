@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.29  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.28  2002/08/22 13:39:33  Jolt
  *   - GCC warning fixes
  *   - screen flicker fixes
@@ -90,7 +93,7 @@
  *
  *
  *
- *   $Revision: 1.28 $
+ *   $Revision: 1.29 $
  *
  */
 	
@@ -116,9 +119,9 @@
 #error no devfs
 #endif
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_capture.h>
-#include <dbox/avia_gt_pig.h>
+#include "avia_gt.h"
+#include <linux/dvb/avia/avia_gt_capture.h>
+#include <linux/dvb/avia/avia_gt_pig.h>
 
 #define MAX_PIG_COUNT 2
 
@@ -360,7 +363,7 @@ int __init avia_gt_pig_init(void)
     char					 devname[128]	= { 0 };
     unsigned char	 pig_nr				= (unsigned char)0;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.28 2002/08/22 13:39:33 Jolt Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.29 2002/10/20 20:38:26 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     

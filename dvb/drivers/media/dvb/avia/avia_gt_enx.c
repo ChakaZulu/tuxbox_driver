@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.14  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.13  2002/09/02 19:25:37  Jolt
  *   - DMX/NAPI cleanup
  *   - Compile fix
@@ -121,7 +124,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.13 $
+ *   $Revision: 1.14 $
  *
  */
 
@@ -148,7 +151,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/avia_gt.h"
+#include "avia_gt.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
@@ -274,7 +277,7 @@ void enx_sdram_ctrl_init(void) {
 void avia_gt_enx_init(void)
 {
 
-    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.13 2002/09/02 19:25:37 Jolt Exp $\n");
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.14 2002/10/20 20:38:26 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
     

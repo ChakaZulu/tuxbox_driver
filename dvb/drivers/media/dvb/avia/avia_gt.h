@@ -24,8 +24,8 @@
 #ifndef AVIA_GT_H
 #define AVIA_GT_H
 
-#include "enx.h"
-#include "gtx.h"
+#include "avia_gt_enx.h"
+#include "avia_gt_gtx.h"
 
 #ifdef DEBUG
 #define dprintk(fmt,args...) printk( fmt,## args)

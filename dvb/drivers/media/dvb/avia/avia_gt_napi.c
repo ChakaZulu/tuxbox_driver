@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.141 $
+ *   $Revision: 1.142 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.142  2002/10/20 20:38:26  Jolt
+ *   Compile fixes
+ *
  *   Revision 1.141  2002/10/09 20:20:36  Jolt
  *   DMX & Section fixes
  *
@@ -469,11 +472,11 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include <ost/demux.h>
+#include "../dvb-core/demux.h"
 
-#include <dbox/avia_gt.h>
-#include <dbox/avia_gt_dmx.h>
-#include <dbox/avia_gt_napi.h>
+#include "avia_gt.h"
+#include "avia_gt_dmx.h"
+#include "avia_gt_napi.h"
 
 static sAviaGtInfo *gt_info = (sAviaGtInfo *)NULL;
 
@@ -1538,7 +1541,7 @@ static void dmx_set_filter(gtx_demux_filter_t *filter)
 		
 }
 
-static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
+static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, uint16_t pid, int type, dmx_ts_pes_t pes_type, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
 {
 
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
@@ -1643,13 +1646,6 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 	return 0;
 }
 
-static int dmx_ts_feed_set_type(struct dmx_ts_feed_s* feed, int type, dmx_ts_pes_t pes_type)
-{
-//	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-	dprintk(KERN_DEBUG "gtx_dmx: dmx_ts_feed_set_type(%d, %d)\n", type, pes_type);
-	return 0;
-}
-
 static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 {
 
@@ -1674,13 +1670,14 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 
 }
 
-static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed, dmx_ts_cb callback, int type, dmx_ts_pes_t pes_type)
+static int dmx_allocate_ts_feed(struct dmx_demux_s* demux, dmx_ts_feed_t** feed, dmx_ts_cb callback)
 {
 
 	gtx_demux_t *gtx = (gtx_demux_t *)demux;
 	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)NULL;
 
-	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, pes_type))) {
+//FIXME	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, pes_type))) {
+	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, 0))) {
 
 		dprintk(KERN_ERR "gtx_dmx: couldn't get gtx feed\n");
 
@@ -1688,18 +1685,18 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 
 	}
 
-	if (type & TS_PAYLOAD_ONLY)
-		gtxfeed->type = DMX_TYPE_PES;
-	else
-		gtxfeed->type = DMX_TYPE_TS;
+//FIXME	if (type & TS_PAYLOAD_ONLY)
+//FIXME		gtxfeed->type = DMX_TYPE_PES;
+//FIXME	else
+//FIXME		gtxfeed->type = DMX_TYPE_TS;
 		
 	gtxfeed->cb.ts = callback;
 	gtxfeed->demux = gtx;
 	gtxfeed->pid = 0xFFFF;
 	gtxfeed->sec_ccn = 16;
 	gtxfeed->sec_len = 0;
-	gtxfeed->pes_type = pes_type;
-	gtxfeed->output = type;
+//FIXME	gtxfeed->pes_type = pes_type;
+//FIXME	gtxfeed->output = type;
 
 	*feed = &gtxfeed->feed.ts;
 	
@@ -1709,7 +1706,6 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
 	(*feed)->set = dmx_ts_feed_set;
 	(*feed)->start_filtering = dmx_ts_feed_start_filtering;
 	(*feed)->stop_filtering = dmx_ts_feed_stop_filtering;
-	(*feed)->set_type = dmx_ts_feed_set_type;
 
 	if (!(gtxfeed->filter = GtxDmxFilterAlloc(gtxfeed))) {
 	
@@ -1739,16 +1735,6 @@ static int dmx_release_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t* feed)
 	// pid austragen
 	gtxfeed->pid=0xFFFF;
 	return 0;
-}
-
-static int dmx_allocate_pes_feed (struct dmx_demux_s* demux, dmx_pes_feed_t** feed, dmx_pes_cb callback)
-{
-	return -EINVAL;
-}
-
-static int dmx_release_pes_feed (struct dmx_demux_s* demux, dmx_pes_feed_t* feed)
-{
-	return -EINVAL;
 }
 
 static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dmx_section_filter_t** filter)
@@ -2028,12 +2014,15 @@ static int dmx_disconnect_frontend (struct dmx_demux_s* demux)
 	return -EINVAL;
 }
 
+//FIXME
+#if 0
 static void gtx_dmx_set_pcr_pid(int pid)
 {
 
 	avia_gt_dmx_set_pcr_pid((u16)pid);
 
 }
+#endif
 
 int GtxDmxInit(gtx_demux_t *gtxdemux)
 {
@@ -2094,8 +2083,6 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->write = dmx_write;
 	dmx->allocate_ts_feed = dmx_allocate_ts_feed;
 	dmx->release_ts_feed = dmx_release_ts_feed;
-	dmx->allocate_pes_feed = dmx_allocate_pes_feed;
-	dmx->release_pes_feed = dmx_release_pes_feed;
 	dmx->allocate_section_feed = dmx_allocate_section_feed;
 	dmx->release_section_feed = dmx_release_section_feed;
 
@@ -2107,8 +2094,8 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 	dmx->get_frontends = dmx_get_frontends;
 	dmx->connect_frontend = dmx_connect_frontend;
 	dmx->disconnect_frontend = dmx_disconnect_frontend;
-	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
-	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
+//FIXME	dmx->flush_pcr = avia_gt_dmx_force_discontinuity;
+//FIXME	dmx->set_pcr_pid = gtx_dmx_set_pcr_pid;
 
 	if (dmx_register_demux(dmx) < 0)
 		return -1;
@@ -2157,7 +2144,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.141 2002/10/09 20:20:36 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.142 2002/10/20 20:38:26 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
