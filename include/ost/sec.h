@@ -24,7 +24,9 @@
 #ifndef _OST_SEC_H_
 #define _OST_SEC_H_
 
+#ifndef __KERNEL__
 #include <stdint.h>
+#endif
 
 #define SEC_MAX_DISEQC_PARAMS 3
 
