@@ -93,6 +93,9 @@
 #define GVP_SET_Y(X)     rw(GVP) = ((rw(GVP)&(~0x3FF))|(X&0x3FF))
 #define GVP_SET_COORD(X,Y) GVP_SET_X(X); GVP_SET_Y(Y)
 
+#define GVS_SET_XSZ(X)   rw(GVS) = ((rw(GVS)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define GVS_SET_YSZ(X)   rw(GVS) = ((rw(GVS)&(~0x3FF))|(X&0x3FF))
+
 extern int gtx_allocate_dram(int size, int align);
 extern int gtx_allocate_irq(int reg, int bit, void (*isr)(int, int));
 extern void gtx_free_irq(int reg, int bit);
