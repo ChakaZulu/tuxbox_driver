@@ -1,5 +1,5 @@
 /*
- *   enx_accel.c - AViA eNX accelerator driver (dbox-II-project)
+ *   avia_gt_accel.c - AViA accelerator driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.3  2002/08/27 20:18:45  Jolt
+ *   Engine is working now for GTX and eNX (except for section data :-( )
+ *
  *   Revision 1.2  2002/06/07 17:53:45  Jolt
  *   GCC31 fixes 2nd shot - sponsored by Frankster (THX!)
  *
@@ -29,79 +32,176 @@
  *
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/time.h>
+#include <asm/errno.h>
 
-#include <dbox/enx.h>
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_accel.h>
+#include "crc32.c"
 
-#define ENX_MAX_TRANSCATION_SIZE 64
+static sAviaGtInfo *gt_info = NULL;
+static u8 max_transaction_size = 0;
 
-unsigned int enx_crc32(void *buffer, unsigned int buffer_size)
+u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 {
 
-    printk("enx_accel: crc32 (buffer=0x%X, buffer_size=%d)\n", (unsigned int)buffer, buffer_size);
+	u32 transaction_size;
+	u8 odd_end_padding = 0;
+	u8 odd_start_padding = 0;
+//	u32 swcrc;
 
-    //enx_reg_s(CPCCRCSRC2)->CRC.CRC = 0;
-    enx_reg_32(CPCCRCSRC2) = 0xFFFFFFFF;
-    enx_reg_set(CPCSRC1, Addr, (unsigned int)buffer);
+//	swcrc = crc32_seed((char *)&gt_info->mem_addr[buffer], buffer_size, seed);
+
+	if (avia_gt_chip(ENX)) {
+	
+		//enx_reg_s(CPCCRCSRC2)->CRC.CRC = 0;
+		if (seed)
+			enx_reg_32(CPCCRCSRC2) = seed ^ 0xFFFFFFFF;
+		else
+			enx_reg_32(CPCCRCSRC2) = 0;
+			
+		enx_reg_set(CPCSRC1, Addr, buffer);
     
-    /*enx_reg_set(CPCCMD, W, 0);
-    enx_reg_set(CPCCMD, C, 1);
-    enx_reg_set(CPCCMD, P, 0);
-    enx_reg_set(CPCCMD, N, 0);
-    enx_reg_set(CPCCMD, T, 0);
-    enx_reg_set(CPCCMD, D, 0);*/
+		/*enx_reg_set(CPCCMD, W, 0);
+		enx_reg_set(CPCCMD, C, 1);
+		enx_reg_set(CPCCMD, P, 0);
+		enx_reg_set(CPCCMD, N, 0);
+		enx_reg_set(CPCCMD, T, 0);
+		enx_reg_set(CPCCMD, D, 0);*/
+		
+	} else if (avia_gt_chip(GTX)) {
+	
+		if (seed)
+			gtx_reg_set(RCRC, CRC, seed);
+		else
+			gtx_reg_set(RCRC, CRC, *((u32*)&gt_info->mem_addr[buffer]));
+
+		if ((buffer & 1) || (!buffer_size))
+			odd_start_padding = 1;
+
+		if ((buffer + buffer_size) & 1)
+			odd_end_padding = 1;
+			
+		buffer_size += odd_start_padding + odd_end_padding;
+		
+	}
 
     while (buffer_size) {
     
-	if (buffer_size > ENX_MAX_TRANSCATION_SIZE) {
+		if (buffer_size > max_transaction_size)
+			transaction_size = max_transaction_size;
+		else
+			transaction_size = buffer_size;
+
+		if (avia_gt_chip(ENX)) {
 	
-	    //enx_reg_set(CPCCMD, Len, ENX_MAX_TRANSCATION_SIZE);
-	    enx_reg_16(CPCCMD) = (1 << 14) | (ENX_MAX_TRANSCATION_SIZE - 1);
-	    buffer_size -= ENX_MAX_TRANSCATION_SIZE;
+		    //enx_reg_set(CPCCMD, Len, transaction_size);
+		    enx_reg_16(CPCCMD) = (1 << 14) | (transaction_size - 1);
 	    
-	} else {
+		} else if (avia_gt_chip(GTX)) {
+
+			gtx_reg_32(CRCC) = (((transaction_size / 2) + (transaction_size % 2) - 1) << 25) | ((!(odd_end_padding && (buffer_size == transaction_size))) << 24) | buffer;
+
+			if (odd_start_padding) {
+		
+				odd_start_padding = 0;
+				buffer += transaction_size - 1;
+		
+			} else {
+
+				buffer += transaction_size;
+				
+			}
+
+		}
+
+    	buffer_size -= transaction_size;
 	
-	    //enx_reg_set(CPCCMD, Len, buffer_size);
-	    enx_reg_16(CPCCMD) = (1 << 14) | (buffer_size - 1);
-	    buffer_size = 0;
-	    
-	}
-	
-	//enx_reg_set(CPCCMD, Cmd, 0);
-    
     }
-    
-    //return enx_reg_s(CPCCRCSRC2)->CRC.CRC;
-    return enx_reg_32(CPCCRCSRC2);
+
+/*	if (swcrc != gtx_reg_32(RCRC)) {
+
+		printk("avia_gt_crc: CRC-NACK 0x%08X/0x%08X/0x%08X\n", swcrc, gtx_reg_32(RCRC), gtx_reg_32(RCRC) ^ 0xFFFFFFFF);
+
+		return swcrc;
+	
+	} else {
+		
+		printk("avia_gt_crc: CRC-ACK!!!!\n");
+		
+	}*/
+
+	if (avia_gt_chip(ENX))
+	    //return enx_reg_s(CPCCRCSRC2)->CRC.CRC;
+    	return (enx_reg_32(CPCCRCSRC2) ^ 0xFFFFFFFF);
+	else if (avia_gt_chip(GTX))
+		return gtx_reg_32(RCRC);
+		
+	return 0;	
+
 }
 
-static int enx_accel_init(void)
+static int __init avia_gt_accel_init(void)
 {
 
-    printk("enx_accel: $Id: avia_gt_accel.c,v 1.2 2002/06/07 17:53:45 Jolt Exp $\n");
-    
-    enx_reg_set(RSTR0, COPY, 0);
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.3 2002/08/27 20:18:45 Jolt Exp $\n");
 
+	gt_info = avia_gt_get_info();
+	
+	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+		
+		printk("avia_gt_accel: Unsupported chip type\n");
+				
+		return -EIO;
+						
+	}
+
+	if (avia_gt_chip(ENX)) {
+	
+	    enx_reg_set(RSTR0, COPY, 0);
+		
+		max_transaction_size = 64;
+		
+	} else if (avia_gt_chip(GTX)) {
+	
+		gtx_reg_set(RR0, CRC, 0);
+		
+		max_transaction_size = 16;
+		
+	}
+	
+//	avia_gt_accel_crc32(0, 2 * 1024 * 1024 - 100, 0);
+							    
     return 0;
     
 }
 
-static void __exit enx_accel_cleanup(void)
+static void __exit avia_gt_accel_exit(void)
 {
 
-    printk("enx_accel: cleanup\n");
-
-    enx_reg_set(RSTR0, COPY, 1);
+	if (avia_gt_chip(ENX))
+	    enx_reg_set(RSTR0, COPY, 1);
+	else if (avia_gt_chip(GTX))
+		gtx_reg_set(RR0, CRC, 1);
 
 }
 
 #ifdef MODULE
-module_init(enx_accel_init);
-module_exit(enx_accel_cleanup);
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+EXPORT_SYMBOL(avia_gt_accel_crc32);
+#endif
+
+#if defined(MODULE) 
+//&& defined(STANDALONE)
+module_init(avia_gt_accel_init);
+module_exit(avia_gt_accel_exit);
 #endif
