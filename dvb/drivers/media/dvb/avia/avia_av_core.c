@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.46  2002/11/19 13:53:24  Jolt
+ *   More work on AVIA API
+ *
  *   Revision 1.45  2002/11/18 11:40:18  Jolt
  *   Support for AC3 and non sync mode
  *
@@ -191,7 +194,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.45 $
+ *   $Revision: 1.46 $
  *
  */
 
@@ -578,20 +581,26 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 {
 
+	int waittime;
+
 	if (!status_addr)
 		return 0;
 
 	dprintk("SA: 0x%X -> run\n", status_addr);
 
-	if (wait_for_completion) {
+	if ((wait_for_completion) && (rDR(status_addr) < 0x03)) {
 	
-		if (wait_event_interruptible(avia_cmd_wait, (rDR(status_addr) >= 0x03))) {
+		waittime = interruptible_sleep_on_timeout(&avia_cmd_wait, 350);
+		
+		if ((!waittime) && (rDR(status_addr) < 0x03)) {
 
-			printk(KERN_ERR "avia_av: error while fetching command status\n");
+			printk(KERN_ERR "avia_av: timeout error while fetching command status\n");
 
 			return 0;
 		
 		}
+		
+		dprintk("SA: 0x%X -> complete (time: %d, status: %d)\n", status_addr, waittime, rDR(status_addr));
 		
 	}
 
@@ -634,6 +643,8 @@ u32 avia_command(u32 command, ...)
 		
 	}
 
+	dprintk("C: 0x%X -> PROC: 0x%X\n", command, rDR(0x2A0));
+
 	va_start(ap, command);
 
 	spin_lock_irq(&avia_lock);
@@ -667,7 +678,7 @@ u32 avia_command(u32 command, ...)
 		
 	}
 
-	dprintk("C: 0x%X -> SA: 0x%X\n", command, status_addr);
+	dprintk("C: 0x%X -> SA: 0x%X PROC: 0x%X\n", command, status_addr, rDR(0x2A0));
 
 	if (command & 0x8000)
 		avia_cmd_status_get(status_addr, 1);
@@ -1178,21 +1189,21 @@ static int init_avia(void)
 
 	avia_av_event_init();
 
-	avia_command(Abort, 0);
+//	avia_command(Abort, 0);
 
 //      wDR(OSD_BUFFER_START, 0x1f0000);
 //      wDR(OSD_BUFFER_END,   0x200000);
 
-	avia_command(Reset);
+//	avia_command(Reset);
 
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
 	
 	avia_flush_pcr();
 	avia_command(SetStreamType, 0x0B, 0x0000);
-	avia_command(SelectStream, 0, 0);
-	avia_command(SelectStream, 3, 0);
-	avia_command(Play, 0, 0, 0);
+//	avia_command(SelectStream, 0, 0);
+//	avia_command(SelectStream, 3, 0);
+//	avia_command(Play, 0, 0, 0);
 
 	return 0;
 }
@@ -1283,6 +1294,32 @@ int avia_av_pid_set(u8 type, u16 pid)
 
 }
 
+int avia_av_decoder_start(u8 start_video, u8 start_audio)
+{
+
+	if (rDR(0x2A0) == 0x02)
+		avia_command(Play, 0, 0x0100, 0x0200);
+
+	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
+
+	if (start_video)
+		avia_command(SelectStream, 0x00, 0x0000);
+		
+	if (start_audio)
+		avia_command(SelectStream, 0x03, 0x0000);
+	
+	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
+
+	if (start_video)
+		avia_command(SelectStream, 0x00, 0x0000);
+
+	if (start_audio)
+		avia_command(SelectStream, 0x03, 0x0000);
+
+	return 0;
+	
+}
+
 int avia_av_play_state_set_audio(u8 new_play_state)
 {
 
@@ -1295,18 +1332,27 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 		
 			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING)
 				return -EINVAL;
+
+			dprintk("avia_av: pausing audio decoder\n");
 		
-			avia_command(SelectStream, 0x02, 0xFFFF);
-			avia_command(SelectStream, 0x03, 0xFFFF);
+//			avia_command(SelectStream, 0x02, 0xFFFF);
+//			avia_command(SelectStream, 0x03, 0xFFFF);
 		
 			break;
 
 		case AVIA_AV_PLAY_STATE_PLAYING:
 
+			dprintk("avia_av: starting audio decoder\n");
+
 			if (bypass_mode)
 				avia_command(SelectStream, 0x02, pid_audio);
 			else
 				avia_command(SelectStream, 0x03, pid_audio);
+
+			if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED)
+				avia_av_decoder_start(0, 1);
+			else
+				avia_av_decoder_start(1, 1);
 		
 			break;
 
@@ -1315,6 +1361,8 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 			if ((play_state_audio != AVIA_AV_PLAY_STATE_PAUSED) &&
 				(play_state_audio != AVIA_AV_PLAY_STATE_PLAYING))
 				return -EINVAL;
+
+			dprintk("avia_av: stopping audio decoder\n");
 
 			avia_command(SelectStream, 0x02, 0xFFFF);
 			avia_command(SelectStream, 0x03, 0xFFFF);
@@ -1357,15 +1405,20 @@ int avia_av_play_state_set_video(u8 new_play_state)
 
 		case AVIA_AV_PLAY_STATE_PLAYING:
 		
-			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
+//			if (play_state_video == AVIA_AV_PLAY_STATE_PAUSED) {
 			
 //				avia_command(Resume);
 				
-			} else {
+//			} else {
 
-				avia_command(SelectStream, 0x00, 0);
+				dprintk("avia_av: starting video decoder\n");
 
-			}
+				if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED)
+					avia_av_decoder_start(1, 0);
+				else
+					avia_av_decoder_start(1, 1);
+
+//			}
 		
 			break;
 
@@ -1374,6 +1427,8 @@ int avia_av_play_state_set_video(u8 new_play_state)
 			if ((play_state_video != AVIA_AV_PLAY_STATE_PAUSED) &&
 				(play_state_video != AVIA_AV_PLAY_STATE_PLAYING))
 				return -EINVAL;
+
+			dprintk("avia_av: stopping video decoder\n");
 				
 			avia_command(SelectStream, 0x00, 0xFFFF);
 				
@@ -1578,7 +1633,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.45 2002/11/18 11:40:18 Jolt Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.46 2002/11/19 13:53:24 Jolt Exp $\n");
 
 	aviamem = 0;
 
