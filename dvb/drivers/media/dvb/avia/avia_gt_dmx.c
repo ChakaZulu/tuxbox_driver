@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.182 2003/08/08 16:59:57 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.183 2003/08/21 23:28:28 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -1017,7 +1017,7 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 	else
 		target_queue_nr = queue_nr;
 
-	if (riscram[DMX_VERSION_NO] < 0xA000)
+	if (riscram[DMX_VERSION_NO] < 0x001A)
 		target_queue_nr++;
 
 	ppc_entry.type = type;
@@ -1984,6 +1984,9 @@ u32 avia_gt_dmx_ucode_capabilities(void)
 			AVIA_GT_UCODE_CAP_SEC |
 			AVIA_GT_UCODE_CAP_TS);
 		break;
+	case 0x001a:
+		caps = (AVIA_GT_UCODE_CAP_TS);
+		break;
 	case 0xb102:
 	case 0xb107:
 	case 0xb121:
@@ -2005,7 +2008,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.182 2003/08/08 16:59:57 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.183 2003/08/21 23:28:28 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
