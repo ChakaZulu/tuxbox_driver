@@ -60,6 +60,7 @@ typedef struct {
   volatile __u8 *mmio_base;
 } GTXDriverData;
 
+static __u16 orig_tcr;
 
 static inline void
 gtx_validate_color (GTXDriverData *gdrv,
@@ -383,6 +384,7 @@ driver_init_device( GraphicsDevice     *device,
   device_info->limits.surface_pixelpitch_alignment = 2;
 
   /* set color key of graphics layer to DirectFB's standard bg color */
+  orig_tcr = gtx_in16 (gdrv->mmio_base, TCR);
   gtx_out16 (gdrv->mmio_base, TCR, 0x9153);
 
   return DFB_OK;
@@ -398,6 +400,9 @@ driver_close_device (GraphicsDevice *device,
 
   (void) gdrv;
   (void) gdev;
+  
+  /*restore TCR */
+  gtx_out16 (gdrv->mmio_base, TCR, orig_tcr);
 }
 
 static void
