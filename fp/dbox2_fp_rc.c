@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.18 2003/11/20 23:00:56 obi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.19 2003/12/02 01:08:22 obi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -102,6 +102,9 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 
 	fp_cmd(fp_get_i2c(), 0x01, (u8*)&rc_code, sizeof(rc_code));
 
+	if (!old_rc)
+		return;
+
 	if (rc_code == 0x5cfe) {
 		if (last_key) {
 			input_event(rc_input_dev, EV_KEY, last_key->code, KEY_RELEASED);
@@ -144,6 +147,9 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 
 	fp_cmd(fp_get_i2c(), cmd, (u8*)&rc_code, sizeof(rc_code));
 
+	if (!new_rc)
+		return;
+
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++) {
 		if (key->value_new == (rc_code & 0x1f)) {
 			if (timer_pending(&keyup_timer)) {
@@ -178,11 +184,8 @@ int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++)
 		set_bit(key->code, rc_input_dev->keybit);
 
-	if (old_rc)
-		dbox2_fp_queue_alloc(0, dbox2_fp_old_rc_queue_handler);
-
-	if (new_rc)
-		dbox2_fp_queue_alloc(3, dbox2_fp_new_rc_queue_handler);
+	dbox2_fp_queue_alloc(0, dbox2_fp_old_rc_queue_handler);	/* old */
+	dbox2_fp_queue_alloc(3, dbox2_fp_new_rc_queue_handler);	/* new */
 
 	/* Enable break codes */
 	fp_sendcmd(fp_get_i2c(), 0x26, 0x80);
@@ -192,11 +195,8 @@ int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 
 void __exit dbox2_fp_rc_exit(void)
 {
-	if (old_rc)
-		dbox2_fp_queue_free(0);
-
-	if (new_rc)
-		dbox2_fp_queue_free(3);
+	dbox2_fp_queue_free(0);	/* old */
+	dbox2_fp_queue_free(3);	/* new */
 
 	/* Disable break codes */
 	fp_sendcmd(fp_get_i2c(), 0x26, 0x00);
