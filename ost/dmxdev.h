@@ -28,8 +28,16 @@
 #define __KERNEL__ 
 #endif 
 
-#include <ost/dmx.h>
+#define __DVB_PACK__
+
+#ifdef __DVB_PACK__
 #include <ost/demux.h>
+#include <ost/dmx.h>
+#include <ost/frontend.h>
+#else
+#include <linux/ost/demux.h>
+#include <linux/ost/dmx.h>
+#endif
 #include <linux/version.h>
 #include <linux/wait.h>
 #include <linux/types.h>
@@ -53,8 +61,8 @@
 #define DMXDEV_STATE_SET       2
 #define DMXDEV_STATE_READY     3
 #define DMXDEV_STATE_GO        4
-
-#define DMXDEV_FILTER_MAX 256
+#define DMXDEV_STATE_DONE      5
+#define DMXDEV_STATE_TIMEDOUT  6
 
 typedef struct dmxdev_buffer_s {
         uint8_t *data;
@@ -96,8 +104,16 @@ typedef struct dmxdev_filter_s {
 } dmxdev_filter_t;
 
 
+typedef struct dmxdev_dvr_s {
+        int state;
+        struct dmxdev_s *dev;
+        dmxdev_buffer_t buffer;
+} dmxdev_dvr_t;
+
+
 typedef struct dmxdev_s {
-        dmxdev_filter_t filter[DMXDEV_FILTER_MAX];
+        dmxdev_filter_t *filter;
+        dmxdev_dvr_t *dvr;
         dmx_demux_t *demux;
 
         int filternum;
@@ -105,14 +121,10 @@ typedef struct dmxdev_s {
 #define DMXDEV_CAP_DUPLEX 1
         dmx_frontend_t *dvr_orig_fe;
 
-        // if we support duplex mode (we don't :-), we need these
-        dmx_demux_t *sw_demux;
-        struct file *read_file; 
-        struct file *write_file;
-
-        //DVR
         dmxdev_buffer_t dvr_buffer;
-#define DVR_BUFFER_SIZE (1024*1024)
+#define DVR_BUFFER_SIZE (512*1024)
+	struct semaphore mutex;
+	spinlock_t lock;
 } dmxdev_t;
 
 
@@ -133,6 +145,6 @@ ssize_t DmxDevDVRWrite(dmxdev_t *dmxdev, struct file *file,
 		       const char *buf, size_t count, loff_t *ppos);
 ssize_t DmxDevDVRRead(dmxdev_t *dmxdev, struct file *file, 
 		      char *buf, size_t count, loff_t *ppos);
-
+unsigned int DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait);
 
 #endif /* _DMXDEV_H_ */
