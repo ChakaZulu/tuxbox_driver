@@ -42,6 +42,20 @@ int fp_set_tuner_dword(int type, u32 tw);
    auch wenn zweimal auf /dev/rc zugegriffen wird - SORRY.   
 */
 
+/*
+fp:
+ 03  deep standby
+ 10 led on
+ 11 led off
+ dez.
+ 20 reboot
+ 21 reboot
+ 42 lcd off / led off ( alloff ;-) )
+ ADDR VAL
+ 18   X0  X = dimm 0=off F=on
+ 22 off
+*/
+
 // #define DEBUG_FP
 
 #define FP_MAJOR            60
@@ -94,6 +108,10 @@ static void fp_interrupt(int irq, void *dev, struct pt_regs * regs);
 static int fp_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size);
 static int fp_sendcmd(struct i2c_client *client, u8 b0, u8 b1);
 static void fp_check_queues(void);
+
+static void fp_restart(char *cmd);
+static void fp_power_off(void);
+static void fp_halt(void);
 
 static struct i2c_driver fp_driver=
 {
@@ -407,6 +425,11 @@ static int fp_init(void)
     printk("fp.o: unable to get major %d\n", FP_MAJOR);
     return -EIO;
   }
+  
+  ppc_md.restart=fp_restart;
+  ppc_md.power_off=fp_power_off;
+  ppc_md.halt=fp_halt;
+
   return 0;
 }
 
@@ -423,6 +446,16 @@ static int fp_close(void)
     printk("fp.o: unable to release major %d\n", FP_MAJOR);
     return res;
   }
+  
+  if (ppc_md.restart==fp_restart)
+    ppc_md.restart=0;
+    
+  if (ppc_md.power_off==fp_power_off)
+    ppc_md.power_off=0;
+  
+  if (ppc_md.halt==fp_halt)
+    ppc_md.halt=0;
+        
   return 0;
 }
 
@@ -533,7 +566,7 @@ int fp_send_diseqc(u32 dw)
 int fp_set_polarisation(int pol)
 {
   char msg[2]={0x21, 0};
-  int i;
+//  int i;
   msg[1]=(pol==P_HOR)?0x51:0x71;
 #ifdef DEBUG_FP
   printk("fp_set_polarisation: %s\n", (pol==P_HOR)?"horizontal":"vertical");
@@ -549,6 +582,23 @@ EXPORT_SYMBOL(fp_set_polarisation);
 EXPORT_SYMBOL(fp_do_reset);
 EXPORT_SYMBOL(fp_send_diseqc);
 
+static void fp_restart(char *cmd)
+{
+  fp_sendcmd(defdata->client, 0, 20);
+  for (;;);
+}
+
+static void fp_power_off(void)
+{
+  fp_sendcmd(defdata->client, 0, 3);
+  for (;;);
+}
+
+static void fp_halt(void)
+{
+  fp_power_off();
+}
+                  
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 Frontprocessor");
