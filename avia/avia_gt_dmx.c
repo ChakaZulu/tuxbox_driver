@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.133  2002/09/19 11:37:01  Jolt
+ *   Fixes
+ *
  *   Revision 1.132  2002/09/18 15:57:24  Jolt
  *   Queue handling changes #3
  *
@@ -206,7 +209,7 @@
  *
  *
  *
- *   $Revision: 1.132 $
+ *   $Revision: 1.133 $
  *
  */
 
@@ -1056,7 +1059,6 @@ int avia_gt_dmx_load_ucode(void)
 	set_fs(fs);
 
 	printk("avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
-	printk("avia_gt_dmx: RISC mem map size: %d\n", sizeof(sRISC_MEM_MAP));
 
 	return 0;
 
@@ -1228,6 +1230,26 @@ u32 avia_gt_dmx_queue_data_put(u8 queue_nr, void *src, u32 count)
 
 }
 
+u32 avia_gt_dmx_queue_get_bytes_free(u8 queue_nr)
+{
+
+	if ((queue_nr != AVIA_GT_DMX_QUEUE_VIDEO) &&
+		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
+		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
+
+		printk("avia_gt_dmx: queue_get_bytes_free: queue %d out of bounce\n", queue_nr);
+
+		return 0;
+
+	}
+
+	if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].read_pos)
+		return (queue_list[queue_nr].write_pos - queue_list[queue_nr].read_pos);
+	else
+		return (queue_list[queue_nr].size - queue_list[queue_nr].read_pos + queue_list[queue_nr].write_pos);
+
+}
+
 u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
 {
 
@@ -1359,7 +1381,7 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 
 	u8 mapped_queue_nr;
 
-	if (queue_nr > 30) {
+	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
 		printk("avia_gt_dmx: set_queue queue (%d) out of bounce\n", queue_nr);
 
@@ -1388,7 +1410,7 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 	s8 queue_nr;
 
-	for (queue_nr = 31; queue_nr >= 0; queue_nr--) {	// msg queue must have priority
+	for (queue_nr = (AVIA_GT_DMX_QUEUE_COUNT - 1); queue_nr >= 0; queue_nr--) {	// msg queue must have priority
 
 		queue_list[queue_nr].write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
 
@@ -1397,11 +1419,13 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 
 		if (queue_list[queue_nr].write_pos >= queue_list[queue_nr].size) {
 		
-			printk(KERN_CRIT "avia_gt_napi: write_pos out of bounds! (is %x)\n", queue_list[queue_nr].write_pos);
-			
+			printk(KERN_CRIT "avia_gt_napi: queue %d write_pos out of bounds! (is %x)\n", queue_nr, queue_list[queue_nr].write_pos);
 #ifdef DEBUG
 			BUG();
 #endif
+			queue_list[queue_nr].write_pos = 0;
+			queue_list[queue_nr].read_pos = 0;
+			avia_gt_dmx_queue_set_write_pos(queue_nr, 0);
 	
 			continue;
 			
@@ -1814,7 +1838,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.132 2002/09/18 15:57:24 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.133 2002/09/19 11:37:01 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
