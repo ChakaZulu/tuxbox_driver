@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_napi.c,v 1.15 2003/01/16 22:48:35 obi Exp $
+ * $Id: avia_av_napi.c,v 1.16 2003/02/28 14:17:35 wjoost Exp $
  *
  * AViA 500/600 DVB API driver (dbox-II-project)
  *
@@ -110,12 +110,12 @@ int avia_av_napi_decoder_stop(struct dvb_demux_feed *dvbdmxfeed)
 
 	switch (dvbdmxfeed->pes_type) {
 	case DMX_TS_PES_AUDIO:
-		avia_av_pid_set(AVIA_AV_TYPE_AUDIO, 0xFFFF);
+		avia_av_play_state_set_audio(AVIA_AV_PLAY_STATE_STOPPED);
 		have_audio = 0;
 		break;
 
 	case DMX_TS_PES_VIDEO:
-		avia_av_pid_set(AVIA_AV_TYPE_VIDEO, 0xFFFF);
+		avia_av_play_state_set_video(AVIA_AV_PLAY_STATE_STOPPED);
 		have_video = 0;
 		break;
 
@@ -423,7 +423,7 @@ int __init avia_av_napi_init(void)
 
 	int result;
 
-	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.15 2003/01/16 22:48:35 obi Exp $\n");
+	printk("avia_av_napi: $Id: avia_av_napi.c,v 1.16 2003/02/28 14:17:35 wjoost Exp $\n");
 
 	audiostate.AV_sync_state = 0;
 	audiostate.mute_state = 0;

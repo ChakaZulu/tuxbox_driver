@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.55 2003/01/18 01:22:10 obi Exp $
+ * $Id: avia_av_core.c,v 1.56 2003/02/28 14:17:35 wjoost Exp $
  * 
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -157,7 +157,7 @@ void avia_wr (int mode, u32 address, u32 data)
 	aviamem[0] = data & 0xFF;
 
 	spin_unlock_irq(&avia_register_lock);
-	
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -167,7 +167,7 @@ inline void wIM(u32 addr, u32 data)
 
 	wGB(0x36, addr);
 	wGB(0x34, data);
-	
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -394,37 +394,37 @@ avia_interrupt (int irq, void *vdev, struct pt_regs *regs)
 	spin_unlock(&avia_lock);
 
 	return;
-	
+
 }
 
 u32 avia_cmd_status_get(u32 status_addr, u8 wait_for_completion)
 {
 
-	int waittime;
+	int waittime = 350;
 
 	if (!status_addr)
 		return 0;
 
 	dprintk("SA: 0x%X -> run\n", status_addr);
 
-	if ((wait_for_completion) && (rDR(status_addr) < 0x03)) {
-	
-		waittime = interruptible_sleep_on_timeout(&avia_cmd_wait, 350);
-		
+	while ((waittime > 0) && wait_for_completion && (rDR(status_addr) < 0x03)) {
+
+		waittime = interruptible_sleep_on_timeout(&avia_cmd_wait, waittime);
+
 		if ((!waittime) && (rDR(status_addr) < 0x03)) {
 
 			printk(KERN_ERR "avia_av: timeout error while fetching command status\n");
 
 			return 0;
-		
+
 		}
-		
+
 		dprintk("SA: 0x%X -> complete (time: %d, status: %d)\n", status_addr, waittime, rDR(status_addr));
-		
+
 	}
 
 	dprintk("SA: 0x%X -> end -> S: 0x%X\n", status_addr, rDR(status_addr));
-	
+
 	if (rDR(status_addr) >= 0x05)
 		printk("avia_av: warning - command @ 0x%X failed\n", status_addr);
 
@@ -450,7 +450,7 @@ u32 avia_command(u32 command, ...)
 	u32	i;
 	va_list ap;
 	u32 status_addr;
-	
+
 
 #if 0
 	va_start(ap, command);
@@ -462,14 +462,14 @@ u32 avia_command(u32 command, ...)
 #endif
 
 	if (!avia_cmd_status_get_addr()) {
-	
+
 		printk(KERN_ERR "avia_av: status timeout - chip not ready for new command\n");
-		
+
 		avia_standby(1);
 		avia_standby(0);
-		
+
 		return 0;
-		
+
 	}
 
 	dprintk("C: 0x%X -> PROC: 0x%X\n", command, rDR(0x2A0));
@@ -497,14 +497,14 @@ u32 avia_command(u32 command, ...)
 	va_end(ap);
 
 	if (!(status_addr = avia_cmd_status_get_addr())) {
-	
+
 		printk(KERN_ERR "avia_av: status timeout - chip didn't accept command 0x%X\n", command);
 
 		avia_standby(1);
 		avia_standby(0);
-		
+
 		return 0;
-		
+
 	}
 
 	dprintk("C: 0x%X -> SA: 0x%X PROC: 0x%X\n", command, status_addr, rDR(0x2A0));
@@ -1006,8 +1006,6 @@ static int init_avia(void)
 
 	avia_av_event_init();
 
-	avia_command(Abort, 0);
-
 	/*
 	wDR(OSD_BUFFER_START, 0x1f0000);
 	wDR(OSD_BUFFER_END,   0x200000);
@@ -1018,8 +1016,6 @@ static int init_avia(void)
 	dprintk(KERN_INFO "AVIA: Using avia firmware revision %c%c%c%c\n", rDR(0x330)>>24, rDR(0x330)>>16, rDR(0x330)>>8, rDR(0x330));
 	dprintk(KERN_INFO "AVIA: %x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
 
-	/* needed for first selectstream */
-	avia_command(NewChannel, 0, 0xFFFF, 0xFFFF);
 	return 0;
 }
 
@@ -1068,6 +1064,13 @@ void avia_av_bypass_mode_set(u8 enable)
 	if (bypass_mode == !!enable)
 		return;
 
+	/*
+	 * AVIA 500 cannot change bypass-mode in play mode.
+	 */
+
+	if (aviarev)
+		avia_command(Abort,0x00);
+
 	if (enable)
 		wDR(AUDIO_CONFIG, rDR(AUDIO_CONFIG) & ~1);
 	else
@@ -1102,12 +1105,6 @@ int avia_av_pid_set(u8 type, u16 pid)
 		return -EINVAL;
 	}
 
-	/*
-	 * flush if audio and video demux are both stopped
-	 */
-	if (((pid_audio & 0x1FFF) == 0x1FFF) && ((pid_video & 0x1FFF) == 0x1FFF))
-		avia_command(NewChannel, 0, pid_video, pid_audio);
-
 	return 0;
 }
 
@@ -1125,6 +1122,12 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 	case AVIA_AV_PLAY_STATE_PLAYING:
 		printk("avia_av: audio play (apid=0x%04X)\n", pid_audio);
 		avia_command(SelectStream, 0x03 - bypass_mode, pid_audio);
+		if ( (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) || (bypass_mode_changed && aviarev) )
+		{
+			avia_command(SelectStream,0x00,(play_state_video == AVIA_AV_PLAY_STATE_STOPPED) ? 0xFFFF : pid_video);
+			avia_command(Play,0x00,(play_state_video == AVIA_AV_PLAY_STATE_STOPPED) ? 0xFFFF : pid_video,pid_audio);
+		}
+		bypass_mode_changed = 0;
 		break;
 
 	case AVIA_AV_PLAY_STATE_STOPPED:
@@ -1165,6 +1168,10 @@ int avia_av_play_state_set_video(u8 new_play_state)
 		else {
 			printk("avia_av: video play (vpid=0x%04X)\n", pid_video);
 			avia_command(SelectStream, 0x00, pid_video);
+			if (play_state_audio != AVIA_AV_PLAY_STATE_PLAYING) {
+				avia_command(SelectStream, 0x03 - bypass_mode, 0xFFFF);
+				avia_command(Play,0x00,pid_video, 0xFFFF);
+			}
 		}
 		break;
 
@@ -1305,7 +1312,7 @@ int __init avia_av_core_init(void)
 
 	int err;
 
-	printk("avia_av: $Id: avia_av_core.c,v 1.55 2003/01/18 01:22:10 obi Exp $\n");
+	printk("avia_av: $Id: avia_av_core.c,v 1.56 2003/02/28 14:17:35 wjoost Exp $\n");
 
 	aviamem = 0;
 
