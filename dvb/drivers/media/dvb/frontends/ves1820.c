@@ -392,7 +392,6 @@ void ves_set_frontend(struct frontend *front)
 
 void ves_get_frontend(struct frontend *front)
 {
-  printk("VES_GET_FRONTEND\n");
   front->type=FRONT_DVBC;
   front->afc=(int)((char)(readreg(dclient,0x19)));
   front->afc=(front->afc*(int)(front->srate/8))/128;
