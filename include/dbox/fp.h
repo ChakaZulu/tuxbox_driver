@@ -7,6 +7,9 @@
 #define FP_IOCTL_LCD_DIMM		3
 #define FP_IOCTL_LED			4
 
+#define RC_IOCTL_NO_BCODES 	0
+#define RC_IOCTL_BCODES 	1
+
 #define P_HOR           0
 #define P_VERT          1
 
