@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.171 2003/01/11 22:45:16 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.172 2003/01/12 17:39:37 wjoost Exp $
  * 
  * AViA GTX demux driver (dbox-II-project)
  *
@@ -156,8 +156,6 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 	u8 copied;
 	u32 crc;
 	u8 section_header[4096];
-
-	printk("Callback called.\n");
 
 	bytes_avail = queue->bytes_avail(queue);
 
@@ -612,7 +610,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.171 2003/01/11 22:45:16 obi Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.172 2003/01/12 17:39:37 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
