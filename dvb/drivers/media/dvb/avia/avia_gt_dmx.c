@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.124  2002/09/13 19:00:49  Jolt
+ *   Changed queue handling
+ *
  *   Revision 1.123  2002/09/13 17:07:44  Jolt
  *   Fixed section mode selection:
  *   0 - disabled
@@ -179,7 +182,7 @@
  *
  *
  *
- *   $Revision: 1.123 $
+ *   $Revision: 1.124 $
  *
  */
 
@@ -1289,7 +1292,7 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 		if (queue_list[queue_nr].cb_proc)
 			queue_list[queue_nr].cb_proc(queue_nr, queue_list[queue_nr].cb_data);
 
-		queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
+		//queue_list[queue_nr].read_pos = queue_list[queue_nr].write_pos;
 		queue_list[queue_nr].irq_count = 0;
 
 	}
@@ -1680,7 +1683,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.123 2002/09/13 17:07:44 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.124 2002/09/13 19:00:49 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 

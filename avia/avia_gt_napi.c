@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.117 $
+ *   $Revision: 1.118 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.118  2002/09/13 19:00:49  Jolt
+ *   Changed queue handling
+ *
  *   Revision 1.117  2002/09/12 14:58:52  Jolt
  *   HW sections bugfixes
  *
@@ -763,9 +766,7 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 	sAviaGtDmxQueueInfo *queue_info = &queue->info;
 	gtx_demux_t *gtx=(gtx_demux_t*)data;
 	int ccn = (int)0;
-
-		{
-			gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
+	gtx_demux_feed_t *gtxfeed = gtx->feed + queue_nr;
 
 			if (gtxfeed->state!=DMX_STATE_GO)
 			{
@@ -1104,7 +1105,10 @@ void avia_gt_napi_queue_callback(u8 queue_nr, void *data)
 
 				}
 			}
-	}
+			
+	if (!(gtxfeed->output&TS_PAYLOAD_ONLY))
+		queue->read_pos = queue->write_pos;
+
 }
 
 
@@ -1846,7 +1850,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.117 2002/09/12 14:58:52 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.118 2002/09/13 19:00:49 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
