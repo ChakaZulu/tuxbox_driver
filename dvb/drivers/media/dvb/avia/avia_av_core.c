@@ -1,6 +1,6 @@
 /*
- * $Id: avia_av_core.c,v 1.65 2003/07/01 03:51:04 obi Exp $
- * 
+ * $Id: avia_av_core.c,v 1.66 2003/07/18 23:03:27 homar Exp $
+ *
  * AViA 500/600 core driver (dbox-II-project)
  *
  * Homepage: http://www.tuxbox.org
@@ -139,7 +139,7 @@ void avia_av_write(const u8 mode, u32 address, const u32 data)
 	spin_lock_irq(&avia_register_lock);
 
 	address &= 0x3FFFFF;
-	
+
 	aviamem[6] = ((address >> 16) | mode) & 0xFF;
 	aviamem[5] =  (address >>  8) & 0xFF;
 	aviamem[4] = address & 0xFF;
@@ -411,7 +411,7 @@ void avia_av_interrupt(int irq, void *vdev, struct pt_regs *regs)
 		avia_av_dram_write(ERR_INT_SRC, 0);
 
 	avia_av_dram_write(INT_STATUS, 0);
-	
+
 	spin_unlock(&avia_command_lock);
 }
 
@@ -492,7 +492,7 @@ u32 avia_av_cmd(u32 command, ...)
 	va_list ap;
 	u32 status_addr;
 
-#if 0
+#if 1
 	va_start(ap, command);
 	printk(KERN_INFO "Avia-Command: 0x%04X ",command);
 	for (i = 0; i < ((command & 0x7F00) >> 8); i++)
@@ -545,7 +545,6 @@ u32 avia_av_cmd(u32 command, ...)
 		avia_cmd_status_get(status_addr, 1);
 
 	return status_addr;
-	
 }
 
 void avia_av_set_stc(const u32 hi, const u32 lo)
@@ -599,7 +598,7 @@ void avia_av_audio_init(void)
 {
 	u32 val;
 
-	/* 
+	/*
 	 * AUDIO_CONFIG
 	 * 12,11,7,6,5,4 reserved or must be set to 0
 	 */
@@ -736,7 +735,7 @@ void avia_av_set_default(void)
 
 /* ---------------------------------------------------------------------- */
 
-static 
+static
 int avia_av_set_ppc_siumcr(void)
 {
 	immap_t *immap;
@@ -833,7 +832,7 @@ static int avia_av_init(void)
 	u32 *microcode = NULL;
 	u32 val = 0;
 	mm_segment_t fs;
-	
+
 	/* remap avia memory */
 	if (!aviamem)
 		aviamem = (unsigned char *)ioremap(0xA000000, 0x200);
@@ -1042,7 +1041,10 @@ void avia_av_bypass_mode_set(const u8 enable)
 	 */
 
 	if (aviarev)
+	{
 		avia_av_cmd(Abort, 0x00);
+		return; /* Fix: Kernel oops AVIA 500*/
+	}
 
 	if (enable)
 		avia_av_dram_write(AUDIO_CONFIG, avia_av_dram_read(AUDIO_CONFIG) & ~1);
@@ -1097,8 +1099,16 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 		avia_av_cmd(SelectStream, 0x03 - bypass_mode, pid_audio);
 		if (aviarev && bypass_mode_changed)
 		{
-			avia_av_cmd(SelectStream,0x00,(play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF);
-			avia_av_cmd(Play,0x00,(play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF,pid_audio);
+			if (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) //todo: may its possible to get sync-status of demuxer to stop audio
+			{
+				avia_av_cmd(SelectStream,0x00,pid_video);
+				avia_av_cmd(Play,0x00,pid_video,pid_audio);
+			}
+			else
+			{
+				avia_av_cmd(SelectStream,0x00,0xFFFF);
+				avia_av_cmd(Play,0x00,0xFFFF,0xFFFF);
+			}
 		}
 		bypass_mode_changed = 0;
 		break;
@@ -1115,6 +1125,7 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 			avia_av_dram_write(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
 			if (aviarev)
 			{
+				avia_av_cmd(Reset); /* Fix freezing Pictures on zapping */
 				avia_av_cmd(Play,0x00,0xFFFF,0xFFFF);
 			}
 			else
@@ -1196,7 +1207,7 @@ int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_
 
 	if ((play_state_video != AVIA_AV_PLAY_STATE_STOPPED) || (play_state_audio != AVIA_AV_PLAY_STATE_STOPPED))
 		return -EBUSY;
-		
+
 	if ((new_stream_type_video == stream_type_video) && (new_stream_type_audio == stream_type_audio))
 		return 0;
 
@@ -1212,15 +1223,15 @@ int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_
 		case AVIA_AV_STREAM_TYPE_ES:
 			avia_av_cmd(SetStreamType, 0x08, 0x0000);
 			break;
-			
+
 		case AVIA_AV_STREAM_TYPE_PES:
 			avia_av_cmd(SetStreamType, 0x0A, 0x0000);
 			break;
-			
+
 		case AVIA_AV_STREAM_TYPE_SPTS:
 			printk(KERN_ERR "avia_av: video ES with audio SPTS stream type is not supported\n");
 			return -EINVAL;
-				
+
 		default:
 			printk(KERN_ERR "avia_av: invalid audio stream type\n");
 			return -EINVAL;
@@ -1264,6 +1275,7 @@ int avia_av_stream_type_set(const u8 new_stream_type_video, const u8 new_stream_
 			 */
 			if (aviarev) {
 				avia_av_cmd(Reset);
+				return -EINVAL;
 			} else {
 				avia_av_cmd(SetStreamType, 0x10, pid_audio);
 				avia_av_cmd(SetStreamType, 0x11, pid_video);
@@ -1342,7 +1354,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.65 2003/07/01 03:51:04 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.66 2003/07/18 23:03:27 homar Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
