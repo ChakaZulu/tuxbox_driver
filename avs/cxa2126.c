@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.10  2001/04/16 22:10:13  Jolt
+ *   cxa2126 init fixed
+ *
  *   Revision 1.9  2001/03/25 14:06:45  gillem
  *   - update includes
  *
@@ -49,7 +52,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -464,9 +467,10 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-	memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
-	/* default values */
+    memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
+
+    /* default values */
     cxa2126_data.vo6on = 1;
     cxa2126_data.vo5on = 1;
     cxa2126_data.vo4on = 1;
@@ -474,10 +478,11 @@ int cxa2126_init(struct i2c_client *client)
     cxa2126_data.vo2on = 1;
     cxa2126_data.vo1on = 1;
 
-	cxa2126_data.asw1 = 1;
-	cxa2126_data.vsw1 = 1;
+    cxa2126_data.asw1 = 1;
+    cxa2126_data.vsw1 = 0;
 
-	return cxa2126_set(client);
+    return cxa2126_set(client);
+    
 }
 
 /* ---------------------------------------------------------------------- */
