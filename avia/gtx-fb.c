@@ -49,7 +49,7 @@ static void InitGraphics(int pal)
   rw(GVS)=(RES_X<<16)|(RES_Y);
 
   VCR_SET_HP(2);
-  VCR_SET_FP(2);
+  VCR_SET_FP(0);
   GVP_SET_COORD(127,43);
 //  GVS_SET_XSZ(740);
 //  GVS_SET_YSZ(622);

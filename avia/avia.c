@@ -281,16 +281,22 @@ int init_module(void)
   if (request_8xxirq(AVIA_INTERRUPT, avia_interrupt, 0, "avia", &dev) != 0)
     panic("Could not allocate AViA IRQ!");
 
+#if 0
   printk("%x %x %x %x %x\n", rDR(0x2C8), rDR(0x2CC), rDR(0x2B4), rDR(0x2B8), rDR(0x2C4));
   printk("%x\n", rDR(0x2AC));
   printk("%x %x %x\n", rDR(0x2E4), rDR(0x2E8), rDR(0x2EC));
   printk("%x %x %x\n", rDR(0x318), rDR(0x31c), rDR(0x320));
+#endif
 
+  printk("resetting cpu.\n");
   wGB(0x39, 0xF00000);          // reset the cpu
+  printk("fp-reset\n");
   fp_do_reset(0xBF & ~ (2));
   udelay(1000);
+  printk("done, enabling hostaccess.\n");
   wGB(0, 0x1000);            // enable host access
   wGB(0x39, 0xF00000);          // reset the cpu
+  printk("öööh.\n");
 
   aviarev=(rGB(0)>>16)&3;
   
@@ -338,8 +344,8 @@ int init_module(void)
   wDR(0xE0, 0x70F);
   wDR(0xF4, 0);                // AUDIO_ATTENUATION (br: 0)
 
-  wDR(0x250, 1);                //´DISABLE_OSD: yes (br)
-  wDR(0x1B0, 6);                // AV_SYNC_MODE: NO_SYNC
+  wDR(0x250, 1);                // DISABLE_OSD: yes (br)
+  wDR(0x1B0, 6);                // AV_SYNC_MODE: (NO_SYNC) 6: AV_SYNC
   wDR(0x468, 1);                // NEW_AUDIO_CONFIG
 
   wDR(0x1C4, 0x1004);           // AUDIO_PTS_SKIP_THRESHOLD_1
@@ -397,7 +403,6 @@ int init_module(void)
 
   if (!tries)
     printk("new_audio_config timeout\n");
-    
 
   if (avia_wait(avia_command(SetStreamType, 0xB))==-1)             // BR
     return 0;
@@ -429,6 +434,7 @@ void avia_set_pcr(u32 hi, u32 lo)
                | ((data2 & 0xC000L) >> 13) | ((1L));
   u32 timer_low = ((data2 & 0x03FFFL) << 2)
                | ((lo & 0x8000L) >> 14) | (( 1L ));
+  printk("setting avia PCR: %08x:%08x\n", hi, lo);
   wGB(0x02, timer_high);
   wGB(0x03, timer_low);
 }
@@ -472,10 +478,7 @@ static void avia_audio_init(void)               // brauch ich. keine ahnung was 
 
                         // AUDIO_ATTENUATION
   wDR(0xF4, 0);
-
 }
-
-
 
 EXPORT_SYMBOL(avia_set_pcr);
 
