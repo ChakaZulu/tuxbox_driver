@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.77 $
+ *   $Revision: 1.78 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.78  2002/04/19 11:31:53  Jolt
+ *   Added missing module init stuff
+ *
  *   Revision 1.77  2002/04/19 11:28:26  Jolt
  *   Final DMX merge
  *
@@ -2199,7 +2202,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_dmx_init(void)
 {
 
-    printk("avia_gt_dmx: $Id: avia_gt_dmx_core.c,v 1.77 2002/04/19 11:28:26 Jolt Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_dmx_core.c,v 1.78 2002/04/19 11:31:53 Jolt Exp $\n");
 
     dmx_chip_type = avia_gt_get_chip_type();
     
@@ -2221,3 +2224,8 @@ void __exit avia_gt_dmx_exit(void)
 	gtx_dmx_close();
 
 }
+
+#ifdef MODULE
+module_init(avia_gt_dmx_init);
+module_exit(avia_gt_dmx_exit);
+#endif
