@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.126 $
+ *   $Revision: 1.127 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.127  2002/09/16 21:41:37  wjoost
+ *   noch was vergessen
+ *
  *   Revision 1.126  2002/09/16 21:35:04  wjoost
  *   BUG hunting
  *
@@ -553,6 +556,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 {
 	gtx_demux_secfilter_t *secfilter = (gtx_demux_secfilter_t *)NULL;
 	int ok,i;
+	unsigned max_check = DMX_MAX_FILTER_SIZE;
 
 	if (gtxfeed->sec_recv != gtxfeed->sec_len)
 	{
@@ -573,11 +577,16 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 	 * fields.
 	 */
 
+	if (gtxfeed->sec_len < max_check)
+	{
+		max_check = gtxfeed->sec_len;
+	}
+
 	for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
 	{
 		ok = 1;
 		i = 0;
-		while ( (i < DMX_MAX_FILTER_SIZE) && ok)
+		while ( (i < max_check) && ok)
 		{
 			if ( i == 1 )
 			{
@@ -1932,7 +1941,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.126 2002/09/16 21:35:04 wjoost Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.127 2002/09/16 21:41:37 wjoost Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
