@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.4 2002/12/26 09:14:56 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.5 2002/12/26 09:24:35 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -165,8 +165,6 @@ static ssize_t rc_read (struct file *file, char *buf, size_t count, loff_t *offs
 	DECLARE_WAITQUEUE(wait, current);
 
 	for (;;) {
-
-	while (rcbeg == rcend) {
 
 		if (file->f_flags & O_NONBLOCK)
 			return read;
