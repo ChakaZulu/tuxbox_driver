@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2126.c,v $
+ *   Revision 1.16  2001/04/28 07:11:53  gillem
+ *   - fix mute
+ *
  *   Revision 1.15  2001/04/28 02:10:56  fnbrd
  *   Nicht erwaehnenswert.
  *
@@ -67,7 +70,7 @@
  *   initial release
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -198,10 +201,7 @@ inline int cxa2126_set_mute( struct i2c_client *client, int type )
 	}
 
     // (Un-)mute immediately, 1 -> Mute
-    cxa2126_data.tvmute1 = cxa2126_data.tvamute = type&1;
-    cxa2126_data.zcd     = 0;
-//    cxa2126_data.tvmute1 = cxa2126_data.tvamute = (type>>1)&1;
-//    cxa2126_data.zcd     = type&1;
+	cxa2126_data.tvmute1 = cxa2126_data.tvamute = type&1;
 
 	return cxa2126_set(client);
 }
@@ -492,8 +492,7 @@ int cxa2126_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 int cxa2126_init(struct i2c_client *client)
 {
-
-    dprintk("[AVS]: $Id: cxa2126.c,v 1.15 2001/04/28 02:10:56 fnbrd Exp $\n");
+    dprintk("[AVS]: $Id: cxa2126.c,v 1.16 2001/04/28 07:11:53 gillem Exp $\n");
     memset((void*)&cxa2126_data,0,CXA2126_DATA_SIZE);
 
     /* default values */
@@ -508,7 +507,6 @@ int cxa2126_init(struct i2c_client *client)
     cxa2126_data.vsw1 = 0;
 
     return cxa2126_set(client);
-
 }
 
 /* ---------------------------------------------------------------------- */

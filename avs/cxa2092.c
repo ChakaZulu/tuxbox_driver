@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.18  2001/04/28 07:15:09  gillem
+ *   - fix mute
+ *
  *   Revision 1.17  2001/03/25 14:06:45  gillem
  *   - update includes
  *
@@ -68,7 +71,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -182,8 +185,7 @@ inline int cxa2092_set_mute( struct i2c_client *client, int type )
 		return -EINVAL;
   }
 
-    cxa2092_data.tvmute1 = type;
-    cxa2092_data.tvmute2 = type;
+    cxa2092_data.tvmute1 = cxa2092_data.tvmute2 = type&1;
 
 	return cxa2092_set(client);
 }
