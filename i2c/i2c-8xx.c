@@ -34,11 +34,20 @@
 #include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
+#include <asm/hardirq.h>
 
 #include "commproc.h"
 #include <linux/i2c.h>
 
+/* parameter stuff */
 static int debug = 0;
+
+/* mutex stuff */
+#define I2C_NONE			0
+#define I2C_INT_EVENT 1
+
+int i2c_event_mask = 0;
+static DECLARE_MUTEX(i2c_mutex);
 
 /* interrupt stuff */
 static void i2c_interrupt(void*);
@@ -607,10 +616,15 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
   struct i2c_msg *pmsg;
   int i,last,ret;
 
+	down(&i2c_mutex);
+
 	ret = num;
 
 	if ( num > (MAXBD*2) )
+	{
+		up(&i2c_mutex);
 	  return -EREMOTEIO;
+	}
 
 	for(i=0;i<MAXBD;i++)
 	{
@@ -649,18 +663,21 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
     {
       if (parse_recv_msg( pmsg->addr<<1, pmsg->len, pmsg->buf, last )<0)
 			{
+				up(&i2c_mutex);
         return -EREMOTEIO;
 			}
     } else
     {
       if (parse_send_msg(pmsg->addr<<1, pmsg->len, pmsg->buf, last )<0)
 			{
+				up(&i2c_mutex);
         return -EREMOTEIO;
 			}
     }
   }
 
-	save_flags(flags);cli();
+	if ( !in_interrupt() )
+		save_flags(flags);cli();
 
   i2c->i2c_i2cer = 0xff;
 
@@ -670,12 +687,18 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
   /* Transmit */
   i2c->i2c_i2com |= 0x80;
 
-	interruptible_sleep_on_timeout(&i2c_wait,100);
-
-	restore_flags(flags);
+	if ( in_interrupt() )
+	{
+		udelay(1000*10);
+	  dprintk("[I2C INT]: MOD: %04X CER: %04X\n",i2c->i2c_i2mod,i2c->i2c_i2cer);
+	}
+	else
+	{
+		i=interruptible_sleep_on_timeout(&i2c_wait,1000);
+		restore_flags(flags);
+	}
 
 	/* copy rx-buffer */
-
 	I2CBD.rxnum = 0;
 	I2CBD.txnum = 0;
 
@@ -732,6 +755,8 @@ static int xfer_8xx(struct i2c_adapter *i2c_adap,
 
   /* Turn off I2C */
   i2c->i2c_i2mod&=(~1);
+
+	up(&i2c_mutex);
 
   return ret;
 }

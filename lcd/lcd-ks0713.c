@@ -87,13 +87,22 @@ static struct file_operations lcd_fops = {
 	llseek:		lcd_seek,
 };
 
+typedef struct file_vars
+{
+	int pos;
+	int row;
+	int col;
+} file_vars;
+
+static struct file_vars f_vars;
+
 static int lcd_initialized;
 
 static int LCD_MODE;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define LCD_MAJOR 				34
+#define LCD_MAJOR 				222
 #define LCD_DELAY 				1
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -359,20 +368,34 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 
 	i = count;
 
-	for(pa=0;(pa<=LCD_ROWS) && i;pa++)
+	/* calculate row,col */
+	if (f_vars.pos>LCD_COLS)
+	{
+		pa =f_vars.pos/LCD_COLS;
+		col=f_vars.pos-(f_vars.pos*LCD_COLS);
+	}
+	else
+	{
+		pa  = 0;
+		col = f_vars.pos;
+	}
+
+	for(/*pa=0*/;(pa<=LCD_ROWS) && i;pa++)
 	{
 		// set dram pointer
-		lcd_set_pos( pa, 0 );
+		lcd_set_pos( pa, col );
 
 		lcd_read_dummy();
 
-		for(col=0;(col<=LCD_COLS) && i;col++,bp++,i--)
+		for(/*col=0*/;(col<=LCD_COLS) && i;col++,bp++,i--)
 		{
 			*bp = lcd_read_byte();
 		}
+
+		col = 0;
 	}
 
-	ret = copy_to_user( buf, obp,count) ?-EFAULT:LCD_BUFFER_SIZE;
+	ret = copy_to_user( buf, obp,count) ?-EFAULT:(bp-obp);
 
 	kfree(obp);
 
@@ -412,12 +435,12 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 			return -EFAULT;
 		}
 
-		for(pa=0;pa<=LCD_ROWS;pa++)
+		for(pa=0;pa<LCD_ROWS;pa++)
 		{
 			// set dram pointer
 			lcd_set_pos( pa, 0 );
 
-			for(col=0;col<=LCD_COLS;col++,bp++)
+			for(col=0;col<LCD_COLS;col++,bp++)
 			{
 				lcd_write_byte( *bp );
 			}
@@ -443,25 +466,39 @@ static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
 
 static loff_t lcd_seek (struct file *file, loff_t offset, int origin)
 {
+	printk("[LCD]: OFFSET = %d\n",offset);
+
 	switch ( origin ) {
 		case 0:
 					/* nothing to do */
+					printk("[LCD]: ORIGIN = 0\n");
 					break;
 		case 1:
-//					offset +=
+					offset += f_vars.pos;
+					printk("[LCD]: ORIGIN = 1 : %d\n", f_vars.pos);
 					break;
 		case 2:
-//					offset +=
+					offset = LCD_BUFFER_SIZE - offset;
+					printk("[LCD]: ORIGIN = 2 : %d\n", f_vars.pos);
+					break;
+		default:
+					printk("[LCD]: seek unknown : %d\n", origin);
 					break;
 	}
 
-	return ( (offset >=0) ? (/*pos=offset*/ 0) : -EINVAL );
+	printk("[LCD]: OFFSET = %d\n",offset);
+
+	return ( (offset >=0) ? (f_vars.pos=offset) : -EINVAL );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 void lcd_set_pos( int row, int col )
 {
+	f_vars.pos = row*col;
+	f_vars.row = row;
+	f_vars.col = col;
+
 	// set dram pointer
 	lcd_send_cmd( LCD_CMD_SPAGE, row );
 	lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
@@ -644,6 +681,11 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
 int lcd_open (struct inode *inode, struct file *file)
 {
+	/* init lcd vars */
+	f_vars.pos = 0;
+	f_vars.row = 0;
+	f_vars.col = 0;
+
 	return 0;
 }
 
@@ -665,10 +707,15 @@ int __init lcd_init(void)
   immap 	= (immap_t *)CFG_IMMR ;
 	iop = (iop8xx_t *)&immap->im_ioport;
 
-	// set defaults
-	LCD_MODE = LCD_MODE_ASC;
+	/* init lcd vars */
+	f_vars.pos = 0;
+	f_vars.row = 0;
+	f_vars.col = 0;
 
-	lcd_init_console();
+	// set defaults
+	LCD_MODE = LCD_MODE_BIN;
+
+//	lcd_init_console();
 
 	return 0;
 }

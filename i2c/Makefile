@@ -1,7 +1,3 @@
-#
-# the original Makefile is from the bttv package
-#
-
 # currently running kernel
 CURRENT=$(shell uname -r)
 
@@ -15,7 +11,6 @@ KERNEL_LOCATION=/usr/src/linux
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-#O_TARGET    = cxa20920.o
 M_OBJS       = i2c-8xx.o
 GCC = powerpc-linux-gcc -I/usr/include/linux
 LD =  powerpc-linux-ld
