@@ -50,4 +50,3 @@ extern int avia_gt_pcm_init(void);
 extern void avia_gt_pcm_exit(void);
 	    
 #endif
-	    
