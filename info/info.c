@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.3  2001/04/04 17:43:58  fnbrd
+ *   /proc/bus/dbox.sh implementiert.
+ *
  *   Revision 1.2  2001/04/03 17:48:24  tmbinc
  *   improved /proc/bus/info (philips support)
  *
@@ -28,7 +31,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -74,7 +77,7 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 #define info_proc_cleanup() 0
 
 #endif /* CONFIG_PROC_FS */
-                                              
+
 
 static int dbox_info_init(void)
 {
@@ -147,9 +150,18 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod]);
 }
 
+static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
+												int *eof , void *private)
+{
+	return sprintf(buf, "#!/bin/sh\nexport mID=%02x feID=%02x fpID=%02x enxID=%02x gtxID=%02x hwREV=%02x fpREV=%02x DEMOD=%s\n\n",
+//	return sprintf(buf, "#!/bin/sh\nmID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nexport mID feID fpID enxID gtxID hwREV fpREV DEMOD\n\n",
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod]);
+}
+
 int info_proc_init(void)
 {
 	struct proc_dir_entry *proc_bus_info;
+	struct proc_dir_entry *proc_bus_info_sh;
 
 	if (! proc_bus) {
 		printk("info.o: /proc/bus/ does not exist");
@@ -160,19 +172,32 @@ int info_proc_init(void)
 
 	if (!proc_bus_info)
 	{
-		printk("info.o: Could not create /proc/bus/box");
+		printk("info.o: Could not create /proc/bus/dbox");
 		return -ENOENT;
 	}
+
+	proc_bus_info_sh = create_proc_entry("dbox.sh", 0, proc_bus);
+	if (!proc_bus_info_sh)
+	{
+		printk("info.o: Could not create /proc/bus/dbox.sh");
+		return -ENOENT;
+	}
+
 
 	proc_bus_info->read_proc = &read_bus_info;
 	proc_bus_info->write_proc = 0;
 	proc_bus_info->owner = THIS_MODULE;
+	proc_bus_info_sh->read_proc = &read_bus_info_sh;
+	proc_bus_info_sh->write_proc = 0;
+	proc_bus_info_sh->mode|=S_IXUGO;
+	proc_bus_info_sh->owner = THIS_MODULE;
 	return 0;
 }
 
 int info_proc_cleanup(void)
 {
 	remove_proc_entry("dbox", proc_bus);
+	remove_proc_entry("dbox.sh", proc_bus);
 	return 0;
 }
 #endif /* def CONFIG_PROC_FS */
