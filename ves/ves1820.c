@@ -18,11 +18,14 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.9  2001/03/17 13:34:36  gillem
+    - fix for multiple interrupts at same time
+
     Revision 1.8  2001/03/17 11:32:57  gillem
     - add interrupt stuff
 
 
-    $Revision: 1.8 $
+    $Revision: 1.9 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -480,13 +483,13 @@ static void ves_task(void*data)
 		dprintk("ves1820.o: synchronized %02X\n",ves->sync);
 	}
 	/* ves not synchronized */
-	else if (status&(1<<2))
+	if (status&(1<<2))
 	{
 		ves->sync = readreg(dclient,0x11)&0x1f;
 		dprintk("ves1820.o: not synchronized %02X\n",ves->sync);
 	}
-	/* read ber */
-	else if (status&(1<<3))
+	/* ber changed */
+	if (status&(1<<3))
 	{
 //		printk("READ BER\n");
 		ves->ber = readreg(dclient,0x14);
