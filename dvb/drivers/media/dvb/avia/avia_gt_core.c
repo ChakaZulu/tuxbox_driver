@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_core.c,v 1.35 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_core.c,v 1.36 2003/06/10 17:34:24 wjoost Exp $
  *
  * AViA eNX/GTX core driver (dbox-II-project)
  *
@@ -56,7 +56,6 @@
 #include "avia_gt_pcm.h"
 #include "avia_gt_capture.h"
 #include "avia_gt_pig.h"
-#include "avia_gt_ir.h"
 #include "avia_gt_vbi.h"
 
 TUXBOX_INFO(dbox2_gt);
@@ -211,7 +210,7 @@ int __init avia_gt_init(void)
 
 	int result = 0;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.35 2003/04/14 00:13:10 obi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.36 2003/06/10 17:34:24 wjoost Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -417,16 +416,6 @@ int __init avia_gt_init(void)
 
 	init_state = 13;
 
-	if (avia_gt_ir_init()) {
-
-		avia_gt_exit();
-
-		return -1;
-
-	}
-
-	init_state = 14;
-
 	if (avia_gt_vbi_init()) {
 
 		avia_gt_exit();
@@ -435,7 +424,7 @@ int __init avia_gt_init(void)
 
 	}
 	
-	init_state = 15;
+	init_state = 14;
 
 #endif
 
@@ -449,11 +438,8 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-	if (init_state >= 15)
-		avia_gt_vbi_exit();
-
 	if (init_state >= 14)
-		avia_gt_ir_exit();
+		avia_gt_vbi_exit();
 
 	if (init_state >= 13)
 		avia_gt_pig_exit();

@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ir.c,v 1.23 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_ir.c,v 1.24 2003/06/10 17:34:24 wjoost Exp $
  * 
  * AViA eNX/GTX ir driver (dbox-II-project)
  *
@@ -374,12 +374,12 @@ void avia_gt_ir_set_queue(unsigned int addr)
     
 }
 
-int __init avia_gt_ir_init(void)
+int avia_gt_ir_init(void)
 {
 	u16 rx_irq = 0;
 	u16 tx_irq = 0;
 
-	printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.23 2003/04/14 00:13:10 obi Exp $\n");
+	printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.24 2003/06/10 17:34:24 wjoost Exp $\n");
 
 	do_gettimeofday(&last_timestamp);
 	
@@ -405,10 +405,6 @@ int __init avia_gt_ir_init(void)
 	
 	}
 
-	// For testing only
-	avia_gt_free_irq(rx_irq);	
-	avia_gt_free_irq(tx_irq);	
-	
 	if (avia_gt_alloc_irq(rx_irq, avia_gt_ir_rx_irq)) {
 
 		printk("avia_gt_ir: unable to get rx interrupt\n");
@@ -439,7 +435,7 @@ int __init avia_gt_ir_init(void)
     
 }
 
-void __exit avia_gt_ir_exit(void)
+void avia_gt_ir_exit(void)
 {
 
 	if (avia_gt_chip(ENX)) {
@@ -476,4 +472,5 @@ EXPORT_SYMBOL(avia_gt_ir_send_buffer);
 EXPORT_SYMBOL(avia_gt_ir_send_pulse);
 EXPORT_SYMBOL(avia_gt_ir_set_duty_cycle);
 EXPORT_SYMBOL(avia_gt_ir_set_frequency);
-
+EXPORT_SYMBOL(avia_gt_ir_init);
+EXPORT_SYMBOL(avia_gt_ir_exit);

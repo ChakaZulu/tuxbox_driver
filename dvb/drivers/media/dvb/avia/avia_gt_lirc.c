@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_lirc.c,v 1.7 2003/04/14 00:13:10 obi Exp $
+ * $Id: avia_gt_lirc.c,v 1.8 2003/06/10 17:34:24 wjoost Exp $
  *
  * lirc ir driver for AViA eNX/GTX (dbox-II-project)
  *
@@ -314,7 +314,12 @@ static struct file_operations avia_gt_lirc_fops = {
 static int __init avia_gt_lirc_init(void)
 {
 
-	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.7 2003/04/14 00:13:10 obi Exp $\n");
+	printk("avia_gt_lirc: $Id: avia_gt_lirc.c,v 1.8 2003/06/10 17:34:24 wjoost Exp $\n");
+
+	if (avia_gt_ir_init() < 0)
+	{
+		return -EIO;
+	}
 
 	devfs_handle = devfs_register(NULL, "lirc", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_lirc_fops, NULL);
 
@@ -337,7 +342,7 @@ static void __exit avia_gt_lirc_exit(void)
 {
 
 	devfs_unregister (devfs_handle);
-
+	avia_gt_ir_exit();
 }
 
 module_init(avia_gt_lirc_init);
