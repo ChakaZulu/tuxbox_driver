@@ -21,6 +21,10 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.36  2001/12/01 10:51:22  gillem
+ *   - add vcr handling
+ *   - todo: add event (tmbinc???)
+ *
  *   Revision 1.35  2001/12/01 06:52:28  gillem
  *   - malloc.h -> slab.h
  *
@@ -110,7 +114,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.35 $
+ *   $Revision: 1.36 $
  *
  */
 
@@ -205,6 +209,7 @@ static int rc_bcodes=0;
 struct fp_data
 {
   int fpID;
+  int fpVCR;
   struct i2c_client *client;
 };
 
@@ -535,6 +540,8 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 
 	new_client->data=new_client+1;
 	defdata=data=(struct fp_data*)(new_client->data);
+	/* init vcr value (off) */
+	defdata->fpVCR=0;
 	rcbeg=0;
 	rcend=0;
 	new_client->addr=address;
@@ -726,6 +733,27 @@ static void fp_handle_button(struct fp_data *dev)
 
 /* ------------------------------------------------------------------------- */
 
+static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
+{
+	if (dev->fpVCR!=fpVCR)
+	{
+		dev->fpVCR = fpVCR;
+
+		if (dev->fpVCR)
+		{
+			dprintk("fp.o: vcr turned on\n");
+		}
+		else
+		{
+			dprintk("fp.o: vcr turned off\n");
+		}
+
+		/* todo: event erweitern !? evtl 0xFE<00/01> ??? */
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void fp_handle_unknown(struct fp_data *dev)
 {
 	u8 rc;
@@ -823,8 +851,8 @@ static int fp_close(void)
 //		return res;
 //	}
 
-  devfs_unregister ( devfs_handle[FP_MINOR] );
-  devfs_unregister ( devfs_handle[RC_MINOR] );
+	devfs_unregister ( devfs_handle[FP_MINOR] );
+	devfs_unregister ( devfs_handle[RC_MINOR] );
   
 	if (ppc_md.restart==fp_restart)
 	{
@@ -900,9 +928,15 @@ static void fp_check_queues(void)
  	dprintk("fp.o: checking queues.\n"); 
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
-	if (status)
+	/* detect vcr */
+	if(defdata->fpVCR!=(status&1))
 	{
-		dprintk("fp.o: Oops, status is %x (dachte immer der wäre 0...)\n", status);
+		fp_handle_vcr(defdata,status&1);
+	}
+
+	if (status&(~1))
+	{
+		dprintk("fp.o: Oops, status is %x (dachte immer der wäre 0/1...)\n", status);
 	}
 
 	iwork=0;
