@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.59 $
+ *   $Revision: 1.60 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.60  2001/11/14 17:59:22  wjoost
+ *   Section-Empfang geaendert (Pruefung auf maximale Groesse, zusammenhaengende TS-Pakete)
+ *
  *   Revision 1.59  2001/10/23 08:49:35  Jolt
  *   eNX capture and pig driver
  *
@@ -319,7 +322,7 @@ void enx_tdp_init(u8 *microcode)
   unsigned short *instr_ram = (unsigned short*)enx_reg_o(TDP_INSTR_RAM);
   unsigned short *src = (unsigned short*)microcode;
   int     words=0x800/2;
-  
+
   while (words--) {
     udelay(100);
     *instr_ram++ = *src++;
@@ -568,7 +571,7 @@ u32 gtx_get_queue_wptr(int queue)
     wp|=(rh(QWPnH+4*queue)&63)<<16;
 #endif    
   } while (wp!=oldwp);
-  return wp; 
+  return wp;
 }
 
 #define Q_VIDEO         2
@@ -710,7 +713,7 @@ static Pcr_t gtx_read_current_clk(void)
   pcr.hi =rh(STC2)<<16;
   pcr.hi|=rh(STC1);
   pcr.lo =rh(STC0)&0x81FF;
-#endif  
+#endif
   return pcr;
 }
 
@@ -762,7 +765,7 @@ static void gtx_pcr_interrupt(int b, int r)
   Pcr_t latchedClk;
   Pcr_t currentClk;
   s32 delta_PCR_AV;
-  
+
   s32 deltaClk, elapsedTime;
   
   TPpcr=gtx_read_transport_pcr();
@@ -813,7 +816,7 @@ static void gtx_pcr_interrupt(int b, int r)
     dprintk("gtx_dmx: tmb pcr\n");
     goto WE_HAVE_DISCONTINUITY;
   }
-  
+
   delta_PCR_AV=deltaClk-deltaPCR_AVERAGE/10;
   if (delta_PCR_AV > deltaClk_max)
     deltaClk_max=delta_PCR_AV;
@@ -952,7 +955,7 @@ int gtx_dmx_init(void)
 
   rh(AVI)=0x71F;
   rh(AVI+2)=0xF;
-#endif  
+#endif
 
 	GtxDmxInit(&gtx);
 	register_demux(&gtx.dmx);
@@ -986,7 +989,7 @@ void gtx_dmx_close(void)
       gtx_free_irq(j+2, i);
 
   gtx_free_irq(0, 8);           // PCR
-#endif  
+#endif
 }
                 // nokia api
 
@@ -1035,7 +1038,7 @@ static void gtx_task(void *data)
   int queue;
 	int ccn;
   static int c;
-  
+
   for (queue=0; datamask && queue<32; queue++)
     if (datamask&(1<<queue))
     {
@@ -1051,13 +1054,13 @@ static void gtx_task(void *data)
         {
           int wptr;
           int rptr;
-        
+
           __u8 *b1, *b2;
           size_t b1l, b2l;
-       
+
 					wptr = gtx_get_queue_wptr(queue);
 					rptr = gtxfeed->readptr;
-					
+
 					if (wptr < gtxfeed->base)
 					{
 						printk("gtxdmx: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
@@ -1082,7 +1085,7 @@ static void gtx_task(void *data)
             b2=gtxmem+gtx->feed[queue].base;
             b2l=wptr-gtx->feed[queue].base;
           }
-          
+
 					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
 					{
 						int rlen=b1l+b2l;
@@ -1112,7 +1115,7 @@ static void gtx_task(void *data)
 						}
 					}	else
 						gtx->feed[queue].readptr=wptr;
-					
+
 					if (gtxfeed->queeue)	// workaround for videoqueue PES packets w/ wrong offset
 					{
 						b1l-=*b1;
@@ -1123,7 +1126,7 @@ static void gtx_task(void *data)
 							b1l=0;
 						}
 					}
-					
+
           switch (gtx->feed[queue].type)
           {
 						// handle TS
@@ -1171,16 +1174,31 @@ static void gtx_task(void *data)
 
               	tr+=r;
 
-								ccn=tsbuf[3]&0x0f;
-								
-								tr-=4;
-              
 			  				// no payload
-              	if (!(tsbuf[3]&0x10))
+              	if (!(tsbuf[3]&0x10))							// adaption control field
 			  				{
 			  					dprintk("a packet with no payload. sachen gibt's.\n");
                 	continue;
 			  				}
+
+								ccn=tsbuf[3]&0x0f;								// continuity counter
+
+								if (ccn == gtxfeed->sec_ccn)			// doppelt hält besser, hmm?
+									continue;
+
+								if ( (((ccn > 0)  && (gtxfeed->sec_ccn + 1 != ccn)) ||
+										  ((ccn == 0) && (gtxfeed->sec_ccn != 15))) &&
+											(gtxfeed->sec_recv > 0) )
+								{
+									gtxfeed->sec_recv = 0;
+									gtxfeed->sec_len = 0;
+									dprintk("we lost a packet :-(\n");
+								}
+
+								gtxfeed->sec_ccn = ccn;
+
+								tr-=4;														// 4 Byte fixe Headerlänge
+
 
 			  				// af + pl
               	if (tsbuf[3]&0x20)                // adaption field
@@ -1197,76 +1215,79 @@ static void gtx_task(void *data)
                 	p+=tsbuf[4]+1;
 								}
 
-              	if (tsbuf[1]&0x40)                // PUSI
-              	{
-									int op;
-
-	               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
-	               	if (tsbuf[p])
-	               		dprintk("sowas gibts echt, wo der ptr != 0 ist. (report to tmb plz)\n");
-
-                	// rest kopieren
-                	if (r>tsbuf[p])
+								if (tsbuf[1] & 0x40)							// Start einer neuen Section
+								{
+									if (tsbuf[p] != 0)							// neues Paket fängt mittendrin an
 									{
-										dprintk("aber das suckt eh.\n");
-										if (tsbuf[3]&0x20)
+									  if (gtxfeed->sec_recv)				// haben wir den Anfang des vorherigen Paketes ?
 										{
-											r = 188-4-tsbuf[4]-1;
+											r = gtxfeed->sec_len - gtxfeed->sec_recv;
+											if (r > tsbuf[p])					// wenn eine neue Section kommt muß die vorherige abgeschlossen werden
+											{
+												dprintk("gtx_dmx: dropping section because length-confusion.\n");
+											}
+											else {
+												memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv,tsbuf+p+1,r);
+												gtxfeed->sec_recv+=r;
+												gtx_handle_section(gtxfeed);
+											}
 										}
-										else
+										tr -= tsbuf[p] + 1;
+										p += tsbuf[p] + 1;
+									}
+									else {
+									 tr--;
+									 p++;
+									}
+									gtxfeed->sec_recv = 0;
+									gtxfeed->sec_len = 0;
+								}
+
+								while (tr)
+								{
+									if (gtxfeed->sec_recv) {				// haben bereits einen Anfang
+										r = gtxfeed->sec_len - gtxfeed->sec_recv;
+										if (r > tr)										// ein kleines Teilstück kommt hinzu
 										{
-	                  	r=tsbuf[p];
+											r = tr;
+										}
+										memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv,tsbuf+p,r);
+										gtxfeed->sec_recv += r;
+										if ( gtxfeed->sec_len == gtxfeed->sec_recv)
+										{
+											gtx_handle_section(gtxfeed);
 										}
 									}
-
-                	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
-                	gtxfeed->sec_recv+=r;
-
-									op = p;
-
-									//	dprintk("gtx_dmx: ! %x %x %x %x %x %x\n",r,p,tsbuf[4],tsbuf[p],b1l,b2l);
-
-#if 0
-									if (tsbuf[3]&0x20)
-									{
-                    p+=tsbuf[4]+1+r;		// das wird doch schon gecheckt, oben?
-                  }
-									else
-#endif
-									{
-	                	p+=tsbuf[p]+1;
-									}
-
-									if (p>188)
-									{
-										dprintk("HEXDUMP START:\n");
-										for(op=0;op<188;op++)
+									else {													// neue Section
+										if (tsbuf[p] == 0xFF)					// Rest padding ?
 										{
-												dprintk("%02X ",tsbuf[op]);
+											break;
 										}
-										dprintk("\nHEXDUMP END\n");
-										break;
+										if (tr < 3)										// eine neue Section mit weniger als 3 Bytes...
+										{
+											break;											// Wenn wir hier kopieren gibt's oben wegen der fehlenden Länge ein Problem
+										}
+										r = ((tsbuf[p+1] & 0x0F) << 8) + tsbuf[p+2] + 3;
+										if (r <= 4096) {							// größer darf nicht
+											gtxfeed->sec_len = r;
+											if (r > tr)									// keine komplette Section
+											{
+												r = tr;
+											}
+											memcpy(gtxfeed->sec_buffer,tsbuf+p,r);
+											gtxfeed->sec_recv += r;
+											if ( gtxfeed->sec_len == gtxfeed->sec_recv)
+											{
+												gtx_handle_section(gtxfeed);
+											}
+										}
 									}
-
-                	gtx_handle_section(gtxfeed);
-
-                	gtxfeed->sec_len=(((tsbuf[p+1]&0xF)<<8)|(tsbuf[p+2])) + 3;
-                	gtxfeed->sec_recv=0;
-                	tr=188-p;
-              	}
-
-               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
-
-              	if (r>tr)
-                	r=tr;
-
-              	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p, r);
-	             	gtxfeed->sec_recv+=r;
+									tr -= r;
+									p += r;
+								}
             	}
 						}
-
             break;
-
          		case DMX_TYPE_PES:
   //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0);
 							break;
@@ -1543,7 +1564,7 @@ static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed
     gtxfeed->state=DMX_STATE_FREE;
     return -EBUSY;
   }
-  
+
   gtxfeed->filter->type=DMX_TYPE_TS;
   gtxfeed->filter->feed=gtxfeed;
   gtxfeed->filter->state=DMX_STATE_READY;
@@ -1645,7 +1666,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 
   dprintk("gtx_dmx: dmx_section_feed_set.\n");
 	dprintk("gtx_dmx: set section feed: pid %x, buf %d, ds %d, ccrc %d\n", pid, circular_buffer_size, descramble, check_crc);
-  
+
   if (pid>0x1FFF)
     return -EINVAL;
 
@@ -1733,7 +1754,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   gtxfeed->demux=gtx;
   gtxfeed->pid=0xFFFF;
   gtxfeed->secfilter=0;
-  
+
   *feed=&gtxfeed->feed.sec;
   (*feed)->is_filtering=0;
   (*feed)->parent=demux;
@@ -1745,9 +1766,10 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   (*feed)->stop_filtering=dmx_section_feed_stop_filtering;
 
   gtxfeed->pes_type=DMX_TS_PES_OTHER;
-  gtxfeed->sec_buffer=kmalloc(16384, GFP_KERNEL);
+  gtxfeed->sec_buffer=kmalloc(4096, GFP_KERNEL);
   gtxfeed->sec_recv=0;
   gtxfeed->sec_len=0;
+	gtxfeed->sec_ccn=16;
 
   gtxfeed->output=TS_PACKET;
   gtxfeed->state=DMX_STATE_READY;
@@ -1963,7 +1985,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.59 2001/10/23 08:49:35 Jolt Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.60 2001/11/14 17:59:22 wjoost Exp $\n");
 
 	return gtx_dmx_init();
 }
