@@ -28,8 +28,6 @@
 #define __KERNEL__ 
 #endif 
 
-#define __DVB_PACK__
-
 #ifdef __DVB_PACK__
 #include <ost/demux.h>
 #include <ost/dmx.h>
