@@ -1,5 +1,5 @@
 /*
- *   enx_ir.c - AViA eNX ir driver (dbox-II-project)
+ *   avia_gt_ir.c - AViA eNX ir driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
@@ -21,12 +21,15 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.2  2002/05/07 16:40:32  Jolt
+ *   IR stuff
+ *
  *   Revision 1.1  2002/04/01 22:28:09  Jolt
  *   Basic IR support for eNX - more 2 come
  *
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -47,33 +50,27 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
-#include <dbox/enx.h>
+#include <dbox/avia_gt.h>
 
+static sAviaGtInfo *gt_info;
 unsigned int rx_buf_offs;
+unsigned int tx_buf_offs;
 
-static void enx_ir_rx_irq(int reg, int bit)
+static void avia_gt_ir_tx_irq(unsigned short irq)
 {
 
-    //printk("enx_ir: rx irq (reg=%d, bit=%d)\n", reg, bit);
-    printk("enx_ir: rx irq (RTCH=%d, RTC=%d)\n", enx_reg_s(RPH)->RTCH, enx_reg_s(RTC)->RTC);
+    printk("avia_gt_ir: tx irq\n");
 
 }
 
-static void enx_ir_tx_irq(int reg, int bit)
-{
-
-    printk("enx_ir: tx irq (reg=%d, bit=%d)\n", reg, bit);
-
-}
-
-void enx_ir_reset_tick_count(void)
+void avia_gt_ir_reset_tick_count(void)
 {
 
     enx_reg_s(RTC)->RTC = 0;
 
 }
 
-void enx_ir_set_dma(unsigned char enable, unsigned char offset)
+void avia_gt_ir_set_dma(unsigned char enable, unsigned char offset)
 {
 
     enx_reg_s(IRRE)->Offset = offset;
@@ -81,7 +78,7 @@ void enx_ir_set_dma(unsigned char enable, unsigned char offset)
 
 }
 
-void enx_ir_set_filter(unsigned char enable, unsigned char polarity, unsigned char low, unsigned char high)
+void avia_gt_ir_set_filter(unsigned char enable, unsigned char polarity, unsigned char low, unsigned char high)
 {
 
     enx_reg_s(RFR)->P = polarity;
@@ -92,73 +89,96 @@ void enx_ir_set_filter(unsigned char enable, unsigned char polarity, unsigned ch
 
 }
 
-void enx_ir_set_tick_period(unsigned short tick_period)
+void avia_gt_ir_set_tick_period(unsigned short tick_period)
 {
 
     enx_reg_s(RTP)->TickPeriod = tick_period - 1;
 
 }
 
-void enx_ir_set_queue(unsigned int addr)
+void avia_gt_ir_set_queue(unsigned int addr)
 {
 
     enx_reg_s(IRQA)->Addr = addr >> 9;
     enx_reg_s(IRRO)->Offset = 0;
     
     rx_buf_offs = 0;
+    tx_buf_offs = 256;
 
 }
 
-static int enx_ir_init(void)
+void avia_gt_ir_reset(unsigned char reenable)
 {
 
-    printk("enx_ir: $Id: avia_gt_ir.c,v 1.1 2002/04/01 22:28:09 Jolt Exp $\n");
+	if (avia_gt_chip(ENX))
+        enx_reg_s(RSTR0)->IR = 1;
+	else if (avia_gt_chip(GTX))
+		gtx_reg_s(RR1)->IR = 1;
+						
+    if (reenable) {
 
-    if (enx_allocate_irq(ENX_IRQ_IR_RX, enx_ir_rx_irq) != 0) {
+		if (avia_gt_chip(ENX))
+	        enx_reg_s(RSTR0)->IR = 0;
+		else if (avia_gt_chip(GTX))
+			gtx_reg_s(RR1)->IR = 0;
 
-	printk("enx_ir: unable to get rx interrupt\n");
+	}
+
+}
+
+int __init avia_gt_ir_init(void)
+{
+
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.2 2002/05/07 16:40:32 Jolt Exp $\n");
 	
-	return -EIO;
+	gt_info = avia_gt_get_info();
+		
+	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+			
+		printk("avia_gt_ir: Unsupported chip type\n");
+					
+		return -EIO;
+							
+	}
+	
+	if (avia_gt_chip(GTX))
+		return 0;
+								
+    if (avia_gt_alloc_irq(ENX_IRQ_IR_TX, avia_gt_ir_tx_irq) != 0) {
+
+		printk("avia_gt_ir: unable to get tx interrupt\n");
+
+		avia_gt_free_irq(ENX_IRQ_IR_RX);
+	
+		return -EIO;
 	
     }
 		
-    if (enx_allocate_irq(ENX_IRQ_IR_TX, enx_ir_tx_irq) != 0) {
-
-	printk("enx_ir: unable to get tx interrupt\n");
-
-	enx_free_irq(ENX_IRQ_IR_RX);
+	avia_gt_ir_reset(1);
 	
-	return -EIO;
-	
-    }
-		
-    // Reset IR module
-    enx_reg_s(RSTR0)->IR = 1;
-    enx_reg_s(RSTR0)->IR = 0;
-    
-    enx_ir_set_tick_period(7032);
-    enx_ir_set_filter(0, 0, 3, 5);
-    enx_ir_set_queue(ENX_IR_OFFSET);
-    enx_ir_reset_tick_count();
-    enx_ir_set_dma(1, rx_buf_offs + 1);
+    avia_gt_ir_set_tick_period(7032);
+    avia_gt_ir_set_filter(0, 0, 3, 5);
+    avia_gt_ir_set_queue(AVIA_GT_MEM_IR_OFFS);
+    avia_gt_ir_reset_tick_count();
+    avia_gt_ir_set_dma(1, rx_buf_offs + 1);
 
     return 0;
     
 }
 
-static void __exit enx_ir_cleanup(void)
+void __exit avia_gt_ir_cleanup(void)
 {
 
-    printk("enx_ir: cleanup\n");
-
-    enx_free_irq(ENX_IRQ_IR_RX);
-    enx_free_irq(ENX_IRQ_IR_TX);
+	if (avia_gt_chip(ENX))
+		avia_gt_free_irq(ENX_IRQ_IR_TX);
+//	else if (avia_gt_chip(GTX))
+//		avia_gt_free_irq(GTX_IRQ_IR_TX);
     
-    enx_reg_s(RSTR0)->IR = 1;
+	avia_gt_ir_reset(0);
 
 }
 
-#ifdef MODULE
-module_init(enx_ir_init);
-module_exit(enx_ir_cleanup);
+#if defined(MODULE) && defined(STANDALONE)
+module_init(avia_gt_ir_init);
+module_exit(avia_gt_ir_exit);
 #endif

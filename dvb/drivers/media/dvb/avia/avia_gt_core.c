@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.16  2002/05/07 16:40:32  Jolt
+ *   IR stuff
+ *
  *   Revision 1.15  2002/05/03 16:15:31  obi
  *   - formatted source
  *   - disabled one dprintk
@@ -68,7 +71,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -257,7 +260,7 @@ int __init avia_gt_init(void)
 	struct dbox_info_struct *dbox_info;
 	int result;
 
-	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.15 2002/05/03 16:15:31 obi Exp $\n");
+	printk("avia_gt_core: $Id: avia_gt_core.c,v 1.16 2002/05/07 16:40:32 Jolt Exp $\n");
 
 	if (chip_type == -1) {
 
@@ -418,6 +421,16 @@ int __init avia_gt_init(void)
 
 	init_state = 10;
 
+	if (avia_gt_ir_init()) {
+
+		avia_gt_exit();
+
+		return -1;
+
+	}
+
+	init_state = 11;
+
 #endif
 
 	printk(KERN_NOTICE "avia_gt_core: Loaded AViA eNX/GTX driver\n");
@@ -430,6 +443,9 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
+	if (init_state >= 11)
+		avia_gt_ir_exit();
+
 	if (init_state >= 10)
 		avia_gt_pig_exit();
 

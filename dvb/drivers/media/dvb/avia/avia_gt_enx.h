@@ -1,27 +1,16 @@
 #ifndef __ENX_H
 #define __ENX_H
 
-
 #define ENX_REG_BASE			0x08000000
 #define ENX_REG_SIZE			0x00003400
 #define ENX_MEM_BASE			0x09000000
 #define ENX_MEM_SIZE			0x00200000
 
-
-#define ENX_FB_OFFSET			0x00100000
-
-
-#define ENX_IR_MEM_SIZE			512
-#define ENX_IR_MEM_OFFSET		(ENX_PCM_MEM_OFFSET - ENX_IR_MEM_SIZE)
-
-
 #define ENX_INTERRUPT			SIU_IRQ1
-
 
 #define TDP_INSTR_RAM			0x2000
 #define TDP_DATA_RAM			0x2800
 #define CAM_RAM					0x3000
-
 
 #define ENX_REG_PFCR			0x0780			// Parallel FIFO Control Register
 #define ENX_REG_PFQR			0x0782			// Parallel FIFO Quantity Register
