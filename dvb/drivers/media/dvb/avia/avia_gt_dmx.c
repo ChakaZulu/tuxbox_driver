@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.157 2003/01/10 21:47:03 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.158 2003/01/10 22:01:46 wjoost Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -35,10 +35,10 @@
 #include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/byteorder/swab.h>
+#include <linux/bitops.h>
 
 #include <linux/fs.h>
 #include <linux/fcntl.h>
@@ -1783,14 +1783,7 @@ int avia_gt_dmx_alloc_section_filter(void *f)
 							}
 
 							xor = value[i][k] ^ value[j][k];
-							if ( (xor == 0x01) ||
-							     (xor == 0x02) ||
-							     (xor == 0x04) ||
-							     (xor == 0x08) ||
-							     (xor == 0x10) ||
-							     (xor == 0x20) ||
-							     (xor == 0x40) ||
-							     (xor == 0x80) )
+							if (hweight8(xor) == 1)
 							{
 								different_bit_index = k;
 							}
@@ -2053,7 +2046,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.157 2003/01/10 21:47:03 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.158 2003/01/10 22:01:46 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
