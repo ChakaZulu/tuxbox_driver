@@ -19,38 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: avia_gt_gv.h,v $
- *   Revision 1.9  2003/07/01 04:06:17  obi
- *   updated homepage url, removed some unnecessary includes and cleaned up fb driver source formatting
- *
- *   Revision 1.8  2002/10/09 18:31:12  Jolt
- *   HW copy support
- *
- *   Revision 1.7  2002/04/25 22:10:39  Jolt
- *   FB cleanup
- *
- *   Revision 1.6  2002/04/24 19:56:00  Jolt
- *   GV driver updates
- *
- *   Revision 1.5  2002/04/21 14:36:07  Jolt
- *   Merged GTX fb support
- *
- *   Revision 1.4  2002/04/17 21:50:57  Jolt
- *   Capture driver fixes
- *
- *   Revision 1.3  2002/04/15 10:40:50  Jolt
- *   eNX/GTX
- *
- *   Revision 1.2  2002/04/15 04:44:24  Jolt
- *   eNX/GTX merge
- *
- *   Revision 1.1  2001/11/01 18:19:09  Jolt
- *   graphic viewport driver added
- *
- *
- *   $Revision: 1.9 $
- *
  */
 
 #ifndef AVIA_GT_GV_H

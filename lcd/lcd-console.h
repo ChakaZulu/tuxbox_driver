@@ -19,16 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: lcd-console.h,v $
- *   Revision 1.3  2003/09/30 04:54:05  obi
- *   updated homepage url
- *
- *   Revision 1.2  2001/01/06 10:06:35  gillem
- *   cvs check
- *
- *   $Revision: 1.3 $
- *
  */
 
 void lcd_init_console(void);

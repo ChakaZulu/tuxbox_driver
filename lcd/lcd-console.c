@@ -19,37 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: lcd-console.c,v $
- *   Revision 1.11  2003/09/30 04:54:05  obi
- *   updated homepage url
- *
- *   Revision 1.10  2002/09/23 17:07:02  obi
- *   moved lcd-ks0713.h to include/dbox
- *
- *   Revision 1.9  2001/12/01 06:53:17  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.8  2001/09/17 21:25:55  TripleDES
- *   removed the "@lcd"
- *
- *   Revision 1.7  2001/01/28 19:47:12  gillem
- *   - fix setpos ...
- *
- *   Revision 1.6  2001/01/28 18:49:08  gillem
- *   add ioctl
- *   LCD_IOCTL_CLEAR
- *   LCD_IOCTL_SET_POS
- *   LCD_IOCTL_GET_POS
- *
- *   Revision 1.5  2001/01/26 23:51:33  gillem
- *   some kernel styles change
- *
- *   Revision 1.4  2001/01/06 10:06:35  gillem
- *   cvs check
- *
- *   $Revision: 1.11 $
- *
  */
 
 #include <linux/kernel.h>

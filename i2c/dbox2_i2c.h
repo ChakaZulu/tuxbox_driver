@@ -17,22 +17,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: dbox2_i2c.h,v $
- *   Revision 1.6  2002/11/21 15:51:11  obi
- *   LinuxTV sync
- *
- *   Revision 1.5  2002/11/11 06:26:35  Jolt
- *   Moved I2C stuff into proper interface
- *
- *   Revision 1.4  2001/02/20 18:37:05  gillem
- *   - remove polling some drivers not work now !
- *
- *   Revision 1.3  2001/01/06 10:06:01  gillem
- *   cvs check
- *
- *   $Revision: 1.6 $
- *
  */
 
 #ifndef _I2C_H_

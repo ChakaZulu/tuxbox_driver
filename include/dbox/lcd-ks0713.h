@@ -19,34 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: lcd-ks0713.h,v $
- *   Revision 1.10  2003/09/30 04:54:04  obi
- *   updated homepage url
- *
- *   Revision 1.9  2001/11/25 21:37:46  gillem
- *   - fix adc
- *   - add new ioctl (LCD_IOCTL_INIT)
- *   - remove init from reset
- *
- *   Revision 1.8  2001/11/25 21:11:39  gillem
- *   - update reset function (test only!)
- *   - add sirc
- *
- *   Revision 1.7  2001/01/28 18:49:08  gillem
- *   add ioctl
- *   LCD_IOCTL_CLEAR
- *   LCD_IOCTL_SET_POS
- *   LCD_IOCTL_GET_POS
- *
- *   Revision 1.6  2001/01/20 19:01:21  gillem
- *   - add pixel function
- *
- *   Revision 1.5  2001/01/06 10:06:35  gillem
- *   cvs check
- *
- *   $Revision: 1.10 $
- *
  */
 
 #define LCD_STAT_BUSY			0x80

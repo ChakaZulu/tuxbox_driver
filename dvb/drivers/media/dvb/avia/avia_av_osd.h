@@ -19,21 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: avia_av_osd.h,v $
- *   Revision 1.3  2003/07/01 03:51:04  obi
- *   updated homepage url
- *
- *   Revision 1.2  2002/10/03 12:47:58  Jolt
- *   AViA AV cleanups
- *
- *   Revision 1.1  2001/03/06 21:51:35  gillem
- *   - initial release
- *
- *
- *
- *   $Revision: 1.3 $
- *
  */
 
 typedef struct sosd_create_frame {

@@ -19,58 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: saa7126_core.h,v $
- *   Revision 1.14  2003/09/30 04:54:04  obi
- *   updated homepage url
- *
- *   Revision 1.13  2003/04/21 19:19:50  obi
- *   patch by Micha_R:
- *   - added support for YUV output
- *   - fixed S-Video output
- *
- *   Revision 1.12  2002/11/18 00:53:35  obi
- *   driver cleanup
- *
- *   Revision 1.11  2002/08/12 17:08:44  wjoost
- *   SAA_WSS_OFF hinzugefügt
- *
- *   Revision 1.10  2002/08/04 12:14:21  wjoost
- *   wide screen signaling
- *
- *   Revision 1.9  2001/11/22 17:26:12  gillem
- *   - add power save mode (experimental)
- *   - start vps
- *
- *   Revision 1.8  2001/07/03 20:23:22  gillem
- *   - add defines
- *
- *   Revision 1.7  2001/07/03 19:55:05  gillem
- *   - add ioctl to set rgb/fbas/svideo
- *   - remove module option svideo
- *   - add module option mode
- *
- *   Revision 1.6  2001/05/16 22:12:48  gillem
- *   - add encoder setting
- *
- *   Revision 1.5  2001/04/07 01:45:34  tmbinc
- *   added philips-support.
- *
- *   Revision 1.4  2001/02/11 21:29:43  gillem
- *   - some stuff
- *
- *   Revision 1.3  2001/02/11 12:31:29  gillem
- *   - add ioctl SAAIOGREG,SAAIOSINP,SAAIOSENC
- *   - change i2c stuff
- *   - change device to pal
- *   - change major to 240
- *   - add load option board (0=nokia,1=philips,2=sagem,3=no config)
- *
- *   Revision 1.2  2001/01/06 10:06:55  gillem
- *   cvs check
- *
- *   $Revision: 1.14 $
- *
  */
 
 #define SAAIOGREG	1	/* read registers */

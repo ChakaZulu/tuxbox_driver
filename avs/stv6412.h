@@ -19,24 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: stv6412.h,v $
- *   Revision 1.4  2003/09/30 04:54:02  obi
- *   updated homepage url
- *
- *   Revision 1.3  2002/02/28 20:42:45  gillem
- *   - some changes
- *   - add vcr/tv slow blanking event
- *
- *   Revision 1.2  2002/01/01 14:16:28  gillem
- *   - update
- *
- *   Revision 1.1  2001/05/26 09:19:50  gillem
- *   - initial release
- *
- *
- *   $Revision: 1.4 $
- *
  */
 
 #ifdef __KERNEL__

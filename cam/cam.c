@@ -19,83 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: cam.c,v $
- *   Revision 1.25  2003/09/30 04:54:03  obi
- *   updated homepage url
- *
- *   Revision 1.24  2003/09/08 23:16:17  obi
- *   fixes
- *
- *   Revision 1.23  2003/08/13 17:14:20  obi
- *   added cam_poll()
- *
- *   Revision 1.22  2003/01/14 10:26:36  jolt
- *   Remove hardcoded CODE_BASE. It's a module param now (mio=0x?????).
- *
- *   Revision 1.21  2003/01/14 08:51:45  jolt
- *   Fix init
- *
- *   Revision 1.20  2003/01/14 08:43:17  jolt
- *   - Removed old CAM interface
- *   - Unified FP CAM reset
- *   - Small cleanups
- *
- *   Revision 1.19  2002/11/08 01:25:52  obi
- *   make cam work with dvb api v3 drivers
- *
- *   Revision 1.18  2002/10/21 11:38:58  obi
- *   fp driver cleanup
- *
- *   Revision 1.17  2002/05/06 02:18:18  obi
- *   cleanup for new kernel
- *
- *   Revision 1.16  2002/03/06 10:09:22  gillem
- *   - clean module unload (set into standby(i hope))
- *
- *   Revision 1.15  2001/12/01 06:52:16  gillem
- *   - malloc.h -> slab.h
- *
- *   Revision 1.14  2001/09/29 23:24:48  tmbinc
- *   removed debug output
- *
- *   Revision 1.13  2001/08/16 16:30:38  tmbinc
- *   readded /dev/cam
- *
- *   Revision 1.12  2001/04/12 19:49:54  mhc
- *   - cleanup * added caid-routine * Sagem/Philips User testen !!!
- *
- *   Revision 1.11  2001/04/09 22:58:22  tmbinc
- *   added philips-support.
- *
- *   Revision 1.10  2001/04/09 19:48:44  TripleDES
- *   added cam init (fp-cmd)
- *
- *   Revision 1.9  2001/04/09 17:43:15  TripleDES
- *   added sagem/philips? init
- *   -it depends now on info
- *
- *   Revision 1.8  2001/03/15 22:44:18  mhc
- *   - bugfix
- *
- *   Revision 1.7  2001/03/12 22:32:23  gillem
- *   - test only ... cam init not work
- *
- *   Revision 1.6  2001/03/10 18:53:06  gillem
- *   - change to ca
- *
- *   Revision 1.5  2001/03/10 12:23:04  gillem
- *   - add exports
- *
- *   Revision 1.4  2001/03/03 18:01:06  waldi
- *   complete change to devfs; doesn't compile without devfs
- *
- *   Revision 1.3  2001/03/03 13:03:04  gillem
- *   - add option firmware,debug
- *
- *
- *   $Revision: 1.25 $
- *
  */
 
 #define __KERNEL_SYSCALLS__
@@ -467,7 +390,7 @@ int __init cam_init(void)
 	mm_segment_t fs;
 	u32 *microcode;
 
-	printk("$Id: cam.c,v 1.25 2003/09/30 04:54:03 obi Exp $\n");
+	printk("$Id: cam.c,v 1.26 2003/09/30 05:00:14 obi Exp $\n");
 	
 	if (!mio) {
 	

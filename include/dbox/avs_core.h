@@ -19,35 +19,6 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *
- *   $Log: avs_core.h,v $
- *   Revision 1.8  2003/09/30 04:54:04  obi
- *   updated homepage url
- *
- *   Revision 1.7  2002/04/25 12:07:06  happydude
- *   unified setting of scart pin8 voltage for lazyT :)
- *
- *   Revision 1.6  2002/01/01 14:16:10  gillem
- *   - update
- *
- *   Revision 1.5  2001/05/26 09:20:36  gillem
- *   - add stv6412
- *
- *   Revision 1.4  2001/04/16 21:39:20  Jolt
- *   Autodetect
- *
- *   Revision 1.3  2001/03/20 21:16:47  gillem
- *   - change defines
- *
- *   Revision 1.2  2001/03/03 11:02:57  gillem
- *   - cleanup
- *
- *   Revision 1.1  2001/03/03 09:38:58  gillem
- *   - initial release
- *
- *
- *   $Revision: 1.8 $
- *
  */
 
 #define CXAAUTO		-1
