@@ -468,7 +468,7 @@ int dvb_frontend_thread (void *data)
 			fe->lost_sync_count = 0;
 		} else {
 			fe->lost_sync_count++;
-			if (fe->lost_sync_count < 10)  /* XXX FIXME CHECKME! */
+			if (fe->lost_sync_count < 4)  /* XXX FIXME CHECKME! */
 				continue;
 			dvb_frontend_recover (fe);
 			delay = HZ/5;
