@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.9 2002/12/28 10:44:49 Jolt Exp $
+ * $Id: dbox2_fp_rc.c,v 1.10 2003/01/03 11:21:24 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -30,19 +30,8 @@
 
 #include <dbox/dbox2_fp_core.h>
 
-#define UP_TIMEOUT (HZ/2)
+#define UP_TIMEOUT (HZ/3)
 
-//#define OLD_INTERFACE
-
-#ifdef OLD_INTERFACE
-#include <dbox/fp.h>
-#define RCBUFFERSIZE		16
-static devfs_handle_t devfs_handle;
-static u16 rcbuffer[RCBUFFERSIZE];
-static u16 rcbeg = 0, rcend = 0;
-static wait_queue_head_t rcwait;
-static DECLARE_MUTEX_LOCKED(rc_opened);
-#endif
 static struct input_dev *rc_input_dev;
 static int old_rc = 1;
 static int new_rc = 1;
@@ -145,97 +134,7 @@ static void dbox2_fp_add_event(int code)
 
 	dprintk("\n");
 
-#ifdef OLD_INTERFACE
-
-/* OLD STUFF */
-
-	if (atomic_read(&rc_opened.count) >= 1)
-		return;
-
-	rcbuffer[rcend] = code;
-	rcend++;
-
-	if (rcend >= RCBUFFERSIZE)
-		rcend = 0;
-
-	if (rcbeg == rcend)
-		printk("fp.o: RC overflow.\n");
-	else
-		wake_up(&rcwait);
-#endif		
 }
-
-#ifdef OLD_INTERFACE
-static ssize_t rc_read (struct file *file, char *buf, size_t count, loff_t *offset)
-{
-	int i;
-	unsigned int read = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
-	while (rcbeg == rcend) {
-	
-		if (file->f_flags & O_NONBLOCK)
-			return read;
-
-		add_wait_queue(&rcwait, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-		current->state = TASK_RUNNING;
-		remove_wait_queue(&rcwait, &wait);
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-	}
-
-	count &= ~1;
-
-	for (i = 0; i < count; i += 2) {
-
-		if (rcbeg == rcend)
-			break;
-
-		*((u16*)(buf+i)) = rcbuffer[rcbeg++];
-		read += 2;
-
-		if (rcbeg >= RCBUFFERSIZE)
-			rcbeg = 0;
-	}
-
-	return read;
-}
-
-static int rc_open (struct inode *inode, struct file *file)
-{
-	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&rc_opened))
-			return -EAGAIN;
-	}
-
-	else {
-		if (down_interruptible(&rc_opened))
-			return -ERESTARTSYS;
-	}
-
-	return 0;
-}
-
-static int rc_release (struct inode *inode, struct file *file)
-{
-	dprintk("fp.o: rc_release\n");
-	up(&rc_opened);
-	return 0;
-}
-
-static unsigned int rc_poll (struct file *file, poll_table *wait)
-{
-	poll_wait(file, &rcwait, wait);
-
-	if (rcbeg != rcend)
-		return POLLIN | POLLRDNORM;
-	
-	return 0;
-}
-#endif
 
 void dbox2_fp_rc_queue_handler(u8 queue_nr)
 {
@@ -267,30 +166,6 @@ void dbox2_fp_rc_queue_handler(u8 queue_nr)
 
 }
 
-#ifdef OLD_INTERFACE
-static struct file_operations rc_fops =
-{
-	owner:			THIS_MODULE,
-	llseek:			NULL,
-	read:			rc_read,
-	write:			NULL,
-	readdir:		NULL,
-	poll:			rc_poll,
-	ioctl:			NULL,
-	mmap:			NULL,
-	open:			rc_open,
-	flush:			NULL,
-	release:		rc_release,
-	fsync:			NULL,
-	fasync:			NULL,
-	lock:			NULL,
-	readv:			NULL,
-	writev:			NULL,
-	sendpage:		NULL,
-	get_unmapped_area:	NULL
-};
-#endif
-
 int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 {
 
@@ -309,15 +184,6 @@ int __init dbox2_fp_rc_init(struct input_dev *input_dev)
 	if (new_rc)
 		dbox2_fp_queue_alloc(3, dbox2_fp_rc_queue_handler);
 		
-#ifdef OLD_INTERFACE
-	devfs_handle = devfs_register(NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
-			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-			&rc_fops, NULL);
-
-	init_waitqueue_head(&rcwait);
-	up(&rc_opened);  
-#endif
-
 	// Enable break codes	
 	//fp_sendcmd(fp_get_i2c(), 0x01, 0x80);
 	fp_sendcmd(fp_get_i2c(), 0x26, 0x80); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
@@ -335,9 +201,9 @@ void __exit dbox2_fp_rc_exit(void)
 	if (new_rc)
 		dbox2_fp_queue_free(3);
 
-#ifdef OLD_INTERFACE
-	devfs_unregister(devfs_handle);
-#endif
+	// Disable break codes	
+	//fp_sendcmd(fp_get_i2c(), 0x01, 0x00);
+	fp_sendcmd(fp_get_i2c(), 0x26, 0x00); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
 
 }
 
