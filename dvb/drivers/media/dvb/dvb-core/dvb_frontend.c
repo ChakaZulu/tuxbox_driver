@@ -269,8 +269,11 @@ int dvb_frontend_get_event (struct dvb_frontend_data *fe,
                 if (flags & O_NONBLOCK)
                         return -EWOULDBLOCK;
 
+		up(&fe->sem);
                 ret = wait_event_interruptible (events->wait_queue,
                                                 events->eventw != events->eventr);
+		down(&fe->sem);
+
                 if (ret < 0)
                         return ret;
         }
