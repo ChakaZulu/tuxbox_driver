@@ -4,7 +4,7 @@
  * Philips TDA8044H QPSK demodulator driver
  *
  * Copyright (C) 2001 Felix Domke <tmbinc@elitedvb.net>
- * Copyright (C) 2002-2003 Andreas Oberritter <obi@linuxtv.org>
+ * Copyright (C) 2002-2004 Andreas Oberritter <obi@linuxtv.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,22 +21,34 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 
+#define TDA8044_IRQ	14
+#define TSA5059_PLL_CLK	4000000	/* 4 MHz */
 
 static int debug = 0;
 #define dprintk	if (debug) printk
 
+struct tda8044 {
+	u8 reg02;
+	fe_code_rate_t code_rate;
+	fe_spectral_inversion_t spectral_inversion;
+	fe_status_t status;
+	struct dvb_i2c_bus *i2c;
+	struct tq_struct tasklet;
+};
 
 static struct dvb_frontend_info tda8044_info = {
 	.name = "TDA8044H QPSK Demodulator",
 	.type = FE_QPSK,
-	.frequency_min = 500,
+	.frequency_min = 500000,
 	.frequency_max = 2700000,
 	.frequency_stepsize = 125,
 	.symbol_rate_min = 4500000,
@@ -49,9 +61,6 @@ static struct dvb_frontend_info tda8044_info = {
 		FE_CAN_QPSK |
 		FE_CAN_MUTE_TS
 };
-
-
-static u8 fbcn = 0xC;
 
 
 static u8 tda8044_inittab [] = {
@@ -99,7 +108,7 @@ static u8 tda8044_readreg(struct dvb_i2c_bus *i2c, u8 reg)
 }
 
 
-static int tuner_write(struct dvb_i2c_bus *i2c, u8 *buf, u8 len)
+static int tda8044_pll_write(struct dvb_i2c_bus *i2c, u8 *buf, u8 len)
 {
 	int ret;
 	struct i2c_msg msg = { .addr = 0x63, .flags = 0, .buf = buf, .len = len };
@@ -108,26 +117,92 @@ static int tuner_write(struct dvb_i2c_bus *i2c, u8 *buf, u8 len)
 	ret = i2c->xfer(i2c, &msg, 1);
 	tda8044_writereg(i2c, 0x1c, 0x00);
 
-	if (ret != 1)
+	if (ret != 1) {
 		dprintk("%s: i2c xfer error (ret == %i)\n",
 			__FUNCTION__, ret);
+		return -EREMOTEIO;
+	}
 
-	return (ret != 1) ? -1 : 0;
+	return 0;
 }
 
+static __inline__ u32 tda8044_div(u32 a, u32 b)
+{
+	return (a + (b / 2)) / b;
+}
 
-static int tuner_set_tv_freq(struct dvb_i2c_bus *i2c, u32 freq)
+static __inline__ u32 tda8044_gcd(u32 a, u32 b)
+{
+	u32 r;
+
+	while ((r = a % b)) {
+		a = b;
+		b = r;
+	}
+
+	return b;
+}
+
+static int tsa5059_set_freq(struct dvb_i2c_bus *i2c, u32 freq)
 {
 	u8 buf[4];
+	u32 ref;
+	u8 cp;
+	u8 pe;
+	u8 r;
+	int diff;
+	int i;
 
-	freq /= 1000;
+	if (freq < 1100000)		/*  555uA */
+		cp = 2;
+	else if (freq < 1200000)	/*  260uA */
+		cp = 1;
+	else if (freq < 1600000)	/*  120uA */
+		cp = 0;
+	else if (freq < 1800000)	/*  260uA */
+		cp = 1;
+	else if (freq < 2000000)	/*  555uA */
+		cp = 2;
+	else				/* 1200uA */
+		cp = 3;
 
-	buf[0] = (freq >> 8) & 0x7f;
-	buf[1] = freq & 0xff;
-	buf[2] = 0x81;
-	buf[3] = 0x60;
+	if (freq <= 2300000)
+		pe = 0;
+	else if (freq <= 2700000)
+		pe = 1;
+	else
+		return -EINVAL;
 
-	return tuner_write(i2c, buf, sizeof(buf));
+	diff = INT_MAX;
+
+	/* allow 2000kHz - 125kHz */
+	for (i = 0; i < 5; i++) {
+		u32 cfreq = tda8044_div(TSA5059_PLL_CLK, (2 << i));
+		u32 tmpref = tda8044_div((freq * 1000), (cfreq << pe));
+		int tmpdiff = (freq * 1000) - (tmpref * (cfreq << pe));
+
+		if (abs(tmpdiff) > abs(diff))
+			continue;
+
+		diff = tmpdiff;
+		ref = tmpref;
+		r = i;
+
+		if (diff == 0)
+			break;
+	}
+
+	buf[0] = (ref >> 8) & 0x7f;
+	buf[1] = (ref >> 0) & 0xff;
+	buf[2] = 0x80 | ((ref >> 10) & 0x60) | (pe << 4) | r;
+	buf[3] = (cp << 6) | 0x40;
+
+	if (tda8044_pll_write(i2c, buf, sizeof(buf)) < 0) {
+		printk(KERN_ERR "tda8044: pll write error\n");
+		return 0;
+	}
+
+	return diff;
 }
 
 
@@ -139,7 +214,7 @@ static int tda8044_init(struct dvb_i2c_bus *i2c)
 		if (tda8044_writereg(i2c, i, tda8044_inittab[i]) < 0)
 			return -1;
 
-	udelay(10000);
+	mdelay(10);
 
 	tda8044_writereg(i2c, 0x0F, 0x50);
 #if 1
@@ -152,10 +227,9 @@ static int tda8044_init(struct dvb_i2c_bus *i2c)
 
 	mdelay(10);
 
-	tda8044_inittab[0x00] = 0x00; /* 0x04: request interrupt */
+	tda8044_inittab[0x00] = 0x04; /* 0x04: request interrupt */
 	tda8044_inittab[0x0F] = 0x50;
-	tda8044_inittab[0x16] |= fbcn << 4;
-	tda8044_inittab[0x1F] = 0x7F;
+	tda8044_inittab[0x1F] = 0x6c;
 
 	for (i = 0; i < sizeof(tda8044_inittab); i++)
 		if (tda8044_writereg(i2c, i, tda8044_inittab[i]) < 0)
@@ -180,17 +254,6 @@ static int tda8044_write_buf(struct dvb_i2c_bus *i2c, u8 *buf, u8 len)
 	return 0;
 }
 
-
-#if 0
-static int tda8044_request_interrupt(struct dvb_i2c_bus *i2c)
-{
-	u8 reg0 = tda8044_readreg(i2c, 0x00);
-
-	return tda8044_writereg(i2c, 0x00, reg0 | 0x04);
-}
-#endif
-
-
 static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 				  fe_spectral_inversion_t inversion,
 				  u32 symbol_rate,
@@ -198,6 +261,10 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 {
 	u8 buf[16];
 	u32 ratio;
+	u32 clk = 96000000;
+	u32 k = (1 << 21);
+	u32 sr = symbol_rate;
+	u32 gcd;
 
 	/* register */
 	buf[0x00] = 0x01;
@@ -219,13 +286,20 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 	 * CLK ratio:
 	 * 
 	 * system clock frequency is 96000000 Hz
-	 * TODO: calculate better ;)
 	 * formula: 2^21 * freq / symrate
-	 * 
-	 * clock and symbol rate are divided by 100000
-	 * to avoid an integer overflow
+	 *
+	 * FIXME: there might still be integer overflows
+	 * when gcds are very small
 	 */
-	ratio = (1 << 21) * 960 / (symbol_rate / 100000);
+	gcd = tda8044_gcd(clk, sr);
+	clk /= gcd;
+	sr /= gcd;
+
+	gcd = tda8044_gcd(k, sr);
+	k /= gcd;
+	sr /= gcd;
+
+	ratio = tda8044_div(k * clk, sr);
 	buf[0x02] = ratio >> 16;
 	buf[0x03] = ratio >> 8;
 	buf[0x04] = ratio;
@@ -398,45 +472,22 @@ static void tda8044_reset(struct dvb_i2c_bus *i2c)
 
 static int tda8044_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
+	struct tda8044 *tda = fe->data;
+
 	switch (cmd) {
 	case FE_GET_INFO:
 		memcpy(arg, &tda8044_info, sizeof(struct dvb_frontend_info));
 		break;
 
 	case FE_READ_STATUS:
-	{
-		fe_status_t *status = (fe_status_t *) arg;
-		u8 sync;
-
-		*status = 0;
-		sync = tda8044_readreg(fe->i2c, 0x02);
-
-		if (sync & 0x01) /* demodulator lock */
-			*status |= FE_HAS_SIGNAL;
-		if (sync & 0x02) /* clock recovery lock */
-			*status |= FE_HAS_CARRIER;
-		if (sync & 0x04) /* viterbi lock */
-			*status |= FE_HAS_VITERBI;
-		if (sync & 0x08) /* deinterleaver lock (packet sync) */
-			*status |= FE_HAS_SYNC;
-		if (sync & 0x10) /* derandomizer lock (frame sync) */
-			*status |= FE_HAS_LOCK;
+		*(fe_status_t *)arg = tda->status;
 		break;
-	}
 
 	case FE_READ_BER:
-#if 0
-		*((u32*) arg) = ((tda8044_readreg(fe->i2c, 0x0b) & 0x1f) << 16) |
+		*(u32 *)arg = ((tda8044_readreg(fe->i2c, 0x0b) & 0x1f) << 16) |
 				(tda8044_readreg(fe->i2c, 0x0c) << 8) |
 				tda8044_readreg(fe->i2c, 0x0d);
-#endif		
-		*((u32*) arg) = tda8044_readreg(fe->i2c, 0x0d) |
-				(tda8044_readreg(fe->i2c, 0x0c) << 8) |
-				((tda8044_readreg(fe->i2c, 0x0b) & 0x1f) << 16);
-#if 0
-		/* FIXME: scale to bit errors per 10^9 bits */
-		*((u32*) arg) *= 1953125 / (2 << (5 + fbcn));
-#endif
+		break;
 
 	case FE_READ_SIGNAL_STRENGTH:
 	{
@@ -464,10 +515,7 @@ static int tda8044_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	{
 		struct dvb_frontend_parameters * p = arg;
 
-		tuner_set_tv_freq(fe->i2c, p->frequency);
-#if 0
-		tda8044_request_interrupt(fe->i2c);
-#endif
+		tsa5059_set_freq(fe->i2c, p->frequency);
 		tda8044_set_parameters(fe->i2c, p->inversion, p->u.qpsk.symbol_rate, p->u.qpsk.fec_inner);
 		tda8044_set_clk(fe->i2c);
 		tda8044_set_scpc_freq_offset(fe->i2c);
@@ -477,20 +525,10 @@ static int tda8044_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 	case FE_GET_FRONTEND:
 	{
-		struct dvb_frontend_parameters * p = arg;
+		struct dvb_frontend_parameters *p = arg;
 
-		u8 reg0e = tda8044_readreg(fe->i2c, 0x0e);
-
-		/* FIXME: p->frequency = */
-
-		p->inversion = (reg0e & 0x80) >> 7;
-
-		/* FIXME: p->u.qpsk.symbol_rate = */
-
-		if ((reg0e & 0x07) == 0)
-			p->u.qpsk.fec_inner = FEC_8_9;
-		else
-			p->u.qpsk.fec_inner = reg0e & 0x07;
+		p->inversion = tda->spectral_inversion;
+		p->u.qpsk.fec_inner = tda->code_rate;
 		break;
 	}
 
@@ -526,36 +564,108 @@ static int tda8044_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	return 0;
 }
 
+static void tda8044_irq(int irq, void *priv, struct pt_regs *pt)
+{
+	schedule_task(priv);
+}
+
+static void tda8044_tasklet(void *priv)
+{
+	struct tda8044 *tda = priv;
+	u8 val;
+
+	static const fe_spectral_inversion_t inv_tab[] = {
+		INVERSION_OFF, INVERSION_ON
+	};
+
+	static const fe_code_rate_t fec_tab[] = {
+		FEC_8_9, FEC_1_2, FEC_2_3, FEC_3_4,
+		FEC_4_5, FEC_5_6, FEC_6_7, FEC_7_8,
+	};
+
+	tda8044_writereg(tda->i2c, 0x00, 0x04);
+	enable_irq(TDA8044_IRQ);
+
+	val = tda8044_readreg(tda->i2c, 0x02);
+
+	if (val == tda->reg02)
+		return;
+
+	tda->status = 0;
+
+	if (val & 0x01) /* demodulator lock */
+		tda->status |= FE_HAS_SIGNAL;
+	if (val & 0x02) /* clock recovery lock */
+		tda->status |= FE_HAS_CARRIER;
+	if (val & 0x04) /* viterbi lock */
+		tda->status |= FE_HAS_VITERBI;
+	if (val & 0x08) /* deinterleaver lock (packet sync) */
+		tda->status |= FE_HAS_SYNC;
+	if (val & 0x10) /* derandomizer lock (frame sync) */
+		tda->status |= FE_HAS_LOCK;
+
+	tda->reg02 = val;
+
+	if (tda->status & FE_HAS_LOCK) {
+		val = tda8044_readreg(tda->i2c, 0x0e);
+		tda->spectral_inversion = inv_tab[(val >> 7) & 0x01];
+		tda->code_rate = fec_tab[val & 0x07];
+	}
+	else {
+		tda->spectral_inversion = INVERSION_AUTO;
+		tda->code_rate = FEC_AUTO;
+	}
+}
 
 static int tda8044_attach(struct dvb_i2c_bus *i2c, void **data)
 {
+	struct tda8044 *tda;
+	int ret;
+
 	if (tda8044_writereg(i2c, 0x89, 0x00) < 0)
 		return -ENODEV;
 
 	if (tda8044_readreg(i2c, 0x00) != 0x04)
 		return -ENODEV;
 
-	return dvb_register_frontend(tda8044_ioctl, i2c, NULL, &tda8044_info);
-}
+	*data = tda = kmalloc(sizeof(struct tda8044), GFP_KERNEL);
+	if (!tda)
+		return -ENOMEM;
 
+	tda->reg02 = 0xff;
+	tda->spectral_inversion = INVERSION_AUTO;
+	tda->code_rate = FEC_AUTO;
+	tda->status = 0;
+	tda->i2c = i2c;
+	INIT_TQUEUE(&tda->tasklet, tda8044_tasklet, tda);
+
+	if ((ret = request_irq(TDA8044_IRQ, tda8044_irq, SA_ONESHOT, "tda8044", &tda->tasklet)) < 0) {
+		printk(KERN_ERR "%s: request_irq failed (%d)\n", __FUNCTION__, ret);
+		return ret;
+	}
+
+	return dvb_register_frontend(tda8044_ioctl, i2c, tda, &tda8044_info);
+}
 
 static void tda8044_detach(struct dvb_i2c_bus *i2c, void *data)
 {
+	struct tda8044 *tda;
+
+	free_irq(TDA8044_IRQ, &tda->tasklet);
+	kfree(data);
+
 	dvb_unregister_frontend(tda8044_ioctl, i2c);
 }
-
 
 static int __init init_tda8044(void)
 {
 	return dvb_register_i2c_device(THIS_MODULE, tda8044_attach, tda8044_detach);
 }
 
-
 static void __exit exit_tda8044(void)
 {
 	dvb_unregister_i2c_device(tda8044_attach);
 }
-
 
 module_init(init_tda8044);
 module_exit(exit_tda8044);
