@@ -21,7 +21,6 @@
 #define gGMR            0x00
 #define gCLTA           0x04
 #define gCLTD           0x06
-#define gTCR            0x08
 #define gCCR            0x0A
 #define gGVSA           0x0C
 #define gGVP            0x10
@@ -75,6 +74,27 @@
 #define gPCMC           0xe8
 #define gPCMD           0xec
 
+#define gPTS0			0x280
+#define gPTS1			0x282
+#define gPTSO			0x284
+#define gTCR            0x286
+#define gTSR            0x288
+
+#define gAQRPL			0x1E0
+#define gAQRPH			0x1E2
+#define gAQWPL			0x1E4
+#define gAQWPH			0x1E6
+#define gTQRPL			0x1E8
+#define gTQRPH			0x1EA
+#define gTQWPL			0x1EC
+#define gTQWPH			0x1EE
+#define gVQRPL			0x1F0
+#define gVQRPH			0x1F2
+#define gVQWPL			0x1F4
+#define gVQWPH			0x1F6
+
+#define gC0CR			0x10C
+#define gC1CR			0x10E
 
 #define gQI0            0x1C0
 
