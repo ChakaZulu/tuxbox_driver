@@ -610,10 +610,10 @@ int dvb_frontend_open (struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
-		if ((ret = dvb_generic_open (inode, file)) < 0)
-			return ret;
+	if ((ret = dvb_generic_open (inode, file)) < 0)
+		return ret;
 
+	if (!((file->f_flags & O_ACCMODE) == O_RDONLY)) {
 		dvb_frontend_start (fe);
 
 		/*  empty event queue */
