@@ -1,9 +1,9 @@
 /*
- * $Id: sqc6100.c,v 1.5 2003/12/20 22:29:42 obi Exp $
+ * $Id: sqc6100.c,v 1.6 2003/12/25 15:30:51 wjoost Exp $
  *
  * Infineon SQC6100 DVB-T Frontend Driver
  *
- * (C) 2003 Andreas Oberritter <obi@linuxtv.org>,
+ * (C) 2003 Andreas Oberritter <obi@saftware.de>,
  *          Wolfram Joost <dbox2@frokaschwei.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,8 +33,8 @@
 
 #define I2C_ADDR_SQC6100	0x0d
 
-#define SQC6100_DEBUG		1
-#define SQC6100_PROC_INTERFACE
+/* #define SQC6100_DEBUG		1 */
+/* #define SQC6100_PROC_INTERFACE */
 
 #ifdef SQC6100_PROC_INTERFACE
 #include <linux/proc_fs.h>
@@ -45,8 +45,10 @@ static unsigned char sqc6100_proc_registered = 0;
 #define XTAL_FRQ		 28900000UL	/*  28.9 MHz */
 #define IFCLK			(XTAL_FRQ)
 
-static u32 frequency = 0;
+static u32 frequency;
 static fe_bandwidth_t bandwidth;
+static fe_status_t sqc6100_status;
+u8 sqc6100_channel_change_ok;
 
 static struct dvb_frontend_info sqc6100_info = {
 	.name = "Infineon SQC6100",
@@ -86,7 +88,7 @@ static int sqc6100_read(struct dvb_i2c_bus *i2c,
 		return -EREMOTEIO;
 	}
 
-//#if SQC6100_DEBUG
+/* #if SQC6100_DEBUG */
 #if 0
 	{
 		int i;
@@ -151,40 +153,59 @@ static inline int sqc6100_writereg(struct dvb_i2c_bus *i2c,
 	return sqc6100_write(i2c, reg, &val, 1);
 }
 
+
 static int sqc6100_read_status(struct dvb_i2c_bus *i2c, fe_status_t *status)
 {
 	int ret;
 	u8 vd_status;
-	u8 sd_status;
-	u8 ct_status;
+	u8 intr_status1;
+	u8 intr_status2;
+	u8 intr_status7;
 
-	if ((ret = sqc6100_readreg(i2c, SD_STATUS, &sd_status)) < 0)
-		return ret;
-
-	if ((ret = sqc6100_readreg(i2c, CT_STATUS, &ct_status)) < 0)
-		return ret;
+	*status = 0;
 
 	if ((ret = sqc6100_readreg(i2c, VD_STATUS, &vd_status)) < 0)
 		return ret;
 
-	*status = 0;
+	if ((ret = sqc6100_readreg(i2c, INTR_STATUS1, &intr_status1)) < 0)
+		return ret;
 
-	if (sd_status & 0x10)
-		*status |= FE_HAS_SIGNAL;
+	if ((ret = sqc6100_readreg(i2c, INTR_STATUS2, &intr_status2)) < 0)
+		return ret;
 
-	if ((ct_status & 0x06) == 0x06)
-		*status |= FE_HAS_CARRIER;
+	if ((ret = sqc6100_readreg(i2c, INTR_STATUS7, &intr_status7)) < 0)
+		return ret;
 
-	if (vd_status & 0x80)
-		*status |= FE_HAS_VITERBI;
+	if (intr_status2 & 0x08)
+		sqc6100_channel_change_ok = 1;
 
-	/* FIXME */
-	if (*status == (FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI))
-		*status |= FE_HAS_SYNC;
+	if (intr_status7 & 0x01)
+		sqc6100_status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
 
-	/* FIXME */
-	if (*status == (FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC))
-		*status |= FE_HAS_LOCK;
+	if (intr_status1 & 0x20)
+		sqc6100_status &= ~FE_HAS_SYNC;
+
+	if (intr_status1 & 0x10)
+		sqc6100_status |= FE_HAS_SYNC;
+
+	if (intr_status1 & 0x80)
+		sqc6100_status &= ~FE_HAS_VITERBI;
+
+	if (intr_status1 & 0x40)
+		sqc6100_status |= FE_HAS_VITERBI;
+
+	if (sqc6100_channel_change_ok &&
+	    ((sqc6100_status & (FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_CARRIER)) ==
+		 (FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_CARRIER)) )
+		sqc6100_status |= FE_HAS_LOCK;
+	else
+		sqc6100_status &= ~FE_HAS_LOCK;
+
+	*status = sqc6100_status;
+
+	sqc6100_writereg(i2c,INTR_MODE,0x04);
+	udelay(100);
+	sqc6100_writereg(i2c,INTR_MODE,0x00);
 
 	return 0;
 }
@@ -193,34 +214,23 @@ static int sqc6100_read_ber(struct dvb_i2c_bus *i2c, u32 *ber)
 {
 	int ret;
 	u8 rs_biterr[2];
+	fe_status_t status;
+
+	if ( (ret = sqc6100_read_status(i2c,&status)) < 0)
+		return ret;
+
+	if (!(status & FE_HAS_SYNC))
+	{
+		*ber = 0;
+		return 0;
+	}
 
 	if ((ret = sqc6100_read(i2c, RS_BITERR1, rs_biterr, 2)) < 0)
 		return ret;
 
-	/* FIXME: scale */
-	*ber = (rs_biterr[1] << 8) | rs_biterr[0];
+	/* RS_EST_PERIOD = 255 */
+	*ber = (((rs_biterr[1] << 8) | rs_biterr[0]) * 100) / 385024;
 
-	return 0;
-}
-
-static int sqc6100_read_signal_strength(struct dvb_i2c_bus *i2c,
-					u16 *signal_strength)
-{
-	int ret;
-	u8 agc_gain;
-
-	if ((ret = sqc6100_readreg(i2c, AGC_GAIN, &agc_gain)) < 0)
-		return ret;
-
-	*signal_strength = (agc_gain << 8) | agc_gain;
-
-	return 0;
-}
-
-static int sqc6100_read_snr(struct dvb_i2c_bus *i2c, u16 *snr)
-{
-	/* FIXME */
-	*snr = 0;
 	return 0;
 }
 
@@ -229,6 +239,16 @@ static int sqc6100_read_uncorrected_blocks(struct dvb_i2c_bus *i2c,
 {
 	int ret;
 	u8 rs_frmerr;
+	fe_status_t status;
+
+	if ( (ret = sqc6100_read_status(i2c,&status)) < 0)
+		return ret;
+
+	if (!(status & FE_HAS_SYNC))
+	{
+		*uncorrected_blocks = 0;
+		return 0;
+	}
 
 	if ((ret = sqc6100_readreg(i2c, RS_FRMERR, &rs_frmerr)) < 0)
 		return ret;
@@ -339,9 +359,9 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 	const u8 ofdm_mode[] =
 		{ 0x00, 0x01, 0x00 };
 	const u8 code_rate_lo[] =
-		{ 0x00, 0x00, 0x04, 0x08, 0x00, 0x0c, 0x00, 0x10, 0x00, 0x00 };
-	const u8 code_rate_hi[] =
 		{ 0x00, 0x00, 0x20, 0x40, 0x00, 0x60, 0x00, 0x80, 0x00, 0x00 };
+	const u8 code_rate_hi[] =
+		{ 0x00, 0x00, 0x04, 0x08, 0x00, 0x0C, 0x00, 0x10, 0x00, 0x00 };
 	const u8 hierarc_mode[] =
 		{ 0x00, 0x02, 0x04, 0x06, 0x00 };
 	const u8 guard_interval[] =
@@ -410,6 +430,9 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 
 	if ((ret = sqc6100_writereg(i2c, GC_RES_TSERR, 0x03)) < 0)
 		return ret;
+
+	sqc6100_status = 0;
+	sqc6100_channel_change_ok = 0;
 
 	/*
 	 * Program PLL of tuner
@@ -485,10 +508,18 @@ static int sqc6100_set_frontend(struct dvb_i2c_bus *i2c,
 	 * Set watchdog time windows
 	 */
 
+#if 0
+	/*
+	 * bn does this - not needed, we are not in search mode
+	 */
 	if ((ret = sqc6100_writereg(i2c, GC_WD1_SE2, 0x16)) < 0)
 		return ret;
+#endif
 
-	if ((ret = sqc6100_writereg(i2c, GC_WD1_CH2, 0x1C)) < 0)
+	/*
+	 * bn sets this to different values, e.g. 0x1C
+	 */
+	if ((ret = sqc6100_writereg(i2c, GC_WD1_CH2, 0x30)) < 0)
 		return ret;
 
 	/*
@@ -540,7 +571,6 @@ static int sqc6100_get_frontend(struct dvb_i2c_bus *i2c,
 
 	if ( (((tps[0] != 0xEE) || (tps[1] != 0x35)) &&
 		  ((tps[0] != 0x11) || (tps[1] != 0xCA))) ||
-		  ((tps[2] & 0x3F) != 0x17) ||
 		  (tps[3] & 0x10) ||
 		  (tps[4] & 0x40) )
 		return -EINVAL;
@@ -580,7 +610,7 @@ static int sqc6100_reset(struct dvb_i2c_bus *i2c)
 
 static int sqc6100_sleep(struct dvb_i2c_bus *i2c)
 {
-	return sqc6100_reset(i2c);		// This stops demod operation
+	return sqc6100_reset(i2c);		/* This stops demod operation */
 }
 
 static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
@@ -608,10 +638,10 @@ static int sqc6100_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		return sqc6100_read_ber(i2c, arg);
 
 	case FE_READ_SIGNAL_STRENGTH:
-		return sqc6100_read_signal_strength(i2c, arg);
+		return -ENOSYS;		/* AGC_GAIN unusable */
 
 	case FE_READ_SNR:
-		return sqc6100_read_snr(i2c, arg);
+		return -ENOSYS;
 
 	case FE_READ_UNCORRECTED_BLOCKS:
 		return sqc6100_read_uncorrected_blocks(i2c, arg);
