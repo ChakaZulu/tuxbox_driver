@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.9  2002/08/12 17:00:47  obi
+ *	removed compiler warning
+ *	
  *	Revision 1.8  2002/05/06 02:18:19  obi
  *	cleanup for new kernel
  *	
@@ -48,7 +51,7 @@
  *	- initial release (not ready today)
  *
  *
- *	$Revision: 1.8 $
+ *	$Revision: 1.9 $
  *
  */
 
@@ -163,7 +166,7 @@ static int event_ioctl (struct inode *inode, struct file *file, unsigned int cmd
 	switch(cmd)
 	{
 		case EVENT_SET_FILTER:
-			printk("set event: %08X\n",arg);
+			printk("set event: %08lX\n",arg);
 			event_priv->event_filter = arg;
 			break;
 		default:

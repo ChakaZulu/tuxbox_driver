@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.21  2002/08/12 16:58:52  obi
+ *   removed compiler warning
+ *
  *   Revision 1.20  2002/05/06 02:18:18  obi
  *   cleanup for new kernel
  *
@@ -80,7 +83,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -200,7 +203,7 @@ static void avs_event_cleanup(void);
 static void avs_event_func(unsigned long data);
 static void avs_event_task(void *data);
 
-static u32 avs_event_delay;
+//static u32 avs_event_delay;
 
 struct tq_struct avs_event_tasklet=
 {
