@@ -735,6 +735,7 @@ static int __init samsung_ir_init(void)
 		if (avia_gt_alloc_irq(ENX_IRQ_IR_RX,samsung_ir_receive_irq))
 		{
 			printk(KERN_ERR "dbox_samsung: Cannot allocate irq.\n");
+			input_unregister_device(&idev);
 			return -EIO;
 		}
 
@@ -754,6 +755,7 @@ static int __init samsung_ir_init(void)
 		if (avia_gt_alloc_irq(GTX_IRQ_IR_RX,samsung_ir_receive_irq))
 		{
 			printk(KERN_ERR "dbox_samsung: Cannot allocate irq.\n");
+			input_unregister_device(&idev);
 			return -EIO;
 		}
 
