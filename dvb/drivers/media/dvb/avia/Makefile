@@ -18,7 +18,7 @@ BUILD_DATE=$(shell date)
 # when compiling module(s)
 
 M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o aviam.o
-
+obj-m  = gtx_core.o gtx_fb.o gtx_dmx.o aviam.o
 AVIA_OBJS = 500v093.o 600vb017.o avia.o
 GTX_FB    = gtx-fb.o fbgen.o
 GTX_DMX   = gtx-dmx.o

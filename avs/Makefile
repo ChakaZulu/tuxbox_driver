@@ -9,7 +9,7 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.0-test12/misc/
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.0/misc/
 
 BUILD_DATE=$(shell date)
 
@@ -20,6 +20,9 @@ BUILD_DATE=$(shell date)
 M_OBJS       = cxa2092.o
 APPZ	     = avs
 APPZ_SOURCE  = cxa2092_test.c
+
+# 2.4.0 Kernel Option
+obj-m = $(M_OBJS)
 
 EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 

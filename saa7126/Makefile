@@ -9,7 +9,7 @@ KERNEL_LOCATION=/LinuxPPC/usr/src/linux
 
 #GCC = $(CROSS_COMPILE)gcc -I/usr/include/linux
 #LD =  $(CROSS_COMPILE)ld
-MODULE_DEST= /LinuxPPC/lib/modules/2.4.0-test12/misc/
+MODULE_DEST= /LinuxPPC/lib/modules/2.4.0/misc/
 
 BUILD_DATE=$(shell date)
 
@@ -19,6 +19,9 @@ BUILD_DATE=$(shell date)
 
 M_OBJS    = saa7126.o
 SAA_OBJS  = saa7126_core.o saa7126_calc.o
+
+# 2.4.0 Kernel Option
+obj-m = $(M_OBJS)
 
 EXTRA_CFLAGS=-DBUILD_DATE='"$(BUILD_DATE)"'
 
