@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.26  2001/03/16 17:49:56  gillem
+ *   - fix section parser
+ *
  *   Revision 1.25  2001/03/15 15:56:26  gillem
  *   - fix dprintk output
  *
@@ -76,7 +79,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 
@@ -494,7 +497,7 @@ static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 
     for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
 		{
-      if ((gtxfeed->sec_buffer[i]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i])
+      if ((gtxfeed->sec_buffer[0]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i])
 			{
         ok=0;
 			}
