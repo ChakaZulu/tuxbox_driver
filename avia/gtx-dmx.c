@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.13  2001/02/27 14:15:22  tmbinc
+ *   added sections.
+ *
  *   Revision 1.12  2001/02/17 01:19:19  tmbinc
  *   fixed DPCR
  *
@@ -36,7 +39,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -76,6 +79,8 @@
 
 static unsigned char* gtxmem;
 static unsigned char* gtxreg;
+
+        // #undef GTX_SECTIONS
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
@@ -118,6 +123,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
   rw(RISC+0x740+entry*4)=*(u32*)w;
 }
 
+#ifdef GTX_SECTIONS
 void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork, int cw_offset, int cc, int start_up, int pec, int filt_tab_idx, int no_of_filters)
 {
   u8 w[4];
@@ -131,7 +137,10 @@ void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork,
   w[2]|=(!!pec)<<5;
   w[2]|=filt_tab_idx;
   w[3]=no_of_filters;
+  printk("no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
   rw(RISC+0x740+entry*4)=*(u32*)w;
+  udelay(1000*1000);
+  printk("read %08x\n", rw(RISC+0x740+entry*4));
 }
 
 void gtx_set_filter_definition_table(int entry, int and_or_flag, int filter_param_id)
@@ -139,7 +148,7 @@ void gtx_set_filter_definition_table(int entry, int and_or_flag, int filter_para
   u8 w[4]={0, 0};
   w[0]=(!!and_or_flag)<<7;
   w[0]|=filter_param_id<<6;
-  rh(RISC+0x7C0+entry*2)=*(u16*)w;      // TODO: das stimmt wahrscheinlich nicht.
+  *((char*)&rh(RISC+0x7C0+entry))=w[0];
 }
 
 void gtx_set_filter_parameter_table(int entry, u8 mask[8], u8 param[8], int not_flag, int not_flag_ver_id_byte)
@@ -167,6 +176,7 @@ void gtx_set_filter_parameter_table(int entry, u8 mask[8], u8 param[8], int not_
   rh(RISC+0x600+entry*6+2)=*(u16*)(w+14);
   rh(RISC+0x600+entry*6+4)=*(u16*)(w+16);
 }
+#endif
 
 void gtx_set_queue(int queue, u32 wp, u8 size)
 {
@@ -421,17 +431,18 @@ static void gtx_task(void *data)
   for (queue=0; datamask && queue<32; queue++)
     if (datamask&(1<<queue))
     {
-      if (gtx->feed[queue].state!=DMX_STATE_GO)
+      gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
+      if (gtxfeed->state!=DMX_STATE_GO)
         printk("DEBUG: interrupt on non-GO feed\n!");
       else
       {
-        if (gtx->feed[queue].output&TS_PACKET)
+        if (gtxfeed->output&TS_PACKET)
         {
           int wptr=gtx_get_queue_wptr(queue);
           int rptr=gtx->feed[queue].readptr;
           static int lastw, lastr;
         
-          void *b1, *b2;
+          __u8 *b1, *b2;
           size_t b1l, b2l;
        
           if (wptr>rptr)  // normal case
@@ -451,22 +462,88 @@ static void gtx_task(void *data)
           if ((b1l+b2l) % 188)
           { 
             printk("wantirq: %d\n", wantirq);
-            printk("%x %d %x %d w %x r %x lw %x lr %x\n", b1, b1l, b2, b2l, wptr, rptr, lastw, lastr);
+            printk("%p %d %p %d w %x r %x lw %x lr %x\n", b1, b1l, b2, b2l, wptr, rptr, lastw, lastr);
           }
         
           switch (gtx->feed[queue].type)
           {
           case DMX_TYPE_TS:
             gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0); break;
+#if 0
           case DMX_TYPE_SEC:
-          {
-            printk("section no section queue %d\n", queue);             // DEBUG
-            gtx->feed[queue].cb.sec(b1, b1l, b2, b2l, &gtx->feed[queue].secfilter->filter, 0); break;
+#error das ist noch UNSCHÖN und UNFERTIG
+          { 
+            if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
+            {
+              printk("there's a BIG out of sync problem\n");
+              break;
+            }
+            
+            while (b1l)                                 // arg der code hier spackt.
+            {
+              __u8 tspacket[188], *c=tspacket;
+              int t, r=188;
+              
+              t=b1l;
+              if (t>188)
+                t=188;
+                
+              r-=t;
+              
+              memcpy(c, b1, t);
+              
+              b1l-=t;
+              b1+=t;
+              c+=t;
+              
+              if (!b1l)
+              {
+                b1=b2;
+                b1l=b2l;
+                b2l=0;
+                t=b1l;
+                if (t>r)
+                  t=r;
+                memcpy(c+t, b1, t);
+                b2l-=t;
+                b2+=t;
+                c+=t;
+              }
+              
+              if (c != (tspacket+188))
+                printk("TMB KANN NICHT CODEN.\n");
+                
+              c=tspacket;
+              
+              printk("processing incoming packet.\n");
+              if (*c++!=0x47)
+              {
+                printk("NO SYNC.\n");
+                break;
+              }
+              if (*c++&0x40)
+              {
+                printk("PUSI.\n");
+                // read section length
+              }
+              
+              memcpy(gtxqueue->sec_buffer+gtxqueue->sec_recv, tspacket+188-c);
+              gtxqueue->sec_recv+=tspacket+188-c;
+              
+              if (gtxqueue->sec_recv>=gtxqueue->sec_len)
+              {
+                printk("section DONE %d bytes.\n", gtxqueue->sec_len);
+                 // filter and callback
+              }
+            }
+//            gtxfeed->cb.sec(b1, b1l, b2, b2l, &gtxfeed->secfilter->filter, 0); break;
+            break;
           }
+#endif
           case DMX_TYPE_PES:
-  //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, &gtx->feed[queue].feed.pes, 0); break;
+  //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0); break;
           }
-          gtx->feed[queue].readptr=wptr;
+          gtxfeed->readptr=wptr;
           lastw=wptr;
           lastr=rptr;
         }
@@ -563,12 +640,16 @@ static int dmx_write (struct dmx_demux_s* demux, const char* buf, size_t count)
 
 static void dmx_set_filter(gtx_demux_filter_t *filter)
 {
-  printk("SETTING invalid %d, pid %x -> %d (output: %d)\n", filter->invalid, filter->pid, filter->queue, filter->output);
+  printk("%d) SETTING invalid %d, pid %x -> %d (output: %d)\n", filter->index, filter->invalid, filter->pid, filter->queue, filter->output);
   gtx_set_pid_table(filter->index, filter->wait_pusi, filter->invalid, filter->pid);
+#if GTX_SECTIONS
   if (filter->type==GTX_FILTER_PID)
+#endif
     gtx_set_pid_control_table(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec);
+#if GTX_SECTIONS
   else
     gtx_set_pid_control_table_section(filter->index, filter->output, filter->queue, filter->fork, filter->cw_offset, filter->cc, filter->start_up, filter->pec, filter->filt_tab_idx, filter->no_of_filters);
+#endif 
 }
 
 static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callback_length, size_t circular_buffer_size, int descramble, struct timespec timeout)
@@ -641,7 +722,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
   
   gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
   
-  printk(KERN_DEBUG "STARTING filtering, pid %d\n", gtxfeed->pid);
+  printk(KERN_DEBUG "STARTING filtering queue %x, pid %d\n", gtxfeed->index, gtxfeed->pid);
 
   if (gtxfeed->output&TS_PACKET)
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
@@ -737,7 +818,7 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
 {
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_t *gtx=gtxfeed->demux;
-  gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
+//  gtx_demux_filter_t *gtxfilter=gtxfeed->filter;
   gtx_demux_secfilter_t *gtxsecfilter;
   
   printk("allocating a filter.\n");
@@ -799,7 +880,23 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
   gtxfeed->pid=pid;
 
   filter->pid=pid;
-  printk("SEC: filtering pid %d (on %d) -> %x\n", pid, gtxfeed->index, gtxfeed->secfilter);
+  filter->queue=gtxfeed->index;
+
+  filter->invalid=1;
+  filter->fork=0;
+  filter->cw_offset=0;
+  filter->cc=0;
+  filter->start_up=0;
+  filter->pec=0;
+#ifdef GTX_SECTIONS
+  filter->output=GTX_OUTPUT_8BYTE;
+#else
+  filter->output=GTX_OUTPUT_TS;
+#endif
+  dmx_set_filter(gtxfeed->filter);
+
+  printk("SEC: filtering pid %d (on %d) -> %p\n", pid, gtxfeed->index, gtxfeed->secfilter);
+  gtxfeed->output=TS_PACKET;
   gtxfeed->state=DMX_STATE_READY;
   
   return 0;
@@ -807,6 +904,7 @@ static int dmx_section_feed_set(struct dmx_section_feed_s* feed,
 
 static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
 {
+#ifdef GTX_SECTIONS
   int numflt=0;
   gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
   gtx_demux_filter_t *filter=gtxfeed->filter;
@@ -829,11 +927,12 @@ static int dmx_section_feed_start_filtering(dmx_section_feed_t *feed)
   }
 
   filter->filt_tab_idx=gtxfeed->secfilter->index;
-  filter->no_of_filters=numflt;
+  filter->no_of_filters=numflt-1;
+  printk("section filtering start (%d filter)\n", numflt);
+#endif
   
   dmx_ts_feed_start_filtering((dmx_ts_feed_t*)feed);
   
-  printk("section filtering start\n");
   return 0;
 }
 
@@ -869,6 +968,10 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
   (*feed)->release_filter=dmx_section_feed_release_filter;
   (*feed)->start_filtering=dmx_section_feed_start_filtering;
   (*feed)->stop_filtering=dmx_section_feed_stop_filtering;
+
+  gtxfeed->pes_type=DMX_TS_PES_OTHER;
+  gtxfeed->sec_buffer=kmalloc(16384, GFP_KERNEL);
+  gtxfeed->sec_len=0;
   
   if (!(gtxfeed->filter=GtxDmxFilterAlloc(gtx)))
   {
@@ -877,7 +980,7 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
     return -EBUSY;
   }
   
-  printk("allocating section feed.\n");
+  printk("allocating section feed, filter %d.\n", gtxfeed->filter->index);
   
   gtxfeed->filter->type=DMX_TYPE_SEC;
   gtxfeed->filter->feed=gtxfeed;
@@ -887,7 +990,15 @@ static int dmx_allocate_section_feed (struct dmx_demux_s* demux, dmx_section_fee
 
 static int dmx_release_section_feed (struct dmx_demux_s* demux,  dmx_section_feed_t* feed)
 {
-  return -EINVAL;
+  gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
+  if (gtxfeed->secfilter)
+  {
+    printk("BUSY.\n");
+    return -EBUSY;
+  }
+  kfree(gtxfeed->sec_buffer);
+  dmx_release_ts_feed (demux, (dmx_ts_feed_t*)feed);            // free corresponding queue
+  return 0;
 }
 
 static int dmx_add_frontend (struct dmx_demux_s* demux, dmx_frontend_t* frontend)

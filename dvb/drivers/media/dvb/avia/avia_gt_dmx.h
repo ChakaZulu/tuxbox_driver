@@ -112,10 +112,14 @@ typedef struct gtx_demux_feed_s
   gtx_demux_filter_t *filter;
   gtx_demux_secfilter_t *secfilter;
   
+  // for sections
+  __u8 *sec_buffer;
+  int sec_recv;
+  int sec_len;
+  
   int index;
   
   int base, end, size, readptr;
-    
 } gtx_demux_feed_t;
 
 typedef struct gtx_demux_s
