@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_osd.c,v $
+ *   Revision 1.8  2001/03/07 19:18:38  gillem
+ *   - fix 600er bug
+ *
  *   Revision 1.7  2001/03/06 21:49:50  gillem
  *   - some rewrites
  *
@@ -43,7 +46,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -220,8 +223,8 @@ static void osd_create_frame( struct osd_frame * frame, int x, int y, \
 	frame->even.rowstart = 22+((y/2));
 	frame->even.rowstop  = 22+(((y+h)/2));
 
-	frame->odd.rowstart = 335+((y-2)/2);
-	frame->odd.rowstop  = 335+(((y+h)-2)/2);
+	frame->odd.rowstart = 335+((y-1)/2);
+	frame->odd.rowstop  = 335+(((y+h)-1)/2);
 
 	printk("OSD COL/ROW: %d %d %d %d %d %d\n",
 		frame->odd.colstart,
@@ -284,7 +287,7 @@ static void osd_write_frame( struct osd_frame * frame )
 
 static void osd_init_frame( struct osd_frame * frame, int framenr )
 {
-	memset(frame,1,sizeof(osd_frame));
+	memset(frame,0,sizeof(osd_frame));
 
 	frame->framenr = framenr;
 
@@ -300,7 +303,7 @@ static void osd_init_frame( struct osd_frame * frame, int framenr )
 	frame->odd.n4 = 1;
 	frame->odd.n5 = 1;
 
-	if ( framenr < 1 )
+	if ( framenr < 15 )
 	{
 		frame->even.next = (osds+(OSDH_SIZE*2*(framenr+1)))>>2;
 		frame->odd.next  = (osds+(OSDH_SIZE*2*(framenr+1))+OSDH_SIZE)>>2;
@@ -374,8 +377,11 @@ static int init_avia_osd(void)
 		osds+=4;
 	}
 
+	/* clear osd mem */
 	for(i=osds;i<osde;i+=4)
+	{
 		wDR(i,0);
+	}
 
     osd_init_frames(&frames);
 
