@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.44  2002/01/19 05:54:46  Hunz
+ *   keyboard might work now
+ *
  *   Revision 1.43  2002/01/19 03:55:06  Hunz
  *   some stupid mistakes fixed
  *
@@ -135,7 +138,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.43 $
+ *   $Revision: 1.44 $
  *
  */
 
@@ -282,6 +285,56 @@ static int irkbd_translate(unsigned char scancode, unsigned char *keycode, char 
 static char irkbd_unexpected_up(unsigned char keycode);
 static void irkbd_leds(unsigned char leds);
 static void __init irkbd_init_hw(void);
+static void irkbd_mousebutton(unsigned char scancode);
+
+unsigned char keymap[128]={
+  0,   1,  59,  60,  61,  62,  63,  64,
+  65,  66,  67,  68,   0,   0,   0,   0,
+  0,   0,   0,   0,  41,   2,   3,   4,
+  5,   6,   7,   8,   9,  10,  11,  12,
+  13,  14,  15,  16,  17,  18,  19,  20,
+  21,  22,  23,  24,  25,  26,  27,  43,
+  58,  30,  31,  32,  33,  34,  35,  36,
+  37,  38,  39,  40,  28,  42,  44,  45,
+  46,  47,  48,  49,  50,  51,  52,  53,
+  /* die erste 0 der naechsten zeile ist Fn 0x49 */
+  54,   0,  29, 125,  56,  57, 100,   0,
+  127,   0,  99,  70, 119, 110,   0,   0,
+  111,   0,   0,   0,   0,   0,   0, 103,
+  86, 105, 108, 106,  69,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  /*
+   * die letzten beiden sind mausbutton
+   * rechts 0x7e und links 0x7f
+   */
+  0,   0,   0,   0,   0,   0,   0,   0
+};
+
+unsigned char fn_keymap[128] = {
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0, 104,
+  0, 102, 109, 107,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0,
+  0,   0,   0,   0,   0,   0,   0,   0
+};
+
+unsigned char irkbd_flags=0;
+
+#define IRKBD_FN 1
+#define IRKBD_MOUSER 2
+#define IRKBD_MOUSEL 4
 
 /* ------------------------------------------------------------------------- */
 
@@ -798,23 +851,42 @@ static void fp_handle_vcr(struct fp_data *dev, int fpVCR)
 /* ------------------------------------------------------------------------ */
 
 int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
-  /* TODO? :-) */
-  return keycode;
+  /* not sure if this works... */
+  if(scancode>255||keycode>127)
+    return -EINVAL;
+  if(scancode&0x80)
+    fn_keymap[scancode]=keycode;
+  else
+    keymap[scancode]=keycode;
+  return 0;
 }
 
 int irkbd_getkeycode(unsigned int scancode) {
-  /* TODO? :-| */
-  return scancode;
+  /* not sure if this works... */
+  if(scancode&0x80)
+    return fn_keymap[scancode&0x7f];
+  else
+    return keymap[scancode&0x7f];
 }
 
 int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mode) {
-  /* TODO :-( */
-  *keycode=scancode&0x7f;
+  /* i wonder wether that's enough... */
+  if((scancode&0x7f)==0x49) /* Fn toggled */
+    return 0;
+  if(!(irkbd_flags&IRKBD_FN))
+    *keycode=keymap[scancode&0x7f];
+  else
+    *keycode=fn_keymap[scancode&0x7f];
+  if(*keycode==0) {
+    if (!raw_mode)
+      printk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
+    return 0;
+  }
   return 1;
 }
 
 char irkbd_unexpected_up(unsigned char keycode) {
-  printk("fp.o: irkbd_unexpected_up\n");
+  printk("fp.o: irkbd_unexpected_up 0x%02X (flags 0x%02X)\n",keycode,irkbd_flags);
   return 0200;
 }
 
@@ -824,6 +896,17 @@ void irkbd_leds(unsigned char leds) {
 
 void __init irkbd_init_hw(void) {
   printk("fp.o: IR-Keyboard initialized\n");
+}
+
+void irkbd_mousebutton(unsigned char scancode) {
+   if(scancode==0x7e)
+     irkbd_flags|=IRKBD_MOUSER;
+   else if(scancode==0x7f)
+     irkbd_flags|=IRKBD_MOUSEL;
+   else if(scancode==0xfe)
+     irkbd_flags&=~IRKBD_MOUSER;
+   else if(scancode==0xff)
+     irkbd_flags&=~IRKBD_MOUSEL;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -912,7 +995,7 @@ static int fp_init(void)
         ppc_md.kbd_leds          = irkbd_leds;
         ppc_md.kbd_init_hw       = irkbd_init_hw;
 #ifdef CONFIG_MAGIC_SYSRQ
-        ppc_md.kbd_sysrq_xlate   = irkbd_sysrq_xlate;
+        ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
 
 	return 0;
@@ -1026,6 +1109,13 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	fp_cmd(dev->client, 3, (u8*)&scancode, 2);
 	printk("keyboard scancode: %02x\n", scancode);
         handle_scancode(scancode&0xFF, !((scancode&0xFF) & 0x80));
+	if(scancode==0x49)
+	  irkbd_flags|=IRKBD_FN;
+	else if (scancode==0xC9)
+	  irkbd_flags&=~IRKBD_FN;
+	 /* mouse button changed */
+	else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
+	  irkbd_mousebutton(scancode);
 }
 
 
