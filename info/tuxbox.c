@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tuxbox.c,v $
+ *   Revision 1.5  2003/01/03 17:19:31  Jolt
+ *   Adapt some new stuff from libtuxbox
+ *
  *   Revision 1.4  2003/01/01 22:44:41  Jolt
  *   Typo
  *
@@ -35,63 +38,65 @@
  *
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
-#include <linux/string.h>
-#include <linux/fs.h>
 #include <linux/unistd.h>
-#include <linux/fcntl.h>
-#include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#include <linux/i2c.h>
-#include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <dbox/info.h>
-#include <dbox/tuxbox.h>
+#include "../../apps/misc/libs/libtuxbox/tuxbox.h"
 
 #ifndef CONFIG_PROC_FS
 #error Please enable procfs support
 #endif
 
-static unsigned int manufacturer;
+#define DBOX2_CAPS	(TUXBOX_CAPABILITIES_IR_RC | TUXBOX_CAPABILITIES_IR_KEYBOARD | \
+					TUXBOX_CAPABILITIES_LCD | TUXBOX_CAPABILITIES_NETWORK | \
+					TUXBOX_CAPABILITIES_CAM_EMBEDDED)
+
+static unsigned int vendor = TUXBOX_VENDOR_UNKNOWN;
 
 static int read_manufacturer_id(void)
 {
-	unsigned char *conf = (unsigned char *) ioremap(0x1001FFE0, 0x20);
+
+	unsigned char *conf = (unsigned char *)ioremap(0x1001FFE0, 0x20);
 
 	if (!conf) {
+	
 		printk("tuxbox: Could not remap memory\n");
+		
 		return -1;
+		
 	}
 
 	switch (conf[0]) {
-	case DBOX_MID_NOKIA:
-		manufacturer = TUXBOX_MANUFACTURER_NOKIA;
-		break;
-	case DBOX_MID_SAGEM:
-		manufacturer = TUXBOX_MANUFACTURER_SAGEM;
-		break;
-	case DBOX_MID_PHILIPS:
-		manufacturer = TUXBOX_MANUFACTURER_PHILIPS;
-		break;
-	default:
-		manufacturer = TUXBOX_MANUFACTURER_UNKNOWN;
-		break;
+	
+		case DBOX_MID_NOKIA:
+		
+			vendor = TUXBOX_VENDOR_NOKIA;
+			
+			break;
+			
+		case DBOX_MID_SAGEM:
+		
+			vendor = TUXBOX_VENDOR_SAGEM;
+			
+			break;
+			
+		case DBOX_MID_PHILIPS:
+		
+			vendor = TUXBOX_VENDOR_PHILIPS;
+			
+			break;
+			
 	}
 
 	iounmap(conf);
@@ -102,7 +107,16 @@ static int read_manufacturer_id(void)
 
 static int tuxbox_read_proc(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
-	return sprintf(buf, "TUXBOX_VERSION=%d\nTUXBOX_MANUFACTURER=%d\nTUXBOX_MODEL=%d\n", TUXBOX_VERSION, manufacturer, TUXBOX_MODEL_DBOX2);
+
+	u32 buf_len = 0;
+	
+	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_VERSION, TUXBOX_VERSION);
+	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_VENDOR, vendor);
+	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_MODEL, TUXBOX_MODEL_DBOX2);
+	buf_len += sprintf(buf + buf_len, "%s=%d\n", TUXBOX_TAG_CAPABILITIES, DBOX2_CAPS);
+	
+	return buf_len;
+	
 }
 
 int __init tuxbox_init(void)
@@ -154,11 +168,7 @@ void __exit tuxbox_exit(void)
 module_init(tuxbox_init);
 module_exit(tuxbox_exit);
 
-#ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("tuxbox info");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
-#endif
 
