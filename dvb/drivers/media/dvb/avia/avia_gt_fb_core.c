@@ -21,6 +21,10 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.16  2002/03/29 19:16:29  obi
+ *   - simplify gtx blev code
+ *   - ioctl return value fix
+ *
  *   Revision 1.15  2002/03/27 13:13:06  derget
  *   nix
  *
@@ -89,7 +93,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -748,178 +752,119 @@ static struct fb_ops gtxfb_ops = {
 	fb_ioctl:	fb_ioctl,
 };
 
-
-static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-int val;
-#ifdef GTX	//jaja das geht auch mit weniger code aber so isses gut 
-             switch (cmd)
-                        {
-                         case GTXFB_BLEV0:
-				switch (arg) 
-				{
-                                        case 0:
-					rw(GMR)=(rw(GMR)&~(15<<20));
-                                        break;
-                                        case 1:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(1<<20);
-                                        break;
-                                        case 2:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(2<<20);
-                                        break;
-                                        case 3:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(3<<20);
-                                        break;
-                                        case 4:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(4<<20);
-                                        break;
-                                        case 5:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(5<<20);
-                                        break;
-                                        case 6:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(6<<20);
-                                        break;
-                                        case 7:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(7<<20);
-                                        break;
-                                        case 8:
-					rw(GMR)=(rw(GMR)&~(15<<20))|(8<<20);
-                                        break;
-				}				
-                        break;
-			case GTXFB_BLEV1:
-                                switch (arg)
-                                {
-					case 0:
-					rw(GMR)=(rw(GMR)&~(15<<16));
-					break;
-                                        case 1: 
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(1<<16);  
-                                        break;
-                                        case 2:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(2<<16);
-                                        break;
-                                        case 3:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(3<<16);
-                                        break;
-                                        case 4:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(4<<16);
-                                        break;
-                                        case 5:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(5<<16);
-                                        break;
-                                        case 6:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(6<<16);
-                                        break;
-                                        case 7:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(7<<16);
-                                        break;
-                                        case 8:
-                                        rw(GMR)=(rw(GMR)&~(15<<16))|(8<<16);
-                                        break;
-				}
-			break;
-			case CCUBEFB_XPOS:
-				GVP_SET_X(arg);
-			break;
-			case CCUBEFB_YPOS:     
-				GVP_SET_Y(arg);
-			break;	
-                        case CCBUBEFB_FBCON_BLACK:
-                                if(!arg)
-                                rh(TCR)=TCR_COLOR;   //  schwarzer consolen hintergrund nicht transpartent
-                                else
-                                rh(TCR)=0x8000;   //  schwarzer consolen hintergrund transparent
-                        break;
-                        default:
-                        return -EINVAL;
-                        }
-#endif //GTX
-#ifdef ENX
-             switch (cmd)
-                        {
-                        case ENXFB_BLEV10:  
-                                switch (arg)   
-                                {
-			 		case 0:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0));
-					break;
-					case 1:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<4);
-					break;
-					case 2:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<5);
-					break;
-					case 3:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<4);
-					break;
-					case 4:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<6);
-					break;
-					case 5:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(5<<4);
-					break;
-					case 6:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<5);
-					break;
-					case 7:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(7<<4);
-					break;
-					case 8:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<7);
-					break;
-				}
-			break;
-			case ENXFB_BLEV11:
-                                switch (arg)   
-                                {
-                                        case 0:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8));
-                                        break;
-					case 1:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<12);
-					break;
-					case 2:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<13);
-					break;
-					case 3:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<12);
-					break;
-					case 4:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<14);
-					break;
-					case 5:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(5<<12);
-					break;
-					case 6:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<13);
-					break;
-					case 7:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(7<<12);
-					break;
-					case 8:
-					enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<15);
-					break;
-                                }
-			break;
-                        case CCUBEFB_XPOS:
-                                ENX_GVP_SET_X(arg);
+#ifdef GTX
+	switch (cmd)
+	{
+	case GTXFB_BLEV0:
+		 rw(GMR) = (rw(GMR) &~ (15 << 20)) | (arg << 20);
+		 break;
+	case GTXFB_BLEV1:
+		rw(GMR) = (rw(GMR) &~ (15 << 16)) | (arg << 16);
+		break;
+	case CCUBEFB_XPOS:
+		GVP_SET_X(arg);
+		break;
+	case CCUBEFB_YPOS:
+		GVP_SET_Y(arg);
+		break;	
+	case CCBUBEFB_FBCON_BLACK:
+		if(!arg)
+			rh(TCR) = TCR_COLOR;   //  schwarzer consolen hintergrund nicht transpartent
+		else
+			rh(TCR) = 0x8000;   //  schwarzer consolen hintergrund transparent
+		break;
+	default:
+		return -EINVAL;
+	}
+#endif /* GTX */
 
-                        break;
-                        case CCUBEFB_YPOS:
-                                ENX_GVP_SET_Y(arg);
-                        break;
-			case CCBUBEFB_FBCON_BLACK:
-				if(!arg)
-				enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
-                                else
-				enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+#ifdef ENX
+	switch (cmd)
+	{
+	case ENXFB_BLEV10:
+		switch (arg)
+		{
+		case 0:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0));
 			break;
-			default:
-                        return -EINVAL;
-			}
-#endif //ENX
+		case 1:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<4);
+			break;
+		case 2:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<5);
+			break;
+		case 3:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<4);
+			break;
+		case 4:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<6);
+			break;
+		case 5:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(5<<4);
+			break;
+		case 6:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(3<<5);
+			break;
+		case 7:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(7<<4);
+			break;
+		case 8:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<0))|(1<<7);
+			break;
+		}
+		break;
+	case ENXFB_BLEV11:
+		switch (arg)
+		{
+		case 0:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8));
+			break;
+		case 1:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<12);
+			break;
+		case 2:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<13);
+			break;
+		case 3:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<12);
+			break;
+		case 4:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<14);
+			break;
+		case 5:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(5<<12);
+			break;
+		case 6:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(3<<13);
+			break;
+		case 7:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(7<<12);
+			break;
+		case 8:
+			enx_reg_h(GBLEV1)=(enx_reg_h(GBLEV1)&~(255<<8))|(1<<15);
+			break;
+                }
+		break;
+	case CCUBEFB_XPOS:
+		ENX_GVP_SET_X(arg);
+		break;
+	case CCUBEFB_YPOS:
+		ENX_GVP_SET_Y(arg);
+		break;
+	case CCBUBEFB_FBCON_BLACK:
+		if(!arg)
+			enx_reg_w(TCR1)=0x1FF007F;   //  schwarzer consolen hintergrund nicht transpartent
+		else
+			enx_reg_w(TCR1)=0x1000000;   //  schwarzer consolen hintergrund transparent
+		break;
+	default:
+		return -EINVAL;
+	}
+#endif /* ENX */
+
+	return 0;
 }
 
 
@@ -993,7 +938,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.15 2002/03/27 13:13:06 derget Exp $\n");
+	dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.16 2002/03/29 19:16:29 obi Exp $\n");
 	
 	return gtxfb_init();
 }
