@@ -1,0 +1,18 @@
+## Makefile.am for DFBox2/gfxdrivers/gtx
+
+INCLUDES = $(DFB_CFLAGS)
+
+gtx_LTLIBRARIES = libdirectfb_gtx.la
+
+gtxdir= $(MODULEDIR)/gfxdrivers
+
+libdirectfb_gtx_la_SOURCES = \
+	gtx.c		\
+	gtx.h		\
+	regs.h		\
+	mmio.h
+
+libdirectfb_gtx_la_LDFLAGS = \
+        -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)    \
+        -release $(LT_RELEASE)                                  \
+        -export-dynamic
