@@ -494,14 +494,29 @@ static int dvb_register(struct dvb_struct *dvb)
   dvbd->write=dvb_write;
   dvbd->ioctl=dvb_ioctl;
   dvbd->poll=dvb_poll;
+
   printk("registering device.\n");
+
   result=dvb_register_device(dvbd);
+
   if (result<0)
     return result;
+
   memcpy(dvb->hw_demux_id, "demux0", 7);
+
   dvb->hw_demux_id[5]=dvb->num+0x30;
+
+  printk("gtx/dmx init\n");
   GtxDmxInit(&dvb->hw_demux, (void*)dvb, dvb->hw_demux_id, "C-Cube", "Avia GTX");
+
   return 0;
+}
+
+void dvb_unregister(struct dvb_struct *dvb)
+{
+	GtxDmxCleanup(&dvb->hw_demux, (void*)dvb, dvb->hw_demux_id );
+
+	return dvb_unregister_device(&dvb->dvb_dev);
 }
 
 int __init dvb_init_module(void)
@@ -512,7 +527,7 @@ int __init dvb_init_module(void)
 
 void __exit dvb_cleanup_module(void)
 {
-  return dvb_unregister_device(&dvb.dvb_dev);
+	return dvb_unregister(&dvb);
 }
 
 module_init(dvb_init_module);
