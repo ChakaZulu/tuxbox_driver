@@ -28,6 +28,7 @@
 #include <dbox/ves.h>
 #include <dbox/fp.h>
 #include <dbox/gtx-dmx.h>
+#include <dbox/avia.h>
 
 #include "dmxdev.h"
 
@@ -38,7 +39,8 @@ typedef struct dvb_struct
   char                  hw_demux_id[8];
   dvb_device_t          dvb_dev;
   struct frontend       front;
-  qpsk_t                qpsk; 
+  qpsk_t                qpsk;
+  struct videoStatus    videostate;
   int                   num;
 } dvb_struct_t;
 
@@ -135,20 +137,21 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
   struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
   switch (type)
   {
-//    case DVB_DEVICE_VIDEO:
-//    case DVB_DEVICE_AUDIO:
+  case DVB_DEVICE_VIDEO:
+    break;
+//  case DVB_DEVICE_AUDIO:
 
-    case DVB_DEVICE_SEC:
-      if (file->f_flags&O_NONBLOCK)
-        return -EWOULDBLOCK;
-    case DVB_DEVICE_FRONTEND:
-      break;
-    case DVB_DEVICE_DEMUX:
-      return DmxDevFilterAlloc(&dvb->dmxdev, file);
-    case DVB_DEVICE_DVR:
-      return DmxDevDVROpen(&dvb->dmxdev, file);
-    default:
-      return -EINVAL;
+  case DVB_DEVICE_SEC:
+    if (file->f_flags&O_NONBLOCK)
+      return -EWOULDBLOCK;
+  case DVB_DEVICE_FRONTEND:
+    break;
+  case DVB_DEVICE_DEMUX:
+    return DmxDevFilterAlloc(&dvb->dmxdev, file);
+  case DVB_DEVICE_DVR:
+    return DmxDevDVROpen(&dvb->dmxdev, file);
+  default:
+    return -EINVAL;
   }
   return 0;
 }
@@ -158,9 +161,9 @@ int dvb_close(struct dvb_device *dvbdev, int type, struct inode *inode, struct f
   struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
 
   switch (type) {
- // case DVB_DEVICE_VIDEO:
- //   AV_Stop(dvb, RP_VIDEO);
- //   break;
+  case DVB_DEVICE_VIDEO:
+    avia_wait(avia_command(Reset));
+    break;
  // case DVB_DEVICE_AUDIO:
  //   AV_Stop(dvb, RP_AUDIO);
  //   break;
@@ -203,7 +206,8 @@ ssize_t dvb_write(struct dvb_device *dvbdev, int type, struct file *file, const 
   struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
 
   switch (type) {
-//  case DVB_DEVICE_VIDEO:
+  case DVB_DEVICE_VIDEO:
+    return -ENOSYS;
 //        case DVB_DEVICE_AUDIO:
   case DVB_DEVICE_DVR:
     return DmxDevDVRWrite(&dvb->dmxdev, file, buf, count, ppos);
@@ -217,7 +221,68 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
   struct dvb_struct *dvb=(struct dvb_struct *) dvbdev->priv;
   void *parg=(void *)arg;
   switch (type) {
-//  case DVB_DEVICE_VIDEO:
+  case DVB_DEVICE_VIDEO:
+  {
+    if (((file->f_flags&O_ACCMODE)==O_RDONLY) && (cmd!=VIDEO_GET_STATUS))
+      return -EPERM;
+    switch (cmd)
+    {
+    case VIDEO_STOP:
+      dvb->videostate.playState=VIDEO_STOPPED;
+      avia_wait(avia_command(Pause, 3, 3));
+      break;
+    case VIDEO_PLAY:
+      avia_wait(avia_command(Play, 0, 0, 0));
+      dvb->videostate.playState=VIDEO_PLAYING;
+      break;
+    case VIDEO_FREEZE:
+      dvb->videostate.playState=VIDEO_FREEZED;
+      avia_wait(avia_command(Freeze, 1));
+      break;
+    case VIDEO_CONTINUE:
+      if (dvb->videostate.playState==VIDEO_FREEZED)
+      {
+        dvb->videostate.playState=VIDEO_PLAYING;
+        avia_wait(avia_command(Resume));
+      }
+      break;
+    case VIDEO_SELECT_SOURCE:
+    {
+      if (dvb->videostate.playState==VIDEO_STOPPED)
+      {
+        dvb->videostate.streamSource=(videoStreamSource_t) arg;
+        if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
+          return -EINVAL;
+        avia_command(SetStreamType, 0xB);
+        avia_command(SelectStream, 0, 0);
+        avia_command(SelectStream, 2, 0);
+        avia_command(SelectStream, 3, 0);
+      } else
+        return -EINVAL;
+      break;
+    }
+    case VIDEO_SET_BLANK:
+      dvb->videostate.videoBlank=(boolean) arg;
+      break;
+    case VIDEO_GET_STATUS:
+      if(copy_to_user(parg, &dvb->videostate, sizeof(struct videoStatus)))
+        return -EFAULT;
+      break;
+    case VIDEO_GET_EVENT:
+      return -ENOTSUPP;
+    case VIDEO_SET_DIPLAY_FORMAT:
+      return -ENOTSUPP;
+    case VIDEO_STILLPICTURE:
+      return -ENOTSUPP;
+    case VIDEO_FAST_FORWARD:
+      return -ENOTSUPP;
+    case VIDEO_SLOWMOTION:
+      return -ENOTSUPP;
+    default:
+      return -ENOIOCTLCMD;
+    }
+    return 0;
+  }
 //  case DVB_DEVICE_AUDIO:
   case DVB_DEVICE_FRONTEND:
   {
