@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.11  2001/03/03 18:20:39  waldi
+ *   complete move to devfs; doesn't compile without devfs
+ *
  *   Revision 1.10  2001/03/03 13:03:20  gillem
  *   - fix code
  *
@@ -33,7 +36,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -60,6 +63,14 @@
 #include <asm/signal.h>
 
 #include "dbox/fp.h"
+
+#include <linux/devfs_fs_kernel.h>
+
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+static devfs_handle_t devfs_handle[2];
 
 /* ---------------------------------------------------------------------- */
 
@@ -595,12 +606,35 @@ static int fp_init(void)
 		return -EBUSY;
 	}
 
-	if (register_chrdev(FP_MAJOR, "fp", &fp_fops))
-	{
-		i2c_del_driver(&fp_driver);
-		dprintk("fp.o: unable to get major %d\n", FP_MAJOR);
-		return -EIO;
-	}
+//	if (register_chrdev(FP_MAJOR, "fp", &fp_fops))
+//	{
+//		i2c_del_driver(&fp_driver);
+//		dprintk("fp.o: unable to get major %d\n", FP_MAJOR);
+//		return -EIO;
+//	}
+
+  devfs_handle[FP_MINOR] =
+    devfs_register ( NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &fp_fops, NULL );
+
+  if ( ! devfs_handle[FP_MINOR] )
+  {
+    i2c_del_driver ( &fp_driver );
+    return -EIO;
+  }
+
+  devfs_handle[RC_MINOR] =
+    devfs_register ( NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
+                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+                     &fp_fops, NULL );
+
+  if ( ! devfs_handle[RC_MINOR] )
+  {
+    devfs_unregister ( devfs_handle[FP_MINOR] );
+    i2c_del_driver ( &fp_driver );
+    return -EIO;
+  }
 
 	ppc_md.restart=fp_restart;
 	ppc_md.power_off=fp_power_off;
@@ -621,11 +655,14 @@ static int fp_close(void)
 		return res;
 	}
 
-	if ((res=unregister_chrdev(FP_MAJOR, "fp")))
-	{
-		dprintk("fp.o: unable to release major %d\n", FP_MAJOR);
-		return res;
-	}
+//	if ((res=unregister_chrdev(FP_MAJOR, "fp")))
+//	{
+//		dprintk("fp.o: unable to release major %d\n", FP_MAJOR);
+//		return res;
+//	}
+
+  devfs_unregister ( devfs_handle[FP_MINOR] );
+  devfs_unregister ( devfs_handle[RC_MINOR] );
   
 	if (ppc_md.restart==fp_restart)
 	{
