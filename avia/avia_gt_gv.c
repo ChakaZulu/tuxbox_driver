@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.5  2002/04/16 13:58:16  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.4  2002/04/15 19:32:44  Jolt
  *   eNX/GTX merge
  *
@@ -34,7 +37,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -56,6 +59,7 @@
 
 unsigned short input_height = 576;
 unsigned char input_mode = AVIA_GT_GV_INPUT_MODE_RGB16;
+unsigned char gv_chip_type;
 unsigned short input_width = 720;
 unsigned short output_x = 0;
 unsigned short output_y = 0;
@@ -238,9 +242,26 @@ void avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.4 2002/04/15 19:32:44 Jolt Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.5 2002/04/16 13:58:16 Jolt Exp $\n");
+
+    gv_chip_type = avia_gt_get_chip_type();
     
-    //enx_reg_w(RSTR0) &= ~(1 << );	// TODO: which one?
+    if ((gv_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (gv_chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
+	
+        printk("avia_gv_pig: Unsupported chip type\n");
+		
+        return -EIO;
+			
+    }
+			        
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	//enx_reg_s(RSTR0) &= ~(1 << );	// TODO: which one?
+	
+    } else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
+    
+    }
     
     //avia_gt_gv_hide();
     avia_gt_gv_cursor_hide();
@@ -248,20 +269,26 @@ int avia_gt_gv_init(void)
     avia_gt_gv_set_input_size(720, 576);
     avia_gt_gv_set_size(720, 576);
     
-    //enx_reg_s(GMR1)->P = 1;
-    enx_reg_s(GMR1)->S = 1;
-    enx_reg_s(GMR1)->B = 0;
-    //enx_reg_s(GMR1)->BANK = 1;
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
     
-    enx_reg_s(GBLEV1)->BLEV11 = 0x00;
-    enx_reg_s(GBLEV1)->BLEV10 = 0x20;
+	//enx_reg_s(GMR1)->P = 1;
+	enx_reg_s(GMR1)->S = 1;
+	enx_reg_s(GMR1)->B = 0;
+	//enx_reg_s(GMR1)->BANK = 1;
     
-    enx_reg_s(TCR1)->Red = 0x00;
-    enx_reg_s(TCR1)->Green = 0x00;
-    enx_reg_s(TCR1)->Blue = 0x00;
-    enx_reg_s(TCR1)->E = 1;
+	enx_reg_s(GBLEV1)->BLEV11 = 0x00;
+	enx_reg_s(GBLEV1)->BLEV10 = 0x20;
+    
+	enx_reg_s(TCR1)->Red = 0x00;
+	enx_reg_s(TCR1)->Green = 0x00;
+	enx_reg_s(TCR1)->Blue = 0x00;
+	enx_reg_s(TCR1)->E = 1;
 
-    enx_reg_s(GVSA1)->Addr = AVIA_GT_MEM_GV_OFFS >> 2;
+	enx_reg_s(GVSA1)->Addr = AVIA_GT_MEM_GV_OFFS >> 2;
+
+    } else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
+    }
     
     return 0;
     
@@ -272,7 +299,15 @@ void __exit avia_gt_gv_exit(void)
 
 //    avia_gt_gv_hide();
     
-    //enx_reg_w(RSTR0) |= (1 << );	// TODO: which one?
+    if (gv_chip_type == AVIA_GT_CHIP_TYPE_ENX) {
+    
+	//enx_reg_w(RSTR0) |= (1 << );	// TODO: which one?
+	
+    } else if (gv_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
+    
+	
+    }
+    
 }
 
 #ifdef MODULE
