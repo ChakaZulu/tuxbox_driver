@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_gv.c,v 1.35 2003/09/19 14:41:02 zwen Exp $
+ * $Id: avia_gt_gv.c,v 1.36 2003/09/23 21:48:34 zwen Exp $
  *
  * AViA eNX/GTX graphic viewport driver (dbox-II-project)
  *
@@ -97,13 +97,13 @@ void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u3
 		val = enx_reg_32(CLUTD);
 
 		if (transparency)
-			 *transparency = ((val & 0xFF000000) >> 24);
+			 *transparency = ((val & 0xFF000000) >> 24) |  ((val & 0xFF000000) >> 16);
 		if (red)
-			 *red = ((val & 0x00FF0000) >> 16);
+			 *red = ((val & 0x00FF0000) >> 16) | ((val & 0x00FF0000) >> 8);
 		if (green)
-			 *green = ((val & 0x0000FF00) >> 8);
+			 *green = ((val & 0x0000FF00) >> 8) | (val & 0x0000FF00);
 		if (blue)
-			 *blue = (val & 0x000000FF);
+			 *blue = (val & 0x000000FF) | ((val & 0x000000FF) << 8);
 	}
 	else if (avia_gt_chip(GTX)) {
 		gtx_reg_set(CLTA, Addr, clut_nr);
@@ -116,7 +116,7 @@ void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u3
 
 		if (val == TCR_COLOR) {
 			 if (transparency)
-				*transparency = 255;
+				*transparency = 0xFFFF;
 			 if (red)
 				*red = 0;
 			 if (green)
@@ -128,11 +128,11 @@ void avia_gt_gv_get_clut(u8 clut_nr, u32 *transparency, u32 *red, u32 *green, u3
 			 //if (transparency)
 				//*transparency = (val & 0x8000) ? BLEVEL : 0;
 			 if (red)
-				*red = (val & 0x7C00) >> 7;
+				*red   = ((val & 0x7C00) >> 7) | ((val & 0x7C00) << 1);
 			 if (green)
-				*green = (val & 0x03E0) >> 2;
+				*green = ((val & 0x03E0) >> 2) | ((val & 0x03E0) << 6);
 			 if (blue)
-				*blue = (val & 0x001F) << 3;
+				*blue  = ((val & 0x001F) << 3) | ((val & 0x001F) << 11);
 		}
 	}
 }
@@ -433,7 +433,7 @@ int avia_gt_gv_show(void)
 
 int avia_gt_gv_init(void)
 {
-	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.35 2003/09/19 14:41:02 zwen Exp $\n");
+	printk(KERN_INFO "avia_gt_gv: $Id: avia_gt_gv.c,v 1.36 2003/09/23 21:48:34 zwen Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
