@@ -18,6 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1820.c,v $
+    Revision 1.15  2001/05/03 20:30:21  gillem
+    - ...
+
     Revision 1.14  2001/05/03 20:27:21  gillem
     - fix debug output
 
@@ -40,7 +43,7 @@
     - add interrupt stuff
 
 
-    $Revision: 1.14 $
+    $Revision: 1.15 $
 */
 
 /* ---------------------------------------------------------------------- */
@@ -514,7 +517,7 @@ static void ves_task(void*data)
 	{
 		ves->sync = readreg(dclient,0x11);
 
-		if( ves->sync&0x1f )
+		if( (ves->sync&0x1f) == 0x1f )
 		{
 			dprintk("ves1820.o: synchronized %02X\n",ves->sync);
 		}
