@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_fb_core.c,v 1.49 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_fb_core.c,v 1.50 2003/09/13 02:45:12 obi Exp $
  *
  * AViA eNX/GTX framebuffer driver (dbox-II-project)
  *
@@ -38,6 +38,13 @@
 #include <linux/dvb/avia/avia_gt_fb.h>
 #include "avia_gt.h"
 #include "avia_gt_gv.h"
+
+#ifndef FB_ACCEL_CCUBE_AVIA_GTX
+#define FB_ACCEL_CCUBE_AVIA_GTX 120
+#endif
+#ifndef FB_ACCEL_CCUBE_AVIA_ENX
+#define FB_ACCEL_CCUBE_AVIA_ENX 121
+#endif
 
 static sAviaGtInfo *gt_info = NULL;
 static int console_transparent = 0;
@@ -470,7 +477,7 @@ static struct fb_ops avia_gt_fb_ops = {
 
 int __init avia_gt_fb_init(void)
 {
-	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.49 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.50 2003/09/13 02:45:12 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
