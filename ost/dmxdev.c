@@ -1,4 +1,4 @@
-/* 
+/*F
  * dmxdev.c - DVB demultiplexer device 
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
@@ -55,7 +55,7 @@ DmxDevFile2DVR(dmxdev_t *dmxdev, struct file *file)
         return (dmxdev_dvr_t *) file->private_data;
 }
 
-static inline void 
+static inline void
 DmxDevBufferInit(dmxdev_buffer_t *buffer) 
 {
         buffer->data=0;
@@ -67,7 +67,7 @@ DmxDevBufferInit(dmxdev_buffer_t *buffer)
 }
 
 static inline int 
-DmxDevBufferWrite(dmxdev_buffer_t *buf, uint8_t *src, int len) 
+DmxDevBufferWrite(dmxdev_buffer_t *buf, uint8_t *src, int len)
 {
         int split;
         int free;
@@ -77,7 +77,7 @@ DmxDevBufferWrite(dmxdev_buffer_t *buf, uint8_t *src, int len)
 	        return 0;
 	if (!buf->data)
 	        return 0;
-	
+
         free=buf->pread-buf->pwrite;
         split=0;
         if (free<=0) {
@@ -101,8 +101,8 @@ DmxDevBufferWrite(dmxdev_buffer_t *buf, uint8_t *src, int len)
         return len;
 }
 
-static ssize_t 
-DmxDevBufferRead(dmxdev_buffer_t *src, int non_blocking, 
+static ssize_t
+DmxDevBufferRead(dmxdev_buffer_t *src, int non_blocking,
 		 char *buf, size_t count, loff_t *ppos)
 {
         unsigned long todo=count;
@@ -112,7 +112,7 @@ DmxDevBufferRead(dmxdev_buffer_t *src, int non_blocking,
 	        return 0;
        	if ((error=src->error)) {
 	        src->error=0;
-		return error; 
+		return error;
 	}
 
 	if (non_blocking && (src->pwrite==src->pread))
@@ -131,7 +131,7 @@ DmxDevBufferRead(dmxdev_buffer_t *src, int non_blocking,
 		        src->error=0;
 			return error; 
 		}
-		
+
                 split=src->size;
                 avail=src->pwrite - src->pread;
                 if (avail<0) {
@@ -209,34 +209,34 @@ DmxDevDVROpen(dmxdev_t *dmxdev, struct file *file)
 
 	if ((file->f_flags&O_ACCMODE)==O_WRONLY) {
 	        dmxdev->dvr_orig_fe=dmxdev->demux->frontend;
-		
+
 		if (!dmxdev->demux->write) {
 			up(&dmxdev->mutex);
 			return -EOPNOTSUPP;
 		}
-		
+
 		front=get_fe(dmxdev->demux, DMX_MEMORY_FE);
-		
+
 		if (!front) {
 			up(&dmxdev->mutex);
 		        return -EINVAL;
 		}
-		dmxdev->demux->disconnect_frontend(dmxdev->demux);	
-		dmxdev->demux->connect_frontend(dmxdev->demux, front);	
+		dmxdev->demux->disconnect_frontend(dmxdev->demux);
+		dmxdev->demux->connect_frontend(dmxdev->demux, front);
 	}
         up(&dmxdev->mutex);
         return 0;
 }
 
-int 
+int
 DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 {
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	if ((file->f_flags&O_ACCMODE)==O_WRONLY) {
-	        dmxdev->demux->disconnect_frontend(dmxdev->demux);	
-		dmxdev->demux->connect_frontend(dmxdev->demux, 
+	        dmxdev->demux->disconnect_frontend(dmxdev->demux);
+		dmxdev->demux->connect_frontend(dmxdev->demux,
 						dmxdev->dvr_orig_fe);
 	}
 	if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
@@ -255,8 +255,8 @@ DmxDevDVRClose(dmxdev_t *dmxdev, struct file *file)
 	return 0;
 }
 
-ssize_t 
-DmxDevDVRWrite(dmxdev_t *dmxdev, struct file *file, 
+ssize_t
+DmxDevDVRWrite(dmxdev_t *dmxdev, struct file *file,
              const char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
@@ -272,22 +272,22 @@ DmxDevDVRWrite(dmxdev_t *dmxdev, struct file *file,
 	return ret;
 }
 
-ssize_t 
-DmxDevDVRRead(dmxdev_t *dmxdev, struct file *file, 
+ssize_t
+DmxDevDVRRead(dmxdev_t *dmxdev, struct file *file,
 	      char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
 
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
-        ret= DmxDevBufferRead(&dmxdev->dvr_buffer, 
-			      file->f_flags&O_NONBLOCK, 
+        ret= DmxDevBufferRead(&dmxdev->dvr_buffer,
+			      file->f_flags&O_NONBLOCK,
 			      buf, count, ppos);
         up(&dmxdev->mutex);
 	return ret;
 }
 
-static inline void 
+static inline void
 DmxDevFilterStateSet(dmxdev_filter_t *dmxdevfilter, int state)
 {
         spin_lock_irq(&dmxdevfilter->dev->lock);
@@ -295,7 +295,7 @@ DmxDevFilterStateSet(dmxdev_filter_t *dmxdevfilter, int state)
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 }
 
-static int 
+static int
 DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 {
 	dmxdev_buffer_t *buf=&dmxdevfilter->buffer;
@@ -309,11 +309,11 @@ DmxDevSetBufferSize(dmxdev_filter_t *dmxdevfilter, unsigned long size)
 	mem=buf->data;
 	buf->data=0;
 	buf->size=size;
-	buf->pwrite=buf->pread=0;    
+	buf->pwrite=buf->pread=0;
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
-        if (mem) 
+        if (mem)
 		vfree(mem);
-		
+
         if (buf->size) {
 	        mem=vmalloc(dmxdevfilter->buffer.size);
 		if (!mem)
@@ -329,7 +329,7 @@ static void
 DmxDevFilterTimeout(unsigned long data)
 {
         dmxdev_filter_t *dmxdevfilter=(dmxdev_filter_t *)data;
-	
+
 	dmxdevfilter->buffer.error=-ETIMEDOUT;
         spin_lock_irq(&dmxdevfilter->dev->lock);
 	dmxdevfilter->state=DMXDEV_STATE_TIMEDOUT;
@@ -341,7 +341,7 @@ static void
 DmxDevFilterTimer(dmxdev_filter_t *dmxdevfilter)
 {
         struct dmxSctFilterParams *para=&dmxdevfilter->params.sec;
-  
+
 	del_timer(&dmxdevfilter->timer);
 	if (para->timeout) {
 	        dmxdevfilter->timer.function=DmxDevFilterTimeout;
@@ -351,7 +351,7 @@ DmxDevFilterTimer(dmxdev_filter_t *dmxdevfilter)
 	}
 }
 
-static int 
+static int
 DmxDevSectionCallback(u8 *buffer1, size_t buffer1_len,
 		      u8 *buffer2, size_t buffer2_len,
 		      dmx_section_filter_t *filter,
@@ -359,7 +359,7 @@ DmxDevSectionCallback(u8 *buffer1, size_t buffer1_len,
 {
         dmxdev_filter_t *dmxdevfilter=(dmxdev_filter_t *) filter->priv;
         int ret;
-        
+
 	if (dmxdevfilter->buffer.error)
 	        return 0;
 	spin_lock(&dmxdevfilter->dev->lock);
@@ -368,16 +368,16 @@ DmxDevSectionCallback(u8 *buffer1, size_t buffer1_len,
 	        return 0;
 	}
 	del_timer(&dmxdevfilter->timer);
-	dprintk("dmxdev: section callback %02x %02x %02x %02x %02x %02x\n", 
-		buffer1[0], buffer1[1], 
-		buffer1[2], buffer1[3], 
+	dprintk("dmxdev: section callback %02x %02x %02x %02x %02x %02x\n",
+		buffer1[0], buffer1[1],
+		buffer1[2], buffer1[3],
 		buffer1[4], buffer1[5]);
         ret=DmxDevBufferWrite(&dmxdevfilter->buffer, buffer1, buffer1_len);
         if (ret==buffer1_len) {
 	        ret=DmxDevBufferWrite(&dmxdevfilter->buffer, buffer2, buffer2_len);
 	}
         if (ret<0) {
-	        dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread;    
+	        dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread;
 	        dmxdevfilter->buffer.error=-EBUFFEROVERFLOW;
 	}
 	if (dmxdevfilter->params.sec.flags&DMX_ONESHOT)
@@ -387,7 +387,7 @@ DmxDevSectionCallback(u8 *buffer1, size_t buffer1_len,
 	return 0;
 }
 
-static int 
+static int
 DmxDevTSCallback(u8 *buffer1, size_t buffer1_len,
 		 u8 *buffer2, size_t buffer2_len,
 		 dmx_ts_feed_t *feed,
@@ -396,7 +396,7 @@ DmxDevTSCallback(u8 *buffer1, size_t buffer1_len,
         dmxdev_filter_t *dmxdevfilter=(dmxdev_filter_t *) feed->priv;
 	dmxdev_buffer_t *buffer;
         int ret;
-        
+
 	spin_lock(&dmxdevfilter->dev->lock);
 	if (dmxdevfilter->params.pes.output==DMX_OUT_DECODER) {
 		spin_unlock(&dmxdevfilter->dev->lock);
@@ -483,7 +483,7 @@ DmxDevFeedStart(dmxdev_filter_t *dmxdevfilter)
 /* restart section feed if it has filters left associated with it, 
    otherwise release the feed */
 
-static int 
+static int
 DmxDevFeedRestart(dmxdev_filter_t *dmxdevfilter)
 {
 	int i;
@@ -508,7 +508,7 @@ DmxDevFeedRestart(dmxdev_filter_t *dmxdevfilter)
 int 
 DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 {
-        if (dmxdevfilter->state<DMXDEV_STATE_GO) 
+        if (dmxdevfilter->state<DMXDEV_STATE_GO)
 	        return 0;
 
 	switch (dmxdevfilter->type) {
@@ -538,18 +538,18 @@ DmxDevFilterStop(dmxdev_filter_t *dmxdevfilter)
 		dmxdevfilter->feed.ts=0;
 		break;
 	default:
-		if (dmxdevfilter->state==DMXDEV_STATE_ALLOCATED) 
+		if (dmxdevfilter->state==DMXDEV_STATE_ALLOCATED)
 			return 0;
 	        return -EINVAL;
 	}
-	dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread=0;    
+	dmxdevfilter->buffer.pwrite=dmxdevfilter->buffer.pread=0;
         return 0;
 }
 
-static inline int 
+static inline int
 DmxDevFilterReset(dmxdev_filter_t *dmxdevfilter)
 {
-	if (dmxdevfilter->state<DMXDEV_STATE_SET) 
+	if (dmxdevfilter->state<DMXDEV_STATE_SET)
 		return 0;
 
 	dmxdevfilter->type=DMXDEV_TYPE_NONE;
@@ -558,14 +558,14 @@ DmxDevFilterReset(dmxdev_filter_t *dmxdevfilter)
         return 0;
 }
 
-int 
+int
 DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 {
 	dmxdev_t *dmxdev=dmxdevfilter->dev;
 	void *mem;
 	int ret, i;
 
-        if (dmxdevfilter->state<DMXDEV_STATE_SET) 
+        if (dmxdevfilter->state<DMXDEV_STATE_SET)
 	        return -EINVAL;
         if (dmxdevfilter->state>=DMXDEV_STATE_GO)
 	        DmxDevFilterStop(dmxdevfilter); 
@@ -591,7 +591,7 @@ DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 		*secfeed=0;
 
 		/* find active filter/feed with same PID */
-		for (i=0; i<dmxdev->filternum; i++) 
+		for (i=0; i<dmxdev->filternum; i++)
 			if (dmxdev->filter[i].state>=DMXDEV_STATE_GO &&
 			    dmxdev->filter[i].pid==para->pid) {
 				if (dmxdev->filter[i].type!=DMXDEV_TYPE_SEC)
@@ -603,8 +603,8 @@ DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 		/* if no feed found, try to allocate new one */ 
 		if (!*secfeed) {
 			ret=dmxdev->demux->
-				allocate_section_feed(dmxdev->demux, 
-						      secfeed, 
+				allocate_section_feed(dmxdev->demux,
+						      secfeed,
 						      DmxDevSectionCallback);
 			if (ret<0) {
 				printk ("could not alloc feed\n");
@@ -649,7 +649,7 @@ DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 		break;
 	}
 
-	case DMXDEV_TYPE_PES: 
+	case DMXDEV_TYPE_PES:
 	{
 		struct timespec timeout = {0 };
 		struct dmxPesFilterParams *para=&dmxdevfilter->params.pes;
@@ -663,7 +663,7 @@ DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 		otype=para->output;
 		
 		ts_pes=(dmx_ts_pes_t) para->pesType;
-		
+
 		if (ts_pes<DMX_PES_OTHER) 
 			ts_type=TS_DECODER;
 		else
@@ -683,7 +683,7 @@ DmxDevFilterStart(dmxdev_filter_t *dmxdevfilter)
 		if (otype==DMX_OUT_TAP ||
 		    otype==DMX_OUT_ES_NET)
 			ts_type|=TS_PAYLOAD_ONLY|TS_PACKET;
-		
+
 		if (otype==DMX_OUT_ES_NET ||
 		    otype==DMX_OUT_TS_NET) {
 			struct sockaddr_in saddr;
@@ -754,10 +754,10 @@ int
 DmxDevFilterNum(dmxdev_t *dmxdev)
 {
         int i, num;
-        
+
 	if (!dmxdev->filter)
 	        return 0;
-	
+
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
@@ -768,18 +768,18 @@ DmxDevFilterNum(dmxdev_t *dmxdev)
 	return num;
 }
 
-int 
+int
 DmxDevFilterAlloc(dmxdev_t *dmxdev, struct file *file)
 {
         int i;
         dmxdev_filter_t *dmxdevfilter;
-        
+
 	if (!dmxdev->filter)
 	        return -EINVAL;
 
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
-	
+
         for (i=0; i<dmxdev->filternum; i++)
                 if (dmxdev->filter[i].state==DMXDEV_STATE_FREE)
                         break;
@@ -803,11 +803,11 @@ DmxDevFilterAlloc(dmxdev_t *dmxdev, struct file *file)
         return 0;
 }
 
-int 
+int
 DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 {
         dmxdev_filter_t *dmxdevfilter;
-        
+
         if (down_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
@@ -823,10 +823,10 @@ DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 
         DmxDevFilterStop(dmxdevfilter);
 	DmxDevFilterReset(dmxdevfilter);
-        
+
         if (dmxdevfilter->buffer.data) {
 	        void *mem=dmxdevfilter->buffer.data;
-		
+
 	        spin_lock_irq(&dmxdev->lock);
 		dmxdevfilter->buffer.data=0;
 	        spin_unlock_irq(&dmxdev->lock);
@@ -845,29 +845,29 @@ DmxDevFilterFree(dmxdev_t *dmxdev, struct file *file)
 }
 
 
-static int 
-DmxDevFilterSet(dmxdev_t *dmxdev, 
-                dmxdev_filter_t *dmxdevfilter, 
+static int
+DmxDevFilterSet(dmxdev_t *dmxdev,
+                dmxdev_filter_t *dmxdevfilter,
 		struct dmxSctFilterParams *params)
 {
         dprintk ("function : %s\n", __FUNCTION__);
 
 	DmxDevFilterStop(dmxdevfilter);
-        
+
         dmxdevfilter->type=DMXDEV_TYPE_SEC;
         dmxdevfilter->pid=params->pid;
-	memcpy(&dmxdevfilter->params.sec, 
+	memcpy(&dmxdevfilter->params.sec,
 	       params, sizeof(struct dmxSctFilterParams));
 
 	DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_SET);
-		
-        if (params->flags&DMX_IMMEDIATE_START) 
+
+        if (params->flags&DMX_IMMEDIATE_START)
                 return DmxDevFilterStart(dmxdevfilter);
 
         return 0;
 }
 
-static int 
+static int
 DmxDevPesFilterSet(dmxdev_t *dmxdev,
                    dmxdev_filter_t *dmxdevfilter,
                    struct dmxPesFilterParams *params)
@@ -883,20 +883,20 @@ DmxDevPesFilterSet(dmxdev_t *dmxdev,
 
 	DmxDevFilterStateSet(dmxdevfilter, DMXDEV_STATE_SET);
 
-        if (params->flags&DMX_IMMEDIATE_START) 
+        if (params->flags&DMX_IMMEDIATE_START)
                 return DmxDevFilterStart(dmxdevfilter);
 
         return 0;
 }
 
-int 
+int
 DmxDevInit(dmxdev_t *dmxdev)
 {
         int i;
 
 	if (dmxdev->demux->open(dmxdev->demux)<0)
 		return -EUSERS;
-	
+
 	dmxdev->filter=vmalloc(dmxdev->filternum*sizeof(dmxdev_filter_t));
 	if (!dmxdev->filter)
 	        return -ENOMEM;
@@ -924,7 +924,7 @@ DmxDevInit(dmxdev_t *dmxdev)
 	return 0;
 }
 
-void 
+void
 DmxDevRelease(dmxdev_t *dmxdev)
 {
 	if (dmxdev->filter) {
@@ -939,24 +939,24 @@ DmxDevRelease(dmxdev_t *dmxdev)
 	MOD_DEC_USE_COUNT;
 }
 
-static ssize_t 
-DmxDevReadSec(dmxdev_filter_t *dfil, struct file *file, 
+static ssize_t
+DmxDevReadSec(dmxdev_filter_t *dfil, struct file *file,
 	      char *buf, size_t count, loff_t *ppos)
 {
         int result, hcount;
 	int done=0;
-	
+
 	if (dfil->todo<=0) {
 	        hcount=3+dfil->todo;
 	        if (hcount>count)
 		        hcount=count;
-		result=DmxDevBufferRead(&dfil->buffer, file->f_flags&O_NONBLOCK, 
+		result=DmxDevBufferRead(&dfil->buffer, file->f_flags&O_NONBLOCK,
 					buf, hcount, ppos);
 		if (result<0) {
 			dfil->todo=0;
 		        return result;
 		}
-		if (copy_from_user(dfil->secheader-dfil->todo, buf, result)) 
+		if (copy_from_user(dfil->secheader-dfil->todo, buf, result))
 		        return -EFAULT;
 		buf+=result;
 		done=result;
@@ -970,7 +970,7 @@ DmxDevReadSec(dmxdev_filter_t *dfil, struct file *file,
 	}
 	if (count>dfil->todo)
 	        count=dfil->todo;
-        result=DmxDevBufferRead(&dfil->buffer, file->f_flags&O_NONBLOCK, 
+        result=DmxDevBufferRead(&dfil->buffer, file->f_flags&O_NONBLOCK,
 				buf, count, ppos);
 	if (result<0)
 	        return result;
@@ -979,8 +979,8 @@ DmxDevReadSec(dmxdev_filter_t *dfil, struct file *file,
 }
 
 
-ssize_t 
-DmxDevRead(dmxdev_t *dmxdev, struct file *file, 
+ssize_t
+DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 	   char *buf, size_t count, loff_t *ppos)
 {
         dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
@@ -992,129 +992,154 @@ DmxDevRead(dmxdev_t *dmxdev, struct file *file,
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
 	        ret=DmxDevReadSec(dmxdevfilter, file, buf, count, ppos);
 	else
-	        ret=DmxDevBufferRead(&dmxdevfilter->buffer, 
-				     file->f_flags&O_NONBLOCK, 
+	        ret=DmxDevBufferRead(&dmxdevfilter->buffer,
+				     file->f_flags&O_NONBLOCK,
 				     buf, count, ppos);
         up(&dmxdevfilter->mutex);
 	return ret;
 }
 
 
-int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file, 
+int DmxDevIoctl(dmxdev_t *dmxdev, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
-        void *parg=(void *)arg;
+	void *parg=(void *)arg;
 	int ret=0;
 
-        dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
-  
-	if (!dmxdevfilter)
-	        return -EINVAL;
+	dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
 
-        if (down_interruptible(&dmxdev->mutex))
+	if (!dmxdevfilter)
+		return -EINVAL;
+
+	if (down_interruptible(&dmxdev->mutex))
+	{
 		return -ERESTARTSYS;
+	}
 
 	switch (cmd) {
-	case DMX_START: 
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdevfilter->mutex);
-			return -ERESTARTSYS;
-		}
-
-	        if (dmxdevfilter->state<DMXDEV_STATE_SET)
-		        ret=-EINVAL;
-		else
-		        ret=DmxDevFilterStart(dmxdevfilter);
-
-		up(&dmxdevfilter->mutex);
-		break;
-
-	case DMX_STOP: 
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdevfilter->mutex);
-			return -ERESTARTSYS;
-		}
-		ret=DmxDevFilterStop(dmxdevfilter);
-		up(&dmxdevfilter->mutex);
-		break;
-
-	case DMX_SET_FILTER: 
-	{
-	        struct dmxSctFilterParams params;
-
-	        if (copy_from_user(&params, parg, sizeof(params)))
-			
-		        ret=-EFAULT;
-	        else {
+		case DMX_START:
 			if (down_interruptible(&dmxdevfilter->mutex)) {
-				up(&dmxdev->mutex);
-				return -ERESTARTSYS;
+				ret = -ERESTARTSYS;
 			}
-			if (dmxdevfilter->s != NULL) {
-				sock_release(dmxdevfilter->s);
-				dmxdevfilter->s = NULL;
+			else
+			{
+				if (dmxdevfilter->state<DMXDEV_STATE_SET)
+				{
+					ret = -EINVAL;
+				}
+				else
+				{
+					ret = DmxDevFilterStart(dmxdevfilter);
+				}
+				up(&dmxdevfilter->mutex);
 			}
-		        ret=DmxDevFilterSet(dmxdev, dmxdevfilter, &params);
-			up(&dmxdevfilter->mutex);
-		}
 		break;
-	}
 
-	case DMX_SET_PES_FILTER: 
-	{
-	        struct dmxPesFilterParams params;
-
-		if (copy_from_user(&params, parg, sizeof(params)))
-		        ret=-EFAULT;
-		else {
+		case DMX_STOP:
 			if (down_interruptible(&dmxdevfilter->mutex)) {
-				up(&dmxdev->mutex);
-				return -ERESTARTSYS;
+				ret =  -ERESTARTSYS;
 			}
-			if (dmxdevfilter->s != NULL) {
-				sock_release(dmxdevfilter->s);
-				dmxdevfilter->s = NULL;
+			else
+			{
+				ret=DmxDevFilterStop(dmxdevfilter);
+				up(&dmxdevfilter->mutex);
 			}
-			ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &params);
-			up(&dmxdevfilter->mutex);
+		break;
+
+		case DMX_SET_FILTER:
+		{
+			struct dmxSctFilterParams params;
+
+			if (copy_from_user(&params, parg, sizeof(params)))
+			{
+				ret=-EFAULT;
+			}
+			else
+			{
+				if (down_interruptible(&dmxdevfilter->mutex))
+				{
+					ret = -ERESTARTSYS;
+				}
+				else
+				{
+					if (dmxdevfilter->s != NULL) {
+						sock_release(dmxdevfilter->s);
+						dmxdevfilter->s = NULL;
+					}
+					ret=DmxDevFilterSet(dmxdev, dmxdevfilter, &params);
+					up(&dmxdevfilter->mutex);
+				}
+			}
 		}
 		break;
-	}
 
-	case DMX_SET_BUFFER_SIZE: 
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
-			return -ERESTARTSYS;
+		case DMX_SET_PES_FILTER:
+		{
+			struct dmxPesFilterParams params;
+
+			if (copy_from_user(&params, parg, sizeof(params)))
+			{
+				ret=-EFAULT;
+			}
+			else
+			{
+				if (down_interruptible(&dmxdevfilter->mutex)) {
+					ret = -ERESTARTSYS;
+				}
+				else
+				{
+					if (dmxdevfilter->s != NULL) {
+						sock_release(dmxdevfilter->s);
+						dmxdevfilter->s = NULL;
+					}
+					ret=DmxDevPesFilterSet(dmxdev, dmxdevfilter, &params);
+					up(&dmxdevfilter->mutex);
+				}
+			}
 		}
-	        ret=DmxDevSetBufferSize(dmxdevfilter, arg);
-		up(&dmxdevfilter->mutex);
 		break;
-        
-        case DMX_GET_EVENT: 
-	        break;
-		
-        case DMX_GET_PES_PIDS: 
-	{
-	        dvb_pid_t pids[5];
 
-		if (!dmxdev->demux->get_pes_pids) {
-		        ret=-EINVAL;
-			break;
+		case DMX_SET_BUFFER_SIZE:
+			if (down_interruptible(&dmxdevfilter->mutex)) {
+				ret= -ERESTARTSYS;
+			}
+			else
+			{
+				ret=DmxDevSetBufferSize(dmxdevfilter, arg);
+				up(&dmxdevfilter->mutex);
+			}
+		break;
+
+		case DMX_GET_EVENT:
+		break;
+
+		case DMX_GET_PES_PIDS:
+		{
+			dvb_pid_t pids[5];
+
+			if (!dmxdev->demux->get_pes_pids) {
+				ret=-EINVAL;
+			}
+			else
+			{
+				dmxdev->demux->get_pes_pids(dmxdev->demux, pids);
+				if (copy_to_user(parg, pids, 5*sizeof(dvb_pid_t)))
+				{
+		    	    ret=-EFAULT;
+				}
+			}
 		}
-		dmxdev->demux->get_pes_pids(dmxdev->demux, pids);
-	        if (copy_to_user(parg, pids, 5*sizeof(dvb_pid_t)))
-		        ret=-EFAULT;
-	        break;
-	}	
+		break;
 
-	default:
-	        ret=-EINVAL;
+		default:
+			ret=-EINVAL;
+		break;
 	}
-        up(&dmxdev->mutex);
+	up(&dmxdev->mutex);
 	return ret;
 }
 
-unsigned int 
+unsigned int
 DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
         dmxdev_filter_t *dmxdevfilter=DmxDevFile2Filter(dmxdev, file);
@@ -1136,7 +1161,7 @@ DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 	        return 0;
 
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
-                
+
 	if (dmxdevfilter->state==DMXDEV_STATE_FREE)
 	        return 0;
 
@@ -1149,7 +1174,7 @@ DmxDevPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 	return 0;
 }
 
-int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file, 
+int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 		   unsigned int cmd, unsigned long arg)
 {
         //void *parg=(void *)arg;
@@ -1159,11 +1184,11 @@ int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 		return -ERESTARTSYS;
 
 	switch (cmd) {
-	case DMX_SET_BUFFER_SIZE: 
+	case DMX_SET_BUFFER_SIZE:
 		// FIXME: implement
 	        ret=0;
 		break;
-		
+
 	default:
 	        ret=-EINVAL;
 	}
@@ -1171,7 +1196,7 @@ int DmxDevDVRIoctl(dmxdev_t *dmxdev, struct file *file,
 	return ret;
 }
 
-unsigned int 
+unsigned int
 DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 {
         if ((file->f_flags&O_ACCMODE)==O_RDONLY) {
@@ -1180,17 +1205,17 @@ DmxDevDVRPoll(dmxdev_t *dmxdev, struct file *file, poll_table * wait)
 
 		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
 			return (POLLIN | POLLRDNORM | POLLPRI);
-		
+
 		poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
-		
+
 		if (dmxdev->dvr_buffer.error)
 			return (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
 		if (dmxdev->dvr_buffer.pread!=dmxdev->dvr_buffer.pwrite)
 			return (POLLIN | POLLRDNORM | POLLPRI);
-		
+
 		return 0;
-	} else 
+	} else
 	        return (POLLOUT | POLLWRNORM | POLLPRI);
 }
 
