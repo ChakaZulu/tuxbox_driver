@@ -310,11 +310,11 @@ main(int argc, char **argv)
           parm.iFrequency = atoi(argv[1]);
         if (argc >= 3)
           parm.SymbolRate = atoi(argv[2]);
-	if((fd = open("/dev/ost/qpskfe",O_RDWR)) < 0){
+	if((fd = open("/dev/ost/frontend",O_RDWR)) < 0){
 		perror("FRONTEND DEVICE: ");
 		return -1;
 	}
-/*	if((fd_sec = open("/dev/ost/sec",O_RDWR)) < 0){
+/*	if((fd = open("/dev/ost/sec",O_RDWR)) < 0){
 		perror("SEC DEVICE: ");
 		return -1;
 	}
