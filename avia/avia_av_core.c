@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.19  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.18  2001/07/08 02:24:59  fnbrd
  *   Parameter firmware is now only the path for the ucode.
  *   The filename itself is now according to the HW avia600.ux or avia500.ux.
@@ -102,7 +105,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -118,7 +121,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -1225,7 +1228,7 @@ MODULE_PARM(firmware,"s");
 int
 init_module (void)
 {
-        dprintk ("AVIA: $Id: avia_av_core.c,v 1.18 2001/07/08 02:24:59 fnbrd Exp $\n");
+        dprintk ("AVIA: $Id: avia_av_core.c,v 1.19 2001/12/01 06:37:06 gillem Exp $\n");
         return init_avia ();
 }
 

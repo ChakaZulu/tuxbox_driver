@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.12  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.11  2001/10/23 08:49:35  Jolt
  *   eNX capture and pig driver
  *
@@ -72,7 +75,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -95,7 +98,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -787,7 +790,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.11 2001/10/23 08:49:35 Jolt Exp $\n");
+  dprintk("Framebuffer: $Id: avia_gt_fb_core.c,v 1.12 2001/12/01 06:37:06 gillem Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)

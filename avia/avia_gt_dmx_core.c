@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.60 $
+ *   $Revision: 1.61 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.61  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.60  2001/11/14 17:59:22  wjoost
  *   Section-Empfang geaendert (Pruefung auf maximale Groesse, zusammenhaengende TS-Pakete)
  *
@@ -213,7 +216,7 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -1985,7 +1988,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.60 2001/11/14 17:59:22 wjoost Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.61 2001/12/01 06:37:06 gillem Exp $\n");
 
 	return gtx_dmx_init();
 }

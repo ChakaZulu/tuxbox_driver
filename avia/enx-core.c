@@ -21,6 +21,9 @@
  *
  *
  *   $Log: enx-core.c,v $
+ *   Revision 1.3  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.2  2001/10/23 08:40:58  Jolt
  *   eNX capture and pig driver
  *
@@ -85,7 +88,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -100,7 +103,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>

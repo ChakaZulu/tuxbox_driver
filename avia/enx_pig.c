@@ -26,7 +26,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -338,7 +338,7 @@ void enx_pig_cleanup(void)
 
 static int init_enx_pig(void)
 {
-    printk("$Id: enx_pig.c,v 1.4 2001/11/01 18:17:31 Jolt Exp $\n");
+    printk("$Id: enx_pig.c,v 1.5 2001/12/01 06:37:06 gillem Exp $\n");
 
     devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &enx_pig_fops, NULL);
     if (!devfs_handle[0])

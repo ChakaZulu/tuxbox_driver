@@ -20,10 +20,13 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: gtx-capture.c,v $
+ *   Revision 1.2  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.1  2001/09/17 12:24:36  tmbinc
  *   added gtx-capture, very alpha
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -32,7 +35,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -207,7 +210,7 @@ static void disable_capture(void)
 
 static int init_capture(void)
 {
-	printk("$Id: gtx-capture.c,v 1.1 2001/09/17 12:24:36 tmbinc Exp $\n");
+	printk("$Id: gtx-capture.c,v 1.2 2001/12/01 06:37:06 gillem Exp $\n");
 	
 	
   gtxmem = gtx_get_mem();

@@ -26,7 +26,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -391,7 +391,7 @@ void gtx_capture_cleanup(void)
 
 static int init_capture(void)
 {
-    printk("$Id: gtx_capture.c,v 1.2 2001/11/02 00:26:08 Jolt Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.3 2001/12/01 06:37:06 gillem Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_osd.c,v $
+ *   Revision 1.9  2001/12/01 06:37:06  gillem
+ *   - malloc.h -> slab.h
+ *
  *   Revision 1.8  2001/03/07 19:18:38  gillem
  *   - fix 600er bug
  *
@@ -46,7 +49,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -57,7 +60,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
