@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.2 2002/11/04 23:04:02 Jolt Exp $
+ * $Id: avia_napi.c,v 1.3 2002/11/05 18:50:00 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -87,7 +87,7 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.2 2002/11/04 23:04:02 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.3 2002/11/05 18:50:00 Jolt Exp $\n");
 	
 	demux = avia_gt_napi_get_demux();
 	
@@ -163,7 +163,7 @@ static int __init avia_napi_init(void)
 		
 	}
 
-/*	if ((result = demux->dmx.connect_frontend(&demux->dmx, &fe_hw)) < 0) {
+	if ((result = demux->dmx.connect_frontend(&demux->dmx, &fe_hw)) < 0) {
 	
 		printk("avia_napi: connect_frontend failed (errno = %d)\n", result);
 
@@ -175,7 +175,7 @@ static int __init avia_napi_init(void)
 		
 		return result;
 		
-	}*/
+	}
 
 	if ((result = dvb_add_frontend_notifier(adap, avia_napi_before_after_tune, NULL)) < 0) {
 	
