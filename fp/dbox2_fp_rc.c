@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.22 2004/03/26 09:50:04 carjay Exp $
+ * $Id: dbox2_fp_rc.c,v 1.23 2004/06/02 23:01:19 carjay Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -111,30 +111,35 @@ static void dbox2_fp_old_rc_queue_handler(u8 queue_nr)
 
 	if (disable_old_rc)
 		return;
-
-	if (rc_code == 0x5cfe) {	// break code
+	
+	/* old RC has no togglebits, so we can only rely on the break code for 
+		KEY_RELEASED in case the same key is pressed twice, hopefully 
+		the break code never gets swallowed in this case */
+	if ((rc_code==0x5cfe)||((fupsold.last_key)&&((rc_code&0xff)!=fupsold.last_key->value_old))) { 
+		if (timer_pending(&keyup_timer))		/* in case we got a "spurious" break code */
+			del_timer_sync(&keyup_timer);
 		if (fupsold.last_key) {
-			if (timer_pending(&keyup_timer)) del_timer_sync(&keyup_timer);
-			if (fupsold.last_key) input_event(rc_input_dev, EV_KEY, fupsold.last_key->code, KEY_RELEASED);
+			input_event(rc_input_dev, EV_KEY, fupsold.last_key->code, KEY_RELEASED);
 			fupsold.last_key = NULL;
 		}
-		return;
+		if (rc_code == 0x5cfe)	/* ...else there was a new key and the breakcode was swallowed */
+			return;
 	}
-
+	
 	for (key = rc_key_map; key < &rc_key_map[RC_KEY_COUNT]; key++) {
 		if (key->value_old == (rc_code & 0xff)) {
+			if (timer_pending(&keyup_timer))
+				del_timer_sync(&keyup_timer);
 			if ((fupsold.last_key) && (fupsold.last_key->code == key->code)) {
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_AUTOREPEAT);
-				break;
-			}
-			else {
+			} else {
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_PRESSED);
 				fupsold.last_key = key;
-				break;
 			}
-			keyup_timer.expires = jiffies + (UP_TIMEOUT<<1);	// just in case the break code gets lost
+			keyup_timer.expires = jiffies + UP_TIMEOUT;	// in case the break code gets lost
 			keyup_timer.data = (unsigned long)&fupsold;
 			add_timer(&keyup_timer);
+			break;
 		}
 	}
 }
