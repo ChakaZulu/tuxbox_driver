@@ -1,5 +1,5 @@
 /*
- * $Id: avia_napi.c,v 1.1 2002/10/30 18:58:24 Jolt Exp $
+ * $Id: avia_napi.c,v 1.2 2002/11/04 23:04:02 Jolt Exp $
  *
  * AViA GTX/eNX NAPI driver
  *
@@ -34,6 +34,8 @@
 #include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvb_frontend.h"
 #include "../dvb-core/dvb_i2c.h"
+
+#include "avia_av_napi.h"
 #include "avia_gt_napi.h"
 
 static struct dvb_adapter *adap;
@@ -85,14 +87,14 @@ static int __init avia_napi_init(void)
 
 	int result;
 
-	printk("$Id: avia_napi.c,v 1.1 2002/10/30 18:58:24 Jolt Exp $\n");
+	printk("$Id: avia_napi.c,v 1.2 2002/11/04 23:04:02 Jolt Exp $\n");
 	
 	demux = avia_gt_napi_get_demux();
 	
 	if (!demux)
 		return -EFAULT;
 
-	if ((result = dvb_register_adapter(&adap, "dummy adapter")) < 0) {
+	if ((result = dvb_register_adapter(&adap, "C-Cube AViA GTX/eNX with AViA 500/600")) < 0) {
 	
 		printk("avia_napi: dvb_register_adapter failed (errno = %d)\n", result);
 		
@@ -133,7 +135,7 @@ static int __init avia_napi_init(void)
 
 	if ((result = demux->dmx.add_frontend(&demux->dmx, &fe_hw)) < 0) {
 	
-		printk("avia_napi: dvb_dmx_init failed (errno = %d)\n", result);
+		printk("avia_napi: add_frontend (hw) failed (errno = %d)\n", result);
 
 		dvb_dmxdev_release(&dmxdev);
 		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
@@ -150,7 +152,7 @@ static int __init avia_napi_init(void)
 
 	if ((result = demux->dmx.add_frontend(&demux->dmx, &fe_mem)) < 0) {
 	
-		printk("avia_napi: dvb_dmx_init failed (errno = %d)\n", result);
+		printk("avia_napi: add_frontend (mem) failed (errno = %d)\n", result);
 
 		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
 		dvb_dmxdev_release(&dmxdev);
@@ -161,9 +163,9 @@ static int __init avia_napi_init(void)
 		
 	}
 
-	if ((result = demux->dmx.connect_frontend(&demux->dmx, &fe_hw)) < 0) {
+/*	if ((result = demux->dmx.connect_frontend(&demux->dmx, &fe_hw)) < 0) {
 	
-		printk("avia_napi: dvb_dmx_init failed (errno = %d)\n", result);
+		printk("avia_napi: connect_frontend failed (errno = %d)\n", result);
 
 		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
 		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
@@ -173,7 +175,7 @@ static int __init avia_napi_init(void)
 		
 		return result;
 		
-	}
+	}*/
 
 	if ((result = dvb_add_frontend_notifier(adap, avia_napi_before_after_tune, NULL)) < 0) {
 	
@@ -206,6 +208,22 @@ static int __init avia_napi_init(void)
 		
 	}
 
+	if ((result = avia_av_napi_register(adap, NULL)) < 0) {
+	
+		printk("avia_napi: avia_av_napi_register failed (errno = %d)\n", result);
+
+		dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
+		dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
+		demux->dmx.close(&demux->dmx);
+		demux->dmx.remove_frontend(&demux->dmx, &fe_mem);
+		demux->dmx.remove_frontend(&demux->dmx, &fe_hw);
+		dvb_dmxdev_release(&dmxdev);
+		dvb_unregister_i2c_bus(avia_napi_i2c_master_xfer, adap, 0);
+		dvb_unregister_adapter(adap);
+		
+		return result;
+		
+	}
 
 //FIXME	dvb_net_register();
 
@@ -218,6 +236,7 @@ static void __exit avia_napi_exit(void)
 
 //FIXME	dvb_net_release(&net);
 
+	avia_av_napi_unregister();
 	dvb_remove_frontend_ioctls(adap, avia_napi_before_ioctl, avia_napi_after_ioctl);
 	dvb_remove_frontend_notifier(adap, avia_napi_before_after_tune);
 	demux->dmx.close(&demux->dmx);
