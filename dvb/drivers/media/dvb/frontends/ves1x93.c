@@ -27,8 +27,6 @@
 
 #include "compat.h"
 #include "dvb_frontend.h"
-#include "dvb_i2c.h"
-
 
 static int debug = 0;
 #define dprintk	if (debug) printk
@@ -454,7 +452,14 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 static
 int ves1x93_set_voltage (struct dvb_i2c_bus *i2c, fe_sec_voltage_t voltage)
 {
-	return ves1x93_writereg (i2c, 0x1f, (voltage == SEC_VOLTAGE_13) ? 0x20 : 0x30);
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		return ves1x93_writereg (i2c, 0x1f, 0x20);
+	case SEC_VOLTAGE_18:
+		return ves1x93_writereg (i2c, 0x1f, 0x30);
+	default:
+		return -EINVAL;
+	}
 }
 
 
