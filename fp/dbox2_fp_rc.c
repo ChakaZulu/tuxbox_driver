@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.2 2002/12/25 21:25:17 obi Exp $
+ * $Id: dbox2_fp_rc.c,v 1.3 2002/12/25 22:50:47 Jolt Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -36,14 +36,14 @@
 #define UP_TIMEOUT (HZ/2)
 
 static devfs_handle_t devfs_handle;
-static int rc_bcodes=0;
 static u16 rcbuffer[RCBUFFERSIZE];
 static u16 rcbeg = 0, rcend = 0;
 static wait_queue_head_t rcwait;
 static DECLARE_MUTEX_LOCKED(rc_opened);
 static struct input_dev input_dev;
 
-#define dprintk printk
+//#define dprintk printk
+#define dprintk if (0) printk
 
 static struct {
 
@@ -78,13 +78,13 @@ static struct {
 	{KEY_VOLUMEDOWN,	0x16, 0x17},
 	{KEY_HELP,			0x17, 0x00},
 	{KEY_SETUP,			0x18, 0x00},
-//	{KEY_TOPLEFT,		0x1B, 0x00};
-//	{KEY_TOPRIGHT,		0x1C, 0x00};
-//	{KEY_BOTTOMLEFT,	0x1D, 0x00};
-//	{KEY_BOTTOMRIGHT,	0x1E, 0x00};
+	{KEY_TOPLEFT,		0x1B, 0x00},
+	{KEY_TOPRIGHT,		0x1C, 0x00},
+	{KEY_BOTTOMLEFT,	0x1D, 0x00},
+	{KEY_BOTTOMRIGHT,	0x1E, 0x00},
 	{KEY_HOME,			0x1F, 0x00},
-//	{KEY_PAGEDOWN,		0x53, 0x53},
-//	{KEY_PAGEUP,		0x54, 0x54},
+	{KEY_PAGEDOWN,		0x53, 0x53},
+	{KEY_PAGEUP,		0x54, 0x54},
 	
 };
 
@@ -106,32 +106,17 @@ static struct timer_list keyup_timer = {
 	
 };
 
-static void input_register_keys(void)
-{
-	int rc_key_nr;
-		
-	memset(input_dev.keybit, 0, sizeof(input_dev.keybit));
-				
-	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++)
-		set_bit(rc_key_map[rc_key_nr].code, input_dev.keybit);
-
-}
-																												
 static void dbox2_fp_add_event(int code)
 {
 	int rc_key_nr;
 		
-	if (atomic_read(&rc_opened.count) >= 1)
-		return;
-
-	rcbuffer[rcend] = code;
-	rcend++;
+	dprintk("code=0x%08X rest=0x%08X ", code&0x1f, code&(~0x1f));
 
 	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++) {
 	
 		if (rc_key_map[rc_key_nr].value_new == (code & 0x1f)) {
 
-			dprintk("code=0x%08X input=%d\n", code&0x1f, rc_key_map[rc_key_nr].code);
+			dprintk("input=%d ", rc_key_map[rc_key_nr].code);
 
 			if (timer_pending(&keyup_timer)) {
 	
@@ -155,8 +140,15 @@ static void dbox2_fp_add_event(int code)
 
 	}
 
+	dprintk("\n");
+
 /* OLD STUFF */
 
+	if (atomic_read(&rc_opened.count) >= 1)
+		return;
+
+	rcbuffer[rcend] = code;
+	rcend++;
 
 	if (rcend >= RCBUFFERSIZE)
 		rcend = 0;
@@ -167,28 +159,13 @@ static void dbox2_fp_add_event(int code)
 		wake_up(&rcwait);
 }
 
-static int rc_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case RC_IOCTL_BCODES:
-		if (arg > 0)
-			rc_bcodes = 1;
-		else
-			rc_bcodes = 0;
-
-		dprintk("fp.o: rc_ioctl\n");
-		return fp_sendcmd(fp_get_i2c(), 0x26, rc_bcodes ? 0x80 : 0x00);
-
-	default:
-		return -EINVAL;
-	}
-}
-
 static ssize_t rc_read (struct file *file, char *buf, size_t count, loff_t *offset)
 {
 	int i;
 	unsigned int read = 0;
 	DECLARE_WAITQUEUE(wait, current);
+
+	for (;;) {
 
 	while (rcbeg == rcend) {
 
@@ -240,9 +217,6 @@ static int rc_open (struct inode *inode, struct file *file)
 static int rc_release (struct inode *inode, struct file *file)
 {
 	dprintk("fp.o: rc_release\n");
-	if (rc_bcodes != 0)
-		fp_sendcmd(fp_get_i2c(), 0x26, 0);
-
 	up(&rc_opened);
 	return 0;
 }
@@ -285,7 +259,9 @@ static void fp_handle_ir_rc(void)
 void queue_handler(u8 queue_nr)
 {
 
-	if ((queue_nr == 1) || (queue_nr == 3))
+	dprintk("event on queue %d\n", queue_nr);
+
+	if ((queue_nr == 0) || (queue_nr == 3))
 		fp_handle_ir_rc();
 
 	if (queue_nr == 4)
@@ -301,7 +277,7 @@ static struct file_operations rc_fops =
 	write:			NULL,
 	readdir:		NULL,
 	poll:			rc_poll,
-	ioctl:			rc_ioctl,
+	ioctl:			NULL,
 	mmap:			NULL,
 	open:			rc_open,
 	flush:			NULL,
@@ -318,14 +294,20 @@ static struct file_operations rc_fops =
 int __init dbox2_fp_rc_init(void)
 {
 
+	int rc_key_nr;
+		
 	input_dev.name = "DBOX-2 FP IR remote control";
 
 	set_bit(EV_KEY, input_dev.evbit);
 
-	input_register_keys();
+	memset(input_dev.keybit, 0, sizeof(input_dev.keybit));
+				
+	for (rc_key_nr = 0; rc_key_nr < RC_KEY_COUNT; rc_key_nr++)
+		set_bit(rc_key_map[rc_key_nr].code, input_dev.keybit);
+
 	input_register_device(&input_dev);
 
-	dbox2_fp_queue_alloc(1, queue_handler);
+	dbox2_fp_queue_alloc(0, queue_handler);
 	dbox2_fp_queue_alloc(3, queue_handler);
 	dbox2_fp_queue_alloc(4, queue_handler);
 
@@ -336,6 +318,10 @@ int __init dbox2_fp_rc_init(void)
 	init_waitqueue_head(&rcwait);
 	up(&rc_opened);  
 
+	// Enable break codes	
+	//fp_sendcmd(fp_get_i2c(), 0x01, 0x80);
+	fp_sendcmd(fp_get_i2c(), 0x26, 0x80); // Mhhh .. muesste das nicht an 0x01 bei Nokia? Geht aber beides nicht mit einer Sagem FB
+
 	return 0;
 
 }
@@ -343,7 +329,7 @@ int __init dbox2_fp_rc_init(void)
 void __exit dbox2_fp_rc_exit(void)
 {
 
-	dbox2_fp_queue_free(1);
+	dbox2_fp_queue_free(0);
 	dbox2_fp_queue_free(3);
 	dbox2_fp_queue_free(4);
 

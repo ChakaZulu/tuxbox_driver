@@ -77,6 +77,10 @@
 #define KEY_TEEN         0x19f
 #define KEY_TWEN         0x1a0
 #define KEY_BREAK        0x1a1
+#define KEY_TOPLEFT      0x1a2
+#define KEY_TOPRIGHT     0x1a3
+#define KEY_BOTTOMLEFT   0x1a4
+#define KEY_BOTTOMRIGHT  0x1a5
 
 
 #endif  /* !defined(KEY_OK)  */
