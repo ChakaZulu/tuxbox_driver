@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_ir.c,v $
+ *   Revision 1.6  2002/05/08 13:26:58  Jolt
+ *   Disable ir-dos :)
+ *
  *   Revision 1.5  2002/05/07 19:41:02  Jolt
  *   IR tests
  *
@@ -38,7 +41,7 @@
  *
  *
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -72,7 +75,6 @@ static void avia_gt_ir_tx_irq(unsigned short irq)
 
   //  printk("avia_gt_ir: tx irq\n");
     printk("I");
-	avia_gt_ir_transmit_pulse(0x3FF, 0xFF);
 
 }
 
@@ -143,7 +145,7 @@ void avia_gt_ir_transmit_pulse(unsigned short period, unsigned char duty_cycle)
 int __init avia_gt_ir_init(void)
 {
 
-    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.5 2002/05/07 19:41:02 Jolt Exp $\n");
+    printk("avia_gt_ir: $Id: avia_gt_ir.c,v 1.6 2002/05/08 13:26:58 Jolt Exp $\n");
 	
 	gt_info = avia_gt_get_info();
 		
@@ -179,7 +181,7 @@ int __init avia_gt_ir_init(void)
 	enx_reg_16(CWP) = 0x0523;
 	enx_reg_16(CWPH) = 0x01B5;
 	
-	avia_gt_ir_transmit_pulse(0x3FF, 0xFF);
+//	avia_gt_ir_transmit_pulse(0x3FF, 0xFF);
 
     return 0;
     
