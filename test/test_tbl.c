@@ -28,10 +28,13 @@ int main(int argc, char **argv)
     return -fd;
   }
 
-  memset(&flt.filter.filter, 0, DMX_FILTER_SIZE);
-  memset(&flt.filter.mask, 0, DMX_FILTER_SIZE);
+  memset (&flt.filter, 0, sizeof (struct dmxFilter));
 
-  flt.pid=0;
+  flt.pid            = 0;
+  flt.filter.mask[0] = 0xFF;
+  flt.timeout        = 10000;
+/*  flt.flags          = DMX_IMMEDIATE_START | DMX_CHECK_CRC | DMX_ONESHOT; */
+  flt.flags          = DMX_IMMEDIATE_START;
 
   if (argc>=2)
   {
@@ -48,33 +51,36 @@ int main(int argc, char **argv)
     flt.filter.filter[0]=filter;
   }
 
-  flt.filter.mask[0]  =0xFF;
-  flt.timeout=10000;
-  flt.flags=DMX_ONESHOT;
+  if (argc >= 4)
+  {
+    int mask;
+    sscanf (argv[2], "%x", &mask);
+    flt.filter.mask[0] = mask;
+  }
 
-  flt.flags=0;
   if (ioctl(fd, DMX_SET_FILTER, &flt)<0)
   {
     perror("DMX_SET_FILTER");
     return 1;
   }
   
-  ioctl(fd, DMX_START, 0);
-
-  if ((r=read(fd, buffer, r))<=0)
+  if ((r=read(fd, buffer, r)) <= 0)
   {
     perror("read");
     return 1;
   }
   
   printf("%d bytes.\n", r);
-  
-  if (!flt.pid)         // PAT
+
+  // PAT
+  if (!flt.pid)
   {
     printf("TSID: %04x\n", (buffer[3]<<8)|buffer[4]);
     for (i=0; i<(r-8-4)/4; i++)
       printf("%04x PMT: %04x\n", (buffer[i*4+8]<<8)|(buffer[i*4+9]), ((buffer[i*4+10]&~0xE0)<<8)|(buffer[i*4+11]));
-  } else
+  }
+  // PMT
+  else if (flt.filter.filter[0] == 0x02)
   {
     int pilen, dp;
     printf("Program: %04x\n", (buffer[3]<<8)|buffer[4]);
@@ -103,6 +109,25 @@ int main(int argc, char **argv)
       printf("\n");
     }
   }
+  // EI
+  else if (flt.pid == 0x12)
+  {
+    printf ("dumping EI\n");
+    for (i = 0; i < r; i++)
+      if ((buffer[i] >= 0x20) && (buffer[i] <= 0x7F))
+        printf ("%c", buffer[i]);
+      else
+        printf (" %.2x ", buffer[i]);
+    printf ("\n");
+  }
+  // rest
+  else
+  {
+    for (i = 0; i < r; i++)
+      printf ("%.2x ", buffer[i]);
+    printf ("\n");
+  }
+
   close(fd);
   return 0;
 }
