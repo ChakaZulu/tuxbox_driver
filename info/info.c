@@ -21,11 +21,14 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.2  2001/04/03 17:48:24  tmbinc
+ *   improved /proc/bus/info (philips support)
+ *
  *   Revision 1.1  2001/03/28 23:33:31  tmbinc
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -84,7 +87,7 @@ static int dbox_info_init(void)
 	memset(info.dsID, 0, 8);		// todo
 	info.mID=conf[0];
 	info.fe=fe;
-	if (info.mID==3)								// das suckt hier, aber ich kenn keinen besseren weg.
+	if (info.mID==DBOX_MID_SAGEM)								// das suckt hier, aber ich kenn keinen besseren weg.
 	{
 		info.feID=0;
 		info.fpID=0x52;
@@ -93,7 +96,16 @@ static int dbox_info_init(void)
 		info.hwREV=fe?0x21:0x41;
 		info.fpREV=0x23;
 		info.demod=fe?DBOX_DEMOD_VES1993:DBOX_DEMOD_AT76C651;
-	}	else if (info.mID==1)				// nokia
+	}	else if (info.mID==DBOX_MID_PHILIPS)		// never seen a cable-philips
+	{
+		info.feID=0;
+		info.fpID=0x52;
+		info.enxID=3;
+		info.gtxID=-1;
+		info.hwREV=fe?0x01:-1;
+		info.fpREV=0x30;
+		info.demod=fe?DBOX_DEMOD_TDA8044H:-1;
+	}	else if (info.mID==DBOX_MID_NOKIA)
 	{
 		info.feID=fe?0xdd:0x7a;
 		info.fpID=0x5a;
@@ -126,12 +138,13 @@ int dbox_get_info_ptr(struct dbox_info_struct **dinfo)
 
 #ifdef CONFIG_PROC_FS
 
+static char *demod_table[5]={"VES1820", "VES1893", "AT76C651", "VES1993", "TDA8044H"};
+
 static int read_bus_info(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
-	return sprintf(buf, "mID:\t%02x\nfeID:\t%02x\nfpID:\t%02x\nenxID:\t%02x\ngtxID:\t%02x\nhwREV:\t%02x\nfpREV:\t%02x\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV);
-	return len;
+	return sprintf(buf, "mID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\n",
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, demod_table[info.demod]);
 }
 
 int info_proc_init(void)

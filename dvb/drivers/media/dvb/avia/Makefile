@@ -2,10 +2,8 @@
 # some magic for using linux kernel settings
 # when compiling module(s)
 
-M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o
-# enx_core.o enx_fb.o
-obj-m    = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o
-# enx_core.o enx_fb.o
+M_OBJS   = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o enx_fb.o
+obj-m    = gtx_core.o gtx_fb.o gtx_dmx.o avia.o osd.o enx_core.o enx_fb.o
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 GTX_FB    = gtx-fb.o fbgen.o
