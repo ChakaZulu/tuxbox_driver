@@ -567,7 +567,7 @@ static int ves1x93_attach (struct dvb_i2c_bus *i2c)
 		ves1x93_info.name[4] = '9';
 		break;
 	default:
-		printk("VES1x93 not found (identity %02x)\n", identity);
+		dprintk("VES1x93 not found (identity %02x)\n", identity);
 		return -ENODEV;
 	}
 
