@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.38 $
+ *   $Revision: 1.39 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.39  2001/04/21 10:57:41  tmbinc
+ *   small fix.
+ *
  *   Revision 1.38  2001/04/21 10:40:13  tmbinc
  *   fixes for eNX
  *
@@ -837,7 +840,7 @@ static void gtx_task(void *data)
           {
 						// handle TS
 	          case DMX_TYPE_TS:
-//  	          gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0);
+  	          gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0);
 							break;
 
 						// handle section
