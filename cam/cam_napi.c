@@ -1,5 +1,5 @@
 /*
- * $Id: cam_napi.c,v 1.1 2002/11/08 01:25:52 obi Exp $
+ * $Id: cam_napi.c,v 1.2 2002/11/10 22:06:36 Jolt Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -23,18 +23,17 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include <avia/avia_napi.h>
 #include <dvb-core/dvbdev.h>
 #include <linux/dvb/ca.h>
 
 #include <dbox/cam.h>
 
+static struct dvb_device *ca_dev = NULL;
 
-static struct dvb_device *ca_dev;
-static u8 ca_dev_registered = 0;
-
-
-static int cam_napi_ioctl (struct inode *inode, struct file *file, unsigned int cmd, void *parg)
+static int cam_napi_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *parg)
 {
+
 	int ret = 0;
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) &&
@@ -109,66 +108,29 @@ static struct dvb_device cam_napi_dev = {
 
 };
 
-
-int cam_napi_register (struct dvb_adapter *adapter, void *priv)
+int cam_napi_init(void)
 {
 
 	int result;
 
-	if (ca_dev_registered)
-		return -EINVAL;
-
-	if ((result = dvb_register_device(adapter, &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0) {
-
+	printk("$Id: cam_napi.c,v 1.2 2002/11/10 22:06:36 Jolt Exp $\n");
+	
+	if ((result = dvb_register_device(avia_napi_get_adapter(), &ca_dev, &cam_napi_dev, NULL, DVB_DEVICE_CA)) < 0)
 		printk("cam_napi: cam_napi_register failed (errno = %d)\n", result);
 
-		return result;
-
-	}
-
-	ca_dev_registered = 1;
-
-	return 0;
-
-}
-
-void cam_napi_unregister (void)
-{
-
-	if (ca_dev_registered) {
-	
-		dvb_unregister_device(ca_dev);
-
-		ca_dev_registered = 0;
-
-	}
+	return result;
 
 }
 
 
-int cam_napi_init (void)
-{
-
-	printk("$Id: cam_napi.c,v 1.1 2002/11/08 01:25:52 obi Exp $\n");
-
-	return 0;
-
-}
-
-
-void cam_napi_exit (void)
+void cam_napi_exit(void)
 {
 	
-	cam_napi_unregister();
-
+	dvb_unregister_device(ca_dev);
+	
 }
-
-
-EXPORT_SYMBOL(cam_napi_register);
-EXPORT_SYMBOL(cam_napi_unregister);
 
 #if defined(MODULE)
 module_init(cam_napi_init);
 module_exit(cam_napi_exit);
 #endif
-
