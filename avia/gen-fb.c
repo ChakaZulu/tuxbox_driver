@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.10  2001/09/13 17:11:37  field
+ *   Fixed CRLFs (verdammter Editor!)
+ *
  *   Revision 1.9  2001/09/13 17:07:00  field
  *   Fixed ENX-Framebuffer position bug
  *
@@ -66,7 +69,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -780,7 +783,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: gen-fb.c,v 1.9 2001/09/13 17:07:00 field Exp $\n");
+  dprintk("Framebuffer: $Id: gen-fb.c,v 1.10 2001/09/13 17:11:37 field Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)
@@ -790,3 +793,4 @@ void cleanup_module(void)
 EXPORT_SYMBOL(cleanup_module);
 
 #endif
+
