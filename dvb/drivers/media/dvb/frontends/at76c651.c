@@ -1,6 +1,6 @@
 /*
  * at76c651.c
- *
+ * 
  * Atmel DVB-C Frontend Driver (at76c651/dat7021)
  *
  * Copyright (C) 2001 fnbrd <fnbrd@gmx.de>
@@ -150,8 +150,7 @@ static int at76c651_disable_interrupts(struct dvb_i2c_bus *i2c)
 
 }
 
-static int
-at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
+static int at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
 {
 
 	/*
@@ -171,16 +170,13 @@ at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
 	at76c651_writereg(i2c, 0x24, ((at76c651_qam == 5) || (at76c651_qam == 7)) ? 0xC0 : 0x90);
 	at76c651_writereg(i2c, 0x30, 0x90);
 	if (at76c651_qam == 5)
-	{
 		at76c651_writereg(i2c, 0x35, 0x2A);
-	}
 
 	/*
 	 * Initialize A/D-converter
 	 */
 
-	if (at76c651_revision == 0x11)
-	{
+	if (at76c651_revision == 0x11) {
 		at76c651_writereg(i2c, 0x2E, 0x38);
 		at76c651_writereg(i2c, 0x2F, 0x13);
 	}
@@ -301,7 +297,6 @@ static int at76c651_set_qam(struct dvb_i2c_bus *i2c, fe_modulation_t qam)
 {
 
 	switch (qam) {
-
 	case QPSK:
 		at76c651_qam = 0x02;
 		break;
@@ -320,12 +315,10 @@ static int at76c651_set_qam(struct dvb_i2c_bus *i2c, fe_modulation_t qam)
 	case QAM_256:
 		at76c651_qam = 0x08;
 		break;
-#ifdef QAM_512
+#if 0
 	case QAM_512:
 		at76c651_qam = 0x09;
 		break;
-#endif
-#ifdef QAM_1024
 	case QAM_1024:
 		at76c651_qam = 0x0A;
 		break;
@@ -395,7 +388,6 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
 
 	switch (cmd) {
-
 	case FE_GET_INFO:
 		memcpy(arg, &at76c651_info, sizeof (struct dvb_frontend_info));
 		break;
@@ -407,7 +399,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			u8 sync;
 
 			/*
-			 * Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0)
+			 * Bits: FEC, CAR, EQU, TIM, AGC2, AGC1, ADC, PLL (PLL=0) 
 			 */
 			sync = at76c651_readreg(fe->i2c, 0x80);
 
@@ -448,12 +440,12 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		{
 			u8 gain = ~at76c651_readreg(fe->i2c, 0x91);
 
-			*(s32 *) arg = (gain << 8) | gain;
+			*(u16 *) arg = (gain << 8) | gain;
 			break;
 		}
 
 	case FE_READ_SNR:
-		*(s32 *) arg =
+		*(u16 *) arg =
 		    0xFFFF -
 		    ((at76c651_readreg(fe->i2c, 0x8F) << 8) |
 		     at76c651_readreg(fe->i2c, 0x90));
@@ -479,7 +471,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		return at76c651_reset(fe->i2c);
 
 	default:
-		return -ENOSYS;
+		return -ENOIOCTLCMD;
 	}
 
 	return 0;
@@ -488,8 +480,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 #ifdef AT76C651_PROC_INTERFACE
 
-static int
-at76c651_proc_read(char *buf, char **start, off_t offset, int len, int *eof, void *i2c)
+static int at76c651_proc_read(char *buf, char **start, off_t offset, int len, int *eof, void *i2c)
 {
 	int nr;
 	u8 val;
@@ -545,8 +536,7 @@ at76c651_proc_read(char *buf, char **start, off_t offset, int len, int *eof, voi
 	return nr;
 }
 
-static int
-at76c651_register_proc(struct dvb_i2c_bus *i2c)
+static int at76c651_register_proc(struct dvb_i2c_bus *i2c)
 {
 	struct proc_dir_entry *proc_bus_at76c651;
 
@@ -568,8 +558,7 @@ at76c651_register_proc(struct dvb_i2c_bus *i2c)
 	return 0;
 }
 
-static void
-at76c651_deregister_proc(void)
+static void at76c651_deregister_proc(void)
 {
 	if (at76c651_proc_registered)
 		remove_proc_entry("at76c651",proc_bus);
@@ -579,8 +568,7 @@ at76c651_deregister_proc(void)
 
 #endif
 
-static int
-at76c651_attach(struct dvb_i2c_bus *i2c)
+static int at76c651_attach(struct dvb_i2c_bus *i2c)
 {
 	if ( (at76c651_readreg(i2c, 0x0E) != 0x65) ||
 	     ( ( (at76c651_revision = at76c651_readreg(i2c, 0x0F)) & 0xFE) != 0x10) )
@@ -641,11 +629,7 @@ static void __exit at76c651_exit(void)
 module_init(at76c651_init);
 module_exit(at76c651_exit);
 
-#ifdef MODULE
 MODULE_DESCRIPTION("at76c651/dat7021 dvb-c frontend driver");
 MODULE_AUTHOR("Andreas Oberritter <andreas@oberritter.de>");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 MODULE_PARM(debug, "i");
-#endif
