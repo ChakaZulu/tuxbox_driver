@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.36 2003/12/18 17:19:00 carjay Exp $
+ * $Id: saa7126_core.c,v 1.37 2003/12/20 18:08:39 zwen Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -686,8 +686,7 @@ saa7126_csync_get(struct i2c_client *client)
 	u8 reg;
 	reg = saa7126_readreg(client, 0x3A);
 	reg &= 0x04; /* GET CSYNC Bit */
-	if(reg)
-	{
+	if(reg) {
 		reg = (saa7126_readreg(client, 0x75) | ~0x07) >> 3;
 		return reg;
 	}
