@@ -160,7 +160,7 @@ gtx_validate_color (GTXDriverData *gdrv,
                                                              state->color.b));
           break;
         default:
-          BUG ("unexpected pixelformat");
+          D_BUG ("unexpected pixelformat");
           break;
         }
     }
@@ -199,7 +199,7 @@ gtx_validate_color (GTXDriverData *gdrv,
                                                               state->color.b));
 	  break;
         default:
-          BUG ("unexpected pixelformat");
+          D_BUG ("unexpected pixelformat");
           break;
         }
     }
@@ -319,7 +319,7 @@ gtxSetState (void *drv, void *dev,
       break;
 
     default:
-      BUG ("unexpected drawing/blitting function!");
+      D_BUG ("unexpected drawing/blitting function!");
       break;
     }
 
