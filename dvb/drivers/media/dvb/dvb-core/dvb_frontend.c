@@ -334,8 +334,9 @@ void dvb_frontend_init (struct dvb_frontend_data *fe)
 {
 	struct dvb_frontend *frontend = &fe->frontend;
 
-	printk ("DVB: initialising frontend %i:%i (%s)...\n",
-		frontend->i2c->adapter->num, frontend->i2c->id, fe->info->name);
+	dprintk ("DVB: initialising frontend %i:%i (%s)...\n",
+		 frontend->i2c->adapter->num, frontend->i2c->id,
+		 fe->info->name);
 
 	dvb_frontend_internal_ioctl (frontend, FE_INIT, NULL);
 }
@@ -857,6 +858,10 @@ dvb_register_frontend (int (*ioctl) (struct dvb_frontend *frontend,
 	}
 
 	list_add_tail (&fe->list_head, &frontend_list);
+
+	printk ("DVB: registering frontend %i:%i (%s)...\n",
+		fe->frontend.i2c->adapter->num, fe->frontend.i2c->id,
+		fe->info->name);
 
 	dvb_register_device (i2c->adapter, &fe->dvbdev, &dvbdev_template,
 			     fe, DVB_DEVICE_FRONTEND);

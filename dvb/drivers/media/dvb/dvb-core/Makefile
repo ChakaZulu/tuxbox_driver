@@ -20,7 +20,7 @@ install:
 	cp -v $(M_OBJS) $(MODULE_DEST)
 
 clean:
-	-rm -f $(M_OBJS) $(O_TARGET) .*.o.flags *~
+	-rm -f $(M_OBJS) $(DVB_CORE) $(O_TARGET) .*.o.flags *~ *.d
 
 dvb-core.o: $(DVB_CORE)
 	$(LD) -m elf32ppclinux -r -o $@ $(DVB_CORE)

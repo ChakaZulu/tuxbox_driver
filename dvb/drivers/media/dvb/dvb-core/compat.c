@@ -145,6 +145,7 @@ u32 crc32_le (u32 crc, unsigned char const *data, size_t len)
 
 	for (i=0; i<len; i++)
                 crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ *data++) & 0xff];
+
 	return crc;
 }
 

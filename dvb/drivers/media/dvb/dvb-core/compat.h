@@ -42,22 +42,37 @@ extern int generic_usercopy(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg));
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
-#define video_devdata(dev) (dev->priv)
+#ifndef minor
+#define minor(dev) MINOR(dev)
+#endif
 
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20))
 static inline
 void cond_resched (void)
 {
 	if (current->need_resched)
 		schedule();
 }
+#endif
+
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+
+#define video_devdata(dev) (dev->priv)
 
 extern struct page * vmalloc_to_page(void *addr);
 
+#if defined(MODVERSIONS)
+#include <linux/modversions.h>
+#undef remap_page_range
+#define remap_page_range(vma,from,to,size,prot) \
+	_set_ver(remap_page_range)(from,to,size,prot)
+#else
 #define remap_page_range(vma,from,to,size,prot) \
 	remap_page_range(from,to,size,prot)
-
+#endif
 #endif
 
 
