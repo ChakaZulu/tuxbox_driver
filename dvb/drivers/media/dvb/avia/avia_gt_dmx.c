@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.201 2004/02/01 13:50:23 wjoost Exp $
+ * $Id: avia_gt_dmx.c,v 1.202 2004/03/06 22:28:35 carjay Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -950,6 +950,13 @@ void avia_gt_dmx_bh_task(void *tl_data)
 		printk(KERN_WARNING "avia_gt_dmx: queue %d overflow (count: %d)\n", queue_nr, q->overflow_count);
 		q->overflow_count = 0;
 		q->read_pos = q->write_pos = q->hw_write_pos;
+		return;
+	}
+
+	/* Message queue is special */
+	if (queue_nr==AVIA_GT_DMX_QUEUE_MESSAGE){
+		if (q->cb_proc)
+			q->cb_proc(&q->info, q->priv_data);
 		return;
 	}
 
@@ -2068,7 +2075,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.201 2004/02/01 13:50:23 wjoost Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.202 2004/03/06 22:28:35 carjay Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
