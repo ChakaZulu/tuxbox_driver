@@ -328,7 +328,8 @@ typedef struct {
 
 extern unsigned char* enx_get_mem_addr(void);
 extern unsigned char* enx_get_reg_addr(void);
-
+extern void enx_free_irq(int reg, int bit);
+extern void enx_allocate_irq(int reg, int bit, void (*isr)(int, int));
 
 #define enx_reg_d(register) ((unsigned int)(*((unsigned int*)(enx_get_reg_addr() + register))))
 #define enx_reg_w(register) ((unsigned short)(*((unsigned short*)(enx_get_reg_addr() + register))))
