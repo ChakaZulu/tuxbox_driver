@@ -28,6 +28,8 @@
 
 #include "dmxdev.h"
 
+#define DMXDEV_BUFFER_SIZE		8192*4;
+
 inline dmxdev_filter_t *
 DmxDevFile2Filter(dmxdev_t *dmxdev, struct file *file)
 {
@@ -44,7 +46,7 @@ static inline void
 DmxDevBufferInit(dmxdev_buffer_t *buffer) 
 {
 	buffer->data=0;
-	buffer->size=8192;
+	buffer->size=DMXDEV_BUFFER_SIZE;
 	buffer->pread=0;
 	buffer->pwrite=0;
 	buffer->error=0;
@@ -69,10 +71,12 @@ DmxDevBufferWrite(dmxdev_buffer_t *buf, uint8_t *src, int len)
 		free+=buf->size;
 		split=buf->size-buf->pwrite;
 	}
+
 	if (len>=free) {
-		printk("dmxdev: buffer overflow\n");
+		printk("dmxdev: buffer overflow free: %d len: %d\n", free, len );
 		return -1;
 	}
+
 	if (split>=len)
 		split=0;
 	todo=len;
