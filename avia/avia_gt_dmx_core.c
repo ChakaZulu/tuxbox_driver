@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.55 $
+ *   $Revision: 1.56 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.56  2001/09/02 12:30:41  TripleDES
+ *   -more fixes
+ *
  *   Revision 1.55  2001/09/02 01:28:34  TripleDES
  *   -small fix (dac)
  *
@@ -567,10 +570,10 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
   
-//  enx_reg_h(base)=read&0xFFFF;
-//  enx_reg_h(base+4)=write&0xFFFF;
-//  enx_reg_h(base+6)=((write>>16)&63)|(size<<6);
-//  enx_reg_h(base+2)=((read>>16)&63);
+  enx_reg_h(base)=read&0xFFFF;
+  enx_reg_h(base+4)=write&0xFFFF;
+  enx_reg_h(base+6)=((write>>16)&63)|(size<<6);
+  enx_reg_h(base+2)=((read>>16)&63);
 #else
   int base=queue*8+0x1E0;
   
@@ -1939,7 +1942,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.55 2001/09/02 01:28:34 TripleDES Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx_core.c,v 1.56 2001/09/02 12:30:41 TripleDES Exp $\n");
 
 	return gtx_dmx_init();
 }
