@@ -21,6 +21,9 @@
  *
  *
  *   $Log: stv6412.c,v $
+ *   Revision 1.9  2001/07/23 21:32:45  gillem
+ *   - fix some values
+ *
  *   Revision 1.8  2001/07/23 20:05:06  gillem
  *   - change default value
  *
@@ -46,7 +49,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -155,6 +158,12 @@ int stv6412_set_volume( struct i2c_client *client, int vol )
 
 	c = vol;
 
+	// not smart ;-)
+	if ( c == 63 )
+	{
+		c--;
+	}
+
 	if ( c <= 62 )
 	{
 		if ( c > 0 )
@@ -181,6 +190,9 @@ inline int stv6412_set_mute( struct i2c_client *client, int type )
 	}
 
 	stv6412_data.c_ag = type&1;
+
+	// test only !
+	stv6412_data.svm  = type&1;
 
 	return stv6412_set(client);
 }
@@ -477,12 +489,11 @@ int stv6412_init(struct i2c_client *client)
 	/* Data 0 */
 	stv6412_data.t_vol_c = 2;
 	 /* Data 1 */
-	stv6412_data.v_asc = 1;
+	stv6412_data.v_asc  = 1;
+	stv6412_data.tc_asc = 1;
 	stv6412_data.c_ag   = 1;
 	/* Data 2 */
-//	stv6412_data.t_cm   = 1;
 	stv6412_data.v_vsc  = 1;
-//	stv6412_data.v_cm   = 1;
 	stv6412_data.t_vsc  = 1;
 	/* Data 3 */
 	stv6412_data.rgb_tri  = 1;
@@ -490,10 +501,7 @@ int stv6412_init(struct i2c_client *client)
 	stv6412_data.rgb_vsc  = 1;
 	stv6412_data.fblk     = 1;
 	/* Data 4 */
-//	stv6412_data.v_coc = 1;
-//	stv6412_data.v_cgc = 1;
 	/* Data 5 */
-//	stv6412_data.e_aig = 1;
 	stv6412_data.t_sb  = 3;
 	stv6412_data.v_sb  = 0;
 	/* Data 6 */
