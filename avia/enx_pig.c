@@ -215,14 +215,14 @@ int enx_pig_hide(unsigned char pig_nr)
 
     if (pig_busy[pig_nr]) {
 
-	enx_reg_w(VPSA1) |= 0;
+	enx_reg_w(VPSA1) |= 1;
 
 	enx_capture_stop();
     
 	pig_busy[pig_nr] = 0;
 	
-    }	
-    
+    }
+
     return 0;
 }
 
@@ -231,10 +231,7 @@ int enx_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y)
     if (pig_nr >= ENX_PIG_COUNT)
 	return -ENODEV;
 
-#define PIG_PIPEDELAY 8
-#define BLANK_TIME 132
-
-    enx_reg_s(VPP1)->HPOS = ((BLANK_TIME - PIG_PIPEDELAY) + x) / 2;
+    enx_reg_s(VPP1)->HPOS = 63 + ( x / 2);
     enx_reg_s(VPP1)->VPOS = 21 + y;
     
     return 0;
@@ -291,15 +288,15 @@ int enx_pig_show(unsigned char pig_nr)
 
     enx_reg_h(VPSTR1) = 0;				
     enx_reg_h(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 4) & 0x7FF) << 2);
-    enx_reg_h(VPSTR1) |= 0;								// Enable hardware double buffering
+    enx_reg_h(VPSTR1) |= 1;				// Enable hardware double buffering
     
     enx_reg_s(VPSZ1)->P = 0;
     
     enx_reg_w(VPSA1) = 0;
     enx_reg_w(VPSA1) |= ((unsigned int)pig_buffer[pig_nr] & 0xFFFFFC);			// Set buffer address (for non d-buffer mode)
     
-    enx_reg_s(VPOFFS1)->OFFSET = odd_offset >> 2;
-//    enx_reg_s(VPOFFS1)->OFFSET = 0;
+//    enx_reg_s(VPOFFS1)->OFFSET = odd_offset >> 2;
+    enx_reg_s(VPOFFS1)->OFFSET = 0;
 
     enx_reg_s(VPP1)->U = 0;
     enx_reg_s(VPP1)->F = 0;
@@ -321,7 +318,7 @@ void enx_pig_init(void)
 
     enx_pig_set_pos(pig_nr, 150, 50);
     enx_pig_set_size(pig_nr, PIG_WIDTH, PIG_HEIGHT, 0);
-    enx_pig_set_stack(pig_nr, 2);
+    enx_pig_set_stack(pig_nr, 1);
     
     //enx_pig_show(pig_nr);
 }
@@ -333,23 +330,15 @@ void enx_pig_cleanup(void)
     enx_pig_hide(0);
     
     enx_reg_w(RSTR0) |= (1 << 7);
-
 }
 
 static int init_enx_pig(void)
 {
-    printk("$Id: enx_pig.c,v 1.6 2001/12/05 16:22:58 derget Exp $\n");
+    printk("$Id: enx_pig.c,v 1.7 2001/12/20 16:05:41 fx2 Exp $\n");
 
     devfs_handle[0] = devfs_register(NULL, "dbox/pig0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &enx_pig_fops, NULL);
     if (!devfs_handle[0])
 	return -EIO;
-
-    devfs_handle[1] = devfs_register(NULL, "dbox/pig1", DEVFS_FL_DEFAULT, 0, 1, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &enx_pig_fops, NULL);
-
-    if (!devfs_handle[1]) {
-	devfs_unregister(devfs_handle[0]);
-	return -EIO;
-    }
 
     enx_pig_init();
 
@@ -360,7 +349,6 @@ static void __exit cleanup_enx_pig(void)
 {
     enx_pig_cleanup();
     
-    devfs_unregister(devfs_handle[1]);
     devfs_unregister(devfs_handle[0]);
 }
 
