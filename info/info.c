@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.15  2002/05/06 02:18:19  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.14  2002/03/20 16:05:15  obi
  *   added missing variables to dbox.sh
  *
@@ -61,7 +64,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.14 $
+ *   $Revision: 1.15 $
  *
  */
 
@@ -113,24 +116,24 @@ volatile u8 *aviamem;
 static int attach_dummy_adapter(struct i2c_adapter *);
 
 static struct i2c_driver dummy_i2c_driver = {
-        "FOR_PROBE_ONLY",
-        I2C_DRIVERID_EXP2, // experimental use id
+	"FOR_PROBE_ONLY",
+	I2C_DRIVERID_EXP2, // experimental use id
 	I2C_DF_NOTIFY,
-        &attach_dummy_adapter,
-        0,
-        0,
+	&attach_dummy_adapter,
+	0,
+	0,
 	0,
 	0
 };
 
 static struct i2c_client dummy_i2c_client = {
-        "FOR_PROBE_ONLY_CLIENT",
-        I2C_DRIVERID_EXP2, // experimental use id
-        0,
-        0,
-        NULL,
-        &dummy_i2c_driver,
-        NULL
+	"FOR_PROBE_ONLY_CLIENT",
+	I2C_DRIVERID_EXP2, // experimental use id
+	0,
+	0,
+	NULL,
+	&dummy_i2c_driver,
+	NULL
 };
 
 static u8 i2c_addr_of_device;
@@ -146,29 +149,29 @@ static int device_reg_addr_is_16bit;
 // aus ves1820 uebernommen und keine Lust das zu cleanen
 static u8 readreg(struct i2c_client *client, u8 reg)
 {
-        struct i2c_adapter *adap=client->adapter;
-        unsigned char mm1[2];
-        unsigned char mm2[] = {0x00};
-        struct i2c_msg msgs[2];
+	struct i2c_adapter *adap=client->adapter;
+	unsigned char mm1[2];
+	unsigned char mm2[] = {0x00};
+	struct i2c_msg msgs[2];
 
-        msgs[0].flags=0;
-        msgs[1].flags=I2C_M_RD;
-        msgs[0].addr=msgs[1].addr=client->addr;
+	msgs[0].flags=0;
+	msgs[1].flags=I2C_M_RD;
+	msgs[0].addr=msgs[1].addr=client->addr;
 	if(device_reg_addr_is_16bit) {
 	  mm1[0]=0;
 	  mm1[1]=reg;
-          msgs[0].len=2;
-        }
+	  msgs[0].len=2;
+	}
 	else {
-          mm1[0]=reg;
-          msgs[0].len=1;
-        }
+	  mm1[0]=reg;
+	  msgs[0].len=1;
+	}
 	msgs[1].len=1;
-        msgs[0].buf=mm1;
+	msgs[0].buf=mm1;
 	msgs[1].buf=mm2;
-        i2c_transfer(adap, msgs, 2);
+	i2c_transfer(adap, msgs, 2);
 
-        return mm2[0];
+	return mm2[0];
 }
 
 static int attach_dummy_adapter(struct i2c_adapter *adap)
@@ -228,25 +231,25 @@ int ds_reset(void)
 	udelay(360);
 	return success;
 }
-    
+
 void write1(void)
 {
-	cpm->cp_pbdat&=~4; 
-	cpm->cp_pbdir|= 4; 
+	cpm->cp_pbdat&=~4;
+	cpm->cp_pbdir|= 4;
 	udelay(1);
 	cpm->cp_pbdir&= ~4;
 	udelay(59);
-}	
-    
+}
+
 void write0(void)
 {
-	cpm->cp_pbdat&=~4; 
-	cpm->cp_pbdir|= 4; 
+	cpm->cp_pbdat&=~4;
+	cpm->cp_pbdir|= 4;
 	udelay(55);
 	cpm->cp_pbdir &= ~4;
 	udelay(5);
-}	
-    
+}
+
 int readx(void)
 {
 	int result;
@@ -259,7 +262,7 @@ int readx(void)
 	udelay(45);
 	return result;
 }
-    
+
 void writebyte(int data)
 {
 	int loop;
@@ -271,7 +274,7 @@ void writebyte(int data)
 				write0();
 	}
 }
-			    
+
 int readbyte(void)
 {
 	int loop;
@@ -288,25 +291,25 @@ static void get_dsid(void)
 	int i;
 
 	immap_t *immap=(immap_t *)IMAP_ADDR ;
-	
+
 	cpm = &immap->im_cpm;
-   
-	cpm->cp_pbpar&=~4; 
-	cpm->cp_pbodr|= 4;  
-    
+
+	cpm->cp_pbpar&=~4;
+	cpm->cp_pbodr|= 4;
+
 	if(ds_reset()) printk("DS not responding!!! - please report\n");
 	writebyte(0x33);
 	for(i=0;i<8;i++)dsid[i]=readbyte();
 	return;
-        	
-}    
+
+}
 
 static int aviatype(void)
 {
-	int aviarev=0;	
+	int aviarev=0;
 
 	aviamem=(unsigned char*)ioremap(0xA000000,0x200);
-	if(!aviamem) 
+	if(!aviamem)
 	{
 		printk("INFO: cannot remap avia-mem.\n");
 		return -1;
@@ -315,8 +318,8 @@ static int aviatype(void)
 	aviamem[5] = 0;
 	aviamem[4] = 0;
 	aviarev=(aviamem[2] & 3);
-	
-	return aviarev ? 500:600;	
+
+	return aviarev ? 500:600;
 }
 
 static int dbox_info_init(void)
@@ -392,9 +395,9 @@ static int read_bus_info(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
 	return sprintf(buf, "mID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nfe=%d\navia=%d\ndsID=%02x-%02x.%02x.%02x.%02x.%02x.%02x-%02x\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod],info.fe,info.avia, 
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod],info.fe,info.avia,
 		info.dsID[0],info.dsID[1],info.dsID[2],info.dsID[3],info.dsID[4],info.dsID[5],info.dsID[6],info.dsID[7]);
-		
+
 }
 
 static int read_bus_info_sh(char *buf, char **start, off_t offset, int len,
@@ -414,8 +417,8 @@ int info_proc_init(void)
 
 	if (! proc_bus) {
 		printk("info.o: /proc/bus/ does not exist");
- 		return -ENOENT;
-        }
+		return -ENOENT;
+	}
 
 	proc_bus_info = create_proc_entry("dbox", 0, proc_bus);
 
@@ -454,6 +457,9 @@ int info_proc_cleanup(void)
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("d-Box info");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 //MODULE_PARM(fe, "i");
 EXPORT_SYMBOL(dbox_get_info);
 EXPORT_SYMBOL(dbox_get_info_ptr);

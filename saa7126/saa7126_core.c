@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.20  2002/05/06 02:18:19  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.19  2002/03/06 12:54:52  gillem
  *   - fix include path
  *
@@ -75,7 +78,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -211,13 +214,13 @@ static unsigned char PAL_SAA_SAGEM[] =
 /* ------------------------------------------------------------------------- */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] 			= {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] 	= { 0x88>>1,0x88>>1,I2C_CLIENT_END};
-static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2]       		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] 		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short normal_i2c[]			= {I2C_CLIENT_END};
+static unsigned short normal_i2c_range[]	= { 0x88>>1,0x88>>1,I2C_CLIENT_END};
+static unsigned short probe[2]			= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short probe_range[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore_range[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short force[2]			= { I2C_CLIENT_END, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
 	normal_i2c, normal_i2c_range,
@@ -229,7 +232,7 @@ static struct i2c_client_address_data addr_data = {
 /* ------------------------------------------------------------------------- */
 
 static int saa7126_ioctl (struct inode *inode, struct file *file,
-                         unsigned int cmd, unsigned long arg);
+			 unsigned int cmd, unsigned long arg);
 static int saa7126_open (struct inode *inode, struct file *file);
 
 static int saa7126_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size);
@@ -249,18 +252,23 @@ static int saa7126_encoder( int inp );
 
 static int debug =  0; /* insmod parameter */
 static int addr  =  0;
-static int board = 	0;
-static int mode  = 	0;
+static int board =	0;
+static int mode  =	0;
 
 static int saa_power_mode;
 static u8 saa_power_reg_2d;
 static u8 saa_power_reg_61;
 
 #if LINUX_VERSION_CODE > 0x020100
+#ifdef MODULE
 MODULE_PARM(debug,"i");
 MODULE_PARM(addr,"i");
 MODULE_PARM(board,"i");
 MODULE_PARM(mode,"i");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+#endif
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -270,7 +278,7 @@ static int this_adap;
 #define dprintk     if (debug) printk
 
 #define I2C_DRIVERID_SAA7126	1
-#define SAA7126_MAJOR 			240
+#define SAA7126_MAJOR			240
 #define SAA_I2C_BLOCK_SIZE		0x40
 
 #define SAA_DEVICE	"dbox/saa0"
@@ -325,7 +333,7 @@ static int saa7126_attach(struct i2c_adapter *adap, int addr,
 	}
 
 	this_adap++;
-	
+
 	client_template.adapter = adap;
 	client_template.addr    = addr;
 
@@ -403,7 +411,7 @@ static int saa7126_probe(struct i2c_adapter *adap)
 	}
 
 	this_adap = 0;
-	
+
 	if (1) {
 		ret = i2c_probe(adap, &addr_data, saa7126_attach );
 	}
@@ -725,7 +733,7 @@ static int saa7126_vps_get_data( char * buf )
 /* ------------------------------------------------------------------------- */
 
 static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+		  unsigned long arg)
 {
 	char saa_data[SAA_DATA_SIZE];
     int val;
@@ -740,7 +748,7 @@ static int saa7126_ioctl (struct inode *inode, struct file *file, unsigned int c
 
 	switch (cmd)
 	{
-   		case SAAIOGREG:
+		case SAAIOGREG:
 				if ( saa7126_read_register(saa_data) ) {
 					return -EINVAL;
 				}
@@ -834,14 +842,14 @@ static int saa7126_open (struct inode *inode, struct file *file)
 void inc_use (struct i2c_client *client)
 {
 #ifdef MODULE
-        MOD_INC_USE_COUNT;
+	MOD_INC_USE_COUNT;
 #endif
 }
 
 void dec_use (struct i2c_client *client)
 {
 #ifdef MODULE
-        MOD_DEC_USE_COUNT;
+	MOD_DEC_USE_COUNT;
 #endif
 }
 
@@ -860,10 +868,10 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-	"i2c saa7126 chip",		/* name       				*/
-	I2C_DRIVERID_SAA7126,	/* ID         				*/
+	"i2c saa7126 chip",		/* name				*/
+	I2C_DRIVERID_SAA7126,	/* ID					*/
 	0,
-	0,										/* interpret as 7Bit-Adr 	*/
+	0,										/* interpret as 7Bit-Adr	*/
 	NULL,
 	&driver
 };
@@ -888,7 +896,7 @@ int saa7126_init(void)
 		struct dbox_info_struct dbox;
 		dbox_get_info(&dbox);
 		board=dbox.mID;
-	} 
+	}
 
 	if ( (board<1) || (board>3) )
 	{
@@ -897,8 +905,8 @@ int saa7126_init(void)
 	}
 
 	devfs_handle = devfs_register ( NULL, SAA_DEVICE, DEVFS_FL_DEFAULT, 0, 0,
-                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-                     &saa7126_fops, NULL );
+		     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		     &saa7126_fops, NULL );
 
 	if ( ! devfs_handle )
 	{

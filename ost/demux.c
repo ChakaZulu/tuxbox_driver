@@ -1,9 +1,9 @@
-/* 
+/*
  * demux.c
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
- *                  & Marcus Metzler <marcus@convergence.de>
-                      for convergence integrated media GmbH
+ *		  & Marcus Metzler <marcus@convergence.de>
+		      for convergence integrated media GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -33,18 +33,18 @@
 
 LIST_HEAD(dmx_muxs);
 
-int dmx_register_demux(dmx_demux_t *demux) 
+int dmx_register_demux(dmx_demux_t *demux)
 {
 	struct list_head *pos, *head=&dmx_muxs;
-	
-	if (!(demux->id && demux->vendor && demux->model)) 
-	        return -EINVAL;
-	list_for_each(pos, head) 
+
+	if (!(demux->id && demux->vendor && demux->model))
+		return -EINVAL;
+	list_for_each(pos, head)
 	{
-	        if (!strcmp(DMX_DIR_ENTRY(pos)->id, demux->id))
-		        return -EEXIST;
+		if (!strcmp(DMX_DIR_ENTRY(pos)->id, demux->id))
+			return -EEXIST;
 	}
-	
+
 	demux->users=0;
 	list_add(&(demux->reg_list), head);
 	MOD_INC_USE_COUNT;
@@ -56,14 +56,14 @@ int dmx_unregister_demux(dmx_demux_t* demux)
 {
 	struct list_head *pos, *head=&dmx_muxs;
 
-	list_for_each(pos, head) 
+	list_for_each(pos, head)
 	{
-	        if (DMX_DIR_ENTRY(pos)==demux) 
+		if (DMX_DIR_ENTRY(pos)==demux)
 		{
-		        if (demux->users!=0)
-			        return -EINVAL;
-		        list_del(pos);
-		        MOD_DEC_USE_COUNT;
+			if (demux->users!=0)
+				return -EINVAL;
+			list_del(pos);
+			MOD_DEC_USE_COUNT;
 			return 0;
 		}
 	}
@@ -73,13 +73,16 @@ int dmx_unregister_demux(dmx_demux_t* demux)
 
 struct list_head *dmx_get_demuxes(void)
 {
-        if (list_empty(&dmx_muxs))
-	        return NULL;
+	if (list_empty(&dmx_muxs))
+		return NULL;
 
 	return &dmx_muxs;
 }
 
 #ifdef MODULE
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 EXPORT_SYMBOL(dmx_register_demux);
 EXPORT_SYMBOL(dmx_unregister_demux);
 EXPORT_SYMBOL(dmx_get_demuxes);

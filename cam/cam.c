@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.17  2002/05/06 02:18:18  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.16  2002/03/06 10:09:22  gillem
  *   - clean module unload (set into standby(i hope))
  *
@@ -65,7 +68,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 
@@ -115,7 +118,7 @@ static char *firmware=0;
 #define dprintk(fmt,args...) if(debug) printk( fmt,## args)
 
 #define I2C_DRIVERID_CAM     0x6E
-#define CAM_INTERRUPT        SIU_IRQ3
+#define CAM_INTERRUPT	SIU_IRQ3
 
 #define CAM_CODE_BASE_02	0xC040000	//for Philips
 #define CAM_CODE_BASE		0xC000000
@@ -131,24 +134,24 @@ static int detach_client(struct i2c_client *client);
 static struct i2c_client *dclient;
 
 static struct i2c_driver cam_driver = {
-        "DBox2-CAM",
-        I2C_DRIVERID_CAM,
-        I2C_DF_NOTIFY,
-        attach_adapter,
-        detach_client,
-        0,
-        0,
-        0,
+	"DBox2-CAM",
+	I2C_DRIVERID_CAM,
+	I2C_DF_NOTIFY,
+	attach_adapter,
+	detach_client,
+	0,
+	0,
+	0,
 };
 
 static struct i2c_client client_template = {
-        "DBOX2-CAM",
-        I2C_DRIVERID_CAM,
-        0,
-        (0x6E>> 1),
-        NULL,
-        &cam_driver,
-        NULL
+	"DBOX2-CAM",
+	I2C_DRIVERID_CAM,
+	0,
+	(0x6E>> 1),
+	NULL,
+	&cam_driver,
+	NULL
 };
 
 /* ---------------------------------------------------------------------- */
@@ -169,11 +172,11 @@ static int f_cam_release(struct inode *inode, struct file *file);
 static unsigned int f_cam_poll(struct file *file, poll_table *wait);
 
 static struct file_operations cam_fops = {
-        owner:          THIS_MODULE,
-        read:           f_cam_read,
-        write:          f_cam_write,
-        ioctl:          f_cam_ioctl,
-        open:           f_cam_open,
+	owner:	  THIS_MODULE,
+	read:	   f_cam_read,
+	write:	  f_cam_write,
+	ioctl:	  f_cam_ioctl,
+	open:	   f_cam_open,
 				release:				f_cam_release,
 				poll:						f_cam_poll,
 };
@@ -264,7 +267,7 @@ static void cam_task(void *data)
 	  enable_irq(CAM_INTERRUPT);
 	  return;
 	}
-	
+
 	if ((buffer[1]&0x7F) != len)
 	{
 	  len=buffer[1]&0x7F;
@@ -277,12 +280,12 @@ static void cam_task(void *data)
 	    return;
 	  }
 	}
-	
+
 	dprintk("CAM says:");
 	for (i=0; i<len+3; i++)
 	  dprintk(" %02x", buffer[i]);
 	dprintk("\n");
-	
+
 	len+=3;
 	if ( buffer[2] == 0x23 && buffer[3]<=7 )
 	{
@@ -295,14 +298,14 @@ static void cam_task(void *data)
 		dprintk ("set CAID: %02x%02x \n", caid[6],caid[7]);
 		up(&cam_busy);
 		cam_write_message(caid,9);
-	} else 
+	} else
 	{
 	  i=cam_queuewptr-cam_queuerptr;
 	  if (i<0)
 	    i+=CAM_QUEUE_SIZE;
-	
+
 	  i=CAM_QUEUE_SIZE-i;
-	
+
 	  if (i<len)
 	    cam_queuewptr=cam_queuerptr;
 		else
@@ -317,12 +320,12 @@ static void cam_task(void *data)
 	    {
 	      cam_queue[cam_queuewptr++]=buffer[i++];
 	      if (cam_queuewptr==CAM_QUEUE_SIZE)
-	        cam_queuewptr=0;
+		cam_queuewptr=0;
 	    }
 	  }
 	}
 	wake_up(&queuewait);
-	
+
 	up(&cam_busy);
 	enable_irq(CAM_INTERRUPT);
 }
@@ -340,7 +343,7 @@ int cam_reset()
 {
 	if (info.mID==DBOX_MID_NOKIA)
 		return fp_do_reset(0xAF);
-	else 
+	else
 		return fp_cam_reset();
 }
 
@@ -513,10 +516,10 @@ static int do_firmread(const char *fn, char **fp)
 int cam_init(void)
 {
 	int res;
-	 	mm_segment_t fs;
+		mm_segment_t fs;
 	u32 *microcode;
 //	char caminit[11]={0x50,0x08,0x23,0x84,0x01,0x04,0x17,0x02,0x10,0x00,0x91};
-		
+
 	dbox_get_info(&info);
 	init_waitqueue_head(&queuewait);
 
@@ -530,7 +533,7 @@ int cam_init(void)
 
 	if (!code_base)
 		panic("couldn't map CAM-io.\n");
-	
+
 	/* load microcode */
 	fs = get_fs();
 
@@ -548,41 +551,41 @@ int cam_init(void)
 	do_firmwrite(microcode);
 
 	vfree(microcode);
-	
+
 	 if ((res = i2c_add_driver(&cam_driver)))
 	{
 		printk("CAM: Driver registration failed, module not inserted.\n");
 		return res;
 	}
-	
+
 	 if ( ! dclient )
 	{
 	  i2c_del_driver ( &cam_driver );
 	  printk ( "CAM: cam not found.\n" );
 	  return -EBUSY;
-	}	
-	
+	}
+
 	up(&cam_busy);
 
 	if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
 			panic("Could not allocate CAM IRQ!");
 
 	up(&cam_open);
-	
+
 /* ---- bitte testen Sagem/Philips --- report to MHC ------- */
 //	if (info.mID!=DBOX_MID_NOKIA)
 //		cam_write_message(caminit,11);
 	devfs_handle[CAM_MINOR] =
 	devfs_register ( NULL, "dbox/cam0", DEVFS_FL_DEFAULT, 0, CAM_MINOR,
-	                 S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-	                 &cam_fops, NULL );
+			 S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+			 &cam_fops, NULL );
 
 	if ( ! devfs_handle[CAM_MINOR] )
 	{
 		i2c_del_driver ( &cam_driver );
 		return -EIO;
 	}
-	
+
 	return 0;
 }
 
@@ -763,6 +766,9 @@ MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 CAM Driver");
 MODULE_PARM(debug,"i");
 MODULE_PARM(firmware,"s");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 int init_module(void)
 {

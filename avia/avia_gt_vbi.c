@@ -55,6 +55,9 @@ static sAviaGtInfo *gt_info;
 #ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("eNX/GTX-VBI driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #endif
 
 static dmx_ts_feed_t* feed_vtxt;
@@ -185,7 +188,7 @@ static int __init avia_gt_vbi_init(void)
 
 	struct list_head *dmx_list;
 
-	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.9 2002/05/03 08:33:05 obi Exp $\n");
+	printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.10 2002/05/06 02:18:18 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

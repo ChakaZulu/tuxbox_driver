@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avs_core.c,v $
+ *   Revision 1.20  2002/05/06 02:18:18  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.19  2002/02/28 20:42:45  gillem
  *   - some changes
  *   - add vcr/tv slow blanking event
@@ -77,7 +80,7 @@
  *   - initial release
  *
  *
- *   $Revision: 1.19 $
+ *   $Revision: 1.20 $
  *
  */
 
@@ -117,13 +120,13 @@ static devfs_handle_t devfs_handle;
 /* ------------------------------------------------------------------------- */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] 		= {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] 	= { 0x90>>1,0x94>>1,I2C_CLIENT_END};
-static unsigned short probe[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2]  		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2]       		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] 		= { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2]        		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short normal_i2c[]		= {I2C_CLIENT_END};
+static unsigned short normal_i2c_range[]	= { 0x90>>1,0x94>>1,I2C_CLIENT_END};
+static unsigned short probe[2]			= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short probe_range[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short ignore_range[2]		= { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short force[2]			= { I2C_CLIENT_END, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
 	normal_i2c, normal_i2c_range,
@@ -147,14 +150,14 @@ struct avs_type
 };
 
 static struct avs_type avs_types[] = {
-	{"CXA2092", VENDOR_SONY, 		CXA2092 },
-	{"CXA2126", VENDOR_SONY, 		CXA2126 },
-	{"STV6412", VENDOR_STMICROELECTRONICS, 	STV6412 }
+	{"CXA2092", VENDOR_SONY,		CXA2092 },
+	{"CXA2126", VENDOR_SONY,		CXA2126 },
+	{"STV6412", VENDOR_STMICROELECTRONICS,	STV6412 }
 };
 
 struct s_avs
 {
-	int type;		        /* chip type */
+	int type;			/* chip type */
 	scartVolume volume;		/* nokia api controls */
 	scartRGBLevel rgblevel;		/* nokia api controls */
 	scartBypass bypass;		/* nokia api controls */
@@ -165,7 +168,7 @@ struct s_avs * avs_data;
 /* ------------------------------------------------------------------------- */
 
 static int avs_ioctl (struct inode *inode, struct file *file,
-                         unsigned int cmd, unsigned long arg);
+			 unsigned int cmd, unsigned long arg);
 static int avs_open (struct inode *inode, struct file *file);
 
 /* ------------------------------------------------------------------------- */
@@ -383,7 +386,7 @@ static int avs_attach(struct i2c_adapter *adap, int addr,
 	}
 
 	this_adap++;
-	
+
 	client_template.adapter = adap;
 	client_template.addr = addr;
 
@@ -441,7 +444,7 @@ static int avs_probe(struct i2c_adapter *adap)
 	}
 
 	this_adap = 0;
-	
+
 	if (1)
 	{
 		ret = i2c_probe(adap, &addr_data, avs_attach );
@@ -518,7 +521,7 @@ int scart_command( unsigned int cmd, void *arg )
 		case SCART_VOLUME_GET:
 		{
 			int err;
-			int32_t value;			
+			int32_t value;
 			scartVolume sVolume;
 
 			sVolume.minVol = 0;
@@ -705,7 +708,7 @@ int scart_command( unsigned int cmd, void *arg )
 /* ------------------------------------------------------------------------- */
 
 int avs_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+		  unsigned long arg)
 {
 	int err = 0;
 
@@ -899,24 +902,24 @@ void dec_use (struct i2c_client *client)
 /* ------------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-        "i2c audio/video switch driver",
-        I2C_DRIVERID_AVS,
-        I2C_DF_NOTIFY,
-        avs_probe,
-        avs_detach,
-        avs_command,
-        inc_use,
-        dec_use,
+	"i2c audio/video switch driver",
+	I2C_DRIVERID_AVS,
+	I2C_DF_NOTIFY,
+	avs_probe,
+	avs_detach,
+	avs_command,
+	inc_use,
+	dec_use,
 };
 
 static struct i2c_client client_template =
 {
-        "i2c audio/video switch chip",	/* name			 */
-        I2C_DRIVERID_AVS,		/* ID			 */
-        0,
+	"i2c audio/video switch chip",	/* name			 */
+	I2C_DRIVERID_AVS,		/* ID			 */
+	0,
 	0,				/* interpret as 7Bit-Adr */
-        NULL,
-        &driver
+	NULL,
+	&driver
 };
 
 /* ------------------------------------------------------------------------- */
@@ -928,6 +931,9 @@ EXPORT_SYMBOL(scart_command);
 #ifdef MODULE
 MODULE_AUTHOR("Gillem <gillem@berlios.de>");
 MODULE_DESCRIPTION("DBox2 audio/video switch core driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #endif
 
 #ifdef MODULE
@@ -938,11 +944,11 @@ int i2c_avs_init(void)
 {
 	int res;
 	struct dbox_info_struct dinfo;
-	
+
 	if (type == CXAAUTO)
 	{
 		dbox_get_info(&dinfo);
-	    
+
 		switch(dinfo.mID)
 		{
 			case DBOX_MID_SAGEM:
@@ -956,7 +962,7 @@ int i2c_avs_init(void)
 				break;
 		}
 	}
-	
+
 	if ( (res=i2c_add_driver(&driver)) )
 	{
 		dprintk("[AVS]: i2c add driver failed\n");

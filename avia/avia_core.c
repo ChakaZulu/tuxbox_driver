@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_core.c,v $
+ *   Revision 1.30  2002/05/06 02:18:18  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.29  2002/05/03 06:03:51  obi
  *   removed compile warnings
  *   use tabs instead of space
@@ -141,7 +144,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.29 $
+ *   $Revision: 1.30 $
  *
  */
 
@@ -1485,13 +1488,16 @@ MODULE_DESCRIPTION("Avia 500/600 driver");
 MODULE_PARM(debug,"i");
 MODULE_PARM(pal,"i");
 MODULE_PARM(firmware,"s");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 int
 init_module (void)
 {
 	int err;
 
-	printk ("AVIA: $Id: avia_core.c,v 1.29 2002/05/03 06:03:51 obi Exp $\n");
+	printk ("AVIA: $Id: avia_core.c,v 1.30 2002/05/06 02:18:18 obi Exp $\n");
 
 	aviamem = 0;
 

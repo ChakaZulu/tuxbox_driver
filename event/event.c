@@ -20,32 +20,35 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.8  2002/05/06 02:18:19  obi
+ *	cleanup for new kernel
+ *	
  *	Revision 1.7  2002/03/03 13:58:39  gillem
  *	- handle more events
- *	
+ *
  *	Revision 1.6  2002/03/02 17:03:58  waldi
  *	merge new_tuning_api
- *	
+ *
  *	Revision 1.5.2.1  2002/03/02 16:53:03  tmbinc
  *	added poll()-support to event device
- *	
+ *
  *	Revision 1.5  2001/12/19 21:15:20  gillem
  *	- more work on event stuff ...
- *	
+ *
  *	Revision 1.4  2001/12/19 19:47:01  gillem
  *	- some work on event-filter
- *	
+ *
  *	Revision 1.3  2001/12/08 15:20:58  gillem
  *	- remove debug stuff ;-)
- *	
+ *
  *	Revision 1.2  2001/12/08 15:13:54  gillem
  *	- add more functions
- *	
+ *
  *	Revision 1.1  2001/12/07 14:30:37  gillem
  *	- initial release (not ready today)
- *	
  *
- *	$Revision: 1.7 $
+ *
+ *	$Revision: 1.8 $
  *
  */
 
@@ -94,7 +97,7 @@ static spinlock_t event_lock;
 static devfs_handle_t devfs_handle;
 
 static int event_ioctl (struct inode *inode, struct file *file,
-                         unsigned int cmd, unsigned long arg);
+			 unsigned int cmd, unsigned long arg);
 static int event_open (struct inode *inode, struct file *file);
 static int event_release (struct inode *inode, struct file *file);
 static unsigned int event_poll(struct file *file, poll_table *wait);
@@ -135,9 +138,9 @@ int event_write_message( struct event_t * event, size_t count )
 					printk("write event ... filter ok\n");
 					event_private[i]->event_data.event_free--;
 					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], &event[s], sizeof(event_t) );
-		                        event_private[i]->event_data.event_ptr++;
+					event_private[i]->event_data.event_ptr++;
 					if ( EVENTBUFFERSIZE == event_private[i]->event_data.event_ptr )
-			                        event_private[i]->event_data.event_ptr = 0;
+						event_private[i]->event_data.event_ptr = 0;
 				}
 			}
 		}
@@ -145,13 +148,13 @@ int event_write_message( struct event_t * event, size_t count )
 
 	spin_unlock (&event_lock);
 
-	wake_up_interruptible(&event_wait);	
+	wake_up_interruptible(&event_wait);
 
 	return 0;
 }
 
 static int event_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+		  unsigned long arg)
 {
 	struct event_private_t * event_priv;
 
@@ -216,7 +219,7 @@ static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *o
 {
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t retval = 0;
-        int err = 0;
+	int err = 0;
 	struct event_private_t * event_priv;
 
 	if (count < sizeof(struct event_t))
@@ -248,7 +251,7 @@ static ssize_t event_read (struct file *file, char *buf, size_t count, loff_t *o
 			}
 			else
 				err = 1;
-                }
+		}
 		else
 			dprintk("no data !\n");
 
@@ -321,4 +324,8 @@ void cleanup_module(void)
 
 	devfs_unregister ( devfs_handle );
 }
+
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #endif

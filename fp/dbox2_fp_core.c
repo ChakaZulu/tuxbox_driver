@@ -21,6 +21,9 @@
  *
  *
  *   $Log: dbox2_fp_core.c,v $
+ *   Revision 1.67  2002/05/06 02:18:19  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.66  2002/03/02 19:09:09  tmbinc
  *   fixed status
  *
@@ -212,7 +215,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.66 $
+ *   $Revision: 1.67 $
  *
  */
 
@@ -276,10 +279,10 @@ static int useimap=1;
 
 /*
       exported functions:
-      
+
       int fp_set_tuner_dword(int type, u32 tw);
-        T_QAM
-        T_QPSK
+	T_QAM
+	T_QPSK
       int fp_set_sec(int power,int tone);
 */
 
@@ -297,10 +300,10 @@ fp:
  22 off
 */
 
-#define FP_INTERRUPT        SIU_IRQ2
+#define FP_INTERRUPT	SIU_IRQ2
 #define I2C_FP_DRIVERID     0xF060
-#define RCBUFFERSIZE        16
-#define FP_GETID            0x1D
+#define RCBUFFERSIZE	16
+#define FP_GETID	    0x1D
 #define FP_WAKEUP						0x11
 
 /* ---------------------------------------------------------------------- */
@@ -414,22 +417,22 @@ unsigned char mouse_directions=0;
 
 static struct i2c_driver fp_driver=
 {
-  name:                 "DBox2 Frontprocessor driver",
-  id:                   I2C_FP_DRIVERID,
-  flags:                I2C_DF_NOTIFY,
+  name:		 "DBox2 Frontprocessor driver",
+  id:		   I2C_FP_DRIVERID,
+  flags:		I2C_DF_NOTIFY,
   attach_adapter:       &fp_attach_adapter,
-  detach_client:        &fp_detach_client,
-  command:              0,
-  inc_use:              0,
-  dec_use:              0
+  detach_client:	&fp_detach_client,
+  command:	      0,
+  inc_use:	      0,
+  dec_use:	      0
 };
 
 static struct file_operations fp_fops = {
-        owner:          THIS_MODULE,
-        read:           fp_read,
-        write:          fp_write,
-        ioctl:          fp_ioctl,
-        open:           fp_open,
+	owner:	  THIS_MODULE,
+	read:	   fp_read,
+	write:	  fp_write,
+	ioctl:	  fp_ioctl,
+	open:	   fp_open,
 	release:	fp_release,
 	poll:		fp_poll,
 };
@@ -437,7 +440,7 @@ static struct file_operations fp_fops = {
 /* ------------------------------------------------------------------------- */
 
 static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+		  unsigned long arg)
 {
 	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
     int val;
@@ -452,12 +455,12 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 					return fp_getid(defdata->client);
 					break;
 
-				case FP_IOCTL_POWEROFF:	
+				case FP_IOCTL_POWEROFF:
 					if (info.fpREV>=0x80)
 						return fp_sendcmd(defdata->client, 0, 3);
 					else
 						return fp_sendcmd(defdata->client, 0, 0);
-					break; 
+					break;
 				case FP_IOCTL_REBOOT:
 					fp_restart("LIFE SUX");
 					return 0;
@@ -533,7 +536,7 @@ static int fp_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 static ssize_t fp_write (struct file *file, const char *buf, size_t count, loff_t *offset)
 {
 	return 0;
-}                             
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -717,7 +720,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 	new_client->adapter=adapter;
 	new_client->driver=&fp_driver;
 	new_client->flags=0;
-  
+
 	if (kind<0)
 	{
 		int fpid;
@@ -738,7 +741,7 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
 			kfree(new_client);
 			return -1;
 		}
-    
+
 		if(useimap)
 		{
 			immap->im_ioport.iop_papar&=~2;
@@ -752,10 +755,10 @@ static int fp_detect_client(struct i2c_adapter *adapter, int address, unsigned s
     fp_cmd(new_client, 0x25, buf, 2);
     fp_sendcmd(new_client, 0x19, 0x04);
     fp_sendcmd(new_client, 0x18, 0xb3);
-    fp_cmd(new_client, 0x1e, buf, 2); 
+    fp_cmd(new_client, 0x1e, buf, 2);
 */
 		fp_sendcmd(new_client, 0x26, 0x00);		// disable (non-working) break code
-    
+
 	/*	fp_cmd(new_client, 0x23, buf, 1);
 		fp_cmd(new_client, 0x20, buf, 1);
 		fp_cmd(new_client, 0x01, buf, 2);*/
@@ -799,12 +802,12 @@ static int fp_cmd(struct i2c_client *client, u8 cmd, u8 *res, int size)
 
 	msg[0].buf=&cmd;
 	msg[0].len=1;
-  
+
 	msg[1].buf=res;
 	msg[1].len=size;
-  
+
 	i2c_transfer(client->adapter, msg, 2);
-  
+
 	dprintk("fp.o: fp_cmd: %02x\n", cmd);
 	dprintk("fp.o: fp_recv:");
 
@@ -853,7 +856,7 @@ static void fp_add_event(int code)
 
 	rcbuffer[rcend]=code;
 	rcend++;
-  
+
 	if (rcend>=RCBUFFERSIZE)
 	{
 		rcend=0;
@@ -926,7 +929,7 @@ int irkbd_setkeycode(unsigned int scancode, unsigned int keycode) {
 }
 
 int irkbd_getkeycode(unsigned int scancode) {
-  
+
   return keymap[scancode&0xFF];
 }
 
@@ -935,22 +938,22 @@ int irkbd_translate(unsigned char scancode, unsigned char *keycode, char raw_mod
   if((scancode&0x7f)==0x49) {  /* Fn toggled */
     if(scancode==0x49)
       irkbd_flags|=IRKBD_FN;
-    else 
+    else
       irkbd_flags&=~IRKBD_FN;
     return 0;
   }
   /* mouse button changed */
   else if(((scancode&0x7f)==0x7e)||((scancode&0x7f)==0x7f))
     return 0;
-  
+
   if(irkbd_flags&IRKBD_FN) {
     *keycode=keymap[(scancode&0x7f)|IRKBD_FN];
-    if(scancode&0x80)                   /* Fn pressed, other key released */
+    if(scancode&0x80)		   /* Fn pressed, other key released */
       if(!fn_flags[scancode&0x7f])       /* fn pressed, other key released which got pressed before fn */
 	*keycode=keymap[scancode&0x7f];
-      else                              /* fn pressed, other key released which got pressed during fn */
+      else			      /* fn pressed, other key released which got pressed during fn */
 	fn_flags[scancode&0x7f]=0;
-    else                                /* Fn + other key pressed */
+    else				/* Fn + other key pressed */
       fn_flags[scancode&0x7f]=1;
   }
   /* key got pressed during fn and gets now released after fn has been released*/
@@ -991,7 +994,7 @@ int irkbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int
     printk("BEEP!\n");
     return 0;
   }
-  else 
+  else
   */
   if (type==EV_LED) {
     dprintk("IR-Keyboard LEDs: [%s|%s|%s]\n",(test_bit(LED_NUML,dev->led)?" NUM ":"     "),(test_bit(LED_CAPSL,dev->led)?"CAPS ":"     "),(test_bit(LED_SCROLLL,dev->led)?"SCROLL":"     "));
@@ -1028,7 +1031,7 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs * regs)
 
 static int fp_init(void)
 {
-        int res;
+	int res;
 	//	int i;
 
 	dbox_get_info(&info);
@@ -1056,8 +1059,8 @@ static int fp_init(void)
 
   devfs_handle[FP_MINOR] =
     devfs_register ( NULL, "dbox/fp0", DEVFS_FL_DEFAULT, 0, FP_MINOR,
-                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-                     &fp_fops, NULL );
+		     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		     &fp_fops, NULL );
 
   if ( ! devfs_handle[FP_MINOR] )
   {
@@ -1067,8 +1070,8 @@ static int fp_init(void)
 
   devfs_handle[RC_MINOR] =
     devfs_register ( NULL, "dbox/rc0", DEVFS_FL_DEFAULT, 0, RC_MINOR,
-                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-                     &fp_fops, NULL );
+		     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		     &fp_fops, NULL );
 
   if ( ! devfs_handle[RC_MINOR] )
   {
@@ -1076,7 +1079,7 @@ static int fp_init(void)
     i2c_del_driver ( &fp_driver );
     return -EIO;
   }
-  
+
 	ppc_md.restart=fp_restart;
 	ppc_md.power_off=fp_power_off;
 	ppc_md.halt=fp_halt;
@@ -1084,16 +1087,16 @@ static int fp_init(void)
 	/* keyboard */
 	memset(fn_flags,0,sizeof(fn_flags));
 	ppc_md.kbd_setkeycode    = irkbd_setkeycode;
-        ppc_md.kbd_getkeycode    = irkbd_getkeycode;
-        ppc_md.kbd_translate     = irkbd_translate;
-        ppc_md.kbd_unexpected_up = irkbd_unexpected_up;
-        ppc_md.kbd_leds          = irkbd_leds;
-        ppc_md.kbd_init_hw       = irkbd_init_hw;
+	ppc_md.kbd_getkeycode    = irkbd_getkeycode;
+	ppc_md.kbd_translate     = irkbd_translate;
+	ppc_md.kbd_unexpected_up = irkbd_unexpected_up;
+	ppc_md.kbd_leds	  = irkbd_leds;
+	ppc_md.kbd_init_hw       = irkbd_init_hw;
 #ifdef CONFIG_MAGIC_SYSRQ
-        ppc_md.kbd_sysrq_xlate   = keymap;
+	ppc_md.kbd_sysrq_xlate   = keymap;
 #endif
 	//	irkbd_init_hw();
-//        kbd_ledfunc = irkbd_leds;
+//	kbd_ledfunc = irkbd_leds;
 #ifdef CONFIG_INPUT_MODULE
 	memset(&input_irkbd,0,sizeof(input_irkbd));
 	input_irkbd.evbit[0]=BIT(EV_KEY) | BIT(EV_REL); // BIT(EV_LED) | BIT(EV_REP)
@@ -1130,26 +1133,26 @@ static int fp_close(void)
 
 	devfs_unregister ( devfs_handle[FP_MINOR] );
 	devfs_unregister ( devfs_handle[RC_MINOR] );
-  
+
 	if (ppc_md.restart==fp_restart)
 	{
 		ppc_md.restart=0;
 	}
-    
+
 	if (ppc_md.power_off==fp_power_off)
 	{
 		ppc_md.power_off=0;
 	}
-  
+
 	if (ppc_md.halt==fp_halt)
 	{
 		ppc_md.halt=0;
 	}
 	if(ppc_md.kbd_setkeycode==irkbd_setkeycode)
 	  ppc_md.kbd_setkeycode=NULL;
-        if(ppc_md.kbd_getkeycode==irkbd_getkeycode)
+	if(ppc_md.kbd_getkeycode==irkbd_getkeycode)
 	  ppc_md.kbd_getkeycode=NULL;
-        if(ppc_md.kbd_translate==irkbd_translate)
+	if(ppc_md.kbd_translate==irkbd_translate)
 	  ppc_md.kbd_translate=NULL;
 	if(ppc_md.kbd_unexpected_up==irkbd_unexpected_up)
 	  ppc_md.kbd_unexpected_up=NULL;
@@ -1164,7 +1167,7 @@ static int fp_close(void)
 #ifdef CONFIG_INPUT_MODULE
 	input_unregister_device(&input_irkbd);
 #endif
-        
+
 	return 0;
 }
 
@@ -1172,7 +1175,7 @@ static int fp_close(void)
 int fp_cam_reset()    //needed for sagem / philips?
 {
 	char msg[2]={0x05, 0xEF};
-	
+
 	dprintk("fp: CAM-RESET\n");
 
 	if (i2c_master_send(defdata->client, msg, 2)!=2)
@@ -1214,21 +1217,21 @@ int fp_do_reset(int type)
 	return 0;
 }
 
-/* 
+/*
 mouse codes:
 
 1st halfbyte: acceleration
 
 2nd halfbyte: direction:
-            4
-         5     3
-      6           2
-   7                 1
-8                       0
-   9                 F
-      A           E
-         B     D
-            C
+	    4
+	 5     3
+      6	   2
+   7		 1
+8		       0
+   9		 F
+      A	   E
+	 B     D
+	    C
 
 */
 static void fp_handle_mouse(struct fp_data *dev) {
@@ -1374,10 +1377,10 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	u16 scancode=-1;
 	unsigned char keycode=0;
 
-        if (info.fpREV>=0x80)
-         fp_cmd(dev->client, 3, (u8*)&scancode, 2);
-        else
-         fp_cmd(dev->client, 0x28, (u8*)&scancode, 2);
+	if (info.fpREV>=0x80)
+	 fp_cmd(dev->client, 3, (u8*)&scancode, 2);
+	else
+	 fp_cmd(dev->client, 0x28, (u8*)&scancode, 2);
 	//	printk("keyboard scancode: %02x\n", scancode);
 
 #ifdef CONFIG_INPUT_MODULE
@@ -1397,18 +1400,18 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	if((scancode&0x7f)==0x49) {  /* Fn toggled */
 	  if(scancode==0x49)
 	    irkbd_flags|=IRKBD_FN;
-	  else 
+	  else
 	    irkbd_flags&=~IRKBD_FN;
 	  return;
 	}
 	if(irkbd_flags&IRKBD_FN) {
 	  keycode=keymap[(scancode&0x7f)|IRKBD_FN];
-	  if(scancode&0x80)                   /* Fn pressed, other key released */
+	  if(scancode&0x80)		   /* Fn pressed, other key released */
 	    if(!fn_flags[scancode&0x7f])       /* fn pressed, other key released which got pressed before fn */
 	      keycode=keymap[scancode&0x7f];
-	    else                              /* fn pressed, other key released which got pressed during fn */
+	    else			      /* fn pressed, other key released which got pressed during fn */
 	      fn_flags[scancode&0x7f]=0;
-	  else                                /* Fn + other key pressed */
+	  else				/* Fn + other key pressed */
 	    fn_flags[scancode&0x7f]=1;
 	}
 	/* key got pressed during fn and gets now released after fn has been released*/
@@ -1419,10 +1422,10 @@ static void fp_handle_keyboard(struct fp_data *dev)
 	/* no Fn - other key pressed/released */
 	else
 	  keycode=keymap[scancode&0x7f];
-	
+
 	if(keycode==0) {
 	  dprintk("fp.o: irkbd: unknown scancode 0x%02X (flags 0x%02X)\n",scancode,irkbd_flags);
-        }
+	}
 #ifdef CONFIG_INPUT_MODULE
 	else
 	  input_report_key(&input_irkbd,keycode,!(scancode&0x80));
@@ -1436,8 +1439,8 @@ static void fp_check_queues(void)
 {
 	u8 status;
 	int iwork=0;
- 
- 	dprintk("fp.o: checking queues.\n"); 
+
+	dprintk("fp.o: checking queues.\n");
 	fp_cmd(defdata->client, 0x23, &status, 1);
 
 	if(defdata->fpVCR!=status)
@@ -1460,7 +1463,7 @@ fp status:
 	{
 		fp_cmd(defdata->client, 0x20, &status, 1);
 //		printk("status: %02x\n", status);
-  
+
 		/* remote control */
 		if (status&9)
 		{
@@ -1469,13 +1472,13 @@ fp status:
 			else
 				fp_handle_new_rc(defdata);
 		}
-  
+
 		/* front button */
 		if (status&0x10)
 		{
 			fp_handle_button(defdata);
 		}
-		
+
 		if (status&0x2)
 		{
 			fp_handle_keyboard(defdata);
@@ -1489,7 +1492,7 @@ fp status:
 		{
 			fp_handle_unknown(defdata);
 		}
-		
+
 		/* if (status&0x20)  // scart status
 		{
 		} */
@@ -1500,7 +1503,7 @@ fp status:
 			break;
 		}
 
-	} while (status & 0x5F);            // only the ones we can handle
+	} while (status & 0x5F);	    // only the ones we can handle
 
 	if (status)
 		dprintk("fp.o: unhandled interrupt source %x\n", status);
@@ -1551,7 +1554,7 @@ int fp_set_tuner_dword(int type, u32 tw)
 			dprintk("fp.o: fp_set_tuner_dword: QPSK %08x\n", tw);
 
 			break;
-  		}
+		}
 
 		default:
 			break;
@@ -1584,8 +1587,8 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 
 	if (sec_bus_status == -1)
 	  return -1;
-	
-        switch(style) {
+
+	switch(style) {
 	case 1: // NOKIA
 		msg[1]=0x1B;
 		sleeptime=2300;
@@ -1613,22 +1616,22 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 	  dprintk(" %02X",msg[2+c]);
 	}
 	dprintk("\n");
-	
+
 	if(style==2 && len>1)
 	{
 		i2c_master_send(defdata->client, msg, 2+len);
-		udelay(1000*100); 																 // <- ;)
+		udelay(1000*100);																 // <- ;)
 		return 0;
-	}	
-	
+	}
+
 	if(style==2) return 0;
-	
+
 	sec_bus_status=-2;
 	i2c_master_send(defdata->client, msg, 2+len);
-	
+
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((sleeptime+(len * sleep_perbyte))/HZ);
-	
+
 	for (c=1;c<=5;c++) {
 	  fp_cmd(defdata->client, status_cmd, msg, 1);
 	  if ( !msg[0] )
@@ -1656,8 +1659,8 @@ int fp_send_diseqc(int style, u8 *cmd, unsigned int len)
 int fp_sagem_set_SECpower(int power,int tone)
 {
    char msg[2]={0x4,0x71};
-   
-   if (power > 0) { 
+
+   if (power > 0) {
      if (power == 1)      // 13V
        msg[1]=0x50;
      else if (power == 2) // 14V
@@ -1665,10 +1668,10 @@ int fp_sagem_set_SECpower(int power,int tone)
      else if (power == 3) // 18V
        msg[1]=0x60;
    }
-   
+
 	 if(tone) msg[1]|=0x1;
-	 
-	 
+
+
    dprintk("fp.o: fp_set_SECpower: %02X\n", msg[1]);
    sec_bus_status=-1;
    if (i2c_master_send(defdata->client, msg, 2)!=2)
@@ -1702,7 +1705,7 @@ int fp_set_sec(int power,int tone)
   }
   else if (power < 0)
     msg[1]|=0x50; // activate loop-through - untested
-  
+
   dprintk("fp.o: fp_set_sec: %02X\n", msg[1]);
   sec_bus_status=-1;
   if (i2c_master_send(defdata->client, msg, 2)!=2)
@@ -1763,7 +1766,7 @@ EXPORT_SYMBOL(fp_sagem_set_SECpower);
 static void fp_restart(char *cmd)
 {
 	if (info.fpREV>=0x80)
-		fp_sendcmd(defdata->client, 0, 20); // nokia 	
+		fp_sendcmd(defdata->client, 0, 20); // nokia
 	else
 		fp_sendcmd(defdata->client, 0, 9);  // sagem/philips
 	for (;;);
@@ -1786,12 +1789,15 @@ static void fp_halt(void)
 {
 	fp_power_off();
 }
-                  
+
 /* ------------------------------------------------------------------------- */
 
 #ifdef MODULE
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("DBox2 Frontprocessor");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 MODULE_PARM(debug,"i");
 MODULE_PARM(useimap,"i");

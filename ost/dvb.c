@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.67 2002/03/24 17:52:40 happydude Exp $
+ * $Id: dvb.c,v 1.68 2002/05/06 02:18:19 obi Exp $
  */
 
 #include <linux/config.h>
@@ -107,13 +107,13 @@ secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 {
 	int i, ret;
 	struct secCommand scommands;
-	
+
 	if (!dvb->frontend)
 	{
 		printk("no frontend.\n");
 		return -ENOENT;
 	}
-	
+
 	switch (seq->miniCommand)
 	{
 	case SEC_MINI_NONE:
@@ -123,17 +123,17 @@ secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 	default:
 		return -EINVAL;
 	}
-	
+
 	for (i=0; i<seq->numCommands; i++) {
 		if (copy_from_user(&scommands, &seq->commands[i],
 				sizeof(struct secCommand)))
 			continue;
 		dvb_frontend_sec_command(dvb->frontend, &scommands);
 	}
-	
+
 	if (seq->miniCommand!=SEC_MINI_NONE)
 		dvb_frontend_sec_mini_command(dvb->frontend, seq->miniCommand);
-	
+
 	ret=secSetVoltage(dvb, seq->voltage);
 	if (ret<0)
 	{
@@ -153,7 +153,7 @@ void tuning_complete_cb(void *priv)
 {
 	struct dvb_struct *dvb=(struct dvb_struct *) priv;
 }
-        
+
 static int frontend_init(dvb_struct_t *dvb)
 {
 	FrontendParameters para;
@@ -161,9 +161,9 @@ static int frontend_init(dvb_struct_t *dvb)
 	dvb->frontend->priv=(void *)dvb;
 	dvb->frontend->complete_cb=tuning_complete_cb;
 	dvb_frontend_init(dvb->frontend);
-	
+
 	dvb->powerstate=FE_POWER_ON;
-	
+
 	switch (dvb->frontend->type) {
 	case DVB_S:
 		para.Frequency=12480000-10600000;
@@ -247,11 +247,11 @@ int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct fi
 		}
 		case DVB_DEVICE_VIDEO:
 		{
-			
+
 			break;
 		}
 		case DVB_DEVICE_AUDIO:
-		{	
+		{
 			printk("open audio device\n");
 			break;
 		}
@@ -707,12 +707,12 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 						dvb->videostate.streamSource=(videoStreamSource_t) arg;
 						if (dvb->videostate.streamSource!=VIDEO_SOURCE_DEMUX)
 							return -EINVAL;
-						
+
 						avia_flush_pcr();
-					
+
 						if (dvb->dmxdev.demux)
 						    dvb->dmxdev.demux->flush_pcr();
-						
+
 					} else
 						return -EINVAL;
 					break;
@@ -856,17 +856,17 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		{
 			switch (cmd)
 			{
-			        case AUDIO_SET_BYPASS_MODE:
-				    
+				case AUDIO_SET_BYPASS_MODE:
+
 				    switch(arg)
 				    {
-					case 1:	
+					case 1:
 					    printk("[AUDIO] disable Bypass (compressed Bitstream on SPDIF off)\n");
 					    avia_command(SelectStream,2,0x1FFF);
 					    avia_command(SelectStream,3,0);
 					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1)|1);
 					    wDR(0x468,0xFFFF);
-					    
+
 					    break;
 					case 0:
 					    printk("[AUDIO] enable Bypass (compressed Bitstream on SPDIF on)\n");
@@ -874,10 +874,10 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    avia_command(SelectStream,2,0);
 					    wDR(AUDIO_CONFIG,(rDR(AUDIO_CONFIG)&~1));
 					    wDR(0x468,0xFFFF);
-					    
+
 					    break;
 				    }
-				    break;	
+				    break;
 
 				case AUDIO_CHANNEL_SELECT:
 				    switch ((audioChannelSelect_t) arg)
@@ -887,12 +887,12 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					    break;
 
 					case 1: /* sucks, but AUDIO_MONO_LEFT is defined twice with different values  */
-						/* see include/ost/audio.h and include/mtdriver/scartApi.h            */
+						/* see include/ost/audio.h and include/mtdriver/scartApi.h	    */
 					    wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE)&~0x30)|0x10);
 					    break;
 
 					case 2: /* sucks, but AUDIO_MONO_RIGHT is defined twice with different values */
-						/* see include/ost/audio.h and include/mtdriver/scartApi.h            */ 
+						/* see include/ost/audio.h and include/mtdriver/scartApi.h	    */
 					    wDR(AUDIO_DAC_MODE, (rDR(AUDIO_DAC_MODE)&~0x30)|0x20);
 					    break;
 				    }
@@ -1018,7 +1018,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					freq+=1000; //FIXME: KHz like in QPSK_TUNE??
 				else
 					freq+=1000000;
-				
+
 				if (copy_to_user(parg, &freq, sizeof(freq)))
 					return -EFAULT;
 				break;
@@ -1026,10 +1026,10 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 			case FE_GET_NEXT_SYMBOL_RATE:
 			{
 				uint32_t rate;
-				
+
 				if(copy_from_user(&rate, parg, sizeof(rate)))
 					return -EFAULT;
-					
+
 				if (dvb->frontend->type==DVB_C) {
 					if (rate < 1725000)
 						rate = 1725000;
@@ -1055,7 +1055,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 					rate+=2000000;
 				else
 					return -EINVAL;
-				
+
 				if(copy_to_user(parg, &rate, sizeof(rate)))
 					return -EFAULT;
 				break;
@@ -1081,7 +1081,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				else if (dvb->frontend->type==DVB_T && (para.u.ofdm.Constellation!=QPSK &&
 						para.u.ofdm.Constellation!=QAM_16 && para.u.ofdm.Constellation!=QAM_64))
 					return -EINVAL;
-				
+
 				if (para.Frequency>20000000)		// if >20Ghz, divide by 1000
 					para.Frequency/=1000;
 
@@ -1143,7 +1143,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 			if (file->f_flags&O_NONBLOCK)
 				return -EWOULDBLOCK;
-			
+
 			switch(cmd) {
 			case SEC_GET_STATUS:
 			{
@@ -1162,10 +1162,10 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				struct secCmdSequence seq;
 				if(copy_from_user(&seq, parg, sizeof(seq)))
 					return -EFAULT;
-				
+
 				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 					return -EPERM;
-				
+
 				dvb_frontend_stop(dvb->frontend);
 				return secSendSequence(dvb, &seq);
 			}
@@ -1175,14 +1175,14 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 					return -EPERM;
-				
+
 				dvb_frontend_stop(dvb->frontend);
 				return secSetTone(dvb, mode);
 			}
 			case SEC_SET_VOLTAGE:
 			{
 				secVoltage val = (secVoltage) arg;
-				
+
 				if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 					return -EPERM;
 
@@ -1487,6 +1487,7 @@ int unregister_demux(struct dmx_demux_s *demux)
 	return -ENOENT;
 }
 
+#ifdef MODULE
 int __init dvb_init_module(void)
 {
 	return dvb_register(&dvb);
@@ -1505,3 +1506,9 @@ EXPORT_SYMBOL(register_demux);
 EXPORT_SYMBOL(unregister_demux);
 EXPORT_SYMBOL(register_dvbnet);
 EXPORT_SYMBOL(unregister_dvbnet);
+
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+
+#endif

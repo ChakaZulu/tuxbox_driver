@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-ks0713.c,v $
+ *   Revision 1.21  2002/05/06 02:18:19  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.20  2002/03/21 19:26:31  obi
  *   compilable with kernels >= 2.4.10
  *
@@ -73,7 +76,7 @@
  *   Revision 1.5  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.20 $
+ *   $Revision: 1.21 $
  *
  */
 
@@ -132,14 +135,14 @@ extern int cleanup_module(void);
 #endif /* def MODULE */
 
 static ssize_t lcd_read (struct file *file, char *buf, size_t count,
-                            loff_t *offset);
+			    loff_t *offset);
 static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
-                             loff_t *offset);
+			     loff_t *offset);
 
 static loff_t lcd_seek (struct file *file, loff_t, int );
 
 static int lcd_ioctl (struct inode *inode, struct file *file,
-                         unsigned int cmd, unsigned long arg);
+			 unsigned int cmd, unsigned long arg);
 static int lcd_open (struct inode *inode, struct file *file);
 
 #ifdef MODULE
@@ -172,8 +175,8 @@ static int LCD_MODE;
 ///////////////////////////////////////////////////////////////////////////////
 
 /* Front panel LCD display major */
-#define LCD_MAJOR 				156
-#define LCD_DELAY 				1
+#define LCD_MAJOR				156
+#define LCD_DELAY				1
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -217,7 +220,7 @@ static int LCD_MODE;
 
 /* Set column address 000001DCBA
  * D-A  Y7-4
- * next Y3-0			
+ * next Y3-0
  */
 #define LCD_CMD_COL				0x0010
 
@@ -385,15 +388,15 @@ int lcd_set_pixel( struct lcd_pixel * pix )
     int y=0,val,bit=0,v;
 
     if ( pix->y >= (LCD_ROWS*8) ) {
-        return -EINVAL;
+	return -EINVAL;
     }
 
     if ( pix->x >= LCD_COLS ) {
-        return -EINVAL;
+	return -EINVAL;
     }
 
     if (pix->y) {
-        y = (pix->y/8);
+	y = (pix->y/8);
     }
 
     bit = pix->y - (y*8);
@@ -408,13 +411,13 @@ int lcd_set_pixel( struct lcd_pixel * pix )
 
     // invertieren
     if ( v == 2 ) {
-        v = (((~val)>>bit)&1);
+	v = (((~val)>>bit)&1);
     }
 
     if ( v == 1 ) {
-        val |= (1<<bit);
+	val |= (1<<bit);
     } else {
-        val &= ~(1<<bit);
+	val &= ~(1<<bit);
     }
 
 	// set dram pointer
@@ -447,7 +450,7 @@ void lcd_read_dram( unsigned char * dest )
 void lcd_write_dram( unsigned char * source )
 {
 	int pa,col;
-	
+
 	for(pa=0;pa<LCD_ROWS;pa++) {
 
 		lcd_set_pos( pa, 0 );
@@ -461,7 +464,7 @@ void lcd_write_dram( unsigned char * source )
 ///////////////////////////////////////////////////////////////////////////////
 
 static ssize_t lcd_read (struct file *file, char *buf, size_t count,
-                            loff_t *offset)
+			    loff_t *offset)
 {
 	char *obp, *bp;
 	int pa,col,i;
@@ -517,11 +520,11 @@ static ssize_t lcd_read (struct file *file, char *buf, size_t count,
 ///////////////////////////////////////////////////////////////////////////////
 
 static ssize_t lcd_write (struct file *file, const char *buf, size_t count,
-                             loff_t *offset)
+			     loff_t *offset)
 {
 	char *obp, *bp;
 	int pa,col;
-	
+
 	if (count<=0) {
 		return -EFAULT;
     }
@@ -609,20 +612,20 @@ void lcd_set_pos( int row, int col )
 //    }
 
     f_vars.row = row;
-  	lcd_send_cmd( LCD_CMD_SPAGE, row );
+	lcd_send_cmd( LCD_CMD_SPAGE, row );
 
 //	if ( (f_vars.col != col) && (col>=0) ) {
 //    }
 
     f_vars.col = col;
     lcd_send_cmd( LCD_CMD_COL, (col>>4)&0x0F );
-  	lcd_send_cmd( 0x00, col&0x0F );
+	lcd_send_cmd( 0x00, col&0x0F );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
-                  unsigned long arg)
+		  unsigned long arg)
 {
 	int val;
     struct lcd_pixel pix;
@@ -630,18 +633,18 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 
-    	case LCD_IOCTL_STATUS:
+	case LCD_IOCTL_STATUS:
 
 				val = lcd_read_status();
 
-       			if ( copy_to_user((int*)arg,&val,sizeof(int)) )
-	    			return -EFAULT;
+			if ( copy_to_user((int*)arg,&val,sizeof(int)) )
+				return -EFAULT;
 
 				return 0;
 
 		case LCD_IOCTL_RESET:
 
-    			lcd_send_cmd( LCD_CMD_RESET, 0 );
+			lcd_send_cmd( LCD_CMD_RESET, 0 );
 				return 0;
 
 		case LCD_IOCTL_INIT:
@@ -655,74 +658,74 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 
     if ( cmd & LCDSET ) {
 
-    	if ( copy_from_user( &val, (int*)arg, sizeof(int) ) )
-	    	return -EFAULT;
+	if ( copy_from_user( &val, (int*)arg, sizeof(int) ) )
+		return -EFAULT;
 
 	    switch (cmd) {
 
-    		case LCD_IOCTL_ON:
+		case LCD_IOCTL_ON:
 
 				lcd_send_cmd( LCD_CMD_ON, val&0x01 );
 				break;
 
-    		case LCD_IOCTL_EON:
-    			lcd_send_cmd( LCD_CMD_EON, val&0x01 );
+		case LCD_IOCTL_EON:
+			lcd_send_cmd( LCD_CMD_EON, val&0x01 );
 					break;
 
-       		case LCD_IOCTL_REVERSE:
+		case LCD_IOCTL_REVERSE:
 
 				lcd_send_cmd( LCD_CMD_REVERSE, val&0x01 );
 				break;
 
-    		case LCD_IOCTL_BIAS:
+		case LCD_IOCTL_BIAS:
 
 				lcd_send_cmd( LCD_CMD_BIAS, val&0x01 );
 				break;
 
-    		case LCD_IOCTL_ADC:
+		case LCD_IOCTL_ADC:
 
 				lcd_send_cmd( LCD_CMD_ADC, val&0x01 );
 				break;
 
-    		case LCD_IOCTL_SHL:
+		case LCD_IOCTL_SHL:
 
 				lcd_send_cmd( LCD_CMD_SHL, (val&0x01)<<3 );
 				break;
 
-    		case LCD_IOCTL_IDL:
-	
+		case LCD_IOCTL_IDL:
+
 				if ( (val > 0x1F) || (val < 0) )
-    				return -EINVAL;
+				return -EINVAL;
 
 				lcd_send_cmd( LCD_CMD_IDL, val&0x1F );
 				break;
 
-    		case LCD_IOCTL_SRV:
+		case LCD_IOCTL_SRV:
 
 				if ( (val > 0x3F) || (val < 0) )
 					return -EINVAL;
 
-    			lcd_send_cmd( LCD_CMD_SRV, 0 );
+			lcd_send_cmd( LCD_CMD_SRV, 0 );
 				lcd_send_cmd( 0x00, val&0x3F );
 				break;
 
-    		case LCD_IOCTL_POWERC:
+		case LCD_IOCTL_POWERC:
 
 				if ( (val > 0x07) || (val < 0) )
 					return -EINVAL;
 
-    			lcd_send_cmd( LCD_CMD_POWERC, val&0x07 );
+			lcd_send_cmd( LCD_CMD_POWERC, val&0x07 );
 				break;
 
-    		case LCD_IOCTL_SEL_RES:
+		case LCD_IOCTL_SEL_RES:
 
-    			if ( (val > 0x07) || (val < 0) )
+			if ( (val > 0x07) || (val < 0) )
 					return -EINVAL;
 
-    			lcd_send_cmd( LCD_CMD_RES, val&0x07 );
+			lcd_send_cmd( LCD_CMD_RES, val&0x07 );
 				break;
 
-    		case LCD_IOCTL_SIR:
+		case LCD_IOCTL_SIR:
 
 				if ( (val > 0x03) || (val < 0) )
 					return -EINVAL;
@@ -731,7 +734,7 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 				lcd_send_cmd( 0x00, val&0x03 );
 				break;
 
-    		case LCD_IOCTL_SIRC:
+		case LCD_IOCTL_SIRC:
 
 				if ( (val > 0x03) || (val < 0) )
 					return -EINVAL;
@@ -740,22 +743,22 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 				lcd_send_cmd( 0x00, val&0x03 );
 				break;
 
-    		case LCD_IOCTL_SROW:
-//    		case LCD_IOCTL_SPAGE:
+		case LCD_IOCTL_SROW:
+//		case LCD_IOCTL_SPAGE:
 
 				if ( (val >= LCD_ROWS ) || (val < 0) )
 					return -EINVAL;
 
-                lcd_set_pos( val, -1 );
+		lcd_set_pos( val, -1 );
 
 				break;
 
-    		case LCD_IOCTL_SCOLUMN:
+		case LCD_IOCTL_SCOLUMN:
 
 				if ( (val >= LCD_COLS) || (val < 0) )
 					return -EINVAL;
 
-                lcd_set_pos( -1, val );
+		lcd_set_pos( -1, val );
 
 				break;
 
@@ -772,76 +775,76 @@ int lcd_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
 	    }
     } else if (cmd & LCDGET ) {
 
-        switch (cmd) {
+	switch (cmd) {
 
-    		case LCD_IOCTL_READ_BYTE:
+		case LCD_IOCTL_READ_BYTE:
 
-	    		val = lcd_read_byte();
+			val = lcd_read_byte();
 
-            	if ( copy_to_user( &val, (int*)arg, sizeof(int) ) )
-            		return -EFAULT;
+		if ( copy_to_user( &val, (int*)arg, sizeof(int) ) )
+			return -EFAULT;
 
-    			break;
-        }
+			break;
+	}
     } else {
 
-        switch (cmd) {
+	switch (cmd) {
 
-    		case LCD_IOCTL_SMR:
+		case LCD_IOCTL_SMR:
 
 				lcd_send_cmd( LCD_CMD_SMR, 0 );
 				break;
 
-    		case LCD_IOCTL_RMR:
+		case LCD_IOCTL_RMR:
 
 				lcd_send_cmd( LCD_CMD_RMR, 0 );
 				break;
 
-    		case LCD_IOCTL_SET_ADDR:
+		case LCD_IOCTL_SET_ADDR:
 
-    			lcd_read_dummy();
+			lcd_read_dummy();
 				break;
 
-    		case LCD_IOCTL_SET_PIXEL:
+		case LCD_IOCTL_SET_PIXEL:
 
-    			if ( copy_from_user(&pix,(struct lcd_pixel*)arg,sizeof(struct lcd_pixel)) ) {
-    	        	return -EFAULT;
-                }
+			if ( copy_from_user(&pix,(struct lcd_pixel*)arg,sizeof(struct lcd_pixel)) ) {
+			return -EFAULT;
+		}
 
-                return lcd_set_pixel(&pix);
+		return lcd_set_pixel(&pix);
 
-    		case  LCD_IOCTL_GET_POS:
+		case  LCD_IOCTL_GET_POS:
 
-                pos.row = f_vars.row;
-                pos.col = f_vars.col;
+		pos.row = f_vars.row;
+		pos.col = f_vars.col;
 
-            	if ( copy_to_user( &pos, (lcd_pos*)arg, sizeof(struct lcd_pos) ) ) {
-            		return -EFAULT;
-                }
+		if ( copy_to_user( &pos, (lcd_pos*)arg, sizeof(struct lcd_pos) ) ) {
+			return -EFAULT;
+		}
 
-                break;
+		break;
 
-    		case  LCD_IOCTL_SET_POS:
+		case  LCD_IOCTL_SET_POS:
 
-    			if ( copy_from_user(&pos,(struct lcd_pos*)arg,sizeof(struct lcd_pos)) ) {
-    	        	return -EFAULT;
-                }
+			if ( copy_from_user(&pos,(struct lcd_pos*)arg,sizeof(struct lcd_pos)) ) {
+			return -EFAULT;
+		}
 
-                if ( pos.row > LCD_ROWS ) {
-                    return -EINVAL;
-                }
+		if ( pos.row > LCD_ROWS ) {
+		    return -EINVAL;
+		}
 
-                if ( pos.col > LCD_COLS ) {
-                    return -EINVAL;
-                }
+		if ( pos.col > LCD_COLS ) {
+		    return -EINVAL;
+		}
 
-                lcd_set_pos( pos.row, pos.col );
-                break;
+		lcd_set_pos( pos.row, pos.col );
+		break;
 
-            case LCD_IOCTL_CLEAR:
-                lcd_clear();
-                break;
-        }
+	    case LCD_IOCTL_CLEAR:
+		lcd_clear();
+		break;
+	}
     }
 
 	return 0;
@@ -901,7 +904,7 @@ int __init lcd_init(void)
 {
 	int status;
 	struct dbox_info_struct dinfo;
-	
+
 	immap_t	*immap;
 
 	printk("lcd.o: init lcd driver module\n");
@@ -914,8 +917,8 @@ int __init lcd_init(void)
 
 	devfs_handle =
 		devfs_register ( NULL, "dbox/lcd0", DEVFS_FL_DEFAULT, 0, 0,
-                     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-                     &lcd_fops, NULL );
+		     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		     &lcd_fops, NULL );
 
 	if ( ! devfs_handle )
 	{
@@ -946,7 +949,7 @@ int __init lcd_init(void)
 	status = lcd_read_status();
 
 	dbox_get_info(&dinfo);
-	
+
 	switch(status&0x0f)
 	{
 		case KS0713:
@@ -991,6 +994,9 @@ EXPORT_NO_SYMBOLS;
 
 MODULE_AUTHOR("Gillem <gillem@berlios.de>");
 MODULE_DESCRIPTION("LCD driver (KS0713)");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 
 int init_module(void)
 {

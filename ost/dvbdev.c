@@ -1,10 +1,10 @@
-/* 
+/*
  * dvbdev.c
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
- *                  & Marcus Metzler <marcus@convergence.de>
- *                    for convergence integrated media GmbH
- *               2001 Bastian Blank <bastianb@gmx.de>
+ *		  & Marcus Metzler <marcus@convergence.de>
+ *		    for convergence integrated media GmbH
+ *	       2001 Bastian Blank <bastianb@gmx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvbdev.c,v 1.6 2001/03/12 03:27:26 kwon Exp $
+ * $Id: dvbdev.c,v 1.7 2002/05/06 02:18:19 obi Exp $
  */
 
 #include <linux/config.h>
@@ -54,7 +54,7 @@ static int dvbdev_open ( struct inode * inode, struct file * file )
 
   err = info -> device -> open ( info -> device, info -> type, inode, file );
 
-  if ( err < 0 ) 
+  if ( err < 0 )
     return err;
 
   return 0;
@@ -69,14 +69,14 @@ static int dvbdev_release ( struct inode * inode, struct file * file )
 
   err = info -> device -> close ( info -> device, info -> type, inode, file );
 
-  if ( err < 0 ) 
+  if ( err < 0 )
     return err;
 
   return 0;
 }
 
 static ssize_t dvbdev_read ( struct file * file, char * buf,
-                             size_t count, loff_t * ppos )
+			     size_t count, loff_t * ppos )
 {
   dvbdev_devfsinfo_t * info;
 
@@ -86,7 +86,7 @@ static ssize_t dvbdev_read ( struct file * file, char * buf,
 }
 
 static ssize_t dvbdev_write ( struct file * file, const char * buf,
-                              size_t count, loff_t * ppos )
+			      size_t count, loff_t * ppos )
 {
   dvbdev_devfsinfo_t * info;
 
@@ -96,7 +96,7 @@ static ssize_t dvbdev_write ( struct file * file, const char * buf,
 }
 
 static int dvbdev_ioctl ( struct inode *inode, struct file * file,
-                          unsigned int cmd, unsigned long arg )
+			  unsigned int cmd, unsigned long arg )
 {
   dvbdev_devfsinfo_t * info;
 
@@ -116,12 +116,12 @@ unsigned int dvbdev_poll ( struct file * file, poll_table * wait )
 
 static struct file_operations dvbdev_fops =
 {
-  open:         dvbdev_open,
+  open:	 dvbdev_open,
   release:      dvbdev_release,
-  read:         dvbdev_read,
-  write:        dvbdev_write,
-  ioctl:        dvbdev_ioctl,
-  poll:         dvbdev_poll
+  read:	 dvbdev_read,
+  write:	dvbdev_write,
+  ioctl:	dvbdev_ioctl,
+  poll:	 dvbdev_poll
 };
 
 void dvbdev_devfs_init (void)
@@ -150,15 +150,15 @@ void dvbdev_devfs_register_dev ( dvb_device_t * dev, int number )
     dev -> devfs_handle_dvb_dir =
       devfs_mk_dir ( devfs_dir_handle[DVB_DEVFSDIR_DVB], string1, NULL );
 
-    dev -> devfs_handle_dvb[i] = 
+    dev -> devfs_handle_dvb[i] =
       devfs_register ( dev -> devfs_handle_dvb_dir, subdevice_names[i], DEVFS_FL_DEFAULT, 0, 0,
-                       S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
-                       &dvbdev_fops, &dev -> devfs_info[i] );
+		       S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+		       &dvbdev_fops, &dev -> devfs_info[i] );
 
     sprintf ( string1, "%s%d", subdevice_names[i], number );
     sprintf ( string2, "../dvb/card%d/%s", number, subdevice_names[i] );
     devfs_mk_symlink ( devfs_dir_handle[DVB_DEVFSDIR_OST], string1, DEVFS_FL_DEFAULT, string2,
-                       &dev -> devfs_handle_ost[i], NULL );
+		       &dev -> devfs_handle_ost[i], NULL );
   }
 }
 
@@ -233,3 +233,7 @@ EXPORT_SYMBOL(dvb_unregister_device);
 
 MODULE_AUTHOR("Bastian Blank");
 MODULE_DESCRIPTION("Device registrar for DVB drivers");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
+

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.85 $
+ *   $Revision: 1.86 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.86  2002/05/06 02:18:18  obi
+ *   cleanup for new kernel
+ *
  *   Revision 1.85  2002/05/05 19:58:13  Jolt
  *   Doh 8-(
  *
@@ -308,6 +311,9 @@ static unsigned char auto_pcr_pid = 0;
 MODULE_PARM(auto_pcr_pid, "i");
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
+#ifdef MODULE_LICENSE
+MODULE_LICENSE("GPL");
+#endif
 #endif
 
 static gtx_demux_t gtx;
@@ -1009,9 +1015,9 @@ static int dmx_ts_feed_set(struct dmx_ts_feed_s* feed, __u16 pid, size_t callbac
 	filter->wait_pusi=0;	// right?
 
 	if ((auto_pcr_pid) && (gtxfeed->pes_type == DMX_TS_PES_VIDEO)) {
-	
+
 		dprintk("avia_gt_napi: assuming PCR_PID == VPID == 0x%04x\n", pid);
-		
+
 		avia_gt_dmx_set_pcr_pid(pid);
 
 	}
@@ -1603,7 +1609,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.85 2002/05/05 19:58:13 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.86 2002/05/06 02:18:18 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
