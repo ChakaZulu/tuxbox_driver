@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gen-fb.c,v $
+ *   Revision 1.11  2001/10/23 08:49:35  Jolt
+ *   eNX capture and pig driver
+ *
  *   Revision 1.10  2001/09/13 17:11:37  field
  *   Fixed CRLFs (verdammter Editor!)
  *
@@ -69,7 +72,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.10 $
+ *   $Revision: 1.11 $
  *
  */
 
@@ -495,10 +498,11 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   enx_reg_w(TCR1)=0x1000000;
   enx_reg_w(TCR2)=0x0FF007F;	// disabled - we don't need since we have 7bit true alpha
 
-	enx_reg_h(P1VPSA)=0;
-	enx_reg_h(P2VPSA)=0;
-	enx_reg_h(P1VPSO)=0;
-	enx_reg_h(P2VPSO)=0;
+//	enx_reg_h(P1VPSA)=0;
+//	enx_reg_h(P2VPSA)=0;
+//	enx_reg_h(P1VPSO)=0;
+//	enx_reg_h(P2VPSO)=0;
+	
 	enx_reg_h(VMCR)=0;
 	enx_reg_h(G1CFR)=1;
 	enx_reg_h(G2CFR)=1;
@@ -783,7 +787,7 @@ void gtxfb_close(void)
 
 int init_module(void)
 {
-  dprintk("Framebuffer: $Id: gen-fb.c,v 1.10 2001/09/13 17:11:37 field Exp $\n");
+  dprintk("Framebuffer: $Id: gen-fb.c,v 1.11 2001/10/23 08:49:35 Jolt Exp $\n");
   return gtxfb_init();
 }
 void cleanup_module(void)

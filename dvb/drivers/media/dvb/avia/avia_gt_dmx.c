@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.58 $
+ *   $Revision: 1.59 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.59  2001/10/23 08:49:35  Jolt
+ *   eNX capture and pig driver
+ *
  *   Revision 1.58  2001/10/14 19:49:27  tmbinc
  *   added fix
  *
@@ -402,7 +405,7 @@ do_firmread (const char *fn, char **fp)
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
 #ifdef enx_dmx
-  enx_reg_h(0x2700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
+  enx_reg_16n(0x2700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
 #else
   rh(RISC+0x700+entry*2)=((!!wait_pusi)<<15)|((!!invalid)<<14)|pid;
 #endif  
@@ -413,7 +416,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
   u8 w[4];
   w[0]=type<<5;
 #ifdef enx_dmx
-  if ((enx_reg_h(0x27FE)&0xFF00)>=0xA000)
+  if ((enx_reg_16n(0x27FE)&0xFF00)>=0xA000)
     w[0]|=(queue)&31;
   else
     w[0]|=(queue+1)&31;
@@ -430,7 +433,7 @@ void gtx_set_pid_control_table(int entry, int type, int queue, int fork, int cw_
   w[2]|=(!!pec)<<5;
   w[3]=0;
 #ifdef enx_dmx
-  enx_reg_w(0x2740+entry*4)=*(u32*)w;
+  enx_reg_32n(0x2740+entry*4)=*(u32*)w;
 #else  
   rw(RISC+0x740+entry*4)=*(u32*)w;
 #endif  
@@ -514,8 +517,8 @@ void gtx_set_queue(int queue, u32 wp, u8 size)
 	mb(); 
   queue &= 0xF;
 #ifdef enx_dmx
-  enx_reg_h(0x882+4*queue)=((wp>>16)&63)|(size<<6);
-  enx_reg_h(0x880+4*queue)=wp&0xFFFF;
+  enx_reg_16n(0x882+4*queue)=((wp>>16)&63)|(size<<6);
+  enx_reg_16n(0x880+4*queue)=wp&0xFFFF;
 #else  
   rh(QWPnL+4*queue)=wp&0xFFFF;
   rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
@@ -531,7 +534,7 @@ void set_queue_interrupt_address(int queue, int boundary)
     enx_reg_w(CFGR0)&=~0x10;
 	queue&=0xF;
 	mb();
-	enx_reg_h(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
+	enx_reg_16n(0x8C0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);
 #else
 	rh(QI0+queue*2)=(boundary==-1)?0:((1<<15)|boundary);					// das geht irgendwie nicht :(
 #endif    
@@ -558,8 +561,8 @@ u32 gtx_get_queue_wptr(int queue)
   {
     oldwp=wp;
 #ifdef enx_dmx
-    wp=enx_reg_h(0x880+4*queue);
-    wp|=(enx_reg_h(0x882+4*queue)&63)<<16;
+    wp=enx_reg_16n(0x880+4*queue);
+    wp|=(enx_reg_16n(0x882+4*queue)&63)<<16;
 #else
     wp=rh(QWPnL+4*queue);
     wp|=(rh(QWPnH+4*queue)&63)<<16;
@@ -577,10 +580,10 @@ void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
   
-  enx_reg_h(base)=read&0xFFFF;
-  enx_reg_h(base+4)=write&0xFFFF;
-  enx_reg_h(base+6)=((write>>16)&63)|(size<<6);
-  enx_reg_h(base+2)=((read>>16)&63);
+  enx_reg_16n(base)=read&0xFFFF;
+  enx_reg_16n(base+4)=write&0xFFFF;
+  enx_reg_16n(base+6)=((write>>16)&63)|(size<<6);
+  enx_reg_16n(base+2)=((read>>16)&63);
 #else
   int base=queue*8+0x1E0;
   
@@ -595,8 +598,8 @@ void gtx_set_system_queue_rptr(int queue, u32 read)
 {
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
-	enx_reg_h(base)=read&0xFFFF;
-	enx_reg_h(base+2)=(read>>16)&63;
+	enx_reg_16n(base)=read&0xFFFF;
+	enx_reg_16n(base+2)=(read>>16)&63;
 #else
   int base=queue*8+0x1E0;
   rhn(base)=read&0xFFFF;
@@ -608,8 +611,8 @@ void gtx_set_system_queue_wptr(int queue, u32 write)
 {
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
-	enx_reg_h(base+4)=write&0xFFFF;
-	enx_reg_h(base+6)=((write>>16)&63)|(enx_reg_h(base+6)&~63);
+	enx_reg_16n(base+4)=write&0xFFFF;
+	enx_reg_16n(base+6)=((write>>16)&63)|(enx_reg_16n(base+6)&~63);
 #else
   int base=queue*8+0x1E0;
 	rhn(base+4)=write&0xFFFF;
@@ -1960,7 +1963,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.58 2001/10/14 19:49:27 tmbinc Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.59 2001/10/23 08:49:35 Jolt Exp $\n");
 
 	return gtx_dmx_init();
 }
