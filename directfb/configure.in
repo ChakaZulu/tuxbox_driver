@@ -4,9 +4,6 @@ AC_INIT(Makefile.am)
 # Save this value here, since automake will set cflags later
 cflags_set="${CFLAGS}set"
 
-dnl we need to AC_DIVERT_PUSH/AC_DIVERT_POP these variable definitions so they
-dnl are available for $ac_help expansion (don't we all *love* autoconf?)
-AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
 #
 # Making releases:
 #   DIRECTFB_MICRO_VERSION += 1;
@@ -22,8 +19,6 @@ DIRECTFB_MICRO_VERSION=16
 DIRECTFB_INTERFACE_AGE=0
 DIRECTFB_BINARY_AGE=0
 DIRECTFB_VERSION=$DIRECTFB_MAJOR_VERSION.$DIRECTFB_MINOR_VERSION.$DIRECTFB_MICRO_VERSION
-dnl
-AC_DIVERT_POP()
 
 AC_SUBST(DIRECTFB_MAJOR_VERSION)
 AC_SUBST(DIRECTFB_MINOR_VERSION)
@@ -47,12 +42,10 @@ VERSION=$DIRECTFB_VERSION
 PACKAGE=directfb-gtx-driver
 
 AM_INIT_AUTOMAKE($PACKAGE, $VERSION, no-define)
-
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_DISABLE_STATIC 
 AM_PROG_LIBTOOL
-AC_CANONICAL_HOST
 AM_SANITY_CHECK
 AC_ISC_POSIX
 AM_PROG_CC_STDC
@@ -60,57 +53,10 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_HEADER_STDC
 AC_C_CONST
+AC_PROG_CPP
 
-#
-# Find pkg-config
-#
-AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-if test x$PKG_CONFIG = xno ; then
-  AC_MSG_ERROR([*** pkg-config not found. See http://pkgconfig.sourceforge.net])
-fi
-
-if ! pkg-config --atleast-pkgconfig-version 0.5 ; then
-  AC_MSG_ERROR([*** pkg-config too old; version 0.5 or better required.])
-fi
-
-#
-# Check for DirectFB
-#
-DIRECTFB_REQUIRED_VERSION=$DIRECTFB_VERSION
-
-AC_MSG_CHECKING(for DirectFB)
-  if $PKG_CONFIG --atleast-version $DIRECTFB_REQUIRED_VERSION directfb ; then
-        DFB_CFLAGS=`$PKG_CONFIG --cflags directfb`
-        DFB_LIBS=`$PKG_CONFIG --libs directfb`
-        AC_MSG_RESULT(found)
-  else
-        AC_MSG_ERROR([*** DirectFB $DIRECTFB_VERSION or newer is required. ])
-  fi
-
-#
-# Check for DirectFB-Internal
-#
-DIRECTFB_REQUIRED_VERSION=$DIRECTFB_VERSION
-
-AC_MSG_CHECKING(for DirectFB-Internal)
-  if $PKG_CONFIG --atleast-version $DIRECTFB_REQUIRED_VERSION directfb-internal ; then
-        if test "x$exec_prefix" = xNONE && test "x$prefix" = xNONE; then
-             MODULEDIR=`$PKG_CONFIG --variable=moduledir directfb-internal`
-        else
-             MODULEDIR=$libdir/directfb
-        fi
-        DFB_INTERNAL_CFLAGS=`$PKG_CONFIG --cflags directfb-internal`
-        AC_MSG_RESULT(found)
-  else
-        AC_MSG_ERROR([*** DirectFB-Internal $DIRECTFB_VERSION or newer is required. ])
-  fi
-
-
-DFB_CFLAGS="$DFB_CFLAGS $DFB_INTERNAL_CFLAGS -DREENTRANT"
-
-if test "x$GCC" = xyes; then
-  DFB_CFLAGS="$DFB_CFLAGS -O3 -fexpensive-optimizations -ffast-math -Wall"
-fi
+PKG_CHECK_MODULES(DFB, directfb >= $DIRECTFB_VERSION)
+PKG_CHECK_MODULES(DFB_INTERNAL, directfb-internal >= $DIRECTFB_VERSION)
 
 AC_ARG_ENABLE(debug, [  --enable-debug          enable debugging support [default=no]],, enable_debug=no)
 if test "x$enable_debug" = xyes; then
@@ -120,23 +66,18 @@ else
 fi
 AM_CONDITIONAL(ENABLE_DEBUG, test "x$enable_debug" = xyes)
 
+AC_ARG_WITH(kernel_source,
+	[  --with-kernel-source=DIR],
+	[kernel_source="$withval"],[kernel_source="/usr/src/linux"])
 
-if test x$cflags_set != xset ; then
-  DFB_CFLAGS="$DFB_CFLAGS $CFLAGS"
+CPPFLAGS="$CPPFLAGS -I$kernel_source/include"
+AC_CHECK_HEADERS(linux/fb.h,[LINUX_FB_H="yes"])
+if ! test "$LINUX_FB_H"; then
+	AC_MSG_ERROR([linux/fb.h not found])
 fi
 
-
-
-DATADIR=$datadir/directfb
-
-# Honor aclocal flags
-ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
-
-AC_SUBST(DFB_CFLAGS)
-AC_SUBST(DFB_LIBS)
-AC_SUBST(DATADIR)
+MODULEDIR="${libdir}/directfb-${DIRECTFB_VERSION}"
 AC_SUBST(MODULEDIR)
-AC_SUBST(PACKAGE)
 
 AC_OUTPUT([
 Makefile
