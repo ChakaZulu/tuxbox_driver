@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.198 2003/12/22 04:03:14 obi Exp $
+ * $Id: avia_gt_dmx.c,v 1.199 2003/12/22 05:19:37 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -2063,7 +2063,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.198 2003/12/22 04:03:14 obi Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.199 2003/12/22 05:19:37 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2145,6 +2145,12 @@ int __init avia_gt_dmx_init(void)
 					queue_nr, queue_addr, q->size);
 			queue_addr += q->size;
 			queue_addr &= ~(q->size - 1);
+		}
+
+		if (queue_addr + q->size > AVIA_GT_MEM_DMX_OFFS + AVIA_GT_MEM_DMX_SIZE) {
+			printk(KERN_CRIT "avia_gt_dmx: alert! queue %d (0x%X, size %d) is not inside demux memory boundaries!\n"
+					"avia_gt_dmx: using this queue will crash the system!\n",
+					queue_nr, queue_addr, q->size);
 		}
 
 		q->mem_addr = queue_addr;
