@@ -1,9 +1,9 @@
 /*
- *   enx-core.c - AViA eNX core driver (dbox-II-project)
+ *   avia_gt_enx.c - AViA eNX core driver (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2000-2001 Florian "Jolt" Schirmer (jolt@tuxbox.org)
+ *   Copyright (C) 2000-2002 Florian Schirmer (jolt@tuxbox.org)
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_enx.c,v $
+ *   Revision 1.6  2002/04/12 14:00:20  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.5  2002/04/10 22:23:18  Jolt
  *   Cleanups Part2
  *
@@ -94,7 +97,7 @@
  *   Revision 1.1  2001/03/02 23:56:34  gillem
  *   - initial release
  *
- *   $Revision: 1.5 $
+ *   $Revision: 1.6 $
  *
  */
 
@@ -121,117 +124,64 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
-#include "dbox/enx.h"
-#include "dbox/enx-dmx.h"
-#include "dbox/avia.h"
+#include "dbox/avia_gt.h"
 
-unsigned char *enx_mem_addr = NULL;
-unsigned char *enx_reg_addr = NULL;
+static int isr[] = {0x0100, 0x0102, 0x0104, 0x0106, 0x0108, 0x010A};
+static int imr[] = {0x0110, 0x0112, 0x0114, 0x0116, 0x0118, 0x011A};
 
-/* ---------------------------------------------------------------------- */
-
-#ifdef MODULE
-MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
-MODULE_DESCRIPTION("Avia eNX driver");
-
-static int debug = 0;
-
-MODULE_PARM(debug, "i");
-#endif
-
-#define dprintk(fmt,args...) if(debug) printk( fmt,## args)
-
-static void (*enx_irq[128])(int reg, int bit);
-static int isr[6]={0x0100,0x0102,0x0104,0x0106,0x0108,0x010A};
-static int imr[6]={0x0110,0x0112,0x0114,0x0116,0x0118,0x011A};
-
-int enx_allocate_irq(int reg, int bit, void (*isro)(int, int))
+void avia_gt_enx_clear_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
 
-	int nr = reg * 16 + bit;
+    enx_reg_16n(isr[irq_reg]) = (1 << irq_bit);
 	
-	dprintk("enx_core: allocate_irq reg %d bit %d\n", reg, bit);
-	
-	if (enx_irq[nr]) {
-	
-		printk("enx_core: irq already used\n");
-		
-		return -EBUSY;
-		
-	}
-	
-	enx_irq[nr] = isro;
-	enx_reg_16n(imr[reg]) = (1 << bit) | 1;
-	enx_reg_16n(isr[reg]) = (1 << bit);		// clear isr status
-	
+}
+
+unsigned short avia_gt_enx_get_irq_mask(unsigned char irq_reg)
+{
+
+    if (irq_reg <= 5)
+	return enx_reg_16n(imr[irq_reg]);
+    else
 	return 0;
 	
 }
 
-void enx_free_irq(int reg, int bit)
+unsigned short avia_gt_enx_get_irq_status(unsigned char irq_reg)
 {
-	dprintk("enx_core: free_irq reg %d bit %d\n", reg, bit);
-	enx_reg_16n(imr[reg])=1<<bit;
-	enx_irq[reg*16+bit]=0;
+
+    if (irq_reg <= 5)
+	return enx_reg_16n(isr[irq_reg]);
+    else
+	return 0;
+	
 }
 
-unsigned char *enx_get_mem_addr(void)
+void avia_gt_enx_mask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-	return enx_mem_addr;
+
+    enx_reg_16n(imr[irq_reg]) = 1 << irq_bit;
+	
 }
 
-unsigned char *enx_get_reg_addr(void)
+void avia_gt_enx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 {
-	return enx_reg_addr;
+
+    enx_reg_16n(imr[irq_reg]) = (1 << irq_bit) | 1;
+	
 }
 
 void enx_dac_init(void)
 {
-	enx_reg_w(RSTR0) &= ~(1 << 20);	// Get dac out of reset state
-	enx_reg_h(DAC_PC) = 0x0000;
-	enx_reg_h(DAC_CP) = 0x0009;
+
+    enx_reg_w(RSTR0) &= ~(1 << 20);	// Get dac out of reset state
+    enx_reg_h(DAC_PC) = 0x0000;
+    enx_reg_h(DAC_CP) = 0x0009;
+	
 }
 
-static void enx_irq_handler(int irq, void *dev, struct pt_regs *regs)
+void enx_irq_enable(void)
 {
 
-  int i, j;
-  
-  for (i=0; i<6; i++) {
-  
-    int rn=enx_reg_16n(isr[i]);
-    
-    for (j=1; j<16; j++) {
-    
-      if (rn&(1<<j)) {
-      
-        int nr=i*16+j;
-//				printk("enx interrupt %d:%d\n", i, j);
-        if (enx_irq[nr]) {
-	
-	    enx_irq[nr](i, j);
-	    
-        } else {
-	
-          if (enx_reg_16n(imr[i]) & (1 << j)) {
-	  
-            printk("enx_core: masking unhandled enx irq %d/%d\n", i, j);
-            enx_reg_16n(imr[i]) = 1 << j;                 // disable IMR bit
-	    
-          }
-	  
-        }
-	
-//	printk("enx_core: clear status register:%x , %x \n",isr[i],j);
-        enx_reg_16n(isr[i]) = 1 << j;            // clear ISR bits
-	
-      }
-    }
-  }
-}
-
-int enx_irq_enable(void)
-{
   enx_reg_w(EHIDR) = 0;					// IRQs an Hostprozessor weiterreichen
   enx_reg_w(IPR4) = 0x55555555; // alles auf HIRQ0
   enx_reg_w(IPR5) = 0x55555555; // das auch noch
@@ -251,14 +201,6 @@ int enx_irq_enable(void)
   enx_reg_h(IMR5) = 0x0001;
   enx_reg_w(IDR) = 0;
 
-  if (request_8xxirq(ENX_INTERRUPT, enx_irq_handler, 0, "enx", 0) != 0) {
-    printk(KERN_ERR "enx-core: Could not allocate IRQ!\n");
-
-    return -1;
-  }
-
-  return 0;
-
 }
 
 void enx_irq_disable(void) {
@@ -277,8 +219,6 @@ void enx_irq_disable(void) {
   enx_reg_h(IMR4) = 0x0001;		// Mask all IRQ's
   enx_reg_h(IMR5) = 0x0001;		// Mask all IRQ's
 
-  free_irq(ENX_INTERRUPT, 0);
-  
 }
 
 void enx_reset(void) {
@@ -296,100 +236,41 @@ void enx_sdram_ctrl_init(void) {
   
 }
 
-static int enx_init(void)
+void avia_gt_enx_init(void)
 {
-  enx_reg_addr = (unsigned char*)ioremap(ENX_REG_BASE, ENX_REG_SIZE);
 
-  if (!enx_reg_addr) {
+    printk("avia_gt_enx: $Id: avia_gt_enx.c,v 1.6 2002/04/12 14:00:20 Jolt Exp $\n");
+
+    enx_reset();
+    enx_sdram_ctrl_init();
+    enx_dac_init();
+
+    enx_irq_enable();
   
-    printk(KERN_ERR "enx-core: Failed to remap memory.\n");
+    memset(avia_gt_get_mem_addr(), 0xF, 1024*1024 /*ENX_MEM_SIZE*/);
+
+    //bring out of reset state
+    enx_reg_w(RSTR0) &= ~(1 << 28);  // PCM Audio Clock
+    enx_reg_w(RSTR0) &= ~(1 << 27);  // AV - Decoder
+    enx_reg_w(RSTR0) &= ~(1 << 21);  // Teletext engine
+    enx_reg_w(RSTR0) &= ~(1 << 17);  // PIG2
+    enx_reg_w(RSTR0) &= ~(1 << 13);  // Queue Manager
+    enx_reg_w(RSTR0) &= ~(1 << 11);  // Graphics
+    enx_reg_w(RSTR0) &= ~(1 << 10);  // Video Capture
+    enx_reg_w(RSTR0) &= ~(1 << 9);   // Video Module
+    enx_reg_w(RSTR0) &= ~(1 << 7);   // PIG1
+    enx_reg_w(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
+
+    enx_reg_w(CFGR0) &= ~(1 << 3);   // disable clip mode teletext
+    enx_reg_w(CFGR0) &= ~(1 << 1);   // disable clip mode audio
+    enx_reg_w(CFGR0) &= ~(1 << 0);   // disable clip mode video
     
-    return -1;
-    
-  }
-
-  enx_mem_addr = (unsigned char*)ioremap(ENX_MEM_BASE, ENX_MEM_SIZE);
-
-  if (!enx_mem_addr) {
-  
-    iounmap(enx_reg_addr);
-    
-    printk(KERN_ERR "enx-core: Failed to remap memory.\n");
-    
-    return -1;
-    
-  }
-
-  printk(KERN_NOTICE "enx-core: Loaded AViA eNX core driver\n");
-
-  enx_reset();
-  enx_sdram_ctrl_init();
-  enx_dac_init();
-
-  memset(enx_irq, 0, sizeof(enx_irq));
-
-  if (enx_irq_enable()) {
-  
-    iounmap(enx_mem_addr);
-    iounmap(enx_reg_addr);
-
-    return -1;
-    
-  }
-  
-  memset(enx_mem_addr, 0xF, 1024*1024 /*ENX_MEM_SIZE*/);
-
-  //bring out of reset state
-  enx_reg_w(RSTR0) &= ~(1 << 28);  // PCM Audio Clock
-  enx_reg_w(RSTR0) &= ~(1 << 27);  // AV - Decoder
-  enx_reg_w(RSTR0) &= ~(1 << 21);  // Teletext engine
-  enx_reg_w(RSTR0) &= ~(1 << 17);  // PIG2
-  enx_reg_w(RSTR0) &= ~(1 << 13);  // Queue Manager
-  enx_reg_w(RSTR0) &= ~(1 << 11);  // Graphics
-  enx_reg_w(RSTR0) &= ~(1 << 10);  // Video Capture
-  enx_reg_w(RSTR0) &= ~(1 << 9);   // Video Module
-  enx_reg_w(RSTR0) &= ~(1 << 7);   // PIG1
-  enx_reg_w(RSTR0) &= ~(1 << 6);   // Blitter / Color expander
-
-  enx_reg_w(CFGR0) &= ~(1 << 3);   // disable clip mode teletext
-  enx_reg_w(CFGR0) &= ~(1 << 1);   // disable clip mode audio
-  enx_reg_w(CFGR0) &= ~(1 << 0);   // disable clip mode video
-
-  return 0;
 }
 
-static void enx_close(void)
+void avia_gt_enx_exit(void)
 {
-	if (enx_reg_addr)
-	{
-		enx_irq_disable();
-		iounmap(enx_mem_addr);
-		iounmap(enx_reg_addr);
-		enx_reg_addr = NULL;
-		enx_mem_addr = NULL;
-	}
+
+    enx_irq_disable();
+    
 }
 
-/* ---------------------------------------------------------------------- */
-
-EXPORT_SYMBOL(enx_get_mem_addr);
-EXPORT_SYMBOL(enx_get_reg_addr);
-EXPORT_SYMBOL(enx_allocate_irq);
-EXPORT_SYMBOL(enx_free_irq);
-
-
-#ifdef MODULE
-
-int init_module(void) {
-
-  return enx_init();
-
-}
-
-void cleanup_module(void) {
-
-  enx_close();
-
-}
-
-#endif

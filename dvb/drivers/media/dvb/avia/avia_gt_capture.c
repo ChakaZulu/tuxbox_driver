@@ -1,9 +1,9 @@
 /*
- *   enx_capture.c - capture driver for enx (dbox-II-project)
+ *   avia_gt_capture.c - capture driver for eNX/GTX (dbox-II-project)
  *
  *   Homepage: http://dbox2.elxsi.de
  *
- *   Copyright (C) 2001 Florian Schirmer <jolt@tuxbox.org>
+ *   Copyright (C) 2001-2002 Florian Schirmer <jolt@tuxbox.org>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.5  2002/04/12 14:00:20  Jolt
+ *   eNX/GTX merge
+ *
+ *
+ *
+ *   $Revision: 1.5 $
  *
  */
 
@@ -43,15 +52,14 @@
 #error no devfs
 #endif
 
-#include <dbox/enx.h>
-#include <dbox/enx_capture.h>
+#include <dbox/avia_gt.h>
+#include <dbox/avia_gt_capture.h>
 
-static int capture_open(struct inode *inode, struct file *file);
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset);
-static int capture_release(struct inode *inode, struct file *file);
 static int capture_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
-static unsigned char *enx_mem;
+unsigned char capture_chip_type;
+static unsigned char *gt_mem;
 static int capt_buf_addr = 0xA0000;
 
 static unsigned char capture_busy = 0;
@@ -65,8 +73,7 @@ static unsigned short output_width = 360;
 
 static int state = 0, frames;		 // 0: idle, 1: frame is capturing, 2: frame is done
 
-static wait_queue_head_t frame_wait;
-static DECLARE_MUTEX_LOCKED(lock_open);		// lock for open
+DECLARE_WAIT_QUEUE_HEAD(capture_wait);
 
 static devfs_handle_t devfs_handle;
 
@@ -74,36 +81,12 @@ static struct file_operations capture_fops = {
 	owner:  	THIS_MODULE,
 	read:   	capture_read,
 	ioctl:  	capture_ioctl,
-	open:   	capture_open,
-	release:	capture_release
 };
-
-static int capture_open(struct inode *inode, struct file *file)
-{
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-	switch (minor)
-	{
-	case 0:
-		if (file->f_flags & O_NONBLOCK)
-		{
-			if (down_trylock(&lock_open))
-				return -EAGAIN;
-		}	else
-		{
-			if (down_interruptible(&lock_open))
-				return -ERESTARTSYS;
-		}
-		printk("enx_capture: open\n");
-		return 0;
-	default:
-		return -ENODEV;
-	}
-  return 0;
-}
 
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset)
 {
-	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read, done;
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read;
+//	unsigned int done;
 
 	switch (minor)
 	{
@@ -116,23 +99,23 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 			{
 				if (state!=2)		// frame not done
 				{
-					printk("enx_capture: no frame captured, waiting.. (data: %x)\n", enx_mem[capt_buf_addr]);
+					printk("avia_gt_capture: no frame captured, waiting.. (data: %x)\n", gt_mem[capt_buf_addr]);
 					if (file->f_flags & O_NONBLOCK)
 						return read;
 
-					add_wait_queue(&frame_wait, &wait);
+					add_wait_queue(&capture_wait, &wait);
 					set_current_state(TASK_INTERRUPTIBLE);
 					schedule();
 					current->state = TASK_RUNNING;
-					remove_wait_queue(&frame_wait, &wait);
+					remove_wait_queue(&capture_wait, &wait);
 
 					if (signal_pending(current))
 					{
-						printk("enx_capture: aborted. %x\n", enx_mem[capt_buf_addr]);
+						printk("avia_gt_capture: aborted. %x\n", gt_mem[capt_buf_addr]);
 						return -ERESTARTSYS;
 					}
 					
-					printk("enx_capture: ok\n");
+					printk("avia_gt_capture: ok\n");
 
 					continue;
 				}
@@ -145,7 +128,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 					memcpy(buf+done*output_width, enx_mem+capt_buf_addr+done*line_stride, count-done*output_width);
 				    done++;
 				} */   
-				memcpy(buf, enx_mem+capt_buf_addr, count);
+				memcpy(buf, gt_mem+capt_buf_addr, count);
 				
 				read=count;
 				
@@ -153,7 +136,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 
 				break;
 			}
-			//printk("enx_capture: captured 0x%X bytes\n", read);
+			//printk("avia_gt_capture: captured 0x%X bytes\n", read);
 			return read;
 		}
 
@@ -161,19 +144,6 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 			return -EINVAL;
 	}
   return 0;
-}
-
-static int capture_release(struct inode *inode, struct file *file)
-{
-    unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
-
-    switch (minor)
-    {
-	case 0:
-	    up(&lock_open);
-	    return 0;
-	}
-    return -EINVAL;
 }
 
 static int capture_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
@@ -195,7 +165,7 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 	    x = arg & 0xFFFF;
 	    y = (arg >> 16);
     
-	    printk("enx_capture: DEBUG - HPOS=0x%X, EVPOS=0x%X\n", x, y);
+	    printk("avia_gt_capture: DEBUG - HPOS=0x%X, EVPOS=0x%X\n", x, y);
     
 	    enx_reg_s(VCP)->HPOS = x;
 	    enx_reg_s(VCP)->EVPOS = y;
@@ -207,7 +177,7 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 	    x = arg & 0xFFFF;
 	    y = (arg >> 16);
     
-	    printk("enx_capture: DEBUG - HSIZE=0x%X, VSIZE=0x%X\n", x, y);
+	    printk("avia_gt_capture: DEBUG - HSIZE=0x%X, VSIZE=0x%X\n", x, y);
     
 	    enx_reg_s(VCSZ)->HSIZE = x;
 	    enx_reg_s(VCSZ)->VSIZE = y;
@@ -221,20 +191,20 @@ static int capture_ioctl (struct inode *inode, struct file *file, unsigned int c
 //    return -ENODEV;
 }
 
-void enx_capture_interrupt(int reg, int no)
+void avia_gt_capture_interrupt(unsigned char irq_reg, unsigned char irq_bit)
 {
     if (state==1)
     {
-	//printk("enx_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
+	//printk("avia_gt_capture: irq (state=0x%X, frames=0x%X)\n", state, frames);
 	if (frames++>1)
 	{
 	    state=2;
-	    wake_up(&frame_wait);
+	    wake_up(&capture_wait);
 	}
     }
 }
 
-int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
+int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset)
 {
     unsigned short buffer_odd_offset;
     unsigned short capture_height;
@@ -247,7 +217,7 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, un
     if (capture_busy)
 	return -EBUSY;
 	
-    printk("enx_capture: capture_start\n");
+    printk("avia_gt_capture: capture_start\n");
     
     scale_x = input_width / output_width;
 //    scale_y = input_height / output_height / 2;
@@ -260,8 +230,8 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, un
     buffer_odd_offset = (line_stride * (capture_height / 2)) + 100;
     buffer_odd_offset = line_stride / 2;
 
-    printk("enx_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
-    printk("enx_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
+    printk("avia_gt_capture: input_width=%d, output_width=%d, scale_x=%d, delta_x=%d\n", input_width, output_width, scale_x, delta_x);
+    printk("avia_gt_capture: input_height=%d, output_height=%d, scale_y=%d, delta_y=%d\n", input_height, output_height, scale_y, delta_y);
 
 #define BLANK_TIME 132
 #define VIDCAP_PIPEDELAY 2
@@ -300,8 +270,8 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, un
 
     enx_reg_s(VCSA1)->E = 1;
     
-    printk("enx_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
-    printk("enx_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
+    printk("avia_gt_capture: HDEC=%d, HSIZE=%d, VDEC=%d, VSIZE=%d, B=%d, STRIDE=%d\n", enx_reg_s(VCSZ)->HDEC, enx_reg_s(VCSZ)->HSIZE, enx_reg_s(VCSZ)->VDEC, enx_reg_s(VCSZ)->VSIZE, enx_reg_s(VCSZ)->B, enx_reg_s(VCSTR)->STRIDE);
+    printk("avia_gt_capture: VCSA1->Addr=0x%X, VCSA2->Addr=0x%X, Delta=%d\n", enx_reg_s(VCSA1)->Addr, enx_reg_s(VCSA2)->Addr, enx_reg_s(VCSA2)->Addr - enx_reg_s(VCSA1)->Addr);
     
     state=1;
     frames=0;
@@ -319,10 +289,10 @@ int enx_capture_start(unsigned char **capture_buffer, unsigned short *stride, un
     return 0;
 }
 
-void enx_capture_stop(void)
+void avia_gt_capture_stop(void)
 {
     if (capture_busy) {
-	printk("enx_capture: capture_stop\n");
+	printk("avia_gt_capture: capture_stop\n");
     
 	enx_reg_s(VCSA1)->E = 0;
     
@@ -331,7 +301,7 @@ void enx_capture_stop(void)
     }	
 }
 
-int enx_capture_update_param(void)
+int avia_gt_capture_update_param(void)
 {
     if (capture_busy)
 	return -EBUSY;
@@ -339,7 +309,7 @@ int enx_capture_update_param(void)
     return 0;
 }
 
-int enx_capture_set_output(unsigned short width, unsigned short height)
+int avia_gt_capture_set_output(unsigned short width, unsigned short height)
 {
     if (capture_busy)
 	return -EBUSY;
@@ -350,8 +320,9 @@ int enx_capture_set_output(unsigned short width, unsigned short height)
     return 0;
 }
 
-int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height)
+int avia_gt_capture_set_input(unsigned short x, unsigned short y, unsigned short width, unsigned short height)
 {
+
     if (capture_busy)
 	return -EBUSY;
 
@@ -361,71 +332,77 @@ int enx_capture_set_input(unsigned short x, unsigned short y, unsigned short wid
     input_height = height;	
 
     return 0;
-}
-
-int enx_capture_init(void)
-{
-    enx_mem = enx_get_mem_addr();
     
-    enx_reg_w(RSTR0) &= ~(1 << 10);		// take video capture out of reset
-
-    enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
-
-    enx_reg_s(VCSZ)->F = 1;   				// Enable filter
-    
-    if (enx_allocate_irq(0, 5, enx_capture_interrupt) < 0)	// VL1
-    {
-	printk("enx_capture: unable to get interrupt\n");
-	return -EIO;
-    }
-
-    enx_reg_h(VLI1) = 0;	// at beginning of every frame.
-
-    return 0;
 }
 
-void enx_capture_cleanup(void)
+int __init avia_gt_capture_init(void)
 {
-    enx_capture_stop();
 
-    enx_free_irq(0, 5);
-    enx_reg_w(RSTR0) |= (1 << 10);		
-}
-
-static int init_capture(void)
-{
-    printk("$Id: avia_gt_capture.c,v 1.4 2001/12/01 06:37:06 gillem Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.5 2002/04/12 14:00:20 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 				    &capture_fops, NULL );
+
     if (!devfs_handle)
 	return -EIO;
 
-    init_waitqueue_head(&frame_wait);
-  
-    enx_capture_init();
-
-    up(&lock_open);
+    if (avia_gt_alloc_irq(0, 5, avia_gt_capture_interrupt) < 0) {
     
+	printk("avia_gt_capture: unable to get interrupt\n");
+	
+	devfs_unregister(devfs_handle);
+
+	return -EIO;
+	
+    }
+
+    capture_chip_type = avia_gt_get_chip_type();
+
+    if ((capture_chip_type != AVIA_GT_CHIP_TYPE_ENX) && (capture_chip_type != AVIA_GT_CHIP_TYPE_ENX)) {
+    
+        printk("avia_gt_pcm: Unsupported chip type\n");
+
+	avia_gt_free_irq(0, 5);
+	devfs_unregister(devfs_handle);
+	    
+        return -EIO;
+		    
+    }
+
+    gt_mem = avia_gt_get_mem_addr();
+    
+    enx_reg_s(RSTR0)->VIDC = 1;		
+    enx_reg_s(RSTR0)->VIDC = 0;		
+    enx_reg_s(VCSTR)->B = 0;				// Enable hardware double buffering
+    enx_reg_s(VCSZ)->F = 1;   				// Enable filter
+    enx_reg_h(VLI1) = 0;	
+
     return 0;
 }
 
-static void __exit cleanup_capture(void)
+void __exit avia_gt_capture_exit(void)
 {
+
     devfs_unregister(devfs_handle);
+
+    avia_gt_capture_stop();
+
+    avia_gt_free_irq(0, 5);
     
-    enx_capture_cleanup();
+    // Reset video capture
+    enx_reg_s(RSTR0)->VIDC = 1;		
     
-    down(&lock_open);
 }
 
-EXPORT_SYMBOL(enx_capture_set_input);
-EXPORT_SYMBOL(enx_capture_set_output);
-EXPORT_SYMBOL(enx_capture_start);
-EXPORT_SYMBOL(enx_capture_stop);
-
 #ifdef MODULE
-module_init(init_capture);
-module_exit(cleanup_capture);
+EXPORT_SYMBOL(avia_gt_capture_set_input);
+EXPORT_SYMBOL(avia_gt_capture_set_output);
+EXPORT_SYMBOL(avia_gt_capture_start);
+EXPORT_SYMBOL(avia_gt_capture_stop);
+#endif
+
+#if defined(MODULE) && defined(STANDALONE)
+module_init(avia_gt_capture_init);
+module_exit(avia_gt_capture_exit);
 #endif
