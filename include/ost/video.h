@@ -89,6 +89,12 @@ struct videoDigest {
         int16_t pictureID;
 };
 
+struct videoNewChannel {
+		int16_t fadetime;
+		int16_t vPid;
+		int16_t aPid;
+};
+
 #define VIDEO_STOP                 _IOW('o', 21, boolean)
 #define VIDEO_PLAY                 _IOW('o', 22, void)
 #define VIDEO_FREEZE               _IOW('o', 23, void)
@@ -103,4 +109,5 @@ struct videoDigest {
 #define VIDEO_SLOWMOTION           _IOW('o', 32, int)
 #define VIDEO_SET_FORMAT           _IOW('o', 33, videoFormat_t)
 #define VIDEO_DIGEST               _IOW('o', 34, struct videoDigest *)
+#define VIDEO_NEW_CHANNEL          _IOW('o', 35, struct videoNewChannel *)
 #endif /*_OST_VIDEO_H_*/
