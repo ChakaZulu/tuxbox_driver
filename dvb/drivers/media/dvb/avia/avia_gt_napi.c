@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.191 2003/11/24 08:51:48 obi Exp $
+ * $Id: avia_gt_napi.c,v 1.192 2003/11/24 09:41:21 obi Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -71,7 +71,7 @@ static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, 
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc))
 		return dvbdmxfeed->feed.sec.crc_val;
 	else
-		return (dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len));
+		return (dvbdmxfeed->feed.sec.crc_val = crc32_be(dvbdmxfeed->feed.sec.crc_val, src, len));
 }
 
 static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, const u8 *src, size_t len)
@@ -80,7 +80,7 @@ static void avia_gt_napi_memcpy(struct dvb_demux_feed *dvbdmxfeed, u8 *dst, cons
 		if ((src > gt_info->mem_addr) && (src < (gt_info->mem_addr + 0x200000)))
 			dvbdmxfeed->feed.sec.crc_val = avia_gt_accel_crc32(src - gt_info->mem_addr, len, dvbdmxfeed->feed.sec.crc_val);
 		else
-			dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len);
+			dvbdmxfeed->feed.sec.crc_val = crc32_be(dvbdmxfeed->feed.sec.crc_val, src, len);
 	}
 
 	memcpy(dst, src, len);
@@ -171,7 +171,7 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 		 * Determine who is interested in the section.
 		 */
 		compare_len = (section_length < DVB_DEMUX_MASK_MAX) ? section_length : DVB_DEMUX_MASK_MAX;
-		crc = queue->crc32_le(queue, section_length, ~0);
+		crc = queue->crc32_be(queue, section_length, ~0);
 		chunk1 = queue->get_buf1_size(queue);
 
 		/*
@@ -686,7 +686,7 @@ static int __init avia_gt_napi_init(void)
 	int result;
 	struct avia_gt_ucode_info *ucode_info;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.191 2003/11/24 08:51:48 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.192 2003/11/24 09:41:21 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

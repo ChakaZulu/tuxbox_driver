@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_dmx.c,v 1.194 2003/11/17 08:22:21 diemade Exp $
+ * $Id: avia_gt_dmx.c,v 1.195 2003/11/24 09:41:21 obi Exp $
  *
  * AViA eNX/GTX dmx driver (dbox-II-project)
  *
@@ -2062,7 +2062,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.194 2003/11/17 08:22:21 diemade Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.195 2003/11/24 09:41:21 obi Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
@@ -2155,7 +2155,7 @@ int __init avia_gt_dmx_init(void)
 		q->info.bytes_avail = avia_gt_dmx_queue_get_bytes_avail;
 		q->info.bytes_free = avia_gt_dmx_queue_get_bytes_free;
 		q->info.size = avia_gt_dmx_queue_get_size;
-		q->info.crc32_le = avia_gt_dmx_queue_crc32;
+		q->info.crc32_be = avia_gt_dmx_queue_crc32;
 		q->info.get_buf1_ptr = avia_gt_dmx_queue_get_buf1_ptr;
 		q->info.get_buf2_ptr = avia_gt_dmx_queue_get_buf2_ptr;
 		q->info.get_buf1_size = avia_gt_dmx_queue_get_buf1_size;

@@ -62,7 +62,7 @@ struct avia_gt_dmx_queue {
 	u32	(*bytes_avail)(struct avia_gt_dmx_queue *queue);
 	u32	(*bytes_free)(struct avia_gt_dmx_queue *queue);
 	u32	(*size)(struct avia_gt_dmx_queue *queue);
-	u32	(*crc32_le)(struct avia_gt_dmx_queue *queue, u32 count, u32 seed);
+	u32	(*crc32_be)(struct avia_gt_dmx_queue *queue, u32 count, u32 seed);
 	u32	(*get_buf1_ptr)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_buf2_ptr)(struct avia_gt_dmx_queue *queue);
 	u32	(*get_buf1_size)(struct avia_gt_dmx_queue *queue);
