@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_input_core.c,v 1.3 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_input_core.c,v 1.4 2003/03/06 10:03:32 waldi Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -44,6 +44,8 @@ int __init dbox2_fp_input_init(void)
 
 	memset(input_dev.keybit, 0, sizeof(input_dev.keybit));
 
+	mid = tuxbox_dbox2_mid;
+
 	input_dev.name = "DBOX-2 FP IR";
 	input_dev.idbus = BUS_I2C;
 	
@@ -75,7 +77,5 @@ module_init(dbox2_fp_input_init);
 module_exit(dbox2_fp_input_exit);
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
 MODULE_DESCRIPTION("DBOX-2 IR input driver");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 #endif
