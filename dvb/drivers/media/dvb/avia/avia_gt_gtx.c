@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.13  2002/05/09 22:25:23  obi
+ *   cleanup, use structs
+ *
  *   Revision 1.12  2002/05/03 17:03:36  obi
  *   replaced r*() by gtx_reg_*()
  *   formatted source
@@ -118,7 +121,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -152,19 +155,19 @@
 
 #ifdef CONFIG_PROC_FS
 
-static int gtx_proc_init(void);
-static int gtx_proc_cleanup(void);
+static int avia_gt_gtx_proc_init(void);
+static int avia_gt_gtx_proc_cleanup(void);
 
-static int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof , void *private);
-static int write_bus_gtx(struct file *file, const char *buffer, unsigned long count, void *data);
-static int read_bus_gtx_reg(char *buf, char **start, off_t offset, int len, int *eof , void *private);
+static int avia_gt_gtx_read_bus(char *buf, char **start, off_t offset, int len, int *eof , void *private);
+static int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long count, void *data);
+static int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof , void *private);
 
-static int gtx_proc_initialized;
+static int avia_gt_gtx_proc_state;
 
 #else /* undef CONFIG_PROC_FS */
 
-#define gtx_proc_init() 0
-#define gtx_proc_cleanup() 0
+#define avia_gt_gtx_proc_init() 0
+#define avia_gt_gtx_proc_cleanup() 0
 
 #endif /* CONFIG_PROC_FS */
 
@@ -214,7 +217,7 @@ void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit)
 
 }
 
-static void gtx_intialize_interrupts(void)
+static void avia_gt_gtx_intialize_interrupts(void)
 {
 
 	gtx_reg_16(IPR0) = -1;
@@ -239,7 +242,7 @@ static void gtx_intialize_interrupts(void)
 
 }
 
-static void gtx_close_interrupts(void)
+static void avia_gt_gtx_close_interrupts(void)
 {
 
 	gtx_reg_s(RR0)->INT = 1;
@@ -263,18 +266,36 @@ static void gtx_close_interrupts(void)
 
 void avia_gt_gtx_reset(void)
 {
-
-	gtx_reg_16(RR0) = 0xFFFF;
-	gtx_reg_16(RR1) = 0x00FF;
-
+	gtx_reg_s(RR0)->PIG = 1;
+	gtx_reg_s(RR0)->VCAP = 1;
+	gtx_reg_s(RR0)->VID = 1;
+	gtx_reg_s(RR0)->ACLK = 1;
+	gtx_reg_s(RR0)->COPY = 1;
+	gtx_reg_s(RR0)->DRAM = 1;
+	gtx_reg_s(RR0)->PCM = 1;
+	gtx_reg_s(RR0)->SPI = 1;
+	gtx_reg_s(RR0)->IR = 1;
+	gtx_reg_s(RR0)->BLIT = 1;
+	gtx_reg_s(RR0)->CRC = 1;
+	gtx_reg_s(RR0)->INT = 1;
+	gtx_reg_s(RR0)->SCD = 1;
+	gtx_reg_s(RR0)->SRX = 1;
+	gtx_reg_s(RR0)->STX = 1;
+	gtx_reg_s(RR0)->GV = 1;
+	gtx_reg_s(RR1)->TTX = 1;
+	gtx_reg_s(RR1)->DAC = 1;
+	gtx_reg_s(RR1)->RISC = 1;
+	gtx_reg_s(RR1)->FRMR = 1;
+	gtx_reg_s(RR1)->CHAN = 1;
+	gtx_reg_s(RR1)->AVD = 1;
+	gtx_reg_s(RR1)->IDC = 1;
+	gtx_reg_s(RR1)->DESC = 1;
 }
 
 void avia_gt_gtx_init(void)
 {
 
-	int cr;
-
-	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.12 2002/05/03 17:03:36 obi Exp $\n");
+	printk("avia_gt_gtx: $Id: avia_gt_gtx.c,v 1.13 2002/05/09 22:25:23 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -288,49 +309,50 @@ void avia_gt_gtx_init(void)
 
 	avia_gt_gtx_reset();
 
-	udelay (500);
-	gtx_reg_16(RR0) &= ~((1 << 13) | (1 << 12) | (1 << 10) | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
-
+	// solle nach avia_gt_gtx_reset() wenn ueberhaupt noetig ...
 	udelay (500);
 
-	memset (gt_info->mem_addr, 0xFF, 2 * 1024 * 1024);	  // clear ram
+	gtx_reg_s(RR0)->VID = 0;
+	gtx_reg_s(RR0)->DRAM = 0;
+	gtx_reg_s(RR0)->BLIT = 0;
 
-	gtx_proc_init ();
+	// ?
+	udelay (500);
 
-	cr = gtx_reg_16(CR0);
+	memset (gt_info->mem_addr, 0xFF, GTX_MEM_SIZE);	  // clear ram
 
-	cr |= 1 << 11;	   // enable graphics
-	cr &= ~(1 << 10);	// enable sar
-	cr |= 1 << 9;	    // disable pcm
-	cr &= ~(1 << 5);	 // enable dac output
-	cr |= 1 << 3;
+	avia_gt_gtx_proc_init ();
 
-	cr &= ~(3 << 6);
-	cr |= 1 << 6;
-	cr &= ~(1 << 2);
+	gtx_reg_s(CR0)->DOD = 0;	// DAC Output Disable (0: enable)
+	gtx_reg_s(CR0)->_16M = 1;	// 16 Mbit DRAM Select (1: 16 Mbit)
+	gtx_reg_s(CR0)->DD1 = 0;	// Delay DTACK (2 clocks delay)
+	gtx_reg_s(CR0)->DD0 = 1;
+	gtx_reg_s(CR0)->RFD = 0;	// Refresh Disable
 
-	gtx_reg_16(CR0) = cr;
-
-	gtx_intialize_interrupts ();
+	avia_gt_gtx_intialize_interrupts ();
 
 	// workaround for framebuffer?
-	atomic_set (&THIS_MODULE->uc.usecount, 1);
+	//atomic_set (&THIS_MODULE->uc.usecount, 1);
 
 }
 
 void avia_gt_gtx_exit(void)
 {
 
-	gtx_proc_cleanup ();
+	avia_gt_gtx_proc_cleanup();
 
-	gtx_close_interrupts ();
+	avia_gt_gtx_close_interrupts();
 
-	gtx_reg_16(CR0) = 0x0030;
-	gtx_reg_16(CR1) = 0x0000;
+	//gtx_reg_16(CR0) = 0x0030;
+	//gtx_reg_16(CR1) = 0x0000;
+	gtx_reg_s(CR0)->DOD = 1;
+	gtx_reg_s(CR0)->RFD = 1;
+
+	avia_gt_gtx_reset();
 
 	// take modules in reset state
-	gtx_reg_16(RR0) = 0xFBFF;
-	gtx_reg_16(RR1) = 0x00FF;
+	//gtx_reg_16(RR0) = 0xFBFF;
+	//gtx_reg_16(RR1) = 0x00FF;
 
 	// disable dram module, don't work :-/ why ????
 	//gtx_reg_16(RR0) |= (1<<10);
@@ -338,67 +360,56 @@ void avia_gt_gtx_exit(void)
 }
 
 #ifdef CONFIG_PROC_FS
-int gtx_proc_init(void)
+int avia_gt_gtx_proc_init(void)
 {
 
 	struct proc_dir_entry *proc_bus_gtx;
 	struct proc_dir_entry *proc_bus_gtx_reg;
 
-	gtx_proc_initialized = 0;
+	avia_gt_gtx_proc_state = 0;
 
 	if (!proc_bus) {
 
-		printk("%s: %s: /proc/bus/ does not exist", __FILE__, __FUNCTION__);
-
-		gtx_proc_cleanup ();
+		printk("avia_gt_gtx: /proc/bus does not exist");
 
 		return -ENOENT;
 
 	}
 
-	/* read and write allowed for anybody */
-	proc_bus_gtx = create_proc_entry("gtx", S_IRUGO | S_IWUGO | S_IFREG, proc_bus);
+	proc_bus_gtx = create_proc_entry("gtx", S_IRUGO | S_IFREG, proc_bus);
 
 	if (!proc_bus_gtx) {
 
-		printk("%s: %s: Could not create /proc/bus/gtx", __FILE__, __FUNCTION__);
-
-		gtx_proc_cleanup ();
+		printk("avia_gt_gtx: could not create /proc/bus/gtx");
 
 		return -ENOENT;
 
 	}
 
-	proc_bus_gtx->read_proc = &read_bus_gtx;
-	proc_bus_gtx->write_proc = &write_bus_gtx;
+	proc_bus_gtx->read_proc = &avia_gt_gtx_read_bus;
+	proc_bus_gtx->write_proc = &avia_gt_gtx_write_bus;
 	proc_bus_gtx->owner = THIS_MODULE;
-	gtx_proc_initialized += 2;
+	avia_gt_gtx_proc_state = 1;
 
-	/* read allowed for anybody */
 	proc_bus_gtx_reg = create_proc_entry("gtx-reg", S_IRUGO | S_IFREG, proc_bus);
 
 	if (!proc_bus_gtx_reg) {
 
-		printk("%s: %s: Could not create /proc/bus/gtx-reg", __FILE__, __FUNCTION__);
-
-		gtx_proc_cleanup ();
+		printk("avia_gt_gtx: could not create /proc/bus/gtx-reg");
 
 		return -ENOENT;
 
 	}
 
-	proc_bus_gtx_reg->read_proc = &read_bus_gtx_reg;
+	proc_bus_gtx_reg->read_proc = &avia_gt_gtx_reg_read_bus;
 	proc_bus_gtx_reg->owner = THIS_MODULE;
-	gtx_proc_initialized += 2;
+	avia_gt_gtx_proc_state = 2;
 
 	return 0;
 
 }
 
-/****************************************************************************
- * The /proc functions
- ****************************************************************************/
-int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof, void *private)
+int avia_gt_gtx_read_bus(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 
 	if (offset < 0)
@@ -419,14 +430,14 @@ int read_bus_gtx(char *buf, char **start, off_t offset, int len, int *eof, void 
 
 }
 
-int write_bus_gtx(struct file *file, const char *buffer, unsigned long count, void *data)
+int avia_gt_gtx_write_bus(struct file *file, const char *buffer, unsigned long count, void *data)
 {
 
 	return -EPERM;
 
 }
 
-int read_bus_gtx_reg(char *buf, char **start, off_t offset, int len, int *eof, void *private)
+int avia_gt_gtx_reg_read_bus(char *buf, char **start, off_t offset, int len, int *eof, void *private)
 {
 
 	unsigned int hi, lo;
@@ -471,16 +482,25 @@ int read_bus_gtx_reg(char *buf, char **start, off_t offset, int len, int *eof, v
 
 }
 
-int gtx_proc_cleanup(void)
+int avia_gt_gtx_proc_cleanup(void)
 {
 
-	if (gtx_proc_initialized >= 1) {
-
-		remove_proc_entry ("gtx", proc_bus);
-		gtx_proc_initialized -= 2;
+	if (avia_gt_gtx_proc_state == 2)
+	{
 		remove_proc_entry ("gtx-reg", proc_bus);
-		gtx_proc_initialized -= 2;
+		avia_gt_gtx_proc_state--;
+	}
 
+	if (avia_gt_gtx_proc_state == 1)
+	{
+		remove_proc_entry ("gtx", proc_bus);
+		avia_gt_gtx_proc_state--;
+	}
+
+	if (avia_gt_gtx_proc_state != 0)
+	{
+		printk("avia_gt_gtx: proc cleanup failed\n");
+		return -1;
 	}
 
 	return 0;
