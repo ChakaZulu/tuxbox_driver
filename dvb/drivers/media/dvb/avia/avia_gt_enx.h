@@ -332,17 +332,9 @@ extern unsigned char* enx_get_reg_addr(void);
 extern void enx_free_irq(int reg, int bit);
 extern int enx_allocate_irq(int reg, int bit, void (*isr)(int, int));
 
-#define enx_reg_d(register) ((unsigned int)(*((unsigned int*)(enx_get_reg_addr() + register))))
-#define enx_reg_w(register) ((unsigned short)(*((unsigned short*)(enx_get_reg_addr() + register))))
-#define enx_reg_b(register) (*((unsigned char*)(enx_get_reg_addr() + register)))
-#define enx_reg_s(register) ((s##register *)(&enx_reg_d(register)))
+#define enx_reg_w(register) ((unsigned int)(*((unsigned int*)(enx_get_reg_addr() + register))))
+#define enx_reg_h(register) ((unsigned short)(*((unsigned short*)(enx_get_reg_addr() + register))))
+#define enx_reg_s(register) ((s##register *)(&enx_reg_w(register)))
 #define enx_reg_o(offset) (enx_get_reg_addr() + offset)
-
-//unsigned short* enx_reg_w(unsigned int offset) {
-
-//  printk("RegW16 0x%X->0x%X\n", enx_get_reg_addr(), offset);
-//  return enx_reg_w2(offset);
-  
-//}
 
 #endif

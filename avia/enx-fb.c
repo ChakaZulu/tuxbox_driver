@@ -21,26 +21,18 @@
  *
  *
  *   $Log: enx-fb.c,v $
+ *   Revision 1.3  2001/03/29 03:58:24  tmbinc
+ *   chaned enx_reg_w to enx_reg_h and enx_reg_d to enx_reg_w.
+ *   Improved framebuffer.
+ *
  *   Revision 1.2  2001/03/03 00:26:15  Jolt
  *   Version cleanup
  *
  *   Revision 1.1  2001/03/03 00:25:23  Jolt
  *   initial version
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
- */
-
- /*
-    This framebuffer device is somehow incomplete and buggy.
-    It just supports one resolution (RES_XxRES_Y, currently
-    720x576) and one color depth (16bpp), althought the enx
-    is able to support 4bpp and 8bpp as well.
-    
-    There were attempts to rewrite this driver, but i don't
-    know the state of this work.
-    
-    roh suxx.
  */
 
 #include <linux/module.h>
@@ -71,17 +63,15 @@
 #define RES_Y           576
 
 
-//FIXME
-#define VCR_SET_HP(X)    enx_reg_w(VCR) = ((enx_reg_w(VCR)&(~(3<<10))) | ((X&3)<<10))
-#define VCR_SET_FP(X)    enx_reg_w(VCR) = ((enx_reg_w(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
-#define GVP_SET_SPP(X)   enx_reg_d(GVP1) = ((enx_reg_d(GVP1)&(~(0x01F<<26))) | ((X&0x1F)<<26))
-#define GVP_SET_X(X)     enx_reg_d(GVP1) = ((enx_reg_d(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define GVP_SET_Y(X)     enx_reg_d(GVP1) = ((enx_reg_d(GVP1)&(~0x3FF))|(X&0x3FF))
+#define VCR_SET_HP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<10))) | ((X&3)<<10))
+#define VCR_SET_FP(X)    enx_reg_h(VCR) = ((enx_reg_h(VCR)&(~(3<<8 ))) | ((X&3)<<8 ))
+#define GVP_SET_SPP(X)   enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x01F<<27))) | ((X&0x1F)<<27))
+#define GVP_SET_X(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define GVP_SET_Y(X)     enx_reg_w(GVP1) = ((enx_reg_w(GVP1)&(~0x3FF))|(X&0x3FF))
 #define GVP_SET_COORD(X,Y) GVP_SET_X(X); GVP_SET_Y(Y)
 
-#define GVS_SET_XSZ(X)   enx_reg_d(GVSZ1) = ((enx_reg_d(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
-#define GVS_SET_YSZ(X)   enx_reg_d(GVSZ1) = ((enx_reg_d(GVSZ1)&(~0x3FF))|(X&0x3FF))
-//FIXME
+#define GVS_SET_XSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~(0x3FF<<16))) | ((X&0x3FF)<<16))
+#define GVS_SET_YSZ(X)   enx_reg_w(GVSZ1) = ((enx_reg_w(GVSZ1)&(~0x3FF))|(X&0x3FF))
 
 
 static unsigned char* enxmem;
@@ -110,6 +100,7 @@ struct enxfb_info
 
   void *videobase;
   u32 videosize, pvideobase;
+  int offset;
 };
 
 struct enxfb_par
@@ -169,11 +160,11 @@ static int enx_encode_fix(struct fb_fix_screeninfo *fix, const void *fb_par,
                           struct fb_info_gen *info)
 {
   struct enxfb_par *par=(struct enxfb_par *)fb_par;
-  strcpy(fix->id, "AViA enx Framebuffer");
+  strcpy(fix->id, "AViA eNX Framebuffer");
   fix->type=FB_TYPE_PACKED_PIXELS;
   fix->type_aux=0;
   
-  if (par->bpp!=16)
+  if (par->bpp<16)
     fix->visual=FB_VISUAL_PSEUDOCOLOR;
   else
     fix->visual=FB_VISUAL_TRUECOLOR;
@@ -307,46 +298,50 @@ static void enx_set_par(const void *fb_par, struct fb_info_gen *info)
 {
   struct enxfb_par *par=(struct enxfb_par *)fb_par;
   int val;
-
-  enx_reg_w(VCR)=0x340; // decoder sync. HSYNC polarity einstellen? low vs. high active?
-  enx_reg_w(VHT)=par->pal?858:852;
-  enx_reg_w(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
-
-  switch (par->bpp)
-  {
-  case 4:
-    val=1<<30; break;
-  case 8:
-    val=2<<30; break;
-  case 16:
-    val=3<<30; break;
-  }
   
+  printk(KERN_ERR "setting parms.\n");
+  
+	enx_reg_w(VBR)=(1<<24)|0x808080;	// some color
+	
+  enx_reg_h(VCR)=0x040;
+  enx_reg_h(VHT)=par->pal?857:851;
+  enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
+
+	val=0;
   if (par->lowres)
-    val|=1<<29;
-  printk("LORES: %x\n", par->lowres);
-  printk("INTERLACE: %x\n", par->interlaced);
+    val|=1<<31;
 
   if (!par->pal)
     val|=1<<28;                         // NTSC square filter. TODO: do we need this?
 
-                // TODO: cursor
   if (!par->interlaced)
-    val|=1<<26;
-  
-  val|=3<<24;                           // chroma filter. evtl. average oder decimate, bei text
-  val|=4<<20;                           // BLEV1 = 50%
-  val|=0<<16;                           // BLEV2 = 0%
+    val|=1<<29;
+
+  val|=1<<26;                           // chroma filter. evtl. average oder decimate, bei text
+  		// TCR noch setzen!
+
+  switch (par->bpp)
+  {
+	case 4:
+		val|=2<<20; break;
+	case 8:
+		val|=6<<20; break;
+	case 16:
+		val|=3<<20; break;
+	case 32:
+		val|=7<<20; break;
+  }
+
   val|=par->stride;
 
-//JOLT  enx_reg_d(GMR)=val;
-  
-//JOLT  enx_reg_w(CCR)=0x7FFF;                  // white cursor
-//JOLT  enx_reg_d(GVSA)=0;                      // dram start address
-//JOLT  enx_reg_w(GVP)=0;
+	enx_reg_w(GMR1)=val;
+  enx_reg_h(GBLEV1)=0;
+  enx_reg_h(GBLEV2)=0x7F7F;
+//JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
+	enx_reg_w(GVSA1)=fb_info.offset; 			// dram start address
+	memset(fb_info.videobase, 0x7A, 2*1024*1024);
+	enx_reg_h(GVP1)=0;
 
-  VCR_SET_HP(2);
-  VCR_SET_FP(0);
   GVP_SET_COORD(70,43);                 // TODO: NTSC?
 
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
@@ -363,8 +358,6 @@ static void enx_set_par(const void *fb_par, struct fb_info_gen *info)
   else
     GVS_SET_YSZ(par->yres*2);*/
 
-  enx_reg_d(VBR)=0;                       // disable background..
-  
   current_par = *par;
   current_par_valid=1;
 }
@@ -376,14 +369,14 @@ static int enx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
   u16 val;
   if (regno>255)
     return 1;
-//JOLT  enx_reg_w(CLTA)=regno;
+//JOLT  enx_reg_h(CLTA)=regno;
   mb();
   // ARRR RRGG GGGB BBBB
   // 8000 i
   // 7c00 r
   // 03e0 g
   // 001F b
-//JOLT  val=enx_reg_w(CLTD);
+//JOLT  val=enx_reg_h(CLTD);
   *red=((val&0x7C00)>>10)<<19;
   *green=((val&0x3E0)>>5)<<19;
   *blue=(val&0x1F)       <<19;
@@ -398,14 +391,14 @@ static int enx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   if (regno>255)
     return 0;
   
-  red>>=11;
-  green>>=11;
-  blue>>=11;
-  transp=!!transp;
+  red>>=8;
+  green>>=8;
+  blue>>=8;
+  transp>>=8;
   
-//JOLT  enx_reg_w(CLTA)=regno;
+  enx_reg_h(CLUTA)=regno;
   mb();
-//JOLT  enx_reg_w(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
+	enx_reg_w(CLUTD)=(transp<<24)|(red<<16)|(green<<8)|(blue);
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
     fbcon_cfb16_cmap[regno]=(transp<<15)|(red<<10)|(green<<5)|(blue);
@@ -486,12 +479,11 @@ int __init enxfb_init(void)
 
   fb_info.videosize=1*1024*1024;                // TODO: moduleparm?
 //FIXME  offset=enx_allocate_dram(fb_info.videosize, 1);
+	offset=0;
  
-//FIXME  fb_info.videobase=enxmem+offset;
-  fb_info.videobase=enxmem;
+	fb_info.videobase=enxmem+offset;
   
-//FIXME  fb_info.pvideobase=enx_PHYSBASE+offset;
-  fb_info.pvideobase=ENX_MEM_BASE;
+  fb_info.pvideobase=ENX_MEM_BASE+offset;
 
   fb_info.gen.info.node = -1;
   fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -506,7 +498,7 @@ int __init enxfb_init(void)
   fb_info.gen.fbhw=&enx_switch;
   fb_info.gen.fbhw->detect();
 
-  strcpy(fb_info.gen.info.modename, "AViA enx Framebuffer");
+  strcpy(fb_info.gen.info.modename, "AViA eNX Framebuffer");
 
   fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
   disp.var.activate = FB_ACTIVATE_NOW;
