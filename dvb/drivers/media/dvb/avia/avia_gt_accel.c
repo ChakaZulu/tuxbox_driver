@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_accel.c,v $
+ *   Revision 1.10  2002/11/11 14:03:17  Jolt
+ *   CRC handling cleanups
+ *
  *   Revision 1.9  2002/10/20 20:38:26  Jolt
  *   Compile fixes
  *
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -120,10 +123,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 	if (avia_gt_chip(ENX)) {
 	
 		//enx_reg_s(CPCCRCSRC2)->CRC.CRC = 0;
-		if (seed)
-			enx_reg_32(CPCCRCSRC2) = seed ^ 0xFFFFFFFF;
-		else
-			enx_reg_32(CPCCRCSRC2) = 0;
+		enx_reg_32(CPCCRCSRC2) = seed ^ 0xFFFFFFFF;
 			
 		enx_reg_set(CPCSRC1, Addr, buffer);
     
@@ -136,7 +136,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 		
 	} else if (avia_gt_chip(GTX)) {
 	
-		if (seed) {
+		if (seed != 0xFFFFFFFF) {
 		
 			gtx_reg_set(RCRC, CRC, seed ^ 0xFFFFFFFF);
 			
@@ -205,7 +205,7 @@ u32 avia_gt_accel_crc32(u32 buffer, u32 buffer_size, u32 seed)
 int __init avia_gt_accel_init(void)
 {
 
-    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.9 2002/10/20 20:38:26 Jolt Exp $\n");
+    printk("avia_gt_accel: $Id: avia_gt_accel.c,v 1.10 2002/11/11 14:03:17 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 	

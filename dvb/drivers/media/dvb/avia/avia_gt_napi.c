@@ -19,8 +19,11 @@
  *	 along with this program; if not, write to the Free Software
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *   $Revision: 1.161 $
+ *   $Revision: 1.162 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.162  2002/11/11 14:03:17  Jolt
+ *   CRC handling cleanups
+ *
  *   Revision 1.161  2002/11/11 12:41:17  Jolt
  *   CRC handling changes
  *
@@ -518,6 +521,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
+#include "../dvb-core/compat.h"
 #include "../dvb-core/demux.h"
 #include "../dvb-core/dvb_demux.h"
 #include "../dvb-core/dvb_frontend.h"
@@ -584,7 +588,7 @@ static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, 
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc))
 		return dvbdmxfeed->feed.sec.crc_val;
 	else
-		return dvb_dmx_crc32(dvbdmxfeed, src, len);
+		return (dvbdmxfeed->feed.sec.crc_val = crc32_le(dvbdmxfeed->feed.sec.crc_val, src, len));
 
 }
 
@@ -941,7 +945,7 @@ int __init avia_gt_napi_init(void)
 
 	int result;
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.161 2002/11/11 12:41:17 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.162 2002/11/11 14:03:17 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

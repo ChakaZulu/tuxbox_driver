@@ -149,5 +149,7 @@ u32 crc32_le (u32 crc, unsigned char const *data, size_t len)
 	return crc;
 }
 
+EXPORT_SYMBOL(crc32_le);
+
 #endif
 
