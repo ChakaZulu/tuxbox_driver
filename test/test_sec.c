@@ -44,7 +44,7 @@ int SecGetStatus (int fd, struct secStatus *state)
 
 	if ( (ans = ioctl(fd,SEC_GET_STATUS, state) < 0)){
 		perror("QPSK GET EVENT: ");
-		return ans;
+	//	return ans;
 	}
 
 	switch (state->busMode){
@@ -148,17 +148,17 @@ main(int argc, char **argv)
 		perror("SEC DEVICE: ");
 		return -1;
 	}
-	SecResetOverload(fd_sec);
-	SecGetStatus (fd_sec, &sec_state);
-	SecSetVoltage(fd_sec, SEC_VOLTAGE_18);
-       // SecSetTone(fd_sec, SEC_TONE_OFF);       
+//	SecResetOverload(fd_sec);
+//	SecGetStatus (fd_sec, &sec_state);
+	SecSetVoltage(fd_sec, SEC_VOLTAGE_13_5);
+//        SecSetTone(fd_sec, SEC_TONE_ON);       
         SecGetStatus (fd_sec, &sec_state);
-
+/*
 	diseqc.addr=0x10;
 	diseqc.cmd=0x38;
 	diseqc.numParams=1;
 	diseqc.params[0]=0xF3;
-
+*/
 //F3 / 51 == H 
 
 	cmd.type=SEC_CMDTYPE_DISEQC;
@@ -167,11 +167,11 @@ main(int argc, char **argv)
 	seq.voltage=SEC_VOLTAGE_18;
 
 	seq.miniCommand=SEC_MINI_NONE;
-	seq.continuousTone=SEC_TONE_OFF;
+	seq.continuousTone=SEC_TONE_ON;
 	seq.numCommands=1;
 	seq.commands=&cmd;	
 
-	SecSendSequence(fd_sec, &seq);
+//	SecSendSequence(fd_sec, &seq);
 	close(fd_sec);
 }
 

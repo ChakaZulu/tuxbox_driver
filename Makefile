@@ -1,5 +1,5 @@
 # currently running kernel
-CURRENT=2.4.2-pre2
+CURRENT=2.4.2
 
 LINUXPPC=/LinuxPPC
 

@@ -320,11 +320,11 @@ main(int argc, char **argv)
 		perror("SEC DEVICE: ");
 		return -1;
 	}
-*/
+
         printf("tuning to ---> %d\n", parm.iFrequency);
-	OSTSelftest(fd);
-	OSTSetPowerState(fd, OST_POWER_ON);
-	OSTGetPowerState(fd, &state);
+	OSTSelftest(fd); */
+	OSTSetPowerState(fd, OST_POWER_OFF);
+	OSTGetPowerState(fd, &state);/*
 	FEReadStatus(fd);
 	FEReadBER(fd, &state);
 	FEReadSignalStrength(fd, &strength);
@@ -345,7 +345,7 @@ main(int argc, char **argv)
 	
 //	SecGetStatus (fd_sec, &sec_state);
 
-	
+	*/
 
 	close(fd);
 //	close(fd_sec);

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * $Id: dvb.c,v 1.15 2001/03/11 18:31:17 gillem Exp $
+ * $Id: dvb.c,v 1.16 2001/03/12 19:51:37 Hunz Exp $
  */
 
 #include <linux/config.h>
@@ -55,6 +55,10 @@
 
 #include "dvbdev.h"
 #include "dmxdev.h"
+
+/* dirty - gotta do that better... */
+#define EBUSOVERLOAD -6
+#define EINTERNAL    -5
 
 typedef struct dvb_struct
 {
@@ -123,12 +127,12 @@ static int frontend_init(dvb_struct_t *dvb)
   {
     printk("using QPSK\n");
     // tuner init.
-    fe.power=1;
+    fe.power=OST_POWER_ON;
     fe.AFC=1;
-    fe.fec=8;
+    fe.fec=0;
     fe.channel_flags=DVB_CHANNEL_FTA;
-    fe.volt=0;
-    fe.ttk=1;
+    fe.volt=SEC_VOLTAGE_13;
+    fe.ttk=SEC_TONE_ON;
     fe.diseqc=0;
     fe.freq=fe.curfreq=(12666000-10600000)*1000;
     fe.srate=22000000;
@@ -139,7 +143,7 @@ static int frontend_init(dvb_struct_t *dvb)
   } else if (fe.type==FRONT_DVBC)
   {
     printk("using QAM\n");
-    fe.power=1;
+    fe.power=1; // <- that's false! in 2 ways even !! -Hunz
     fe.freq=394000000;
     fe.srate=6900000;
     fe.video_pid=0x262;
@@ -154,65 +158,97 @@ static int frontend_init(dvb_struct_t *dvb)
   return 0;
 }
 
-int SetSec(int power,int volt,int tone) {
-  volt++;
-  if (power == 0)
-    volt=0;
-  return fp_set_sec(volt,tone);
-}
+int SetSec(powerState_t power,secVoltage voltage,secToneMode contone) {
+  int volt, tone;
 
-int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
-  int val;
-  
-  switch(mode) {
-  case SEC_TONE_ON:
-    val=1;
-    break;
-  case SEC_TONE_OFF:
-    val=0;
-    break;
-  default:
-    return -EINVAL;
-  }
-  dvb->front.ttk=val;
-  SetSec(dvb->front.power,dvb->front.volt,val);
-  return 0;
-}
+  // no bus overload error-handling here - we need this function for SEC-bus-reset after overload
 
-int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
-  int power=1, volt=0;
+  if (contone != SEC_TONE_ON)
+    tone=0;
+  else
+    tone=1;
   
   switch(voltage) {
-  case SEC_VOLTAGE_LT: //WHAT's THIS FOR ??
-    return -EOPNOTSUPP;
   case SEC_VOLTAGE_OFF:
-    power=0;
-    break;
-  case SEC_VOLTAGE_13:
     volt=0;
     break;
-  case SEC_VOLTAGE_18:
+  case SEC_VOLTAGE_LT:
+    volt=-1;
+    break;
+  case SEC_VOLTAGE_13:
     volt=1;
     break;
   case SEC_VOLTAGE_13_5:
     volt=2;
     break;
-  case SEC_VOLTAGE_18_5:
+  case SEC_VOLTAGE_18:
     volt=3;
+    break;
+  case SEC_VOLTAGE_18_5:
+    volt=4;
     break;
   default:
     return -EINVAL;
   }
-  dvb->front.power=power;
-  dvb->front.volt=volt;
-  SetSec(power,volt,dvb->front.ttk);
-  return 0;
+  if (power != OST_POWER_ON)
+    volt=0;
+
+  return fp_set_sec(volt,tone);
+}
+
+int secSetTone(struct dvb_struct *dvb, secToneMode mode) {
+  int res;
+  secToneMode old;
+
+  // ERROR handling
+  if (fp_sec_status() == -1)
+    return -EBUSOVERLOAD;
+  else if (fp_sec_status() == -2)
+    return -EBUSY;
+  else if (fp_sec_status() < 0)
+    return -EINTERNAL;
+
+  old=dvb->front.ttk;
+  dvb->front.ttk=mode;
+  res=SetSec(dvb->front.power,dvb->front.volt,mode);
+  if (res < 0)
+    dvb->front.ttk=old;
+  return res;
+}
+
+int secSetVoltage(struct dvb_struct *dvb, secVoltage voltage) {
+  int res;
+  secVoltage old;
+  
+  if (fp_sec_status() == -1)
+    return -EBUSOVERLOAD;
+  else if (fp_sec_status() == -2)
+    return -EBUSY;
+  else if (fp_sec_status() < 0)
+    return -EINTERNAL;
+  
+  old=dvb->front.volt;
+  dvb->front.volt=voltage;
+  res=SetSec(dvb->front.power,voltage,dvb->front.ttk);
+  // error
+  if (res < 0)
+    dvb->front.volt=old;   
+  return res;
 }
 
 int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
 {
         int i, ret, burst, len;
+	secVoltage old_volt;
+	secToneMode old_tone;
         u8 msg[16];
+
+	if (fp_sec_status() == -1)
+	  return -EBUSOVERLOAD;
+	else if (fp_sec_status() == -2)
+	  return -EBUSY;
+	else if (fp_sec_status() < 0)
+	  return -EINTERNAL;
 
         switch (seq->miniCommand) {
         case SEC_MINI_NONE:
@@ -228,35 +264,40 @@ int secSendSequence(struct dvb_struct *dvb, struct secCmdSequence *seq)
                 return -EINVAL;
         }
         for (i=0; i<seq->numCommands; i++) {
-                switch (seq->commands[i].type) {
-                case SEC_CMDTYPE_DISEQC:
-                        len=seq->commands[i].u.diseqc.numParams;
-                        if (len>SEC_MAX_DISEQC_PARAMS)
-                                return -EINVAL;
-
-                        msg[0]=0xe0;
-                        msg[1]=seq->commands[i].u.diseqc.addr;
-                        msg[2]=seq->commands[i].u.diseqc.cmd;
-                        memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
-                        fp_send_diseqc(msg,len+3);
-                        break;
-                case SEC_CMDTYPE_PAUSE:
-                        // what to do here ??
-                        break;
-                case SEC_CMDTYPE_VSEC:
-                default:
-                        return -EINVAL;
-                }
+	  switch (seq->commands[i].type) {
+	  case SEC_CMDTYPE_DISEQC:
+	    len=seq->commands[i].u.diseqc.numParams;
+	    if (len>SEC_MAX_DISEQC_PARAMS)
+	      return -EINVAL;
+	    
+	    msg[0]=0xe0;
+	    msg[1]=seq->commands[i].u.diseqc.addr;
+	    msg[2]=seq->commands[i].u.diseqc.cmd;
+	    memcpy(msg+3, &seq->commands[i].u.diseqc.params, len);
+	    fp_send_diseqc(msg,len+3);
+	    break;
+	  case SEC_CMDTYPE_PAUSE:
+	    // what to do here ??
+	    break;
+	  case SEC_CMDTYPE_VSEC:
+	  default:
+	    return -EINVAL;
+	  }
         }
         
 	// TODO: MINI-DiSEqC
         //if (burst!=-1)
         //        SendDiSEqCMsg(dvb, 0, msg, burst);
 
-	ret=secSetVoltage(dvb, seq->voltage);
-        if (ret<0)
-	  return ret;
-        return secSetTone(dvb, seq->continuousTone);
+	old_volt=dvb->front.volt;
+	old_tone=dvb->front.ttk;
+	dvb->front.volt=seq->voltage;
+        ret=secSetTone(dvb, seq->continuousTone);
+	if (ret < 0) {
+	  dvb->front.volt=old_volt;
+	  dvb->front.ttk=old_tone;
+	}
+	return ret;
 }
 
 int dvb_open(struct dvb_device *dvbdev, int type, struct inode *inode, struct file *file)
@@ -631,14 +672,19 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
     case SEC_GET_STATUS:
       {
 	struct secStatus status;
+	int ret;
 
-	status.busMode=SEC_BUS_IDLE;
-
-	if (!dvb->front.power)
+	ret=fp_sec_status();
+	if (ret == 0)
+	  status.busMode=SEC_BUS_IDLE;
+	else if (ret == -1)
+	  status.busMode=SEC_BUS_OVERLOAD;
+	else if (ret == -2)
+	  status.busMode=SEC_BUS_BUSY;
+	else if ((dvb->front.power == SEC_VOLTAGE_OFF) || (dvb->front.power == SEC_VOLTAGE_LT))
 	  status.busMode=SEC_BUS_OFF;
 	
 	status.selVolt=dvb->front.volt;
-	
 	status.contTone=dvb->front.ttk;
 	if(copy_to_user(parg,&status, sizeof(status)))
 	  return -EFAULT;
@@ -648,7 +694,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 	  {
 	    if ((file->f_flags&O_ACCMODE)==O_RDONLY)
 	      return -EPERM;
-	    dvb->front.power=1;
+	    dvb->front.power=OST_POWER_ON;
 	    SetSec(dvb->front.power,dvb->front.volt,dvb->front.ttk);
 	    return 0;
 	  }

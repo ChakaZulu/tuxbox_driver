@@ -21,6 +21,9 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.16  2001/03/12 19:51:37  Hunz
+ *   SEC changes
+ *
  *   Revision 1.15  2001/03/11 18:28:50  gillem
  *   - add new option (test only)
  *
@@ -48,7 +51,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
@@ -85,7 +88,7 @@
 #endif
 
 static devfs_handle_t devfs_handle[2];
-
+static int sec_bus_status=0;
 /* ---------------------------------------------------------------------- */
 
 #ifdef MODULE
@@ -838,10 +841,20 @@ int fp_set_tuner_dword(int type, u32 tw)
 
 /* ------------------------------------------------------------------------- */
 
+int fp_sec_status(void) {
+  // < 0 means error: -1 for bus overload, -2 for busy
+  return sec_bus_status;
+}
+  
+
 int fp_send_diseqc(u8 *cmd, unsigned int len)
 {
 	unsigned char msg[SEC_MAX_DISEQC_PARAMS+2+3]={0, 0x1B};
 	int c;
+
+	if (sec_bus_status == -1)
+	  return -1;
+
 	memcpy(msg+2,cmd,len);
 
 	dprintk("DiSEqC sent:");
@@ -849,6 +862,7 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 	  dprintk(" %02X",msg[2+c]);
 	}
 	dprintk("\n");
+	sec_bus_status=-2;
 	i2c_master_send(defdata->client, msg, 2+len);
 
 	for (c=0;c<100;c++)
@@ -861,15 +875,15 @@ int fp_send_diseqc(u8 *cmd, unsigned int len)
 		}
 	}
 
-	if (c>100)
+	if (c>=100)
 	{
-		dprintk("fp.o: DiSEqC/DISEqC/DISeQc/dIS.,.... TIMEOUT jedenfalls.\n");
+		dprintk("fp.o: DiSEqC TIMEOUT (should have worked anyway)\n");
 	} else
 	{
 
-		dprintk("fp.o: ja, das d.... hat schon nach %d versuchen ...  egal.\n", c);
+		dprintk("fp.o: DiSEqC sent after %d polls\n", c);
 	}
-
+	sec_bus_status=0;
 	return 0;
 }
 
@@ -879,26 +893,31 @@ int fp_set_sec(int power,int tone)
 {
   char msg[2]={0x21, 0};
 
-  if (power > 0) // bus power off/on
+  if ((sec_bus_status == -1) && (power > 0))
+    printk("restoring power to SEC bus\n");
+
+  if (power > 0) { // bus power off/on
     msg[1]|=0x40;
-  if (power == 1) // 13V
-    msg[1]|=0x30;
-  if (power == 2) // 18V
-    msg[1]|=0x10;
-  if (power == 3) // 14V
-    msg[1]|=0x20;
-  // otherwise 19V
-
-  if(tone >0)
-    msg[1]|=0x01;
-
+    if (power == 1) // 13V
+      msg[1]|=0x30;
+    else if (power == 2) // 14V
+      msg[1]|=0x20;
+    else if (power == 3) // 18V
+      msg[1]|=0x10;
+    // otherwise 19V
+    if(tone >0)
+      msg[1]|=0x01;
+  }
+  else if (power == -2)
+    msg[1]|=0x50; // activate loop-through // CHECK WETHER THAT's THE RIGHT BIT !!
+  
   dprintk("fp.o: fp_set_sec: %02X\n", msg[1]);
-
+  sec_bus_status=-1;
   if (i2c_master_send(defdata->client, msg, 2)!=2)
     {
       return -1;
     }
-
+  sec_bus_status=0;
   return 0;
 }
 
@@ -908,6 +927,7 @@ EXPORT_SYMBOL(fp_set_tuner_dword);
 EXPORT_SYMBOL(fp_set_sec);
 EXPORT_SYMBOL(fp_do_reset);
 EXPORT_SYMBOL(fp_send_diseqc);
+EXPORT_SYMBOL(fp_sec_status);
 
 /* ------------------------------------------------------------------------- */
 
