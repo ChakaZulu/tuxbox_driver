@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.75 $
+ *   $Revision: 1.76 $
  *   $Log: avia_gt_dmx_core.c,v $
+ *   Revision 1.76  2002/04/19 11:02:43  obi
+ *   build fix
+ *
  *   Revision 1.75  2002/04/19 10:07:27  Jolt
  *   DMX merge
  *
@@ -267,7 +270,7 @@
 
 #include <dbox/info.h>
 #include <dbox/avia_gt.h>
-#include <dbox/gtx-dmx.h>
+#include <dbox/avia_gt_dmx.h>
 #include <dbox/avia.h>
 #include "crc32.h"
 
@@ -2080,7 +2083,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_dmx_init(void)
 {
 
-    printk("avia_gt_dmx: $Id: avia_gt_dmx_core.c,v 1.75 2002/04/19 10:07:27 Jolt Exp $\n");
+    printk("avia_gt_dmx: $Id: avia_gt_dmx_core.c,v 1.76 2002/04/19 11:02:43 obi Exp $\n");
 
     dmx_chip_type = avia_gt_get_chip_type();
     
