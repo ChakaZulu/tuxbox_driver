@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_capture.c,v $
+ *   Revision 1.12  2002/04/17 18:01:37  Jolt
+ *   Fixed GTX support
+ *
  *   Revision 1.11  2002/04/17 16:44:26  Jolt
  *   GTX support finished
  *
@@ -44,7 +47,7 @@
  *
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -123,7 +126,7 @@ static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *
 	
     }
 									
-    printk("avia_gt_capture: ok (writing %d bytes)\n", count);
+    //printk("avia_gt_capture: ok (writing %d bytes)\n", count);
 				
     if (copy_to_user(buf, avia_gt_get_mem_addr() + capt_buf_addr, count))
 	return -EFAULT;
@@ -391,7 +394,7 @@ int __init avia_gt_capture_init(void)
 
     unsigned short capture_irq;
 
-    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.11 2002/04/17 16:44:26 Jolt Exp $\n");
+    printk("avia_gt_capture: $Id: avia_gt_capture.c,v 1.12 2002/04/17 18:01:37 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture0", DEVFS_FL_DEFAULT, 0, 0,	// <-- last 0 is the minor
 				    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
@@ -403,7 +406,7 @@ int __init avia_gt_capture_init(void)
     if (capture_chip_type == AVIA_GT_CHIP_TYPE_ENX)
 	capture_irq = ENX_IRQ_VL1;
     else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX)
-	capture_irq = GTX_IRQ_VL0;
+	capture_irq = GTX_IRQ_VL1;
 
     if (avia_gt_alloc_irq(capture_irq, avia_gt_capture_interrupt) < 0) {
     
@@ -473,7 +476,7 @@ void __exit avia_gt_capture_exit(void)
     
     } else if (capture_chip_type == AVIA_GT_CHIP_TYPE_GTX) {
 
-	avia_gt_free_irq(GTX_IRQ_VL0);
+	avia_gt_free_irq(GTX_IRQ_VL1);
 
 	// Reset video capture
 	gtx_reg_s(RR0)->VCAP = 1;                      
