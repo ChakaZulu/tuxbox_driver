@@ -20,6 +20,9 @@
  *
  *
  *   $Log: dvb_net.c,v $
+ *   Revision 1.4  2001/06/26 18:24:23  gillem
+ *   - change dvb_net init
+ *
  *   Revision 1.3  2001/06/25 20:31:48  gillem
  *   - fix return value
  *
@@ -33,6 +36,13 @@
 
 #include <ost/demux.h>
 #include "dvb_net.h"
+
+/* external stuff in dvb.c */
+int register_dvbnet(dvb_net_t *dvbnet);
+int unregister_dvbnet(dvb_net_t *dvbnet);
+
+/* internal stuff */
+dvb_net_t dvb_net;
 
 /*
  *	Determine the packet's protocol ID. The rule here is that we 
@@ -533,7 +543,7 @@ dvb_net_init(dvb_net_t *dvbnet, dmx_demux_t *demux)
 	if ((!dvbnet) || (!demux))
 	{
 		printk("dvb_net: warning null pointer %x %x\n",dvbnet,demux);
-		return;
+		return -1;
 	}
 
 	printk("dvb_net: net_init\n");
@@ -545,3 +555,30 @@ dvb_net_init(dvb_net_t *dvbnet, dmx_demux_t *demux)
 		dvbnet->state[i]=0;
 	return 0;
 }
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef MODULE
+
+MODULE_DESCRIPTION("DVB-NET driver");
+
+int
+init_module (void)
+{
+	printk("DVB-NET: $Id: dvb_net.c,v 1.4 2001/06/26 18:24:23 gillem Exp $\n");
+
+	dvb_net.dvb_net_release   = dvb_net_release;
+	dvb_net.dvb_net_init      = dvb_net_init;
+	dvb_net.dvb_net_add_if    = dvb_net_add_if;
+	dvb_net.dvb_net_remove_if = dvb_net_remove_if;
+
+	return register_dvbnet(&dvb_net);
+}
+
+void
+cleanup_module(void)
+{
+	unregister_dvbnet(&dvb_net);
+}
+
+#endif

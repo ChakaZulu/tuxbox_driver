@@ -41,18 +41,27 @@ typedef struct dvb_net_priv_s {
 	u16 pid;
 } dvb_net_priv_t;
 
+struct dvb_net_s;
+
 typedef struct dvb_net_s {
 	int card_num;
 	int dev_num;
 	struct net_device device[DVB_NET_DEVICES_MAX];
 	int state[DVB_NET_DEVICES_MAX];
 	dmx_demux_t *demux;
+
+	void (*dvb_net_release)   (struct dvb_net_s *dvbnet);
+	int  (*dvb_net_init)      (struct dvb_net_s *dvbnet, dmx_demux_t *demux);
+	int  (*dvb_net_add_if)    (struct dvb_net_s *dvbnet, u16 pid);
+	int  (*dvb_net_remove_if) (struct dvb_net_s *dvbnet, int num);
+
 } dvb_net_t;
 
-
+/*
 void dvb_net_release(dvb_net_t *dvbnet);
 int  dvb_net_init(dvb_net_t *dvbnet, dmx_demux_t *demux);
 int  dvb_net_add_if(dvb_net_t *dvbnet, u16 pid);
 int  dvb_net_remove_if(dvb_net_t *dvbnet, int num);
+*/
 
 #endif

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  *
- * $Id: dvb.c,v 1.39 2001/06/25 20:49:27 gillem Exp $
+ * $Id: dvb.c,v 1.40 2001/06/26 18:24:23 gillem Exp $
  */
 
 #include <linux/config.h>
@@ -75,7 +75,7 @@ typedef struct dvb_struct
 	qpsk_t							qpsk;
 	struct videoStatus				videostate;
 	int								num;
-	dvb_net_t						dvb_net;
+	dvb_net_t						*dvb_net;
 } dvb_struct_t;
 
 static dvb_struct_t dvb;
@@ -1515,6 +1515,9 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 		}
 		case DVB_DEVICE_NET:
 		{
+			if (!dvb->dvb_net)
+				return -EINVAL; // ???
+
 			if (((file->f_flags&O_ACCMODE)==O_RDONLY))
 				return -EPERM;
 
@@ -1527,7 +1530,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 
 					if(copy_from_user(&dvbnetif, parg, sizeof(dvbnetif)))
 						return -EFAULT;
-					result=dvb_net_add_if(&dvb->dvb_net, dvbnetif.pid);
+					result=dvb->dvb_net->dvb_net_add_if(dvb->dvb_net, dvbnetif.pid);
 					if (result<0)
 						return result;
 					dvbnetif.if_num=result;
@@ -1537,7 +1540,7 @@ int dvb_ioctl(struct dvb_device *dvbdev, int type, struct file *file, unsigned i
 				}
 				case NET_REMOVE_IF:
 				{
-					return dvb_net_remove_if(&dvb->dvb_net, (int) arg);
+					return dvb->dvb_net->dvb_net_remove_if(dvb->dvb_net, (int) arg);
 				}
 				default:
 					return -EINVAL;
@@ -1577,6 +1580,8 @@ unsigned int dvb_poll(struct dvb_device *dvbdev, int type, struct file *file, po
 	return 0;
 }
 
+/* device register */
+
 static int dvb_register(struct dvb_struct *dvb)
 {
 //	int i;
@@ -1585,6 +1590,7 @@ static int dvb_register(struct dvb_struct *dvb)
 
 	dvb->num=0;
 	dvb->dmxdev.demux=0;
+	dvb->dvb_net=0;
 
 //	for (i=0; i<32; i++)
 //		dvb->handle2filter[i]=NULL;
@@ -1649,10 +1655,43 @@ int unregister_demod(struct demod_function_struct *demod)
 	return -ENOENT;
 }
 
-int register_demux(struct dmx_demux_s *demux)
+int register_dvbnet(struct dvb_net_s *dvbnet)
 {
-	int err;
+	if(!dvb.dmxdev.demux)
+	{
+		return -ENOENT;
+	}
 
+	if (!dvb.dvb_net)
+	{
+		dvb.dvb_net=dvbnet;
+
+#ifdef MODULE
+		MOD_INC_USE_COUNT;
+#endif
+		/* now register net-device with demux */
+		dvb.dvb_net->card_num=dvb.num;
+		return dvb.dvb_net->dvb_net_init(dvb.dvb_net, dvb.dmxdev.demux);
+	}
+	return -EEXIST;
+}
+
+int unregister_dvbnet(dvb_net_t *dvbnet)
+{
+	if (dvb.dvb_net==dvbnet)
+	{
+		dvb.dvb_net->dvb_net_release(dvb.dvb_net);
+		dvb.dvb_net=0;
+#ifdef MODULE
+		MOD_DEC_USE_COUNT;
+#endif
+		return 0;
+	}
+	return -ENOENT;
+}
+
+int register_demux(dmx_demux_t *demux)
+{
 	if (!dvb.dmxdev.demux)
 	{
 		dvb.dmxdev.filternum=32;
@@ -1661,16 +1700,7 @@ int register_demux(struct dmx_demux_s *demux)
 #ifdef MODULE
 		MOD_INC_USE_COUNT;
 #endif
-		err = DmxDevInit(&dvb.dmxdev);
-
-		if(!err)
-		{
-			/* now register net-device with demux */
-			dvb.dvb_net.card_num=dvb.num;
-			err = dvb_net_init(&dvb.dvb_net, demux);
-		}
-
-		return err;
+		return DmxDevInit(&dvb.dmxdev);
 	}
 	return -EEXIST;
 }
@@ -1679,10 +1709,13 @@ int unregister_demux(struct dmx_demux_s *demux)
 {
 	if (dvb.dmxdev.demux==demux)
 	{
-		dvb_net_release(&dvb.dvb_net);
-
 		DmxDevRelease(&dvb.dmxdev);
 		dvb.dmxdev.demux=0;
+
+		if (dvb.dvb_net)
+		{
+			unregister_dvbnet(dvb.dvb_net);
+		}
 #ifdef MODULE
 		MOD_DEC_USE_COUNT;
 #endif
@@ -1707,3 +1740,5 @@ EXPORT_SYMBOL(register_demod);
 EXPORT_SYMBOL(unregister_demod);
 EXPORT_SYMBOL(register_demux);
 EXPORT_SYMBOL(unregister_demux);
+EXPORT_SYMBOL(register_dvbnet);
+EXPORT_SYMBOL(unregister_dvbnet);
