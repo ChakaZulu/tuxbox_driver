@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.154  2002/12/16 12:07:01  wjoost
+ *   so was bloedes...
+ *
  *   Revision 1.153  2002/11/23 20:19:43  McClean
  *   fix no audio bux
  *
@@ -269,7 +272,7 @@
  *
  *
  *
- *   $Revision: 1.153 $
+ *   $Revision: 1.154 $
  *
  */
 
@@ -316,7 +319,7 @@ struct tq_struct avia_gt_dmx_queue_tasklet = {
 
 	routine: avia_gt_dmx_queue_task,
 	data: 0
-	
+
 };
 
 static int errno = 0;
@@ -339,7 +342,7 @@ static const u8 queue_size_table[AVIA_GT_DMX_QUEUE_COUNT] =	{	// sizes are 1<<x*
 	8, 8, 8, 8, 7, 7, 7, 7,	// user 16..23
 	7, 7, 7, 7, 7, 7, 7,	// user 24..30
 	7						// message
-	
+
 };
 
 static const u8 queue_system_map[] = {2, 0, 1};
@@ -349,7 +352,7 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
 
 		return NULL;
 
@@ -357,7 +360,7 @@ static struct avia_gt_dmx_queue *avia_gt_dmx_alloc_queue(u8 queue_nr, AviaGtDmxQ
 
 	if (queue_list[queue_nr].busy) {
 
-		printk("avia_gt_dmx: alloc_queue: queue %d busy\n", queue_nr);
+		printk(KERN_ERR "avia_gt_dmx: alloc_queue: queue %d busy\n", queue_nr);
 
 		return NULL;
 
@@ -431,55 +434,57 @@ s32 avia_gt_dmx_free_queue(u8 queue_nr)
 {
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-    
-		printk("avia_gt_dmx: free_queue: queue %d out of bounce\n", queue_nr);
-	
+
+		printk(KERN_CRIT "avia_gt_dmx: free_queue: queue %d out of bounce\n", queue_nr);
+
 		return -EINVAL;
 
 	}
 
 	if (!queue_list[queue_nr].busy) {
-    
-		printk("avia_gt_dmx: free_queue: queue %d not busy\n", queue_nr);
-	
+
+		printk(KERN_ERR "avia_gt_dmx: free_queue: queue %d not busy\n", queue_nr);
+
 		return -EFAULT;
-    
+
 	}
-	
+
 	avia_gt_dmx_queue_irq_disable(queue_nr);
-    
+
 	queue_list[queue_nr].busy = 0;
 	queue_list[queue_nr].cb_proc = NULL;
 	queue_list[queue_nr].irq_count = 0;
 	queue_list[queue_nr].irq_proc = NULL;
 	queue_list[queue_nr].priv_data = NULL;
-    
+
 	return 0;
 
 }
 
 u8 avia_gt_dmx_get_hw_sec_filt_avail(void)
 {
-
+#if 0
 	if ((hw_sections == 1) && (risc_mem_map->Version_no[0] == 0x00)) {
-	
+
 		switch (risc_mem_map->Version_no[1]) {
-		
+
 			case 0x13:
 			case 0x14:
-			
-				return 1;
-			
-			break;
-			
-		}
-		
-	} else if (hw_sections == 2) {
-	
-		return 1;
-		
-	}
 
+				return 1;
+
+			break;
+
+		}
+
+	} else if (hw_sections == 2) {
+
+		return 1;
+
+	}
+#else
+	hw_sections = 1;
+#endif
 	return 0;
 
 }
@@ -1011,14 +1016,14 @@ sAviaGtDmxQueue *avia_gt_dmx_get_queue_info(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: get_queue_info: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: get_queue_info: queue %d out of bounce\n", queue_nr);
 
 		return NULL;
 
 	}
-	
+
 	return &queue_list[queue_nr];
-	
+
 }
 
 u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
@@ -1026,7 +1031,7 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: alloc_queue: queue %d out of bounce\n", queue_nr);
 
 		return 0;
 
@@ -1040,13 +1045,13 @@ u16 avia_gt_dmx_get_queue_irq(u8 queue_nr)
 			return AVIA_GT_IRQ(4, queue_nr - 1);
 		else
 			return AVIA_GT_IRQ(5, queue_nr + 6);
-			
+
 	} else if (avia_gt_chip(GTX)) {
-		
+
 		return AVIA_GT_IRQ(2 + !!(queue_nr & 16), queue_nr & 15);
 
 	}
-	
+
 	return 0;
 
 }
@@ -1100,10 +1105,18 @@ int avia_gt_dmx_load_ucode(void)
 
 	close(fd);
 	set_fs(fs);
-	
+
+	/* queues should be stopped */
+
+	for (fd = 0x700; fd < 0x740;)
+	{
+		ucode_buf[fd++] = 0xDF;
+		ucode_buf[fd++] = 0xFF;
+	}
+
 	avia_gt_dmx_risc_write(ucode_buf, risc_mem_map, file_size);
 
-	printk("avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
+	printk(KERN_INFO "avia_gt_dmx: Successfully loaded ucode V%X.%X\n", risc_mem_map->Version_no[0], risc_mem_map->Version_no[1]);
 
 	return 0;
 
@@ -1114,16 +1127,16 @@ void avia_gt_dmx_fake_queue_irq(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: fake_queue_irq: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: fake_queue_irq: queue %d out of bounce\n", queue_nr);
 
 		return;
 
 	}
 
 	queue_list[queue_nr].irq_count++;
-	
+
 	schedule_task(&avia_gt_dmx_queue_tasklet);
-	
+
 }
 
 u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed)
@@ -1134,30 +1147,30 @@ u32 avia_gt_dmx_queue_crc32(struct avia_gt_dmx_queue *queue, u32 count, u32 seed
 
 	if (queue->index >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: crc32: queue %d out of bounce\n", queue->index);
+		printk(KERN_CRIT "avia_gt_dmx: crc32: queue %d out of bounce\n", queue->index);
 
 		return 0;
 
 	}
 
 	if ((queue_list[queue->index].read_pos + count) > queue_list[queue->index].size) {
-	
+
 		chunk1_size = queue_list[queue->index].size - queue_list[queue->index].read_pos;
-		
+
 		// FIXME
 		if ((avia_gt_chip(GTX)) && (chunk1_size <= 4))
-			return 0; 
-		
+			return 0;
+
 		crc = avia_gt_accel_crc32(queue_list[queue->index].mem_addr + queue_list[queue->index].read_pos, chunk1_size, seed);
-		
+
 		return avia_gt_accel_crc32(queue_list[queue->index].mem_addr, count - chunk1_size, crc);
-	
+
 	} else {
-	
+
 		return avia_gt_accel_crc32(queue_list[queue->index].mem_addr + queue_list[queue->index].read_pos, count, seed);
-	
+
 	}
-	
+
 }
 
 u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 count, u8 peek)
@@ -1169,23 +1182,23 @@ u32 avia_gt_dmx_queue_data_get(struct avia_gt_dmx_queue *queue, void *dest, u32 
 
 	if (queue->index >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: queue_data_move: queue %d out of bounce\n", queue->index);
+		printk(KERN_CRIT "avia_gt_dmx: queue_data_move: queue %d out of bounce\n", queue->index);
 
 		return 0;
 
 	}
 
 	if (count > bytes_avail) {
-	
-		printk("avia_gt_dmx: queue_data_move: %d bytes requested, %d availible\n", count, bytes_avail);
-		
+
+		printk(KERN_ERR "avia_gt_dmx: queue_data_move: %d bytes requested, %d available\n", count, bytes_avail);
+
 		count = bytes_avail;
-		
+
 	}
-	
+
 	read_pos = queue_list[queue->index].read_pos;
 
-	if ((read_pos > queue_list[queue->index].write_pos) && 
+	if ((read_pos > queue_list[queue->index].write_pos) &&
 		(count >= (queue_list[queue->index].size - read_pos))) {
 
 		done = queue_list[queue->index].size - read_pos;
@@ -1220,7 +1233,7 @@ u8 avia_gt_dmx_queue_data_get8(struct avia_gt_dmx_queue *queue, u8 peek)
 
 u16 avia_gt_dmx_queue_data_get16(struct avia_gt_dmx_queue *queue, u8 peek)
 {
-	
+
 	u16 data;
 
 	avia_gt_dmx_queue_data_get(queue, &data, sizeof(u16), peek);
@@ -1250,7 +1263,7 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, void *src, u32 c
 		(queue->index != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue->index != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: queue_data_put: queue %d out of bounce\n", queue->index);
+		printk(KERN_CRIT "avia_gt_dmx: queue_data_put: queue %d out of bounce\n", queue->index);
 
 		return 0;
 
@@ -1258,8 +1271,8 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, void *src, u32 c
 
 	if (count > bytes_free) {
 	
-		printk("avia_gt_dmx: queue_data_put: %d bytes requested, %d availible\n", count, bytes_free);
-		
+		printk(KERN_ERR "avia_gt_dmx: queue_data_put: %d bytes requested, %d available\n", count, bytes_free);
+
 		count = bytes_free;
 		
 	}
@@ -1274,7 +1287,7 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, void *src, u32 c
 			memcpy(gt_info->mem_addr + queue_list[queue->index].mem_addr + queue_list[queue->index].write_pos, src, done);
 
 		queue_list[queue->index].write_pos = 0;
-		
+
 	}
 
 	if (count - done) {
@@ -1285,7 +1298,7 @@ u32 avia_gt_dmx_queue_data_put(struct avia_gt_dmx_queue *queue, void *src, u32 c
 			memcpy(gt_info->mem_addr + queue_list[queue->index].mem_addr + queue_list[queue->index].write_pos, ((u8 *)src) + done, count - done);
 
 		queue_list[queue->index].write_pos += (count - done);
-		
+
 	}
 
 	return count;
@@ -1343,14 +1356,14 @@ u32 avia_gt_dmx_queue_get_bytes_free(struct avia_gt_dmx_queue *queue)
 		(queue->index != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue->index != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: queue_get_bytes_free: queue %d out of bounce\n", queue->index);
+		printk(KERN_CRIT "avia_gt_dmx: queue_get_bytes_free: queue %d out of bounce\n", queue->index);
 
 		return 0;
 
 	}
-	
+
 	queue_list[queue->index].hw_read_pos = avia_gt_dmx_system_queue_get_read_pos(queue->index);
-	
+
 	if (queue_list[queue->index].write_pos >= queue_list[queue->index].hw_read_pos)
 		/*         free chunk1        busy chunk1        free chunk2   */
 		/* queue [ FFFFFFFFFFF (RPOS) BBBBBBBBBBB (WPOS) FFFFFFFFFFF ] */
@@ -1371,7 +1384,7 @@ u32 avia_gt_dmx_queue_get_write_pos(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: queue_get_write_pos: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: queue_get_write_pos: queue %d out of bounce\n", queue_nr);
 
 		return 0;
 
@@ -1483,35 +1496,35 @@ static void avia_gt_dmx_queue_interrupt(unsigned short irq)
 
 	if ((queue_nr < 0) || (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT)) {
 
-		printk("avia_gt_dmx: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
+		printk(KERN_ERR "avia_gt_dmx: unexpected queue irq (nr=%d, bit=%d)\n", nr, bit);
 
 		return;
 
 	}
 
 	if (!queue_list[queue_nr].busy) {
-	
-		printk("avia_gt_dmx: irq on idle queue (queue_nr=%d)\n", queue_nr);
-		
+
+		printk(KERN_ERR "avia_gt_dmx: irq on idle queue (queue_nr=%d)\n", queue_nr);
+
 		return;
 
 	}
 
 	queue_list[queue_nr].irq_count++;
-	
+
 	old_hw_write_pos = queue_list[queue_nr].hw_write_pos;
 	queue_list[queue_nr].hw_write_pos = avia_gt_dmx_queue_get_write_pos(queue_nr);
-	
+
 	if (!queue_list[queue_nr].qim_mode) {
 
 		queue_list[queue_nr].qim_irq_count++;
-	
+
 		// We check every secord wether irq load is too high
 		if (time_after(jiffies, queue_list[queue_nr].qim_jiffies + HZ)) {
-		
+
 			if (queue_list[queue_nr].qim_irq_count > 100) {
-			
-				dprintk("avia_gt_dmx: detected high irq load on queue %d - enabling qim mode\n", queue_nr);
+
+				dprintk(KERN_DEBUG "avia_gt_dmx: detected high irq load on queue %d - enabling qim mode\n", queue_nr);
 
 				queue_list[queue_nr].qim_mode = 1;
 
@@ -1574,7 +1587,7 @@ s32 avia_gt_dmx_queue_reset(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: queue_reset: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: queue_reset: queue %d out of bounce\n", queue_nr);
 
 		return -EINVAL;
 
@@ -1601,7 +1614,7 @@ void avia_gt_dmx_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: set_queue queue (%d) out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: set_queue queue (%d) out of bounce\n", queue_nr);
 
 		return;
 
@@ -1628,12 +1641,12 @@ int avia_gt_dmx_queue_start(u8 queue_nr, u8 mode, u16 pid, u8 wait_pusi)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: queue_start queue (%d) out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: queue_start queue (%d) out of bounce\n", queue_nr);
 
 		return -EINVAL;
 
 	}
-	
+
 	avia_gt_dmx_queue_reset(queue_nr);
 	avia_gt_dmx_set_pid_control_table(queue_nr, mode, 0, 0, 0, 1, 0, 0, 0);
 	avia_gt_dmx_set_pid_table(queue_nr, wait_pusi, 0, pid);
@@ -1647,12 +1660,12 @@ int avia_gt_dmx_queue_stop(u8 queue_nr)
 
 	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: queue_stop queue (%d) out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: queue_stop queue (%d) out of bounce\n", queue_nr);
 
 		return -EINVAL;
 
 	}
-	
+
 	avia_gt_dmx_queue_irq_disable(queue_nr);
 	avia_gt_dmx_set_pid_table(queue_nr, 0, 1, 0);
 
@@ -1666,18 +1679,18 @@ static void avia_gt_dmx_queue_task(void *tl_data)
 	s8 queue_nr;
 
 	for (queue_nr = (AVIA_GT_DMX_QUEUE_COUNT - 1); queue_nr >= 0; queue_nr--) {	// msg queue must have priority
-	
+
 		queue_list[queue_nr].write_pos = queue_list[queue_nr].hw_write_pos;
 
 		if (queue_list[queue_nr].overflow_count) {
-		
-			printk("avia_gt_dmx: queue %d overflow (count: %d)\n", queue_nr, queue_list[queue_nr].overflow_count);
-		
+
+			printk(KERN_WARNING "avia_gt_dmx: queue %d overflow (count: %d)\n", queue_nr, queue_list[queue_nr].overflow_count);
+
 			queue_list[queue_nr].overflow_count = 0;
 			queue_list[queue_nr].read_pos = queue_list[queue_nr].hw_write_pos;
-			
+
 			continue;
-		
+
 		}
 
 		if (queue_list[queue_nr].write_pos == queue_list[queue_nr].read_pos)
@@ -1724,15 +1737,15 @@ int avia_gt_dmx_set_pid_control_table(u8 queue_nr, u8 type, u8 fork, u8 cw_offse
 
 	if (queue_nr > AVIA_GT_DMX_QUEUE_COUNT) {
 
-		printk("avia_gt_dmx: pid control table entry out of bounce (entry=%d)!\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: pid control table entry out of bounce (entry=%d)!\n", queue_nr);
 
 		return -EINVAL;
 
 	}
 
-	dprintk("avia_gt_dmx_set_pid_control_table, entry %d, type %d, queue %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
-		queue_nr,type,queue,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
-		
+	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_control_table, entry %d, type %d, fork %d, cw_offset %d, cc %d, start_up %d, pec %d, filt_tab_idx %d, _psh %d\n",
+		queue_nr,type,fork,cw_offset,cc,start_up,pec,filt_tab_idx,_psh);
+
 	// Special case for SPTS audio queue
 	if ((queue_nr == AVIA_GT_DMX_QUEUE_AUDIO) && (type == AVIA_GT_DMX_QUEUE_MODE_TS))
 		target_queue_nr = AVIA_GT_DMX_QUEUE_VIDEO;
@@ -1767,13 +1780,13 @@ int avia_gt_dmx_set_pid_table(u8 entry, u8 wait_pusi, u8 valid, u16 pid)
 
 	if (entry > 31) {
 
-		printk("avia_gt_dmx: pid search table entry out of bounce (entry=%d)!\n", entry);
+		printk(KERN_CRIT "avia_gt_dmx: pid search table entry out of bounce (entry=%d)!\n", entry);
 
 		return -EINVAL;
 
 	}
 
-	dprintk("avia_gt_dmx_set_pid_table, entry %d, wait_pusi %d, valid %d, pid 0x%04X\n", entry, wait_pusi, valid, pid);
+	dprintk(KERN_DEBUG "avia_gt_dmx_set_pid_table, entry %d, wait_pusi %d, valid %d, pid 0x%04X\n", entry, wait_pusi, valid, pid);
 
 	pid_entry.wait_pusi = wait_pusi;
 	pid_entry.VALID = !!valid;			// 0 = VALID, 1 = INVALID
@@ -1812,7 +1825,7 @@ u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr)
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: system_queue_get_read_pos: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: system_queue_get_read_pos: queue %d out of bounce\n", queue_nr);
 
 		return 0;
 
@@ -1848,15 +1861,15 @@ u32 avia_gt_dmx_system_queue_get_read_pos(u8 queue_nr)
 	
 	if (read_pos > (queue_list[queue_nr].mem_addr + queue_list[queue_nr].size)) {
 	
-		printk("avia_gt_dmx: system_queue_get_read_pos: queue %d read_pos 0x%X > queue_end 0x%X\n", queue_nr, read_pos, queue_list[queue_nr].mem_addr + queue_list[queue_nr].size);
-		
+		printk(KERN_CRIT "avia_gt_dmx: system_queue_get_read_pos: queue %d read_pos 0x%X > queue_end 0x%X\n", queue_nr, read_pos, queue_list[queue_nr].mem_addr + queue_list[queue_nr].size);
+
 		read_pos = queue_list[queue_nr].mem_addr;
-	
+
 	}
 
 	if (read_pos < queue_list[queue_nr].mem_addr) {
-	
-		printk("avia_gt_dmx: system_queue_get_read_pos: queue %d read_pos 0x%X < queue_base 0x%X\n", queue_nr, read_pos, queue_list[queue_nr].mem_addr);
+
+		printk(KERN_CRIT "avia_gt_dmx: system_queue_get_read_pos: queue %d read_pos 0x%X < queue_base 0x%X\n", queue_nr, read_pos, queue_list[queue_nr].mem_addr);
 		
 		read_pos = queue_list[queue_nr].mem_addr;
 	
@@ -1876,7 +1889,7 @@ void avia_gt_dmx_system_queue_set_pos(u8 queue_nr, u32 read_pos, u32 write_pos)
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: queue_system_set_pos: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: queue_system_set_pos: queue %d out of bounce\n", queue_nr);
 
 		return;
 
@@ -1911,7 +1924,7 @@ void avia_gt_dmx_system_queue_set_read_pos(u8 queue_nr, u32 read_pos)
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: system_queue_set_read_pos: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: system_queue_set_read_pos: queue %d out of bounce\n", queue_nr);
 
 		return;
 
@@ -1944,12 +1957,12 @@ void avia_gt_dmx_system_queue_set_write_pos(u8 queue_nr, u32 write_pos)
 		(queue_nr != AVIA_GT_DMX_QUEUE_AUDIO) &&
 		(queue_nr != AVIA_GT_DMX_QUEUE_TELETEXT)) {
 
-		printk("avia_gt_dmx: system_queue_set_write_pos: queue %d out of bounce\n", queue_nr);
+		printk(KERN_CRIT "avia_gt_dmx: system_queue_set_write_pos: queue %d out of bounce\n", queue_nr);
 
 		return;
 
 	}
-	
+
 	if (avia_gt_chip(ENX)) {
 
 		base = queue_system_map[queue_nr] * 8 + 0x8E0;
@@ -1977,7 +1990,7 @@ void avia_gt_dmx_reset(unsigned char reenable)
 		gtx_reg_set(RR1, RISC, 1);
 
 	if (reenable) {
-	
+
 		if (avia_gt_chip(ENX))
 			enx_reg_set(RSTR0, TDMP, 0);
 		else if (avia_gt_chip(GTX))
@@ -1994,7 +2007,7 @@ int avia_gt_dmx_risc_init(void)
 
 	if (avia_gt_dmx_load_ucode()) {
 
-		printk("avia_gt_dmx: No valid firmware found! TV mode disabled.\n");
+		printk(KERN_ERR "avia_gt_dmx: No valid firmware found! TV mode disabled.\n");
 
 		return 0;
 
@@ -2019,11 +2032,11 @@ void avia_gt_dmx_risc_write(void *src, void *dst, u16 count)
 {
 
 	if ((((u32)dst) < ((u32)risc_mem_map)) || (((u32)dst) > (((u32)risc_mem_map) + sizeof(sRISC_MEM_MAP)))) {
-	
-		printk("avia_gt_dmx: invalid risc write destination\n");
-		
+
+		printk(KERN_CRIT "avia_gt_dmx: invalid risc write destination\n");
+
 		return;
-	
+
 	}
 
 	avia_gt_dmx_risc_write_offs(src, ((u32)dst) - ((u32)risc_mem_map), count);
@@ -2036,49 +2049,49 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 	u32 pos;
 
 	if (count & 1) {
-	
-		printk("avia_gt_dmx: odd size risc write transfer detected\n");
-		
+
+		printk(KERN_CRIT "avia_gt_dmx: odd size risc write transfer detected\n");
+
 		return;
-	
+
 	}
-	
+
 	if ((offset + count) > sizeof(sRISC_MEM_MAP)) {
-	
-		printk("avia_gt_dmx: invalid risc write length detected\n");
-		
+
+		printk(KERN_CRIT "avia_gt_dmx: invalid risc write length detected\n");
+
 		return;
-	
+
 	}
-	
+
 //	if (count & 2) {
-	
+
 		for (pos = 0; pos < count; pos += 2) {
 
 			if (avia_gt_chip(ENX)) {
-			
+
 				if ((enx_reg_16n(TDP_INSTR_RAM + offset + pos)) != (((u16 *)src)[pos / 2])) {
-				
+
 					enx_reg_16n(TDP_INSTR_RAM + offset + pos) = ((u16 *)src)[pos / 2];
 
 					mb();
-				
+
 				}
-		
+
 			} else if (avia_gt_chip(GTX)) {
-			
+
 				if ((gtx_reg_16n(GTX_REG_RISC + offset + pos)) != (((u16 *)src)[pos / 2])) {
 
 					gtx_reg_16n(GTX_REG_RISC + offset + pos) = ((u16 *)src)[pos / 2];
-					
+
 					mb();
-					
+
 				}
-				
+
 			}
-				
+
 		}
-		
+
 /*	} else {
 
 		for (pos = 0; pos < count; pos += 4) {
@@ -2089,9 +2102,9 @@ void avia_gt_dmx_risc_write_offs(void *src, u16 offset, u16 count)
 				gtx_reg_32n(GTX_REG_RISC + offset + pos) = ((u32 *)src)[pos / 4];
 
 			mb();
-		
+
 		}
-	
+
 	}*/
 
 }
@@ -2118,7 +2131,7 @@ u64 avia_gt_dmx_get_transport_pcr(void)
 		return MAKE_PCR(gtx_reg_s(PCR2)->PCR_Base, gtx_reg_s(PCR1)->PCR_Base, gtx_reg_s(PCR0)->PCR_Base, gtx_reg_s(PCR0)->PCR_Extension);
 
 	return 0;
-	
+
 }
 
 u64 avia_gt_dmx_get_latched_stc(void)
@@ -2130,7 +2143,7 @@ u64 avia_gt_dmx_get_latched_stc(void)
 		return MAKE_PCR(gtx_reg_s(LSTC2)->Latched_STC_Base, gtx_reg_s(LSTC1)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Base, gtx_reg_s(LSTC0)->Latched_STC_Extension);
 
 	return 0;
-	
+
 }
 
 u64 avia_gt_dmx_get_stc(void)
@@ -2180,7 +2193,7 @@ static void gtx_pcr_interrupt(unsigned short irq)
 
 	if (force_stc_reload) {
 
-		printk("avia_gt_dmx: reloading stc\n");
+		printk(KERN_INFO "avia_gt_dmx: reloading stc\n");
 
 		avia_set_pcr(PCR_BASE(tp_pcr) >> 1, (PCR_BASE(tp_pcr) & 0x01) << 15);
 		force_stc_reload = 0;
@@ -2236,13 +2249,13 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.153 2002/11/23 20:19:43 McClean Exp $\n");;
+	printk(KERN_INFO "avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.154 2002/12/16 12:07:01 wjoost Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
 	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 
-		printk("avia_gt_dmx: Unsupported chip type\n");
+		printk(KERN_ERR "avia_gt_dmx: Unsupported chip type\n");
 
 		return -EIO;
 
@@ -2318,7 +2331,7 @@ int __init avia_gt_dmx_init(void)
 		
 		if (queue_addr & (queue_list[queue_nr].size - 1)) {
 		
-			printk("avia_gt_dmx: warning, misaligned queue %d (is 0x%X, size %d), aligning...\n", queue_nr, queue_addr, queue_list[queue_nr].size);
+			printk(KERN_WARNING "avia_gt_dmx: warning, misaligned queue %d (is 0x%X, size %d), aligning...\n", queue_nr, queue_addr, queue_list[queue_nr].size);
 			
 			queue_addr += queue_list[queue_nr].size;
 			queue_addr &= ~(queue_list[queue_nr].size - 1);
