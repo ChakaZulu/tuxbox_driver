@@ -21,6 +21,9 @@
  *
  *
  *   $Log: tda8044h.c,v $
+ *   Revision 1.4  2001/11/02 02:33:57  TripleDES
+ *   fixed diseqc(tm) problem
+ *
  *   Revision 1.3  2001/11/01 02:17:00  TripleDES
  *   added DiSEqC(tm) support - no minidiseqc up to now
  *
@@ -31,7 +34,7 @@
  *   philips support (sat, tda8044h), ost/dvb.c fix to call demod->init() now.
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -453,7 +456,7 @@ static int tda_set_sec(int power, int tone)
 
 static int tda_send_diseqc(u8 *cmd,unsigned int len)
 {
-	int i;
+	int i,a;
 
 	if(len==1)
 	{
@@ -466,9 +469,13 @@ static int tda_send_diseqc(u8 *cmd,unsigned int len)
 			printk("wrong message size.\n");
 			return 0;
 		}
-		writereg(dclient,0x29,8+(len-3));
-		for(i=0;i<len;i++) writereg(dclient,0x23+i,cmd[i]);
-		writereg(dclient,0x29,0x0C+(len-3));
+		for(a=0;a<2;a++)
+		{
+		    writereg(dclient,0x29,8+(len-3));
+		    for(i=0;i<len;i++) writereg(dclient,0x23+i,cmd[i]);
+		    writereg(dclient,0x29,0x0C+(len-3));
+		}
+		    
 	}
 	
 	return 0;
