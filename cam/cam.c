@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.13  2001/08/16 16:30:38  tmbinc
+ *   readded /dev/cam
+ *
  *   Revision 1.12  2001/04/12 19:49:54  mhc
  *   - cleanup * added caid-routine * Sagem/Philips User testen !!!
  *
@@ -53,7 +56,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -76,6 +79,8 @@
 #include <linux/wait.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/devfs_fs_kernel.h>
+#include <linux/poll.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
@@ -139,6 +144,35 @@ static struct i2c_client client_template = {
 
 /* ---------------------------------------------------------------------- */
 
+#ifndef CONFIG_DEVFS_FS
+#error no devfs
+#endif
+
+#define CAM_MINOR 0
+
+static devfs_handle_t devfs_handle[1];
+
+static int f_cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+static int f_cam_open (struct inode *inode, struct file *file);
+static ssize_t f_cam_write (struct file *file, const char *buf, size_t count, loff_t *offset);
+static ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset);
+static int f_cam_release(struct inode *inode, struct file *file);
+static unsigned int f_cam_poll(struct file *file, poll_table *wait);
+
+static struct file_operations cam_fops = {
+        owner:          THIS_MODULE,
+        read:           f_cam_read,
+        write:          f_cam_write,
+        ioctl:          f_cam_ioctl,
+        open:           f_cam_open,
+				release:				f_cam_release,
+				poll:						f_cam_poll,
+};
+
+static DECLARE_MUTEX_LOCKED(cam_open);
+
+/* ---------------------------------------------------------------------- */
+
 static DECLARE_MUTEX_LOCKED(cam_busy);
 static void cam_task(void *);
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
@@ -155,140 +189,140 @@ static wait_queue_head_t queuewait;
 
 static int attach_adapter(struct i2c_adapter *adap)
 {
-  struct i2c_client *client;
-  client_template.adapter=adap;
+	struct i2c_client *client;
+	client_template.adapter=adap;
 
-  if (!(client=kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
-    return -ENOMEM;
+	if (!(client=kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
+	  return -ENOMEM;
 
-  memcpy(client, &client_template, sizeof(struct i2c_client));
-  dclient=client;
+	memcpy(client, &client_template, sizeof(struct i2c_client));
+	dclient=client;
 
-  client->data=0;
+	client->data=0;
 
-  printk("CAM: attaching CAM at 0x%02x\n", (client->addr)<<1);
-  i2c_attach_client(client);
+	printk("CAM: attaching CAM at 0x%02x\n", (client->addr)<<1);
+	i2c_attach_client(client);
 
-  printk("CAM: attached to adapter %s\n", adap->name);
-  return 0;
+	printk("CAM: attached to adapter %s\n", adap->name);
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
 static int detach_client(struct i2c_client *client)
 {
-  printk("CAM: detach_client\n");
-  i2c_detach_client(client);
-  kfree(client);
-  return 0;
+	printk("CAM: detach_client\n");
+	i2c_detach_client(client);
+	kfree(client);
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
 struct tq_struct cam_tasklet=
 {
-  routine: cam_task,
-  data: 0
+	routine: cam_task,
+	data: 0
 };
 
 /* ---------------------------------------------------------------------- */
 
 static void cam_task(void *data)
 {
-  unsigned char buffer[130], caid[9]={0x50,0x06,0x23,0x84,0x01,0x02,0xFF,0xFF,0};
-  int len, i;
+	unsigned char buffer[130], caid[9]={0x50,0x06,0x23,0x84,0x01,0x02,0xFF,0xFF,0};
+	int len, i;
 
-  if (down_interruptible(&cam_busy))
-  {
-    enable_irq(CAM_INTERRUPT);
-    return;
-  }
+	if (down_interruptible(&cam_busy))
+	{
+	  enable_irq(CAM_INTERRUPT);
+	  return;
+	}
 
-  if (i2c_master_recv(dclient, buffer, 2)!=2)
-  {
-    printk("i2c-CAM read error.\n");
-    up(&cam_busy);
-    enable_irq(CAM_INTERRUPT);
-    return;
-  }
+	if (i2c_master_recv(dclient, buffer, 2)!=2)
+	{
+	  printk("i2c-CAM read error.\n");
+	  up(&cam_busy);
+	  enable_irq(CAM_INTERRUPT);
+	  return;
+	}
 
-  len=buffer[1]&0x7F;
+	len=buffer[1]&0x7F;
 
-  if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
-  {
-    printk("i2c-CAM read error.\n");
-    up(&cam_busy);
-    enable_irq(CAM_INTERRUPT);
-    return;
-  }
-  
-  if ((buffer[1]&0x7F) != len)
-  {
-    len=buffer[1]&0x7F;
-    printk("CAM: unsure length, reading again.\n");
-    if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
-    {
-      printk("i2c-CAM read error.\n");
-      up(&cam_busy);
-      enable_irq(CAM_INTERRUPT);
-      return;
-    }
-  }
-  
-  dprintk("CAM says:");
-  for (i=0; i<len+3; i++)
-    dprintk(" %02x", buffer[i]);
-  dprintk("\n");
-  
-  len+=3;
+	if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
+	{
+	  printk("i2c-CAM read error.\n");
+	  up(&cam_busy);
+	  enable_irq(CAM_INTERRUPT);
+	  return;
+	}
+	
+	if ((buffer[1]&0x7F) != len)
+	{
+	  len=buffer[1]&0x7F;
+	  printk("CAM: unsure length, reading again.\n");
+	  if (i2c_master_recv(dclient, buffer, len+3)!=len+3)
+	  {
+	    printk("i2c-CAM read error.\n");
+	    up(&cam_busy);
+	    enable_irq(CAM_INTERRUPT);
+	    return;
+	  }
+	}
+	
+	dprintk("CAM says:");
+	for (i=0; i<len+3; i++)
+	  dprintk(" %02x", buffer[i]);
+	dprintk("\n");
+	
+	len+=3;
 	if ( buffer[2] == 0x23 && buffer[3]<=7 )
 	{
-	int csum=0x6E;
-	caid[6]=buffer[5];
-	caid[7]=buffer[6];
-	for (i=0; i<8; i++)
-		csum^=caid[i];
-	caid[8]=csum;
-	dprintk ("set CAID: %02x%02x \n", caid[6],caid[7]);
-	up(&cam_busy);
-	cam_write_message(caid,9);
-	}
-  else {
-  i=cam_queuewptr-cam_queuerptr;
-  if (i<0)
-    i+=CAM_QUEUE_SIZE;
-  
-  i=CAM_QUEUE_SIZE-i;
-  
-  if (i<len)
-    cam_queuewptr=cam_queuerptr;
-  else
-  {
-    i=0;
-    
-    cam_queue[cam_queuewptr++]=0x6F;
-    if (cam_queuewptr==CAM_QUEUE_SIZE)
-      cam_queuewptr=0;
+		int csum=0x6E;
+		caid[6]=buffer[5];
+		caid[7]=buffer[6];
+		for (i=0; i<8; i++)
+			csum^=caid[i];
+		caid[8]=csum;
+		dprintk ("set CAID: %02x%02x \n", caid[6],caid[7]);
+		up(&cam_busy);
+		cam_write_message(caid,9);
+	} else 
+	{
+	  i=cam_queuewptr-cam_queuerptr;
+	  if (i<0)
+	    i+=CAM_QUEUE_SIZE;
+	
+	  i=CAM_QUEUE_SIZE-i;
+	
+	  if (i<len)
+	    cam_queuewptr=cam_queuerptr;
+		else
+	  {
+	    i=0;
 
-    while (len--)
-    {
-      cam_queue[cam_queuewptr++]=buffer[i++];
-      if (cam_queuewptr==CAM_QUEUE_SIZE)
-        cam_queuewptr=0;
-    }
-  }
-  }
-  wake_up(&queuewait);
-  
-  up(&cam_busy);
-  enable_irq(CAM_INTERRUPT);
+	    cam_queue[cam_queuewptr++]=0x6F;
+	    if (cam_queuewptr==CAM_QUEUE_SIZE)
+	      cam_queuewptr=0;
+
+		  while (len--)
+	    {
+	      cam_queue[cam_queuewptr++]=buffer[i++];
+	      if (cam_queuewptr==CAM_QUEUE_SIZE)
+	        cam_queuewptr=0;
+	    }
+	  }
+	}
+	wake_up(&queuewait);
+	
+	up(&cam_busy);
+	enable_irq(CAM_INTERRUPT);
 }
 
 /* ---------------------------------------------------------------------- */
 
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 {
-  schedule_task(&cam_tasklet);
+	schedule_task(&cam_tasklet);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -314,7 +348,7 @@ int cam_write_message( char * buf, size_t count )
 
 	res = i2c_master_send(dclient, buf, count);
 
-	cam_queuewptr=cam_queuerptr;  // mich störte der Buffer ....
+	cam_queuewptr=cam_queuerptr;  // mich stoerte der Buffer ....		// ?? was soll das? (tmb)
 	up(&cam_busy);
 	return res;
 }
@@ -369,13 +403,13 @@ int cam_read_message( char * buf, size_t count )
 
 static void do_firmwrite( u32 *buffer )
 {
-    int size,i;
-    void *base;
-    immap_t *immap=(immap_t *)IMAP_ADDR ;
-    volatile cpm8xx_t *cp=&immap->im_cpm;
+	int size,i;
+	void *base;
+	immap_t *immap=(immap_t *)IMAP_ADDR ;
+	volatile cpm8xx_t *cp=&immap->im_cpm;
 
 	base = (void*)buffer;
-    size=CAM_CODE_SIZE;
+	size=CAM_CODE_SIZE;
 
 	printk("der moment ist gekommen...\n");
 
@@ -419,8 +453,8 @@ static int do_firmread(const char *fn, char **fp)
 	/* shameless stolen from sound_firmware.c */
 
 	int fd;
-    long l;
-    char *dp;
+	  long l;
+	  char *dp;
 
 	fd = open(fn,0,0);
 
@@ -470,7 +504,7 @@ static int do_firmread(const char *fn, char **fp)
 int cam_init(void)
 {
 	int res;
-   	mm_segment_t fs;
+	 	mm_segment_t fs;
 	u32 *microcode;
 //	char caminit[11]={0x50,0x08,0x23,0x84,0x01,0x04,0x17,0x02,0x10,0x00,0x91};
 		
@@ -488,7 +522,6 @@ int cam_init(void)
 	if (!code_base)
 		panic("couldn't map CAM-io.\n");
 	
-
 	/* load microcode */
 	fs = get_fs();
 
@@ -507,28 +540,39 @@ int cam_init(void)
 
 	vfree(microcode);
 	
-   if ((res = i2c_add_driver(&cam_driver)))
+	 if ((res = i2c_add_driver(&cam_driver)))
 	{
 		printk("CAM: Driver registration failed, module not inserted.\n");
 		return res;
 	}
 	
-   if ( ! dclient )
-  {
-    i2c_del_driver ( &cam_driver );
-    printk ( "CAM: cam not found.\n" );
-    return -EBUSY;
-  }	
+	 if ( ! dclient )
+	{
+	  i2c_del_driver ( &cam_driver );
+	  printk ( "CAM: cam not found.\n" );
+	  return -EBUSY;
+	}	
 	
-
-  	up(&cam_busy);
+	up(&cam_busy);
 
 	if (request_8xxirq(CAM_INTERRUPT, cam_interrupt, SA_ONESHOT, "cam", THIS_MODULE) != 0)
 			panic("Could not allocate CAM IRQ!");
+
+	up(&cam_open);
 	
 /* ---- bitte testen Sagem/Philips --- report to MHC ------- */
 //	if (info.mID!=DBOX_MID_NOKIA)
 //		cam_write_message(caminit,11);
+	devfs_handle[CAM_MINOR] =
+	devfs_register ( NULL, "dbox/cam0", DEVFS_FL_DEFAULT, 0, CAM_MINOR,
+	                 S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
+	                 &cam_fops, NULL );
+
+	if ( ! devfs_handle[CAM_MINOR] )
+	{
+		i2c_del_driver ( &cam_driver );
+		return -EIO;
+	}
 	
 	return 0;
 }
@@ -543,9 +587,7 @@ void cam_fini(void)
 	schedule(); // HACK: let all task queues run.
 
 	if ((res=down_interruptible(&cam_busy)))
-	{
 		return;
-	}
 
 	iounmap(code_base);
 
@@ -554,6 +596,145 @@ void cam_fini(void)
 		printk("cam: Driver deregistration failed, module not removed.\n");
 		return;
 	}
+  devfs_unregister ( devfs_handle[CAM_MINOR] );
+}
+
+/* ---------------------------------------------------------------------- */
+
+int f_cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return -ENOSYS;
+}
+
+int f_cam_open (struct inode *inode, struct file *file)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	switch (minor)
+	{
+		case CAM_MINOR:
+			if (file->f_flags & O_NONBLOCK)
+			{
+				if (down_trylock(&cam_open))
+					return -EAGAIN;
+			}	else
+			{
+				if (down_interruptible(&cam_open))
+					return -ERESTARTSYS;
+			}
+			return 0;
+		default:
+			return -ENODEV;
+	}
+
+	return -EINVAL;
+}
+
+ssize_t f_cam_write (struct file *file, const char *buf, size_t count, loff_t *offset)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	switch (minor)
+	{
+	case CAM_MINOR:
+	{
+		int res;
+		if ((res=down_interruptible(&cam_busy)))
+			return res;
+
+		res = i2c_master_send(dclient, buf, count);
+		up(&cam_busy);
+		return res;
+	}
+	}
+	return -EINVAL;
+}
+
+ssize_t f_cam_read (struct file *file, char *buf, size_t count, loff_t *offset)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev), read;
+
+	switch (minor)
+	{
+		case CAM_MINOR:
+		{
+			int i;
+			DECLARE_WAITQUEUE(wait, current);
+			read=0;
+
+			for(;;)
+			{
+				if (cam_queuerptr==cam_queuewptr)		// queue empty?
+				{
+					printk("queue is empty, waiting...\n");
+					if (file->f_flags & O_NONBLOCK)
+					{
+						printk("bzw. nonblock\n");
+						return read;
+					}
+
+					add_wait_queue(&queuewait, &wait);
+					set_current_state(TASK_INTERRUPTIBLE);
+					schedule();
+					current->state = TASK_RUNNING;
+					remove_wait_queue(&queuewait, &wait);
+
+					if (signal_pending(current))
+						return -ERESTARTSYS;
+						printk("uuund nochmal\n");
+				} else
+					break;
+			}
+
+			printk("ok (%d)\n", count);
+			for (i=0; i<count; i++)
+			{
+				if (cam_queuerptr==cam_queuewptr)
+					break;
+
+				*((u8*)(buf+read))=cam_queue[cam_queuerptr++];
+				read++;
+
+				if (cam_queuerptr>=CAM_QUEUE_SIZE)
+					cam_queuerptr=0;
+			}
+
+			printk("macht %d bytes\n", read);
+			return read;
+		}
+
+		default:
+			return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+int f_cam_release(struct inode *inode, struct file *file)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	switch (minor)
+	{
+	case CAM_MINOR:
+		up(&cam_open);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+unsigned int f_cam_poll(struct file *file, poll_table *wait)
+{
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+	switch (minor)
+	{
+	case CAM_MINOR:
+		poll_wait(file, &queuewait, wait);
+		if (cam_queuerptr!=cam_queuewptr)	// queue not empty
+			return POLLIN|POLLRDNORM;
+		return 0;
+	}
+	return -EINVAL;
 }
 
 /* ---------------------------------------------------------------------- */
