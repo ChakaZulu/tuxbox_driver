@@ -270,13 +270,13 @@ typedef struct {
 
 } sGTX_REG_VPS;
 
-
-
-
-
-extern int gtx_allocate_dram(int size, int align);
-extern int gtx_allocate_irq(int reg, int bit, void (*isr)(int, int));
-extern void gtx_free_irq(int reg, int bit);
+extern void avia_gt_gtx_clear_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern unsigned short avia_gt_gtx_get_irq_mask(unsigned char irq_reg);
+extern unsigned short avia_gt_gtx_get_irq_status(unsigned char irq_reg);
+extern void avia_gt_gtx_mask_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern void avia_gt_gtx_unmask_irq(unsigned char irq_reg, unsigned char irq_bit);
+extern void avia_gt_gtx_init(void);
+extern void avia_gt_gtx_exit(void);
 
 #define gtx_reg_16(register) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + GTX_REG_ ## register))))
 #define gtx_reg_16n(offset) ((unsigned short)(*((unsigned short*)(avia_gt_get_reg_addr() + offset))))

@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.70 $
+ *   $Revision: 1.71 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.71  2002/04/12 23:20:25  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.70  2002/04/12 14:28:13  Jolt
  *   eNX/GTX merge
  *
@@ -292,8 +295,6 @@ static int type = DMX_AUTO;
 static char *ucode = 0;
 
 static gtx_demux_t gtx;
-
-#define dprintk(fmt, args...) if (debug) printk( fmt, ## args )
 
 static u32 gtx_get_queue_wptr(int queue);
 static Pcr_t gtx_read_transport_pcr(void);
@@ -724,7 +725,7 @@ void gtx_reset_queue(gtx_demux_feed_t *feed)
 
 static __u32 datamask=0;
 
-static void gtx_queue_interrupt(int nr, int bit)
+static void gtx_queue_interrupt(unsigned char nr, unsigned char bit)
 {
 #ifdef enx_dmx
 	int queue;
@@ -836,7 +837,7 @@ static Pcr_t oldClk;
 
 extern void avia_set_pcr(u32 hi, u32 lo);
 
-static void gtx_pcr_interrupt(int b, int r)
+static void gtx_pcr_interrupt(unsigned char b, unsigned char r)
 {
 	Pcr_t TPpcr;
 	Pcr_t latchedClk;
@@ -950,8 +951,8 @@ static void gtx_dmx_set_pcr_source(int pid)
 	rh(PCRPID)=(1<<13)|pid;
 	rh(FCR)|=0x100;							 // force discontinuity
 	discont=1;
-	gtx_free_irq(0, 8);
-	gtx_allocate_irq(0, 8, gtx_pcr_interrupt);			 // pcr reception
+	avia_gt_free_irq(0, 8);
+	avia_gt_alloc_irq(0, 8, gtx_pcr_interrupt);			 // pcr reception
 #endif	
 }
 
@@ -964,13 +965,9 @@ int gtx_dmx_init(void)
 	mm_segment_t fs;
 
 	printk(KERN_DEBUG "gtx_dmx: \n");
-#ifdef enx_dmx
+
 	gtxmem=avia_gt_get_mem_addr();
 	gtxreg=avia_gt_get_reg_addr();
-#else	
-	gtxmem=gtx_get_mem();
-	gtxreg=gtx_get_reg();
-#endif	
 
 	fs = get_fs();
 	set_fs(get_ds());
@@ -1062,9 +1059,9 @@ void gtx_dmx_close(void)
 #else
 	for (j=0; j<2; j++)
 		for (i=0; i<16; i++)
-			gtx_free_irq(j+2, i);
+			avia_gt_free_irq(j+2, i);
 
-	gtx_free_irq(0, 8);					 // PCR
+	avia_gt_free_irq(0, 8);					 // PCR
 #endif
 }
 								// nokia api
@@ -1555,7 +1552,7 @@ static void dmx_enable_tap(struct gtx_demux_feed_s *gtxfeed)
 		}
 		avia_gt_alloc_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
 #else	
-		gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
+		avia_gt_alloc_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
 #endif
 	}
 }
@@ -1568,7 +1565,7 @@ static void dmx_disable_tap(struct gtx_demux_feed_s *gtxfeed)
 #ifdef enx_dmx
 		avia_gt_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
 #else
-		gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
+		avia_gt_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
 #endif
 	}
 }
@@ -1996,7 +1993,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		gtxdemux->feed[i].base=ptr;
 		ptr+=gtxdemux->feed[i].size;
 		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
-		//		gtx_queue[i].base=gtx_allocate_dram(gtx_queue[i].size, gtx_queue[i].size);
+		//		gtx_queue[i].base=avia_gt_alloc_dram(gtx_queue[i].size, gtx_queue[i].size);
 		gtx_set_queue(i, gtxdemux->feed[i].base, buffersize[i]);
 		gtxdemux->feed[i].index=i;
 		gtxdemux->feed[i].state=DMX_STATE_FREE;
@@ -2097,7 +2094,7 @@ int init_module(void)
 		}
 	}
 
-	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.70 2002/04/12 14:28:13 Jolt Exp $\n");
+	dprintk("gtx_dmx: $Id: avia_gt_dmx.c,v 1.71 2002/04/12 23:20:25 Jolt Exp $\n");
 
 	return gtx_dmx_init();
 }

@@ -43,7 +43,7 @@
 #error no devfs
 #endif
 
-#include <dbox/gtx.h>
+#include <dbox/avia_gt.h>
 #include <dbox/gtx_capture.h>
 
 static int capture_open(struct inode *inode, struct file *file);
@@ -370,7 +370,7 @@ int gtx_capture_init(void)
     gtx_reg_s(VCS)->F = 1;   				// Enable filter
     gtx_reg_s(VCS)->B = 0;				// Enable hardware double buffering
     
-    if (gtx_allocate_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
+    if (avia_gt_alloc_irq(1, 13, gtx_capture_interrupt) < 0)	// VL1
     {
 	printk("gtx_capture: unable to get interrupt\n");
 	return -EIO;
@@ -385,13 +385,13 @@ void gtx_capture_cleanup(void)
 {
     gtx_capture_stop();
 
-    gtx_free_irq(1, 13);
+    avia_gt_free_irq(1, 13);
     gtx_reg_16(RR0) |= (1 << 14);		
 }
 
 static int init_capture(void)
 {
-    printk("$Id: gtx_capture.c,v 1.4 2002/04/12 18:59:29 Jolt Exp $\n");
+    printk("$Id: gtx_capture.c,v 1.5 2002/04/12 23:20:25 Jolt Exp $\n");
 
     devfs_handle = devfs_register(NULL, "dbox/capture", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &gtx_capture_fops, NULL);
 

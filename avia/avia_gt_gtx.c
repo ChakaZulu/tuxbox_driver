@@ -20,6 +20,9 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: avia_gt_gtx.c,v $
+ *   Revision 1.5  2002/04/12 23:20:25  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.4  2002/04/12 21:31:37  Jolt
  *   eNX/GTX merge
  *
@@ -93,7 +96,7 @@
  *   Cleaned up avia drivers. - tmb
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -148,75 +151,6 @@ static int gtx_proc_initialized;
 
 static int debug = 0;
 
-static void avia_gt_gtx_init(void)
-{
-        int cr;
-
-        dprintk (KERN_INFO "gtx-core: loading AViA GTX core driver\n");
-
-        rh(RR0) = 0xFFFF;
-        rh(RR1) = 0x00FF;
-        udelay (500);
-        rh(RR0) &= ~( (1 << 13) | (1 << 12) | (1 << 10)
-                      | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
-
-        udelay (500);
-
-        memset (gtxmem, 0xFF, 2 * 1024 * 1024);          // clear ram
-        gtx_proc_init ();
-
-        cr = rh (CR0);
-        printk (KERN_INFO "%s: %s: gtxID %.2x\n", __FILE__, __FUNCTION__,
-                (cr & 0xF000) >> 12);
-
-        cr |= 1 << 11;           // enable graphics
-        cr &= ~(1 << 10);        // enable sar
-        cr |= 1 << 9;            // disable pcm
-        cr &= ~(1 << 5);         // enable dac output
-        cr |= 1 << 3;
-
-        cr &= ~(3 << 6);
-        cr |= 1 << 6;
-        cr &= ~(1 << 2);
-
-        ramsize  = 2 * 1024 * 1024;
-        rambeg   = 0;
-        rh (CR0) = cr;
-
-        gtx_intialize_interrupts ();
-
-        // workaround for framebuffer?
-        atomic_set (&THIS_MODULE->uc.usecount, 1);
-        printk (KERN_NOTICE "%s: %s: loaded AViA GTX core driver\n",
-                __FILE__, __FUNCTION__);
-
-        /* buffer disable */
-        rw (PCMA) = 1;
-        /* set volume for pcm and mpeg */
-        rw (PCMN) = 0x80808080;
-        rh (PCMC) = 0;
-        /* enable PCM frequ. same MPEG */
-        rh (PCMC) |= (3 << 14);
-        /* 16 bit mode */
-        rh (PCMC) |= (1 << 13);
-        /* stereo */
-        rh (PCMC) |= (1 << 12);
-        /* signed samples */
-        rh (PCMC) |= (1 << 11);
-        /* clock from aclk */
-        rh (PCMC) &= ~(0 << 6);   // 0: use external (avia) clock
-        /* set adv */
-        rh (PCMC) |= 0;
-        /* set acd */
-        rh (PCMC) |= 2 << 2;
-        /* set bcd */
-        rh (PCMC) |= 2;
-
-	// enable teletext
-	rh(TTCR) |= (1 << 9);
-	
-}
-
 static int isr[] = {gISR0, gISR1, gISR2, gISR3};
 static int imr[] = {gIMR0, gIMR1, gIMR2, gIMR3};
 
@@ -263,6 +197,73 @@ static void gtx_close_interrupts(void)
         rh (ISR2) = 0;
         rh (ISR3) = 0;
 
+}
+
+static void avia_gt_gtx_init(void)
+{
+        int cr;
+
+        dprintk (KERN_INFO "gtx-core: loading AViA GTX core driver\n");
+
+        rh(RR0) = 0xFFFF;
+        rh(RR1) = 0x00FF;
+        udelay (500);
+        rh(RR0) &= ~( (1 << 13) | (1 << 12) | (1 << 10)
+                      | (1 <<  9) | (1 << 6) | 1);   // DRAM, VIDEO, GRAPHICS
+
+        udelay (500);
+
+        memset (avia_gt_get_mem_addr(), 0xFF, 2 * 1024 * 1024);          // clear ram
+        gtx_proc_init ();
+
+        cr = rh (CR0);
+        printk (KERN_INFO "%s: %s: gtxID %.2x\n", __FILE__, __FUNCTION__,
+                (cr & 0xF000) >> 12);
+
+        cr |= 1 << 11;           // enable graphics
+        cr &= ~(1 << 10);        // enable sar
+        cr |= 1 << 9;            // disable pcm
+        cr &= ~(1 << 5);         // enable dac output
+        cr |= 1 << 3;
+
+        cr &= ~(3 << 6);
+        cr |= 1 << 6;
+        cr &= ~(1 << 2);
+
+        rh (CR0) = cr;
+
+        gtx_intialize_interrupts ();
+
+        // workaround for framebuffer?
+        atomic_set (&THIS_MODULE->uc.usecount, 1);
+        printk (KERN_NOTICE "%s: %s: loaded AViA GTX core driver\n",
+                __FILE__, __FUNCTION__);
+
+        /* buffer disable */
+        rw (PCMA) = 1;
+        /* set volume for pcm and mpeg */
+        rw (PCMN) = 0x80808080;
+        rh (PCMC) = 0;
+        /* enable PCM frequ. same MPEG */
+        rh (PCMC) |= (3 << 14);
+        /* 16 bit mode */
+        rh (PCMC) |= (1 << 13);
+        /* stereo */
+        rh (PCMC) |= (1 << 12);
+        /* signed samples */
+        rh (PCMC) |= (1 << 11);
+        /* clock from aclk */
+        rh (PCMC) &= ~(0 << 6);   // 0: use external (avia) clock
+        /* set adv */
+        rh (PCMC) |= 0;
+        /* set acd */
+        rh (PCMC) |= 2 << 2;
+        /* set bcd */
+        rh (PCMC) |= 2;
+
+	// enable teletext
+	rh(TTCR) |= (1 << 9);
+	
 }
 
 static void avia_gt_gtx_exit(void)
@@ -348,7 +349,7 @@ read_bus_gtx (char *buf, char **start, off_t offset, int len, int *eof,
                 return -EINVAL;
         if (offset + len > 2048)
                 len = 2048 - offset;
-        memcpy (buf, gtxreg + 0x1000 + offset, len);
+        memcpy (buf, avia_gt_get_reg_addr() + 0x1000 + offset, len);
 
         return len;
 }

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb.c,v $
+ *   Revision 1.18  2002/04/12 23:20:25  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.17  2002/04/12 18:59:29  Jolt
  *   eNX/GTX merge
  *
@@ -96,7 +99,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.17 $
+ *   $Revision: 1.18 $
  *
  */
 
@@ -877,12 +880,12 @@ static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, u
 int __init gtxfb_init(void)
 {
 #ifdef GTX
-	gtxmem=gtx_get_mem();
-	gtxreg=gtx_get_reg();
+	gtxmem=avia_gt_get_mem_addr();
+	gtxreg=avia_gt_get_reg_addr();
 
 	//fb_info.offset=gtx_allocate_dram(fb_info.videosize, 1);
 	fb_info.offset=1*1024*1024;
-	fb_info.pvideobase=GTX_PHYSBASE+fb_info.offset;
+	fb_info.pvideobase=GTX_MEM_BASE+fb_info.offset;
 #endif
 
 #ifdef ENX
@@ -941,7 +944,7 @@ void gtxfb_close(void)
 
 int __init fb_init(void)
 {
-	dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.17 2002/04/12 18:59:29 Jolt Exp $\n");
+	dprintk("Framebuffer: $Id: avia_gt_fb.c,v 1.18 2002/04/12 23:20:25 Jolt Exp $\n");
 	
 	return gtxfb_init();
 }

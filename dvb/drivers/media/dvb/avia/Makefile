@@ -10,7 +10,6 @@ AVIA_OSD  = avia_osd.o
 
 AVIA_GT   = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
 
-GTX_CORE  = gtx-core.o
 GTX_DMX   = gtx-dmx.o crc32.o
 GTX_FB    = gtx-fb.o fbgen.o
 
@@ -30,7 +29,7 @@ install:
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(AVIA_OSD)	\
-		$(GTX_DMX) $(GTX_CORE) $(GTX_FB) 		\
+		$(GTX_DMX) $(GTX_FB) 		\
 		$(ENX_DMX) $(AVIA_GT) $(ENX_FB) .*.o.flags *~
 
 gtx-fb.o: gen-fb.c
@@ -43,9 +42,6 @@ avia.o: $(AVIA_OBJS)
 
 osd.o: $(AVIA_OSD)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_OSD)
-
-gtx_core.o: $(GTX_CORE)
-	$(LD) -m elf32ppclinux -r -o $@ $(GTX_CORE)
 
 gtx_dmx.o: $(GTX_DMX)
 	$(LD) -m elf32ppclinux -r -o $@ $(GTX_DMX)

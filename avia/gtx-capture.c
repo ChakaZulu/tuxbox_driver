@@ -20,13 +20,16 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *   $Log: gtx-capture.c,v $
+ *   Revision 1.3  2002/04/12 23:20:25  Jolt
+ *   eNX/GTX merge
+ *
  *   Revision 1.2  2001/12/01 06:37:06  gillem
  *   - malloc.h -> slab.h
  *
  *   Revision 1.1  2001/09/17 12:24:36  tmbinc
  *   added gtx-capture, very alpha
  *
- *   $Revision: 1.2 $
+ *   $Revision: 1.3 $
  *
  */
 
@@ -52,7 +55,7 @@
 #error no devfs
 #endif
 
-#include <dbox/gtx.h>
+#include <dbox/avia_gt.h>
 
 static int capture_open(struct inode *inode, struct file *file);
 static ssize_t capture_read(struct file *file, char *buf, size_t count, loff_t *offset);
@@ -210,7 +213,7 @@ static void disable_capture(void)
 
 static int init_capture(void)
 {
-	printk("$Id: gtx-capture.c,v 1.2 2001/12/01 06:37:06 gillem Exp $\n");
+	printk("$Id: gtx-capture.c,v 1.3 2002/04/12 23:20:25 Jolt Exp $\n");
 	
 	
   gtxmem = gtx_get_mem();

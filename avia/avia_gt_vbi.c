@@ -55,9 +55,6 @@
 
 static devfs_handle_t devfs_handle;
 static int active_vtxt_pid = -1;
-#ifdef GTX
-unsigned char *gtxreg;
-#endif
 
 #ifdef MODULE
 MODULE_AUTHOR("Florian Schirmer <jolt@tuxbox.org>");
@@ -218,10 +215,6 @@ static int __init init_vbi(void)
     struct list_head *dmx_list;
 
     printk(KERN_INFO "avia_vbi: version (" __DATE__ "-" __TIME__ ")\n");
-
-#ifdef GTX    
-    gtxreg = gtx_get_reg();
-#endif    
 
     devfs_handle = devfs_register(NULL, "dbox/vbi0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_vbi_fops, NULL);
 
