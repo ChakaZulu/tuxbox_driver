@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_napi.c,v 1.1 2002/11/11 01:41:26 obi Exp $
+ * $Id: dbox2_fp_napi.c,v 1.2 2002/11/11 01:46:35 obi Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -88,9 +88,8 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 		break;
 
 	case FE_SET_FRONTEND:
-		if (demod == DBOX_DEMOD_VES1993)
-			break;
-		else {
+		if (demod != DBOX_DEMOD_VES1993) {
+
 			u32 div;
 			u8 buf[4];
 
@@ -115,16 +114,15 @@ dbox2_fp_napi_before_ioctl (struct dvb_frontend *frontend, unsigned int cmd, voi
 
 			if (dbox2_fp_tuner_write(buf, sizeof(buf)))
 				return 0;
-
-			/*
-			 * looks strange, but is a good thing[tm]:
-			 * returning zero will skip next ioctl handler,
-			 * but symbolrate etc. still has to be set by
-			 * the demodulator driver after tuning.
-			 */
-			return -EOPNOTSUPP;
 		}
-		break;
+
+		/*
+		 * looks strange, but is a good thing[tm]:
+		 * returning zero will skip next ioctl handler,
+		 * but symbolrate etc. still has to be set by
+		 * the demodulator driver after tuning.
+		 */
+		return -EOPNOTSUPP;
 
 	case FE_SLEEP:
 		/* TODO: enable lnb loop through */
