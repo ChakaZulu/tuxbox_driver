@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_pcm.c,v 1.26 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_pcm.c,v 1.27 2003/09/12 04:41:16 obi Exp $
  *
  * AViA eNX/GTX pcm driver (dbox-II-project)
  *
@@ -368,21 +368,21 @@ int avia_gt_pcm_init(void)
 {
 	u8 buf_nr = 0;
 
-	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.26 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_pcm: $Id: avia_gt_pcm.c,v 1.27 2003/09/12 04:41:16 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
 	if (!avia_gt_supported_chipset(gt_info))
 		return -ENODEV;
 
-	if (avia_gt_alloc_irq(gt_info->irq_pcmad, avia_gt_pcm_irq)) {
-		printk("avia_gt_pcm: unable to get pcm-ad interrupt\n");
+	if (avia_gt_alloc_irq(gt_info->irq_ad, avia_gt_pcm_irq)) {
+		printk("avia_gt_pcm: unable to get ad interrupt\n");
 		return -EIO;
 	}
 
-	if (avia_gt_alloc_irq(gt_info->irq_pcmpf, avia_gt_pcm_irq)) {
-		printk("avia_gt_pcm: unable to get pcm-pf interrupt\n");
-		avia_gt_free_irq(gt_info->irq_pcmad);
+	if (avia_gt_alloc_irq(gt_info->irq_pf, avia_gt_pcm_irq)) {
+		printk("avia_gt_pcm: unable to get pf interrupt\n");
+		avia_gt_free_irq(gt_info->irq_ad);
 		return -EIO;
 	}
 
@@ -413,8 +413,8 @@ int avia_gt_pcm_init(void)
 
 void avia_gt_pcm_exit(void)
 {
-	avia_gt_free_irq(gt_info->irq_pcmad);
-	avia_gt_free_irq(gt_info->irq_pcmpf);
+	avia_gt_free_irq(gt_info->irq_ad);
+	avia_gt_free_irq(gt_info->irq_pf);
 	avia_gt_pcm_reset(0);
 }
 

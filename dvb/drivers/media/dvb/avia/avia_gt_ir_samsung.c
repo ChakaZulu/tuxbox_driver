@@ -702,7 +702,7 @@ static int __init samsung_ir_init(void)
 
 	avia_gt_reg_set(RSTR0, IR, 1);		// Reset
 
-	if (avia_gt_alloc_irq(gt_info->irq_irrx, samsung_ir_receive_irq)) {
+	if (avia_gt_alloc_irq(gt_info->irq_ir, samsung_ir_receive_irq)) {
 		printk(KERN_ERR "avia_gt_ir_samsung: Cannot allocate irq.\n");
 		input_unregister_device(&idev);
 		return -EIO;
@@ -728,7 +728,7 @@ static int __init samsung_ir_init(void)
 static void __exit samsung_ir_exit(void)
 {
 	avia_gt_reg_set(RSTR0, IR, 1);		// Reset
-	avia_gt_free_irq(gt_info->irq_irrx);
+	avia_gt_free_irq(gt_info->irq_ir);
 
 	if (timer_pending(&key_timeout)) {
 		del_timer(&key_timeout);

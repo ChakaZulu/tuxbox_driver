@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_ir.c,v 1.28 2003/08/01 17:31:22 obi Exp $
+ * $Id: avia_gt_ir.c,v 1.29 2003/09/12 04:41:16 obi Exp $
  * 
  * AViA eNX/GTX ir driver (dbox-II-project)
  *
@@ -260,7 +260,7 @@ void avia_gt_ir_set_queue(unsigned int addr)
 
 int avia_gt_ir_init(void)
 {
-	printk(KERN_INFO "avia_gt_ir: $Id: avia_gt_ir.c,v 1.28 2003/08/01 17:31:22 obi Exp $\n");
+	printk(KERN_INFO "avia_gt_ir: $Id: avia_gt_ir.c,v 1.29 2003/09/12 04:41:16 obi Exp $\n");
 
 	do_gettimeofday(&last_timestamp);
 	
@@ -269,14 +269,14 @@ int avia_gt_ir_init(void)
 	if (!avia_gt_supported_chipset(gt_info))
 		return -ENODEV;
 
-	if (avia_gt_alloc_irq(gt_info->irq_irrx, avia_gt_ir_rx_irq)) {
+	if (avia_gt_alloc_irq(gt_info->irq_ir, avia_gt_ir_rx_irq)) {
 		printk(KERN_ERR "avia_gt_ir: unable to get rx interrupt\n");
 		return -EIO;
 	}
 	
-	if (avia_gt_alloc_irq(gt_info->irq_irtx, avia_gt_ir_tx_irq)) {
+	if (avia_gt_alloc_irq(gt_info->irq_it, avia_gt_ir_tx_irq)) {
 		printk(KERN_ERR "avia_gt_ir: unable to get tx interrupt\n");
-		avia_gt_free_irq(gt_info->irq_irrx);
+		avia_gt_free_irq(gt_info->irq_ir);
 		return -EIO;
 	}
 
@@ -293,8 +293,8 @@ int avia_gt_ir_init(void)
 
 void avia_gt_ir_exit(void)
 {
-	avia_gt_free_irq(gt_info->irq_irtx);
-	avia_gt_free_irq(gt_info->irq_irrx);
+	avia_gt_free_irq(gt_info->irq_it);
+	avia_gt_free_irq(gt_info->irq_ir);
 	avia_gt_ir_reset(0);
 }
 

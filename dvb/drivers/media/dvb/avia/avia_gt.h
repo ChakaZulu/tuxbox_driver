@@ -46,13 +46,13 @@ typedef struct {
 	u32 reg_size;
 	/* interrupts */
 	int irq;
-	u16 irq_irrx;
-	u16 irq_irtx;
-	u16 irq_pcmad;
-	u16 irq_pcmpf;
 	u16 irq_pcr;
-	u16 irq_tt;
+	u16 irq_it;
+	u16 irq_ir;
+	u16 irq_pf;
+	u16 irq_ad;
 	u16 irq_vl1;
+	u16 irq_tt;
 	/* infrared clock */
 	u32 ir_clk;
 	/* audio queue read pointer address */
