@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.77 2003/10/07 16:27:45 obi Exp $
+ * $Id: avia_av_core.c,v 1.78 2003/10/08 18:59:32 obi Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -1365,16 +1365,9 @@ void avia_av_unregister_video_event_handler(void (*handler)(u16 w, u16 h, u16 ra
 
 void avia_av_get_video_size(u16 *width, u16 *height, u16 *ratio)
 {
-	if (!video_width)
-		video_width = avia_av_dram_read(H_SIZE) & 0xffff;
-	if (!video_height)
-		video_height = avia_av_dram_read(V_SIZE) & 0xffff;
-	if (!video_aspect_ratio)
-		video_aspect_ratio = avia_av_dram_read(ASPECT_RATIO) & 0xffff;
-
-	*width = video_width;
-	*height = video_height;
-	*ratio = video_aspect_ratio;
+	*width = avia_av_dram_read(H_SIZE) & 0xffff;
+	*height = avia_av_dram_read(V_SIZE) & 0xffff;
+	*ratio = avia_av_dram_read(ASPECT_RATIO) & 0xffff;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1383,7 +1376,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.77 2003/10/07 16:27:45 obi Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.78 2003/10/08 18:59:32 obi Exp $\n");
 
 	if (!(err = avia_av_init()))
 		avia_av_proc_init();
