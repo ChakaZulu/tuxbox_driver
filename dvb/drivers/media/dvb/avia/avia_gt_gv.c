@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.16  2002/05/08 03:47:49  obi
+ *   use slab.h instead of malloc.h
+ *
  *   Revision 1.15  2002/05/03 17:31:44  obi
  *   bugfix
  *
@@ -68,14 +71,14 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.15 $
+ *   $Revision: 1.16 $
  *
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
@@ -565,7 +568,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.15 2002/05/03 17:31:44 obi Exp $\n");
+	printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.16 2002/05/08 03:47:49 obi Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
