@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.26  2002/04/24 19:56:00  Jolt
+ *   GV driver updates
+ *
  *   Revision 1.25  2002/04/22 17:40:01  Jolt
  *   Major cleanup
  *
@@ -120,7 +123,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.25 $
+ *   $Revision: 1.26 $
  *
  */
 
@@ -149,9 +152,6 @@
 #include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/fb.h>
@@ -166,8 +166,6 @@
 #define RES_Y           576
 
 static sAviaGtInfo *gt_info;
-
-static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 
 static struct fb_var_screeninfo default_var = {
     /* 720x576, 16 bpp */               // TODO: NTSC
@@ -192,9 +190,10 @@ struct gtxfb_info
 
   struct fb_info_gen gen;
 
-  void *videobase;
+  unsigned char *videobase;
   int offset;
-  u32 videosize, pvideobase;
+  unsigned int videosize;
+  unsigned char *pvideobase;
   
 };
 
@@ -594,113 +593,38 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   current_par_valid=1;
 }
 
-
-static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue,
-                u_int *transp, struct fb_info *info)
+static int gtx_getcolreg(u_int regno, u_int *red, u_int *green, u_int *blue, u_int *transp, struct fb_info *info)
 {
-  u16 val;
-  if (regno>255)
-    return 1;
 
-    if (avia_gt_chip(GTX)) {
+    if (regno > 255)
+	return 1;
 
-  rh(CLTA)=regno;
-  mb();
-  // ARRR RRGG GGGB BBBB
-  // 8000 i
-  // 7c00 r
-  // 03e0 g
-  // 001F b
-  val=rh(CLTD);
-  if (val==TCR_COLOR)
-  {
-  	*red=*green=*blue=0;
-  	*transp=255;
-  } else
-  {
-	  *red=((val&0x7C00)>>10)<<19;
-	  *green=((val&0x3E0)>>5)<<19;
-	  *blue=(val&0x1F)       <<19;
-	  *transp=(val&0x8000)?BLEVEL:0;
-	}
-
-
-    } else if (avia_gt_chip(ENX)) {
-
-
-  enx_reg_16(CLUTA)=regno;
-  mb();
-  val=enx_reg_16(CLUTD);
-
-  if (transp)
-    *transp = ((val & 0xFF000000) >> 24);
-
-  if (red)
-    *red = ((val & 0x00FF0000) >> 16);
-    
-  if (green)    
-    *green = ((val & 0x0000FF00) >> 8);
-    
-  if (blue)
-    *blue = (val & 0x000000FF);
-
-    }
+    avia_gt_gv_get_clut(regno, transp, red, green, blue);
   
     return 0;
     
 }
 
-static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
-                u_int transp, struct fb_info *info)
+static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue, u_int transp, struct fb_info *info)
 {
-  if (regno>255)
-    return 0;
-  
 
-    if (avia_gt_chip(GTX)) {
+    if (regno > 255)
+	return 0;
 
-  red>>=11;
-  green>>=11;
-  blue>>=11;
-  transp>>=8;
-  
-  rh(CLTA)=regno;
-  mb();
-  if (transp>=0x80)		// full transparency
-  {
-  	rh(CLTD)=TCR_COLOR;
-  } else
-  {
-  	if (!transp)
-			transp=1;
-		else
-			transp=0;
-		rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
-	}
-  
+    avia_gt_gv_set_clut(regno, transp, red, green, blue);  
 
-    } else if (avia_gt_chip(ENX)) {
-
-  red>>=8;
-  green>>=8;
-  blue>>=8;
-  transp>>=8;
-  
-  enx_reg_16(CLUTA) = regno;
-  mb();
-  enx_reg_32(CLUTD) = ((transp << 24) | (blue << 16) | (green << 8) | (red));
-
-  red>>=3;
-  green>>=3;
-  blue>>=3;
-
-    }
+    red >>= 11;
+    green >>= 11;
+    blue >>= 11;
+    transp >>= 8;
   
 #ifdef FBCON_HAS_CFB16
-  if (regno<16)
-    fbcon_cfb16_cmap[regno]=((!!transp)<<15)|(red<<10)|(green<<5)|(blue);
+    if (regno < 16)
+	fbcon_cfb16_cmap[regno] = ((!!transp) << 15) | (red << 10) | (green << 5) | (blue);
 #endif
-  return 0;
+
+    return 0;
+  
 }
 
 static int gtx_blank(int blank, struct fb_info_gen *info)
@@ -757,7 +681,7 @@ struct fbgen_hwswitch gtx_switch = {
     gtx_set_disp,
 };
 
-static int fb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static int fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg, int con, struct fb_info *info)
 {
 
     if (avia_gt_chip(GTX)) {
@@ -892,11 +816,7 @@ static struct fb_ops avia_gt_fb_ops = {
 int __init avia_gt_fb_init(void)
 {
 
-    unsigned char *gv_mem_lin;
-    unsigned char *gv_mem_phys;
-    unsigned int gv_mem_size;
-
-    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.25 2002/04/22 17:40:01 Jolt Exp $\n");
+    printk("avia_gt_fb: $Id: avia_gt_fb_core.c,v 1.26 2002/04/24 19:56:00 Jolt Exp $\n");
     
     gt_info = avia_gt_get_info();
 	
@@ -908,12 +828,9 @@ int __init avia_gt_fb_init(void)
 			    
     }
 					    
-    avia_gt_gv_get_info(&gv_mem_phys, &gv_mem_lin, &gv_mem_size);
+    avia_gt_gv_get_info(&fb_info.pvideobase, &fb_info.videobase, &fb_info.videosize);
 		
     fb_info.offset = AVIA_GT_MEM_GV_OFFS;
-    fb_info.pvideobase = (int)gv_mem_phys;
-    fb_info.videobase = gv_mem_lin;
-    fb_info.videosize = gv_mem_size;
 
     fb_info.gen.info.node = -1;
     fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
@@ -941,10 +858,6 @@ int __init avia_gt_fb_init(void)
 
     printk(KERN_INFO "avia_gt_fb: fb%d: %s frame buffer device\n", GET_FB_IDX(fb_info.gen.info.node), fb_info.gen.info.modename);
 
-#ifdef MODULE
-    atomic_set(&THIS_MODULE->uc.usecount, 1);
-#endif
-
     avia_gt_gv_show();
 
     return 0;
@@ -954,7 +867,7 @@ int __init avia_gt_fb_init(void)
 void __exit avia_gt_fb_exit(void)
 {
 
-    unregister_framebuffer((struct fb_info *)&fb_info);
+    unregister_framebuffer(&fb_info.gen.info);
 
 }
 

@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_gv.c,v $
+ *   Revision 1.9  2002/04/24 19:56:00  Jolt
+ *   GV driver updates
+ *
  *   Revision 1.8  2002/04/24 08:01:00  obi
  *   more gtx support
  *
@@ -46,7 +49,7 @@
  *   graphic viewport driver added
  *
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -82,7 +85,7 @@ void avia_gt_gv_cursor_hide(void)
 	enx_reg_s(GMR1)->C = 0;
     else if (avia_gt_chip(GTX))
 	gtx_reg_s(GMR)->C = 0;
-    
+
 }
 
 void avia_gt_gv_cursor_show(void)
@@ -93,6 +96,75 @@ void avia_gt_gv_cursor_show(void)
     else if (avia_gt_chip(GTX))
 	gtx_reg_s(GMR)->C = 1;
     
+}
+
+void avia_gt_gv_get_clut(unsigned char clut_nr, unsigned int *transparency, unsigned int *red, unsigned int *green, unsigned int *blue)
+{
+
+    unsigned int val;															  
+
+    if (avia_gt_chip(ENX)) {
+
+	enx_reg_16(CLUTA) = clut_nr;
+	
+	mb();
+	
+	val = enx_reg_16(CLUTD);
+
+	if (transparency)
+	    *transparency = ((val & 0xFF000000) >> 24);
+												  
+	if (red)
+	    *red = ((val & 0x00FF0000) >> 16);
+													      
+	if (green)
+	    *green = ((val & 0x0000FF00) >> 8);
+														    
+	if (blue)
+	    *blue = (val & 0x000000FF);
+													
+    } else if (avia_gt_chip(GTX)) {
+
+	rh(CLTA) = clut_nr;
+
+	mb();
+
+#define TCR_COLOR 0xFC0F
+
+	val = rh(CLTD);
+	
+	if (val == TCR_COLOR) {
+	
+	    if (transparency)
+		*transparency = 255;
+	    
+	    if (red)
+		*red = 0;
+	
+	    if (green)
+	        *green = 0;
+
+	    if (blue)		
+		*blue = 0;
+		
+	} else {
+	
+	    //if (transparency)
+	//	*transparency = (val & 0x8000) ? BLEVEL : 0;
+
+	    if (red)
+		*red = ((val & 0x7C00) >> 10) << 19;
+		
+	    if (green)
+	        *green = ((val & 0x3E0) >> 5) << 19;
+
+	    if (blue)
+		*blue = (val & 0x1F) << 19;
+
+        }
+	
+    }
+
 }
 
 void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin, unsigned int *gv_mem_size)
@@ -118,7 +190,8 @@ void avia_gt_gv_get_info(unsigned char **gv_mem_phys, unsigned char **gv_mem_lin
 	
 }
 
-unsigned short avia_gt_gv_get_stride(void) {
+unsigned short avia_gt_gv_get_stride(void)
+{
 
     unsigned short stride;
 
@@ -131,7 +204,8 @@ unsigned short avia_gt_gv_get_stride(void) {
 
 }
 
-void avia_gt_gv_hide(void) {
+void avia_gt_gv_hide(void)
+{
 
     if (avia_gt_chip(ENX))
 	enx_reg_s(GMR1)->GMD = AVIA_GT_GV_INPUT_MODE_OFF;
@@ -140,7 +214,56 @@ void avia_gt_gv_hide(void) {
     
 }
 
-int avia_gt_gv_set_input_mode(unsigned char mode) {
+void avia_gt_gv_set_clut(unsigned char clut_nr, unsigned int transparency, unsigned int red, unsigned int green, unsigned int blue)
+{
+
+    if (avia_gt_chip(ENX)) {
+
+        transparency >>= 8;
+	red >>= 8;
+	green >>= 8;
+        blue >>= 8;
+	
+	enx_reg_16(CLUTA) = clut_nr;
+	
+	mb();
+	
+	enx_reg_32(CLUTD) = ((transparency << 24) | (blue << 16) | (green << 8) | (red));
+	          
+    } else if (avia_gt_chip(GTX)) {
+
+	transparency >>= 8;
+	red >>= 11;
+	green >>= 11;
+	blue >>= 11;
+	
+	rh(CLTA) = clut_nr;
+
+	mb();
+
+	if (transparency >= 0x80) {             // full transparency
+
+#define TCR_COLOR 0xFC0F
+
+	    rh(CLTD) = TCR_COLOR;
+	    
+	} else {
+	
+	    if (!transparency)
+		transparency = 1;
+	    else
+		transparency = 0;
+
+	    rh(CLTD) = (transparency << 15) | (red << 10) | (green << 5) | (blue);
+	    
+	}
+	
+    }
+
+}
+
+int avia_gt_gv_set_input_mode(unsigned char mode)
+{
 
     if (input_mode != AVIA_GT_GV_INPUT_MODE_OFF)
 	return -EBUSY;
@@ -338,9 +461,9 @@ void avia_gt_gv_set_stride(void) {
     }
 
     if (avia_gt_chip(ENX))
-	enx_reg_s(GMR1)->STRIDE = (((input_width * input_bpp) + 3) & ~3) >> 2;
+	enx_reg_s(GMR1)->STRIDE = ((input_width * input_bpp) + 3) >> 2;
     else if (avia_gt_chip(GTX))
-	gtx_reg_s(GMR)->STRIDE = (((input_width * input_bpp) + 1) & ~1) >> 1;
+	gtx_reg_s(GMR)->STRIDE = ((input_width * input_bpp) + 1) >> 1;
     
 }
 
@@ -403,7 +526,7 @@ int avia_gt_gv_show(void) {
 int avia_gt_gv_init(void)
 {
 
-    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.8 2002/04/24 08:01:00 obi Exp $\n");
+    printk("avia_gt_gv: $Id: avia_gt_gv.c,v 1.9 2002/04/24 19:56:00 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
@@ -417,11 +540,14 @@ int avia_gt_gv_init(void)
 			        
     if (avia_gt_chip(ENX)) {
     
+	enx_reg_s(RSTR0)->GFIX = 1;
 	enx_reg_s(RSTR0)->GFIX = 0;
 	
     } else if (avia_gt_chip(GTX)) {
 
+	gtx_reg_s(RR0)->GV = 1;
 	gtx_reg_s(RR0)->GV = 0;
+	
     }
     
     //avia_gt_gv_hide();
@@ -451,15 +577,16 @@ int avia_gt_gv_init(void)
 
 	gtx_reg_s(GMR)->CFT = 0;
 
-	gtx_reg_s(GMR)->BLEV1 = 0x0;
-	gtx_reg_s(GMR)->BLEV0 = 0x2;
+	gtx_reg_s(GMR)->BLEV1 = 0x00;
+	gtx_reg_s(GMR)->BLEV0 = 0x02;
 
-	gtx_reg_s(TCR)->R = 0x0;
-	gtx_reg_s(TCR)->G = 0x0;
-	gtx_reg_s(TCR)->B = 0x0;
+	gtx_reg_s(TCR)->R = 0x00;
+	gtx_reg_s(TCR)->G = 0x00;
+	gtx_reg_s(TCR)->B = 0x00;
 	gtx_reg_s(TCR)->E = 1;
 
 	gtx_reg_s(GVSA)->Addr = AVIA_GT_MEM_GV_OFFS >> 1;
+
     }
 
     return 0;
@@ -471,19 +598,17 @@ void __exit avia_gt_gv_exit(void)
 
 //    avia_gt_gv_hide();
     
-    if (avia_gt_chip(ENX)) {
-    
+    if (avia_gt_chip(ENX))
 	enx_reg_s(RSTR0)->GFIX = 1;
-	
-    } else if (avia_gt_chip(GTX)) {
-    
+    else if (avia_gt_chip(GTX))
 	gtx_reg_s(RR0)->GV = 1;
-    }
-    
+
 }
 
 #ifdef MODULE
+EXPORT_SYMBOL(avia_gt_gv_get_clut);
 EXPORT_SYMBOL(avia_gt_gv_get_info);
+EXPORT_SYMBOL(avia_gt_gv_set_clut);
 EXPORT_SYMBOL(avia_gt_gv_set_input_mode);
 EXPORT_SYMBOL(avia_gt_gv_show);
 #endif
