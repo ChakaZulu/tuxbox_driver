@@ -1,6 +1,6 @@
 /*
 
-    $Id: at76c651.c,v 1.21 2001/08/22 07:30:35 fnbrd Exp $
+    $Id: at76c651.c,v 1.22 2001/08/24 22:35:47 fnbrd Exp $
 
     AT76C651  - DVB demux driver (dbox-II-project)
 
@@ -23,6 +23,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: at76c651.c,v $
+    Revision 1.22  2001/08/24 22:35:47  fnbrd
+    Fixed bug with sync.
+
     Revision 1.21  2001/08/22 07:30:35  fnbrd
     Fixed one frequency
 
@@ -750,7 +753,7 @@ static void ves_get_frontend(struct frontend *front)
   front->sync=(lock&0xe0)>>5;
   if(lock&0x08) // AGC2
     front->sync|=0x08;
-  if((lock&0x06)==0x06)
+  if((front->sync&0x06)==0x06)
     front->sync|=0x10; // FEL = FSYNC & CARLOCK
   if(lock&0x10)
     front->sync|=0x20; // Timing recovery lock (TIM)
@@ -827,7 +830,7 @@ static void ves_interrupt(int irq, void *vdev, struct pt_regs * regs)
 int init_module(void) {
         int res;
 
-        dprintk("AT76C651: $Id: at76c651.c,v 1.21 2001/08/22 07:30:35 fnbrd Exp $\n");
+        dprintk("AT76C651: $Id: at76c651.c,v 1.22 2001/08/24 22:35:47 fnbrd Exp $\n");
         if ((res = i2c_add_driver(&dvbt_driver)))
         {
                 printk("AT76C651: Driver registration failed, module not inserted.\n");
