@@ -21,6 +21,9 @@
  *
  *
  *   $Log: lcd-font.c,v $
+ *   Revision 1.5  2002/08/12 17:16:27  obi
+ *   removed compiler warnings
+ *
  *   Revision 1.4  2001/12/01 06:53:17  gillem
  *   - malloc.h -> slab.h
  *
@@ -30,15 +33,17 @@
  *   Revision 1.2  2001/01/06 10:06:35  gillem
  *   cvs check
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
 #include <linux/slab.h>
 #include "lcd-font.h"
-#include "font_8x8.h"
 #include "font_acorn_8x8.h"
+/*
+#include "font_8x8.h"
 #include "font_pearl_8x8.h"
+*/
 
 unsigned char *lcd_font;
 

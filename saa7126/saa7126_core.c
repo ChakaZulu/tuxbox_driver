@@ -21,6 +21,9 @@
  *
  *
  *   $Log: saa7126_core.c,v $
+ *   Revision 1.25  2002/08/12 17:19:06  obi
+ *   removed compiler warnings
+ *
  *   Revision 1.24  2002/08/12 17:08:44  wjoost
  *   SAA_WSS_OFF hinzugefügt
  *
@@ -90,7 +93,7 @@
  *   Revision 1.2  2001/01/06 10:06:55  gillem
  *   cvs check
  *
- *   $Revision: 1.24 $
+ *   $Revision: 1.25 $
  *
  */
 
@@ -133,6 +136,7 @@ static devfs_handle_t devfs_handle;
 
 /* ------------------------------------------------------------------------- */
 
+#if 0
 static unsigned char PAL_SAA_NOKIA[] =
 {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -158,6 +162,7 @@ static unsigned char PAL_SAA_NOKIA[] =
 0x7D, 0xBC, 0x60, 0x41, 0x05, 0x00, 0x06, 0x16,
 0x06, 0x16, 0x16, 0x36, 0x60, 0x00, 0x00, 0x00
 };
+#endif
 
 static unsigned char PAL_SAA_NOKIA_CONFIG[] =
 {
@@ -323,9 +328,11 @@ struct saa7126type
 	u8 Type;
 };
 
+#if 0
 static struct saa7126type saa7126[] = {
 	{"SAA7126", 0, 0 }
 };
+#endif
 
 /* -------------------------------------------------------------------------
  * the functional interface to the i2c busses
