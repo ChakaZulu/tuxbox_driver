@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.8  2001/03/15 22:44:18  mhc
+ *   - bugfix
+ *
  *   Revision 1.7  2001/03/12 22:32:23  gillem
  *   - test only ... cam init not work
  *
@@ -37,7 +40,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.7 $
+ *   $Revision: 1.8 $
  *
  */
 
@@ -101,7 +104,7 @@ static char *firmware=0;
 #define CAM_DATA_BASE        0xC020000
 #define CAM_DATA_SIZE        0x10000
 
-#define CAM_QUEUE_SIZE       0x1000
+#define CAM_QUEUE_SIZE       0x1000    // könnte eigentlich kleiner sein oder ?
 
 /* ---------------------------------------------------------------------- */
 
@@ -400,10 +403,10 @@ static void cam_task(void *data)
     }
   }
   
-  printk("CAM says:");
+  dprintk("CAM says:");
   for (i=0; i<len+3; i++)
-    printk(" %02x", buffer[i]);
-  printk("\n");
+    dprintk(" %02x", buffer[i]);
+  dprintk("\n");
   
   len+=3;
   
@@ -414,7 +417,7 @@ static void cam_task(void *data)
   i=CAM_QUEUE_SIZE-i;
   
   if (i<len)
-    printk("CAM buffer overflow (need %d, have %d)\n", len, i);
+    cam_queuewptr=cam_queuerptr;
   else
   {
     i=0;
@@ -464,8 +467,8 @@ int cam_write_message( char * buf, size_t count )
 
 	res = i2c_master_send(dclient, buf, count);
 
+	cam_queuewptr=cam_queuerptr;  // mich störte der Buffer ....
 	up(&cam_busy);
-
 	return res;
 }
 
@@ -491,7 +494,7 @@ int cam_read_message( char * buf, size_t count )
 			return -EFAULT;
 		}
 
-		if (copy_to_user(buf, cam_queue, cb-(CAM_QUEUE_SIZE-cam_queuerptr)))
+		if (copy_to_user(buf+(CAM_QUEUE_SIZE-cam_queuerptr), cam_queue, cb-(CAM_QUEUE_SIZE-cam_queuerptr)))
 		{
 			printk("cam.o fault 2\n");
 			return -EFAULT;
