@@ -1,5 +1,5 @@
 /* 
-   $Id: ves1893.c,v 1.27 2002/07/22 12:37:27 obi Exp $
+   $Id: ves1893.c,v 1.28 2002/09/05 22:06:07 obi Exp $
 
     VES1893A - Single Chip Satellite Channel Receiver driver module
                used on the the Siemens DVB-S cards
@@ -22,6 +22,12 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     $Log: ves1893.c,v $
+    Revision 1.28  2002/09/05 22:06:07  obi
+    - FE_READ_SIGNAL_STRENGTH, FE_READ_SNR: return values in range 0 to 0xFFFF
+    - return some EINVALs
+    - shortened and renamed readreg() and writereg()
+    - FE_READ_UNCORRECTED_BLOCKS; sync with linuxtv newstruct
+
     Revision 1.27  2002/07/22 12:37:27  obi
     increased ddelay for diseqc - untested, reported by coronas@gmx.net
 
@@ -160,34 +166,35 @@ struct ves1893 {
 	dvb_front_t frontend;
 };
 
-static int writereg(struct i2c_client *client, int reg, int data)
+static
+int ves1893_writereg (struct i2c_client *i2c, u8 reg, u8 data)
 {
-	int ret;
-	unsigned char msg[] = {0x00, 0x1f, 0x00};
+	u8 buf [] = { 0x00, reg, data };
+	int err;
 	
-	msg[1]=reg; msg[2]=data;
-	ret=i2c_master_send(client, msg, 3);
-	if (ret!=3) 
-		printk("writereg error\n");
-	return ret;
+	if ((err = i2c_master_send(i2c, buf, 3)) != 3) {
+		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __FUNCTION__, err, reg, data);
+		return -EREMOTEIO;
+	}
+
+	return 0;
 }
 
-static u8 readreg(struct i2c_client *client, u8 reg)
+static
+u8 ves1893_readreg(struct i2c_client *i2c, u8 reg)
 {
-	struct i2c_adapter *adap=client->adapter;
-	unsigned char mm1[] = {0x00, 0x1e};
-	unsigned char mm2[] = {0x00};
-	struct i2c_msg msgs[2];
+	int ret;
+	u8 b0 [] = { 0x00, reg };
+	u8 b1 [] = { 0 };
+	struct i2c_msg msg [] = { { addr: i2c->addr, flags: 0, buf: b0, len: 2 },
+			   { addr: i2c->addr, flags: I2C_M_RD, buf: b1, len: 1 } };
 	
-	msgs[0].flags=0;
-	msgs[1].flags=I2C_M_RD;
-	msgs[0].addr=msgs[1].addr=client->addr;
-	mm1[1]=reg;
-	msgs[0].len=2; msgs[1].len=1;
-	msgs[0].buf=mm1; msgs[1].buf=mm2;
-	i2c_transfer(adap, msgs, 2);
+	ret = i2c_transfer ((struct i2c_adapter *)i2c->adapter, msg, 2);
+
+	if (ret != 2)
+		dprintk("%s: ves1893_readreg error (ret == %i)\n", __FUNCTION__, ret);
 	
-	return mm2[0];
+	return b1[0];
 }
 
 static int init(struct i2c_client *client)
@@ -197,11 +204,11 @@ static int init(struct i2c_client *client)
 	
 	dprintk("VES1893: init chip\n");
 
-	if (writereg(client, 0, 0)<0)
+	if (ves1893_writereg(client, 0, 0)<0)
 		printk("VES1893: send error\n");
 	for (i=0; i<54; i++)
 		if (Init1893WTab[i])
-			writereg(client, i, Init1893Tab[i]);
+			ves1893_writereg(client, i, Init1893Tab[i]);
 	ves->ctr=Init1893Tab[0x1f];
 	ves->srate=0;
 	ves->fec=9;
@@ -220,10 +227,10 @@ static void ClrBit1893(struct i2c_client *client)
 {
 	dprintk("clrbit1893\n");
 	ddelay(5);
-	writereg(client, 0, Init1893Tab[0] & 0xfe);
-	writereg(client, 0, Init1893Tab[0]);
-	writereg(client, 3, 0);
-	writereg(client, 3, Init1893Tab[3]);
+	ves1893_writereg(client, 0, Init1893Tab[0] & 0xfe);
+	ves1893_writereg(client, 0, Init1893Tab[0]);
+	ves1893_writereg(client, 3, 0);
+	ves1893_writereg(client, 3, Init1893Tab[3]);
 }
 
 static int SetInversion(struct i2c_client *client, int inversion)
@@ -233,7 +240,9 @@ static int SetInversion(struct i2c_client *client, int inversion)
 
 	if (inversion == ves->inv) 
 		return 0;
+	
 	ves->inv=inversion;
+
 	switch (inversion) {
 	case INVERSION_OFF:
 		val=0xc0;
@@ -241,14 +250,14 @@ static int SetInversion(struct i2c_client *client, int inversion)
 	case INVERSION_ON:
 		val=0x80;
 		break;
-	default:
 	case INVERSION_AUTO:
 		val=0x40;
 		break;
+	default:
+		return -EINVAL;
 	}
-	writereg(client, 0x0c, 
-		 (Init1893Tab[0x0c]&0x3f)|val);
-	return 0;
+	
+	return ves1893_writereg(client, 0x0c, (Init1893Tab[0x0c]&0x3f)|val);
 }
 
 
@@ -261,7 +270,7 @@ static int SetFEC(struct i2c_client *client, u8 fec)
 	if (ves->fec==fec)
 		return 0;
 	ves->fec=fec;
-	return writereg(client, 0x0d, ves->fec);
+	return ves1893_writereg(client, 0x0d, ves->fec);
 }
 
 static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
@@ -336,21 +345,21 @@ static int SetSymbolrate(struct i2c_client *client, u32 srate, int doclr)
 	if (BDRI > 0xFF)
 		BDRI = 0xFF;
 
-	writereg(client, 6, 0xff&BDR);
-	writereg(client, 7, 0xff&(BDR>>8));
-	writereg(client, 8, 0x0f&(BDR>>16));
+	ves1893_writereg(client, 6, 0xff&BDR);
+	ves1893_writereg(client, 7, 0xff&(BDR>>8));
+	ves1893_writereg(client, 8, 0x0f&(BDR>>16));
 
-	writereg(client, 9, BDRI);
-	writereg(client, 0x20, ADCONF);
-	writereg(client, 0x21, FCONF);
+	ves1893_writereg(client, 9, BDRI);
+	ves1893_writereg(client, 0x20, ADCONF);
+	ves1893_writereg(client, 0x21, FCONF);
 
 	if (srate<6000000) 
-		writereg(client, 5, Init1893Tab[0x05] | 0x80);
+		ves1893_writereg(client, 5, Init1893Tab[0x05] | 0x80);
 	else
-		writereg(client, 5, Init1893Tab[0x05] & 0x7f);
+		ves1893_writereg(client, 5, Init1893Tab[0x05] & 0x7f);
 
-	writereg(client, 0, 0);
-	writereg(client, 0, 1);
+	ves1893_writereg(client, 0, 0);
+	ves1893_writereg(client, 0, 1);
 
 	if (doclr)
 	  ClrBit1893(client);
@@ -372,7 +381,7 @@ static int attach_adapter(struct i2c_adapter *adap)
 	
 	client_template.adapter=adap;
 	
-	if ((readreg(&client_template, 0x1e)&0xf0)!=0xd0)
+	if ((ves1893_readreg(&client_template, 0x1e)&0xf0)!=0xd0)
 		return -1;
 	
 	if (NULL == (client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL)))
@@ -430,7 +439,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		*status=0;
 
-		sync=readreg(client,0x0e);
+		sync=ves1893_readreg(client,0x0e);
 		if (sync&1)
 			*status|=FE_HAS_SIGNAL;
 		if (sync&2)
@@ -442,7 +451,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if ((sync&0x1f)==0x1f)
 			*status|=FE_HAS_LOCK;
 
-		sync=readreg(client,0x0f);
+		sync=ves1893_readreg(client,0x0f);
 		if (sync&2)
 			*status|=FE_SPECTRUM_INV;
 		break;
@@ -451,40 +460,40 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		u32 *ber=(u32 *) arg;
 
-		*ber = readreg(client,0x15);
-		*ber|=(readreg(client,0x16)<<8);
-		*ber|=(readreg(client,0x17)<<16);
+		*ber = ves1893_readreg(client,0x15);
+		*ber|=(ves1893_readreg(client,0x16)<<8);
+		*ber|=(ves1893_readreg(client,0x17)<<16);
 		*ber*=10;
 		break;
 	}
 	case FE_READ_SIGNAL_STRENGTH:
 	{
-		s32 *signal=(s32 *) arg;
-
-		*signal=0xff-readreg(client,0x0b);
+		u8 signal = ~ves1893_readreg(client,0x0b);
+		*(s32*)arg = (signal << 8) | signal;
 		break;
 	}
 	case FE_READ_SNR:
 	{
-		s32 *snr=(s32 *) arg;
-
-		*snr=(readreg(client,0x1c)<<8);
-		*snr=20000000+(10-(*snr>>8))*20000000/160;
+		u8 snr = ~ves1893_readreg(client,0x1c);
+		*(s32*) arg = (snr << 8) | snr;
 		break;
 	}
 	case FE_READ_UNCORRECTED_BLOCKS: 
 	{
-		u32 *ublocks=(u32 *) arg;
-		*ublocks = readreg(client,0x18) & 0x7f;
-		writereg(client, 0x18, 0x00); // toggle bit 7 to clear count
-		writereg(client, 0x18, 0x80);
+		*(u32*) arg = ves1893_readreg(client,0x18) & 0x7f;
+
+		if (*(u32*) arg == 0x7f)
+			*(u32*) arg = 0xffffffff;   /* counter overflow... */
+
+		ves1893_writereg(client,0x18,0x00);  /* reset the counter */
+		ves1893_writereg(client,0x18,0x80);  /* dto. */
 		break;
 	}
 	case FE_READ_AFC:
 	{
 		s32 *afc=(s32 *) arg;
 		
-		*afc=((int)((char)(readreg(client,0x0a)<<1)))/2;
+		*afc=((int)((char)(ves1893_readreg(client,0x0a)<<1)))/2;
 		*afc=(*afc*(int)(ves->srate/8))/16;
 		break;
 	}
@@ -505,14 +514,13 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case FE_WRITEREG:
 	{
 		u8 *msg = (u8 *) arg;
-		writereg(client, msg[0], msg[1]);
+		ves1893_writereg(client, msg[0], msg[1]);
 		break;
 	}
 	case FE_READREG:
 	{
 		u8 *msg = (u8 *) arg;
-		msg[1]=readreg(client, msg[0]);
-
+		msg[1]=ves1893_readreg(client, msg[0]);
 		break;
 	}
 	case FE_INIT:
@@ -564,7 +572,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			ves->power=4;
 			break;
 		default:
-			printk("invalid voltage\n");
+			return -EINVAL;
 		}
 		return fp_set_sec(ves->power, ves->tone);
 	}
@@ -582,7 +590,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return fp_send_diseqc (1, "\xff", 1);
 
 		default:
-			break;
+			return -EINVAL;
 		}
 		break;
 	}
@@ -668,7 +676,7 @@ static int dvb_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 	default:
-		return -1;
+		return -EOPNOTSUPP;
 	}
 	
 	return 0;
