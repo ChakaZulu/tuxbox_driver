@@ -21,6 +21,12 @@
  *
  *
  *   $Log: fp.c,v $
+ *   Revision 1.63  2002/03/02 17:10:16  waldi
+ *   merge new_tuning_api
+ *
+ *   Revision 1.54.2.1  2002/03/02 17:03:43  tmbinc
+ *   modified reset delay
+ *
  *   Revision 1.62  2002/02/24 19:11:22  obi
  *   revert to current fp.c - is not related to tuning api
  *
@@ -197,7 +203,7 @@
  *   - some changes ...
  *
  *
- *   $Revision: 1.62 $
+ *   $Revision: 1.63 $
  *
  */
 
@@ -1194,7 +1200,7 @@ int fp_do_reset(int type)
 	}
 
 	/* TODO: make better */
-	udelay(100*1000);
+	udelay(1000);
 
 	msg[1]=0xBF;
 
