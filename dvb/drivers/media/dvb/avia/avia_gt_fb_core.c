@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_fb_core.c,v $
+ *   Revision 1.2  2001/04/22 13:56:35  tmbinc
+ *   other philips- (and maybe sagem?) fixes
+ *
  *   Revision 1.1  2001/04/20 01:21:33  Jolt
  *   Final Merge :-)
  *
@@ -39,7 +42,7 @@
  *   Revision 1.7  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.1 $
+ *   $Revision: 1.2 $
  *
  */
 
@@ -416,7 +419,7 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   enx_reg_w(VBR)=0;
 	
   enx_reg_h(VCR)=0x040|(1<<13);
-  enx_reg_h(BALP)=0x7F7F;
+  enx_reg_h(BALP)=0;
   enx_reg_h(VHT)=(par->pal?857:851)|0x5000;
   enx_reg_h(VLT)=par->pal?(623|(21<<11)):(523|(18<<11));
   enx_reg_h(VAS)=par->pal?63:58;
@@ -431,10 +434,8 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	if (!par->interlaced)
 		val|=1<<29;
 
-	val|=1<<28;
-
   val|=1<<26;                           // chroma filter. evtl. average oder decimate, bei text
-  		// TCR noch setzen!
+
   switch (par->bpp)
   {
 	case 4:
@@ -448,6 +449,9 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
   }
 	
   val|=par->stride;
+  
+  enx_reg_w(TCR1)=0x1FF007F;
+  enx_reg_w(TCR2)=0x1FF007F;
 
 	enx_reg_h(P1VPSA)=0;
 	enx_reg_h(P2VPSA)=0;
@@ -456,26 +460,16 @@ static void gtx_set_par(const void *fb_par, struct fb_info_gen *info)
 	enx_reg_h(VMCR)=0;
 	enx_reg_h(G1CFR)=1;
 	enx_reg_h(G2CFR)=1;
-		
+
 	enx_reg_w(GMR1)=val;
 	enx_reg_w(GMR2)=0;
-	printk("GMR1: %08x\n", val);
-  enx_reg_h(GBLEV1)=0x0000;
+  enx_reg_h(GBLEV1)=0x0020;
   enx_reg_h(GBLEV2)=0;
 //JOLT  enx_reg_h(CCR)=0x7FFF;                  // white cursor
-	enx_reg_w(GVSA1)= fb_info.offset; 	// dram start address
+	enx_reg_w(GVSA1)=fb_info.offset; 	// dram start address
 	enx_reg_h(GVP1)=0;
 
-  ENX_GVP_SET_COORD(70,43);                 // TODO: NTSC?
-  for (val=0; val<576; val++)
-  {
-  	int x;
-	  for (x=0; x<720; x++)
-	  {
-	  	((__u16*)gtxmem)[val*720+x]=0x7FFF;
-	  }
-  }
-
+  ENX_GVP_SET_COORD(90,43);                 // TODO: NTSC?
                                         // DEBUG: TODO: das ist nen kleiner hack hier.
 /*  if (lowres)
     ENX_GVS_SET_XSZ(xres);
@@ -553,10 +547,10 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
   red>>=11;
   green>>=11;
   blue>>=11;
-  transp=!!transp;
 
 #ifdef GTX
   
+  transp=!!transp;
   rh(CLTA)=regno;
   mb();
   rh(CLTD)=(transp<<15)|(red<<10)|(green<<5)|(blue);
@@ -564,16 +558,14 @@ static int gtx_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 #endif // GTX
 
 #ifdef ENX
-
   enx_reg_h(CLUTA) = regno;
   mb();
   enx_reg_w(CLUTD) = ((transp << 24) | (red << 16) | (green << 8) | (blue));
-
 #endif // ENX
   
 #ifdef FBCON_HAS_CFB16
   if (regno<16)
-    fbcon_cfb16_cmap[regno]=(transp<<15)|(red<<10)|(green<<5)|(blue);
+    fbcon_cfb16_cmap[regno]=((!!transp)<<15)|(red<<10)|(green<<5)|(blue);
 #endif
   return 0;
 }

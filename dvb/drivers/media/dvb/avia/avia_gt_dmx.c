@@ -20,8 +20,11 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.40 $
+ *   $Revision: 1.41 $
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.41  2001/04/22 13:56:35  tmbinc
+ *   other philips- (and maybe sagem?) fixes
+ *
  *   Revision 1.40  2001/04/21 13:08:57  tmbinc
  *   eNX now works on philips.
  *
@@ -383,7 +386,7 @@ u32 gtx_get_queue_wptr(int queue)
   return wp; 
 }
 
-#define Q_VIDEO         2               // to check AGAIN and AGAIN...  aber eigentlich sollte das stimmen (versuche zeigen: zumindest Q_VIDEO ist korrekt)
+#define Q_VIDEO         2
 #define Q_AUDIO         0
 #define Q_TELETEXT      1
 
@@ -410,8 +413,8 @@ void gtx_set_queue_rptr(int queue, u32 read)
 {
 #ifdef enx_dmx
   int base=queue*8+0x8E0;
-//3des  enx_reg_h(base)=read&0xFFFF;    //3des: dont work on eNX
-//3des  enx_reg_h(base+2)=((read>>16)&63)|(rhn(base+2)&(1<<15));
+	enx_reg_h(base)=read&0xFFFF;
+	enx_reg_h(base+2)=(read>>16)&63;
 #else
   int base=queue*8+0x1E0;
   rhn(base)=read&0xFFFF;
@@ -693,7 +696,7 @@ int gtx_dmx_init(void)
   enx_reg_w(RSTR0) &= ~(1 << 31);
   enx_reg_w(RSTR0) &= ~(1 << 28);
   enx_reg_w(RSTR0) &= ~(1 << 0);
-    
+  
   enx_reg_w(CFGR0) &= ~(1 << 3);
   enx_reg_w(CFGR0) &= ~(1 << 1);
   enx_reg_w(CFGR0) &= ~(1 << 0);
@@ -704,13 +707,15 @@ int gtx_dmx_init(void)
   
   enx_reg_w(CFGR0) |= 1 << 24;		// enable dac output
   
-  enx_reg_h(AVI_0) = 0x6CF;
-  enx_reg_h(AVI_1) = 0xA;
-  
+	enx_reg_h(AVI_0) = 0xF;					// 0x6CF geht nicht (ordentlich)
+	enx_reg_h(AVI_1) = 0xA;
+
   enx_reg_h(PCMC) = 0xF4C0;
 	enx_reg_w(CFGR0) &= ~3; 				// disable clip mode
 	
   printk("ENX-INITed -> %x\n", enx_reg_h(FIFO_PDCT));
+  if (!enx_reg_h(FIFO_PDCT))
+  	printk("there MIGHT be no TS :(\n");
 #else
 //  rh(RR1)&=~0x1C;               // take framer, ci, avi module out of reset
   rh(RR1)|=1<<6;
@@ -1195,19 +1200,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 			gtxfeed->int_nr=5;
 			gtxfeed->int_bit=gtxfeed->index+6;
 		}
-		printk("Using irq %d:%d for queue %d\n", gtxfeed->int_nr, gtxfeed->int_bit, gtxfeed->index);
-		
-		enx_reg_w(IPR4)=0x55555555;
-		enx_reg_w(IPR5)=0x55555555;
-		
 		enx_allocate_irq(gtxfeed->int_nr, gtxfeed->int_bit, gtx_queue_interrupt);
-		printk("ISR4 %x\n", enx_reg_h(0x108));
-		printk("IMR4 %x\n", enx_reg_h(0x118));
-		udelay(100*1000);
-		printk("ISR4 %x\n", enx_reg_h(0x108));
-		printk("IMR4 %x\n", enx_reg_h(0x118));
-		
-		printk("-> %x %x\n", enx_reg_h(0x880+gtxfeed->index*4), enx_reg_h(0x882+gtxfeed->index*4));
   }
 #else  
     gtx_allocate_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15, gtx_queue_interrupt);
@@ -1235,7 +1228,6 @@ static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 	if (gtxfeed->output&TS_PACKET)
 	{
 #ifdef enx_dmx
-		printk("clearing int %d:%d\n", gtxfeed->int_nr, gtxfeed->int_bit);
 	  enx_free_irq(gtxfeed->int_nr, gtxfeed->int_bit);
 #else
 	  gtx_free_irq(2+!!(gtxfeed->index&16), gtxfeed->index&15);
