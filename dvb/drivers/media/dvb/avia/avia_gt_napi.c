@@ -1,5 +1,5 @@
 /*
- * $Id: avia_gt_napi.c,v 1.202 2004/06/24 00:26:58 carjay Exp $
+ * $Id: avia_gt_napi.c,v 1.203 2005/01/05 05:49:56 carjay Exp $
  * 
  * AViA GTX/eNX demux dvb api driver (dbox-II-project)
  *
@@ -72,6 +72,17 @@ static u16 ts_pid[AVIA_GT_DMX_QUEUE_COUNT];	/* for pes when ts is already active
 static u8 *section;
 static spinlock_t section_lock = SPIN_LOCK_UNLOCKED;
 
+/* 0=DualPES, 1=SPTS */
+static int avia_gt_get_playback_mode(void)
+{
+	return mode;
+}
+
+static void avia_gt_set_playback_mode(int new_mode)
+{
+	mode = !!new_mode;
+}
+
 static u32 avia_gt_napi_crc32(struct dvb_demux_feed *dvbdmxfeed, const u8 *src, size_t len)
 {
 	if ((dvbdmxfeed->type == DMX_TYPE_SEC) && (dvbdmxfeed->feed.sec.check_crc))
@@ -138,8 +149,6 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 	u32 flags;
 	int need_crc = 0;
 
-//DEBUG
-//printk("cs 0x%04x ",dvbdmxfeed->pid);
 	spin_lock_irqsave(&section_lock, flags);
 
 	for (dvbdmxfilter = dvbdmxfeed->filter; dvbdmxfilter; dvbdmxfilter = dvbdmxfilter->next) {
@@ -230,14 +239,8 @@ static void avia_gt_napi_queue_callback_section(struct avia_gt_dmx_queue *queue,
 
 			if ((dvbdmxfilter->maskandmode[i] & xor) ||
 				(dvbdmxfilter->doneq && !neq)){
-					// DEBUG
-//					printk ("0x%04x did not match\n",dvbdmxfeed->pid);
-//					int cnt;
-//					for (cnt=0;cnt<i;cnt++){
-//						printk ("0x%02x/0x%02x/0x%02x 0x%02x\n",dvbdmxfilter->filter.filter_value[cnt],dvbdmxfilter->maskandmode[cnt],dvbdmxfilter->maskandnotmode[cnt],section[cnt]);
-//					}
 					continue;
-					}
+			}
 
 			/*
 			 * Call section callback
@@ -823,7 +826,7 @@ static int __init avia_gt_napi_init(void)
 {
 	int result;
 
-	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.202 2004/06/24 00:26:58 carjay Exp $\n");
+	printk(KERN_INFO "avia_gt_napi: $Id: avia_gt_napi.c,v 1.203 2005/01/05 05:49:56 carjay Exp $\n");
 
 	gt_info = avia_gt_get_info();
 
@@ -962,6 +965,8 @@ module_init(avia_gt_napi_init);
 module_exit(avia_gt_napi_exit);
 
 EXPORT_SYMBOL(avia_gt_napi_dvr_send);
+EXPORT_SYMBOL(avia_gt_get_playback_mode);
+EXPORT_SYMBOL(avia_gt_set_playback_mode);
 
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("AViA eNX/GTX demux driver");
