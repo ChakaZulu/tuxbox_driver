@@ -125,6 +125,10 @@
 
 
 #define GTX_REG_GMR	0x000
+#define GTX_REG_TCR	0x008
+#define GTX_REG_GVSA	0x00C
+#define GTX_REG_GVP	0x010
+#define GTX_REG_GVS	0x014
 #define GTX_REG_ISR0	0x080
 #define GTX_REG_ISR1	0x082
 #define GTX_REG_ISR2	0x084
@@ -189,6 +193,43 @@ typedef struct {
     unsigned char Reserved2: 1;
 
 } sGTX_REG_GMR;
+
+typedef struct {
+
+    unsigned char E: 1;
+    unsigned char R: 5;
+    unsigned char G: 5;
+    unsigned char B: 5;
+
+} sGTX_REG_TCR;
+
+typedef struct {
+
+    unsigned short Reserved1: 10;
+    unsigned int Addr: 21;
+    unsigned char Reserved2: 1;
+
+} sGTX_REG_GVSA;
+
+typedef struct {
+
+    unsigned char SPP: 5;
+    unsigned char Reserved1: 1;
+    unsigned short XPOS: 10;
+    unsigned char Reserved2: 6;
+    unsigned short YPOS: 10;
+
+} sGTX_REG_GVP;
+
+typedef struct {
+
+    unsigned char IPS: 5;
+    unsigned char Reserved1: 1;
+    unsigned short XSZ: 10;
+    unsigned char Reserved2: 6;
+    unsigned short YSZ: 10;
+
+} sGTX_REG_GVS;
 
 typedef struct {
 
