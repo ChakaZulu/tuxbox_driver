@@ -3,7 +3,8 @@
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2001 Ronny Strutz <3des@tuxbox.org>
-    Copyright (C) 2002 Andreas Oberritter <obi@tuxbox.org>
+    Copyright (C) 2002 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2002-2003 Andreas Oberritter <obi@tuxbox.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,13 +31,14 @@
 static int debug = 0;
 #define dprintk	if (debug) printk
 
-
 static int board_type = 0;
-#define SIEMENS_PCI_1893	0x01
-#define NOKIA_DBOX2_1893	0x02
-#define NOKIA_DBOX2_1993	0x03
-#define SAGEM_DBOX2_1993	0x04
+#define BOARD_SIEMENS_PCI	0
+#define BOARD_NOKIA_DBOX2	1
+#define BOARD_SAGEM_DBOX2	2
 
+static int demod_type = 0;
+#define DEMOD_VES1893		0
+#define DEMOD_VES1993		1
 
 static
 struct dvb_frontend_info ves1x93_info = {
@@ -60,7 +62,7 @@ struct dvb_frontend_info ves1x93_info = {
 
 
 static
-u8 init_1893_tab_siemens_pci [] = {
+u8 init_1893_tab_siemens_pci [54] = {
 	0x01, 0xa4, 0x35, 0x81, 0x2a, 0x0d, 0x55, 0xc4,
 	0x09, 0x69, 0x00, 0x86, 0x4c, 0x28, 0x7f, 0x00,
 	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -72,7 +74,7 @@ u8 init_1893_tab_siemens_pci [] = {
 
 
 static
-u8 init_1893_tab_nokia_dbox2 [] = {
+u8 init_1893_tab_nokia_dbox2 [54] = {
         0x01, 0x9c, 0x00, 0x80, 0x6a, 0x2c, 0x9b, 0xab,
         0x09, 0x6a, 0x00, 0x86, 0x4c, 0x08, 0x7f, 0x00,
         0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -84,7 +86,7 @@ u8 init_1893_tab_nokia_dbox2 [] = {
 
 
 static
-u8 init_1993_tab_nokia_dbox2 [] = {
+u8 init_1993_tab_nokia_dbox2 [61] = {
 	0x00, 0x94, 0x00, 0x80, 0x6a, 0x0b, 0xab, 0x2a,
 	0x09, 0x70, 0x00, 0x00, 0x4c, 0x02, 0x00, 0x00,
 	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -97,7 +99,7 @@ u8 init_1993_tab_nokia_dbox2 [] = {
 
 
 static
-u8 init_1993_tab_sagem_dbox2 [] = {
+u8 init_1993_tab_sagem_dbox2 [61] = {
 	0x00, 0x9c, 0x35, 0x80, 0x6a, 0x29, 0x72, 0x8c,
 	0x09, 0x6b, 0x00, 0x00, 0x4c, 0x08, 0x00, 0x00,
 	0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -193,12 +195,7 @@ static
 int sp5659_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 {
         u32 div = (freq + 479500) / 125;
-        u8 buf [4];
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = div & 0xff;
-	buf[2] = 0x95;
-	buf[3] = (pwr << 5) | 0x30;
+	u8 buf [4] = { (div >> 8) & 0x7f, div & 0xff, 0x95, (pwr << 5) | 0x30 };
 
 	return tuner_write (i2c, buf, sizeof(buf));
 }
@@ -224,15 +221,12 @@ int tsa5059_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq)
 static
 int tuner_set_tv_freq (struct dvb_i2c_bus *i2c, u32 freq, u8 pwr)
 {
-	switch (board_type) {
-	case SIEMENS_PCI_1893:
+	if ((demod_type == DEMOD_VES1893) && (board_type == BOARD_SIEMENS_PCI))
 		return sp5659_set_tv_freq (i2c, freq, pwr);
-	case NOKIA_DBOX2_1993:
-	case SAGEM_DBOX2_1993:
+	else if (demod_type == DEMOD_VES1993)
 		return tsa5059_set_tv_freq (i2c, freq);
-	default:
-		return -EINVAL;
-	}
+
+	return -EINVAL;
 }
 
 
@@ -245,46 +239,44 @@ int ves1x93_init (struct dvb_i2c_bus *i2c)
         
 	dprintk("%s: init chip\n", __FUNCTION__);
 
-	switch (board_type) {
-	case SIEMENS_PCI_1893:
-		init_1x93_tab = init_1893_tab_siemens_pci;
+	switch (demod_type) {
+	case DEMOD_VES1893:
 		init_1x93_wtab = init_1893_wtab;
-		size = sizeof(init_1893_tab_siemens_pci);
+		size = 54;
+		if (board_type == BOARD_SIEMENS_PCI)
+			init_1x93_tab = init_1893_tab_siemens_pci;
+		else if (board_type == BOARD_NOKIA_DBOX2)
+			init_1x93_tab = init_1893_tab_nokia_dbox2;
+		else
+			return -EINVAL;
 		break;
-	case NOKIA_DBOX2_1893:
-		init_1x93_tab = init_1893_tab_nokia_dbox2;
-		init_1x93_wtab = init_1893_wtab;
-		size = sizeof(init_1893_tab_nokia_dbox2);
-		break;
-	case NOKIA_DBOX2_1993:
-		init_1x93_tab = init_1993_tab_nokia_dbox2;
+
+	case DEMOD_VES1993:
 		init_1x93_wtab = init_1993_wtab;
-		size = sizeof(init_1993_tab_nokia_dbox2);
+		size = 61;
+		if (board_type == BOARD_NOKIA_DBOX2)
+			init_1x93_tab = init_1993_tab_nokia_dbox2;
+		else if (board_type == BOARD_SAGEM_DBOX2)
+			init_1x93_tab = init_1993_tab_sagem_dbox2;
+		else
+			return -EINVAL;
 		break;
-	case SAGEM_DBOX2_1993:
-		init_1x93_tab = init_1993_tab_sagem_dbox2;
-		init_1x93_wtab = init_1993_wtab;
-		size = sizeof(init_1993_tab_sagem_dbox2);
-		break;
+
 	default:
 		return -EINVAL;
 	}
-	
-	for (i=0; i<size; i++)
+
+	for (i = 0; i < size; i++)
 		if (init_1x93_wtab[i])
 			ves1x93_writereg (i2c, i, init_1x93_tab[i]);
 
-	switch (board_type) {
-	case NOKIA_DBOX2_1993:
-		tuner_write(i2c, "\x06\x5c\x83\x60", 4);
-		break;
-	case SAGEM_DBOX2_1993:
-		tuner_write(i2c, "\x25\x70\x92\x40", 4);
-		break;
-	default:
-		break;
+	if (demod_type == DEMOD_VES1993) {
+		if (board_type == BOARD_NOKIA_DBOX2)
+			tuner_write(i2c, "\x06\x5c\x83\x60", 4);
+		else if (board_type == BOARD_SAGEM_DBOX2)
+			tuner_write(i2c, "\x25\x70\x92\x40", 4);
 	}
-	
+
 	return 0;
 }
 
@@ -354,16 +346,18 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 	dprintk("%s: srate == %d\n", __FUNCTION__, srate);
 
 	switch (board_type) {
-	case SIEMENS_PCI_1893:
+	case BOARD_SIEMENS_PCI:
 		XIN = 90100000UL;
 		break;
-	case NOKIA_DBOX2_1893:
-		XIN = 91000000UL;
+	case BOARD_NOKIA_DBOX2:
+		if (demod_type == DEMOD_VES1893)
+			XIN = 91000000UL;
+		else if (demod_type == DEMOD_VES1993)
+			XIN = 96000000UL;
+		else
+			return -EINVAL;
 		break;
-	case NOKIA_DBOX2_1993:
-		XIN = 96000000UL;
-		break;
-	case SAGEM_DBOX2_1993:
+	case BOARD_SAGEM_DBOX2:
 		XIN = 92160000UL;
 		break;
 	default:
@@ -378,7 +372,7 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 
 #define MUL (1UL<<26)
 
-	FIN = XIN >> 4;
+	FIN = (XIN + 6000) >> 4;
 
 	tmp = srate << 6;
 	ratio = tmp / FIN;
@@ -408,8 +402,8 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 		FNR	= 0;
 	} else {
 		ADCONF = 0x81;
-		/* FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5); */
-		FCONF  = 0x80 | ((FNR & 0x01) << 5) | (((FNR > 1) & 0x03) << 3) | ((FNR >> 1) & 0x07);
+		FCONF  = 0x88 | (FNR >> 1) | ((FNR & 0x01) << 5);
+		/*FCONF  = 0x80 | ((FNR & 0x01) << 5) | (((FNR > 1) & 0x03) << 3) | ((FNR >> 1) & 0x07);*/
 	}
 
 	BDR = (( (ratio << (FNR >> 1)) >> 4) + 1) >> 1;
@@ -439,10 +433,9 @@ int ves1x93_set_symbolrate (struct dvb_i2c_bus *i2c, u32 srate)
 	ves1x93_writereg (i2c, 0x00, 0x00);
 	ves1x93_writereg (i2c, 0x00, 0x01);
 
-#if 0
 	/* ves1993 hates this, will lose lock */
-	ves1x93_clr_bit (i2c);
-#endif
+	if (demod_type != DEMOD_VES1993)
+		ves1x93_clr_bit (i2c);
 
 	return 0;
 }
@@ -463,15 +456,10 @@ int ves1x93_set_voltage (struct dvb_i2c_bus *i2c, fe_sec_voltage_t voltage)
 
 
 static
-int ves1x93_set_tone (struct dvb_i2c_bus *i2c, fe_sec_tone_mode_t tone)
-{
-	return -EOPNOTSUPP;
-}
-
-
-static
 int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 {
+	struct dvb_i2c_bus *i2c = fe->i2c;
+
         switch (cmd) {
         case FE_GET_INFO:
 		memcpy (arg, &ves1x93_info, sizeof(struct dvb_frontend_info));
@@ -480,7 +468,7 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         case FE_READ_STATUS:
 	{
 		fe_status_t *status = arg;
-		u8 sync = ves1x93_readreg (fe->i2c, 0x0e);
+		u8 sync = ves1x93_readreg (i2c, 0x0e);
 
 		*status = 0;
 
@@ -500,7 +488,6 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 			*status |= FE_HAS_LOCK;
 
 		dprintk("FE_READ_STATUS: sync %02x, status: %02x\n", sync, *status);
-
 		break;
 	}
 
@@ -508,36 +495,36 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	{
 		u32 *ber = (u32 *) arg;
 
-		*ber = ves1x93_readreg (fe->i2c, 0x15);
-                *ber |= (ves1x93_readreg (fe->i2c, 0x16) << 8);
-                *ber |= ((ves1x93_readreg (fe->i2c, 0x17) & 0x0F) << 16);
+		*ber = ves1x93_readreg (i2c, 0x15);
+                *ber |= (ves1x93_readreg (i2c, 0x16) << 8);
+                *ber |= ((ves1x93_readreg (i2c, 0x17) & 0x0F) << 16);
 		*ber *= 10;
 		break;
 	}
 
         case FE_READ_SIGNAL_STRENGTH:
 	{
-		u8 signal = ~ves1x93_readreg (fe->i2c, 0x0b);
+		u8 signal = ~ves1x93_readreg (i2c, 0x0b);
 		*((u16*) arg) = (signal << 8) | signal;
 		break;
 	}
 
         case FE_READ_SNR:
 	{
-		u8 snr = ~ves1x93_readreg (fe->i2c, 0x1c);
+		u8 snr = ~ves1x93_readreg (i2c, 0x1c);
 		*(u16*) arg = (snr << 8) | snr;
 		break;
 	}
 
 	case FE_READ_UNCORRECTED_BLOCKS: 
 	{
-		*(u32*) arg = ves1x93_readreg (fe->i2c, 0x18) & 0x7f;
+		*(u32*) arg = ves1x93_readreg (i2c, 0x18) & 0x7f;
 
 		if (*(u32*) arg == 0x7f)
 			*(u32*) arg = 0xffffffff;   /* counter overflow... */
 		
-		ves1x93_writereg (fe->i2c, 0x18, 0x00);  /* reset the counter */
-		ves1x93_writereg (fe->i2c, 0x18, 0x80);  /* dto. */
+		ves1x93_writereg (i2c, 0x18, 0x00);  /* reset the counter */
+		ves1x93_writereg (i2c, 0x18, 0x80);  /* dto. */
 		break;
 	}
 
@@ -545,47 +532,48 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
         {
 		struct dvb_frontend_parameters *p = arg;
 
-		tuner_set_tv_freq (fe->i2c, p->frequency, 0);
-		ves1x93_set_inversion (fe->i2c, p->inversion);
-		ves1x93_set_fec (fe->i2c, p->u.qpsk.fec_inner);
-		ves1x93_set_symbolrate (fe->i2c, p->u.qpsk.symbol_rate);
+		tuner_set_tv_freq (i2c, p->frequency, 0);
+		ves1x93_set_inversion (i2c, p->inversion);
+		ves1x93_set_fec (i2c, p->u.qpsk.fec_inner);
+		ves1x93_set_symbolrate (i2c, p->u.qpsk.symbol_rate);
                 break;
         }
 
 	case FE_GET_FRONTEND:
 	{
 		struct dvb_frontend_parameters *p = arg;
-#if 0
 		s32 afc;
 
-		afc = ((int)((char)(ves1x93_readreg (fe->i2c, 0x0a) << 1)))/2;
+		afc = ((int)((char)(ves1x93_readreg (i2c, 0x0a) << 1)))/2;
 		afc = (afc * (int)(p->u.qpsk.symbol_rate/8))/16;
 
-		p->frequency += afc;
-#endif
-		p->inversion = (ves1x93_readreg (fe->i2c, 0x0f) & 2) ? 
+		/* FIXME: p->frequency += afc;*/
+		dprintk("%s: afc=%d\n", __FILE__, afc);
+		p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
 					INVERSION_ON : INVERSION_OFF;
-		p->u.qpsk.fec_inner = ves1x93_get_fec (fe->i2c);
+		p->u.qpsk.fec_inner = ves1x93_get_fec (i2c);
 	/*  XXX FIXME: timing offset !! */
 		break;
 	}
 
         case FE_SLEEP:
-		if (board_type == SIEMENS_PCI_1893)
-			ves1x93_writereg (fe->i2c, 0x1f, 0x00);    /*  LNB power off  */
-		return ves1x93_writereg (fe->i2c, 0x00, 0x08);
+		if (board_type == BOARD_SIEMENS_PCI)
+			ves1x93_writereg (i2c, 0x1f, 0x00);    /*  LNB power off  */
+		return ves1x93_writereg (i2c, 0x00, 0x08);
 
         case FE_INIT:
-		return ves1x93_init (fe->i2c);
+		return ves1x93_init (i2c);
 
 	case FE_RESET:
-		return ves1x93_clr_bit (fe->i2c);
+		return ves1x93_clr_bit (i2c);
 
 	case FE_SET_TONE:
-		return ves1x93_set_tone (fe->i2c, (fe_sec_tone_mode_t) arg);
+		return -EOPNOTSUPP;  /* the ves1893 can generate the 22k */
+		                     /* let's implement this when we have */
+		                     /* a box that uses the 22K_0 pin... */
 
 	case FE_SET_VOLTAGE:
-		return ves1x93_set_voltage (fe->i2c, (fe_sec_voltage_t) arg);
+		return ves1x93_set_voltage (i2c, (fe_sec_voltage_t) arg);
 
 	default:
 		return -EOPNOTSUPP;
@@ -598,12 +586,22 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 static
 int ves1x93_attach (struct dvb_i2c_bus *i2c)
 {
-	if ((ves1x93_readreg (i2c, 0x1e) & 0xf0) != 0xd0)
+	u8 identity = ves1x93_readreg(i2c, 0x1e);
+
+	switch (identity) {
+	case 0xdc: /* VES1893A rev1 */
+	case 0xdd: /* VES1893A rev2 */
+		demod_type = DEMOD_VES1893;
+		break;
+	case 0xde: /* VES1993 */
+		demod_type = DEMOD_VES1993;
+		break;
+	default:
+		printk("VES1x93 not found (identity %02x)\n", identity);
 		return -ENODEV;
+	}
 
-	dvb_register_frontend (ves1x93_ioctl, i2c, NULL, &ves1x93_info);
-
-	return 0;
+	return dvb_register_frontend (ves1x93_ioctl, i2c, NULL, &ves1x93_info);
 }
 
 
@@ -617,8 +615,19 @@ void ves1x93_detach (struct dvb_i2c_bus *i2c)
 static
 int __init init_ves1x93 (void)
 {
-	if ((board_type < SIEMENS_PCI_1893) || (board_type > SAGEM_DBOX2_1993))
-		return -ENODEV;
+	switch (board_type) {
+	case BOARD_NOKIA_DBOX2:
+		dprintk("%s: NOKIA_DBOX2\n", __FILE__);
+		break;
+	case BOARD_SAGEM_DBOX2:
+		dprintk("%s: SAGEM_DBOX2\n", __FILE__);
+		break;
+	case BOARD_SIEMENS_PCI:
+		dprintk("%s: SIEMENS_PCI\n", __FILE__);
+		break;
+	default:
+		return -EIO;
+	}
 
 	return dvb_register_i2c_device (THIS_MODULE, ves1x93_attach, ves1x93_detach);
 }
