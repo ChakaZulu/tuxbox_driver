@@ -64,7 +64,7 @@ typedef struct gtx_demux_filter_s
 {
   int index;
   int state;
-  
+
   int type;
 
         // PID Entry Specification
@@ -75,7 +75,7 @@ typedef struct gtx_demux_filter_s
   int queue, fork, cw_offset, cc, start_up, pec;
   // type=SECTION
   int filt_tab_idx, no_of_filters;
-  
+
   struct gtx_demux_feed_s *feed;
 } gtx_demux_filter_t;
 
@@ -95,7 +95,7 @@ typedef struct gtx_demux_feed_s
   } cb;
 
   struct gtx_demux_s *demux;
-  int type;  
+  int type;
   int state;
 
 #define DMX_TYPE_TS  0
@@ -113,15 +113,16 @@ typedef struct gtx_demux_feed_s
   int pid;
   gtx_demux_filter_t *filter;
   gtx_demux_secfilter_t *secfilter;
-  
+
   // for sections
   __u8 *sec_buffer;
   int sec_recv;
   int sec_len;
   int check_crc;
-  
+  char sec_ccn;
+
   int index, int_nr, int_bit;
-  
+
   int base, end, size, readptr;
 } gtx_demux_feed_t;
 
@@ -133,7 +134,7 @@ typedef struct gtx_demux_s
   gtx_demux_feed_t feed[32];
   gtx_demux_filter_t filter[32];
   gtx_demux_secfilter_t secfilter[32];
-  
+
   struct list_head frontend_list;
 } gtx_demux_t;
 
