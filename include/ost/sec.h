@@ -24,7 +24,7 @@
 #ifndef _OST_SEC_H_
 #define _OST_SEC_H_
 
-#define SEC_MAX_DISEQC_PARAMS 3 
+#define SEC_MAX_DISEQC_PARAMS 3
 
 struct secDiseqcCmd {
 	uint8_t addr;
@@ -44,6 +44,8 @@ enum {
 	SEC_VOLTAGE_18_5
 };
 
+#define SEC_VOLTAGE_HORIZONTAL SEC_VOLTAGE_18
+#define SEC_VOLTAGE_VERTICAL   SEC_VOLTAGE_13
 
 typedef uint32_t secToneMode;
 
