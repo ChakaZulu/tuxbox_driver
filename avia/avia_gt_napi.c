@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.109 $
+ *   $Revision: 1.110 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.110  2002/09/05 12:42:51  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.109  2002/09/05 12:30:53  Jolt
  *   NAPI cleanup
  *
@@ -756,22 +759,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 					__u8 *b1 = (__u8 *)NULL, *b2 = (__u8 *)NULL;
 					size_t b1l = (size_t)0, b2l = (size_t)0;
 
-					// can happen if a queue has been reset but an interrupt is pending
-					if (queue->write_pos == queue->read_pos)
-						return;
-
-					if (queue->write_pos < queue->mem_addr)
-					{
-						printk("avia_gt_napi: queue->write_pos < base (is: %x, base is %x, queue %d)!\n", queue->write_pos, queue->mem_addr, queue_nr);
-						return;
-					}
-
-					if (queue->write_pos >= (queue->mem_addr + queue->size))
-					{
-						printk("avia_gt_napi: queue->write_pos out of bounds! (is %x)\n", queue->write_pos);
-						return;
-					}
-
 					b1 = gt_info->mem_addr + queue->read_pos;
 
 					if (queue->write_pos > queue->read_pos) {	// normal case
@@ -788,8 +775,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						
 					}
 
-					if (gtxfeed->type != DMX_TYPE_MESSAGE) {
-					
 					if (!(gtxfeed->output&TS_PAYLOAD_ONLY))		// nur bei TS auf sync achten
 					{
 
@@ -830,8 +815,6 @@ void avia_gt_napi_queue_callback(u8 queue_nr, sAviaGtDmxQueueInfo *queue_info, v
 						
 					} else
 						gtx_reset_queue(queue_nr);
-
-					}
 
 					switch (gtxfeed->type)
 					{
@@ -1852,7 +1835,7 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 int __init avia_gt_napi_init(void)
 {
 
-	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.109 2002/09/05 12:30:53 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.110 2002/09/05 12:42:51 Jolt Exp $\n");
 
 	gt_info = avia_gt_get_info();
 

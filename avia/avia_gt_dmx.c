@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_dmx.c,v $
+ *   Revision 1.113  2002/09/05 12:42:51  Jolt
+ *   DMX/NAPI cleanup
+ *
  *   Revision 1.112  2002/09/05 10:35:13  Jolt
  *   Test
  *
@@ -143,7 +146,7 @@
  *
  *
  *
- *   $Revision: 1.112 $
+ *   $Revision: 1.113 $
  *
  */
 
@@ -1101,35 +1104,12 @@ u32 avia_gt_dmx_queue_data_move(u8 queue_nr, void *dest, u32 count)
 
 u8 avia_gt_dmx_queue_data_get8(u8 queue_nr)
 {
-	
-	u32 bytes_avail = avia_gt_dmx_get_queue_bytes_avail(queue_nr);
-	u32 pos;
-//	u8 data;
 
-//	avia_gt_dmx_queue_data_move(queue_nr, &data, sizeof(u8));
+	u8 data;
 
-//	return data;
+	avia_gt_dmx_queue_data_move(queue_nr, &data, sizeof(u8));
 
-	if (queue_nr >= AVIA_GT_DMX_QUEUE_COUNT) {
-
-		printk("avia_gt_dmx: queue_data_get8: queue %d out of bounce\n", queue_nr);
-
-		return 0;
-
-	}
-
-	if (!bytes_avail) {
-	
-		printk("avia_gt_dmx: queue_data_get8: no data availible\n");
-		
-		return 0;
-		
-	}
-	
-	pos = queue_list[queue_nr].read_pos;
-	queue_list[queue_nr].read_pos++;
-
-	return ((u8 *)gt_info->mem_addr)[pos];
+	return data;
 
 }
 
@@ -1615,7 +1595,7 @@ int __init avia_gt_dmx_init(void)
 	u32 queue_addr;
 	u8 queue_nr;
 
-	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.112 2002/09/05 10:35:13 Jolt Exp $\n");;
+	printk("avia_gt_dmx: $Id: avia_gt_dmx.c,v 1.113 2002/09/05 12:42:51 Jolt Exp $\n");;
 
 	gt_info = avia_gt_get_info();
 
