@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.10  2001/09/29 23:44:00  TripleDES
+ *   added avia-type
+ *
  *   Revision 1.9  2001/09/29 03:16:18  TripleDES
  *   added dsID
  *
@@ -46,7 +49,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.9 $
+ *   $Revision: 1.10 $
  *
  */
 
@@ -86,6 +89,7 @@ static int info_proc_cleanup(void);
 
 static int read_bus_info(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private);
+volatile u8 *aviamem;
 
 #else /* undef CONFIG_PROC_FS */
 
@@ -201,89 +205,104 @@ static int checkForVES1820(void)
 static unsigned char dsid[8];
 static void get_dsid(void)
 {
-    int i;
-    //unsigned char dsid[8];
-    immap_t *immap=(immap_t *)IMAP_ADDR ;
-    volatile cpm8xx_t *cpm=&immap->im_cpm;
+	int i;
+
+	immap_t *immap=(immap_t *)IMAP_ADDR ;
+	volatile cpm8xx_t *cpm=&immap->im_cpm;
+   
+	cpm->cp_pbpar&=~4; 
+	cpm->cp_pbodr|= 4;  
     
-    cpm->cp_pbpar&=~4; 
-    cpm->cp_pbodr|= 4;  
-    
-    inline int ds_reset(void)
-    {
-	int success;
-	cpm->cp_pbdat&=~4;
-	cpm->cp_pbdir|= 4;
-	udelay(480);
-	cpm->cp_pbdir&=~4;
-	udelay(120);
-	success = (cpm->cp_pbdat & 4);
-	udelay(360);
-	return success;
-    }
-    
-    inline void write1(void)
-    {
-	cpm->cp_pbdat&=~4; 
-	cpm->cp_pbdir|= 4; 
-	udelay(1);
-	cpm->cp_pbdir&= ~4;
-	udelay(59);
-    }	
-    
-    inline void write0(void)
-    {
-	cpm->cp_pbdat&=~4; 
-	cpm->cp_pbdir|= 4; 
-	udelay(55);
-	cpm->cp_pbdir &= ~4;
-	udelay(5);
-    }	
-    
-    inline int readx(void)
-    {
-	int result;
-	cpm->cp_pbdat&=~4;
-	cpm->cp_pbdir|= 4;
-	udelay(1);
-	cpm->cp_pbdir &= ~4;
-	udelay(14);
-	result = (cpm->cp_pbdat & 4)>>2;
-	udelay(45);
-	return result;
-    }
-    
-    inline void writebyte(int data)
-    {
-	int loop;
-	for(loop=0;loop<8;loop++)
+	inline int ds_reset(void)
 	{
-	    if(data & (0x01 << loop))
-		write1();
-	    else
-		write0();
+		int success;
+		cpm->cp_pbdat&=~4;
+		cpm->cp_pbdir|= 4;
+		udelay(480);
+		cpm->cp_pbdir&=~4;
+		udelay(120);
+		success = (cpm->cp_pbdat & 4);
+		udelay(360);
+		return success;
 	}
-    }
-    			    
-    inline int readbyte(void)
-    {
-	int loop;
-	int result=0;
-	
-	for(loop=0;loop<8;loop++)
-	    result = result + (readx()<<loop);
-	return result;
-    }
-    	    
     
-    if(ds_reset()) printk("DS not responding!!! - please report\n");
-    writebyte(0x33);
-    for(i=0;i<8;i++)dsid[i]=readbyte();
-    return;
+	inline void write1(void)
+	{
+		cpm->cp_pbdat&=~4; 
+		cpm->cp_pbdir|= 4; 
+		udelay(1);
+		cpm->cp_pbdir&= ~4;
+		udelay(59);
+	}	
+    
+	inline void write0(void)
+	{
+		cpm->cp_pbdat&=~4; 
+		cpm->cp_pbdir|= 4; 
+		udelay(55);
+		cpm->cp_pbdir &= ~4;
+		udelay(5);
+	}	
+    
+	inline int readx(void)
+	{
+		int result;
+		cpm->cp_pbdat&=~4;
+		cpm->cp_pbdir|= 4;
+		udelay(1);
+		cpm->cp_pbdir &= ~4;
+		udelay(14);
+		result = (cpm->cp_pbdat & 4)>>2;
+		udelay(45);
+		return result;
+	}
+    
+	inline void writebyte(int data)
+	{
+		int loop;
+		for(loop=0;loop<8;loop++)
+		{
+			if(data & (0x01 << loop))
+					write1();
+				else
+					write0();
+		}
+	}
+    			    
+	inline int readbyte(void)
+	{
+		int loop;
+		int result=0;
+	
+		for(loop=0;loop<8;loop++)
+			result = result + (readx()<<loop);
+		return result;
+	}
+    
+	if(ds_reset()) printk("DS not responding!!! - please report\n");
+	writebyte(0x33);
+	for(i=0;i<8;i++)dsid[i]=readbyte();
+	return;
         	
 }    
 
+static int aviatype(void)
+{
+	int aviarev=0;	
 
+	aviamem=(unsigned char*)ioremap(0xA000000,0x200);
+	if(!aviamem) 
+	{
+		printk("INFO: cannot remap avia-mem.\n");
+		return -1;
+	}
+	aviamem[6] = 0x80;
+	aviamem[5] = 0;
+	aviamem[4] = 0;
+	aviarev=(aviamem[2] & 3);
+	
+	return aviarev;	
+}
 
 static int dbox_info_init(void)
 {
@@ -296,6 +315,7 @@ static int dbox_info_init(void)
 	get_dsid();
 	memcpy(info.dsID,dsid,8);
 	info.mID=conf[0];
+	info.avia=aviatype() ? 500:600;
 //	info.fe=fe;
 	if (info.mID==DBOX_MID_SAGEM)								// das suckt hier, aber ich kenn keinen besseren weg.
 	{
@@ -356,9 +376,9 @@ static char *demod_table[5]={"VES1820", "VES1893", "AT76C651", "VES1993", "TDA80
 static int read_bus_info(char *buf, char **start, off_t offset, int len,
 												int *eof , void *private)
 {
-	return sprintf(buf, "mID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nfe=%d\ndsID=%02x-%02x.%02x.%02x.%02x.%02x.%02x-%02x\n",
-		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod], info.fe,info.dsID[0],
-		info.dsID[1],info.dsID[2],info.dsID[3],info.dsID[4],info.dsID[5],info.dsID[6],info.dsID[7]);
+	return sprintf(buf, "mID=%02x\nfeID=%02x\nfpID=%02x\nenxID=%02x\ngtxID=%02x\nhwREV=%02x\nfpREV=%02x\nDEMOD=%s\nfe=%d\navia=%d\ndsID=%02x-%02x.%02x.%02x.%02x.%02x.%02x-%02x\n",
+		info.mID, info.feID, info.fpID, info.enxID, info.gtxID, info.hwREV, info.fpREV, info.demod==-1 ? "UNKNOWN" : demod_table[info.demod],info.fe,info.avia, 
+		info.dsID[0],info.dsID[1],info.dsID[2],info.dsID[3],info.dsID[4],info.dsID[5],info.dsID[6],info.dsID[7]);
 		
 }
 
