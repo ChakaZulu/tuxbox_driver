@@ -20,6 +20,9 @@
  *
  *
  *   $Log: dvb_net.c,v $
+ *   Revision 1.5  2001/07/03 19:34:23  gillem
+ *   - sync with cvs (linuxtv)
+ *
  *   Revision 1.4  2001/06/26 18:24:23  gillem
  *   - change dvb_net init
  *
@@ -223,7 +226,7 @@ dvb_net_set_config(struct net_device *dev, struct ifmap *map)
 	return 0;
 }
 
-#define MASK 0x00
+#define MASK 0xFF
 
 static int
 dvb_net_filter_set(struct net_device *dev, unsigned char *mac)
@@ -265,24 +268,25 @@ dvb_net_filter_set(struct net_device *dev, unsigned char *mac)
 	memset(priv->secfilter->filter_value, 0, DMX_MAX_FILTER_SIZE);
 	memset(priv->secfilter->filter_mask , 0, DMX_MAX_FILTER_SIZE);
 
-/*
+
 	priv->secfilter->filter_value[0]=0x3e;
 	priv->secfilter->filter_mask[0]=MASK;
 
-	priv->secfilter->filter_value[1]=mac[5];
-	priv->secfilter->filter_mask[1]=MASK;
-	priv->secfilter->filter_value[2]=mac[4];
-	priv->secfilter->filter_mask[2]=MASK;
-	priv->secfilter->filter_value[6]=mac[3];
-	priv->secfilter->filter_mask[6]=MASK;
-	priv->secfilter->filter_value[7]=mac[2];
-	priv->secfilter->filter_mask[7]=MASK;
-	priv->secfilter->filter_value[8]=mac[1];
+	priv->secfilter->filter_value[3]=mac[5];
+	priv->secfilter->filter_mask[3]=MASK;
+	priv->secfilter->filter_value[4]=mac[4];
+	priv->secfilter->filter_mask[4]=MASK;
+	priv->secfilter->filter_value[8]=mac[3];
 	priv->secfilter->filter_mask[8]=MASK;
-	priv->secfilter->filter_value[9]=mac[0];
+	priv->secfilter->filter_value[9]=mac[2];
 	priv->secfilter->filter_mask[9]=MASK;
-*/
+	priv->secfilter->filter_value[10]=mac[1];
+	priv->secfilter->filter_mask[10]=MASK;
+	priv->secfilter->filter_value[11]=mac[0];
+	priv->secfilter->filter_mask[11]=MASK;
+
 	priv->secfeed->start_filtering(priv->secfeed);
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 
@@ -318,6 +322,7 @@ dvb_net_filter_free(struct net_device *dev)
 		priv->demux->
 			release_section_feed(priv->demux, priv->secfeed);
 		priv->secfeed=0;
+		MOD_DEC_USE_COUNT;
 	}
 }
 
@@ -362,7 +367,7 @@ dvb_net_open(struct net_device *dev)
 		printk("dvb_net_filter_set failed\n");
 
 	printk("dvb_net: open %x\n",dev);
-	MOD_INC_USE_COUNT;
+
 	return 0;
 }
 
@@ -377,7 +382,7 @@ dvb_net_stop(struct net_device *dev)
 
 	printk("dvb_net: stop\n");
     dvb_net_filter_free(dev);
-	MOD_DEC_USE_COUNT;
+
 	return 0;
 }
 
@@ -565,7 +570,7 @@ MODULE_DESCRIPTION("DVB-NET driver");
 int
 init_module (void)
 {
-	printk("DVB-NET: $Id: dvb_net.c,v 1.4 2001/06/26 18:24:23 gillem Exp $\n");
+	printk("DVB-NET: $Id: dvb_net.c,v 1.5 2001/07/03 19:34:23 gillem Exp $\n");
 
 	dvb_net.dvb_net_release   = dvb_net_release;
 	dvb_net.dvb_net_init      = dvb_net_init;
