@@ -42,7 +42,7 @@
 extern int avia_gt_capture_set_input_pos(unsigned short x, unsigned short y);
 extern int avia_gt_capture_set_input_size(unsigned short width, unsigned short height);
 extern int avia_gt_capture_set_output_size(unsigned short width, unsigned short height);
-extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride, unsigned short *odd_offset);
+extern int avia_gt_capture_start(unsigned char **capture_buffer, unsigned short *stride);
 extern void avia_gt_capture_stop(void);
 
 extern int avia_gt_capture_init(void);

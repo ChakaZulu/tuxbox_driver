@@ -731,6 +731,26 @@ typedef struct {
 
 typedef struct {
 
+  unsigned char Reserved1: 8;
+  unsigned int Addr: 22;
+  unsigned char Reserved: 1;
+  unsigned char E: 1;
+
+} sENX_REG_VPSA1;
+
+#define sENX_REG_VPSA2 sENX_REG_VPSA1
+
+typedef struct {
+
+  unsigned short Reserved1: 14;
+  unsigned char SO: 2;
+  
+} sENX_REG_VPSO1;
+
+#define sENX_REG_VPSO2 sENX_REG_VPSO1
+
+typedef struct {
+
   unsigned char Reserved1: 6;
   unsigned short WIDTH: 9;
   unsigned char S: 1;
