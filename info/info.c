@@ -21,6 +21,9 @@
  *
  *
  *   $Log: info.c,v $
+ *   Revision 1.12  2001/10/18 23:22:15  Jolt
+ *   Fix for gcc < 3
+ *
  *   Revision 1.11  2001/09/29 23:49:04  TripleDES
  *   small fx in avia-detection
  *
@@ -52,7 +55,7 @@
  *   added /proc/bus/info.
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -205,82 +208,85 @@ static int checkForVES1820(void)
   return i2c_found;
 }
 
+volatile cpm8xx_t *cpm;
+
+int ds_reset(void)
+{
+	int success;
+	cpm->cp_pbdat&=~4;
+	cpm->cp_pbdir|= 4;
+	udelay(480);
+	cpm->cp_pbdir&=~4;
+	udelay(120);
+	success = (cpm->cp_pbdat & 4);
+	udelay(360);
+	return success;
+}
+    
+void write1(void)
+{
+	cpm->cp_pbdat&=~4; 
+	cpm->cp_pbdir|= 4; 
+	udelay(1);
+	cpm->cp_pbdir&= ~4;
+	udelay(59);
+}	
+    
+void write0(void)
+{
+	cpm->cp_pbdat&=~4; 
+	cpm->cp_pbdir|= 4; 
+	udelay(55);
+	cpm->cp_pbdir &= ~4;
+	udelay(5);
+}	
+    
+int readx(void)
+{
+	int result;
+	cpm->cp_pbdat&=~4;
+	cpm->cp_pbdir|= 4;
+	udelay(1);
+	cpm->cp_pbdir &= ~4;
+	udelay(14);
+	result = (cpm->cp_pbdat & 4)>>2;
+	udelay(45);
+	return result;
+}
+    
+void writebyte(int data)
+{
+	int loop;
+	for(loop=0;loop<8;loop++)
+	{
+		if(data & (0x01 << loop))
+				write1();
+			else
+				write0();
+	}
+}
+			    
+int readbyte(void)
+{
+	int loop;
+	int result=0;
+
+	for(loop=0;loop<8;loop++)
+		result = result + (readx()<<loop);
+	return result;
+}
+
 static unsigned char dsid[8];
 static void get_dsid(void)
 {
 	int i;
 
 	immap_t *immap=(immap_t *)IMAP_ADDR ;
-	volatile cpm8xx_t *cpm=&immap->im_cpm;
+	
+	cpm = &immap->im_cpm;
    
 	cpm->cp_pbpar&=~4; 
 	cpm->cp_pbodr|= 4;  
-    
-	inline int ds_reset(void)
-	{
-		int success;
-		cpm->cp_pbdat&=~4;
-		cpm->cp_pbdir|= 4;
-		udelay(480);
-		cpm->cp_pbdir&=~4;
-		udelay(120);
-		success = (cpm->cp_pbdat & 4);
-		udelay(360);
-		return success;
-	}
-    
-	inline void write1(void)
-	{
-		cpm->cp_pbdat&=~4; 
-		cpm->cp_pbdir|= 4; 
-		udelay(1);
-		cpm->cp_pbdir&= ~4;
-		udelay(59);
-	}	
-    
-	inline void write0(void)
-	{
-		cpm->cp_pbdat&=~4; 
-		cpm->cp_pbdir|= 4; 
-		udelay(55);
-		cpm->cp_pbdir &= ~4;
-		udelay(5);
-	}	
-    
-	inline int readx(void)
-	{
-		int result;
-		cpm->cp_pbdat&=~4;
-		cpm->cp_pbdir|= 4;
-		udelay(1);
-		cpm->cp_pbdir &= ~4;
-		udelay(14);
-		result = (cpm->cp_pbdat & 4)>>2;
-		udelay(45);
-		return result;
-	}
-    
-	inline void writebyte(int data)
-	{
-		int loop;
-		for(loop=0;loop<8;loop++)
-		{
-			if(data & (0x01 << loop))
-					write1();
-				else
-					write0();
-		}
-	}
-    			    
-	inline int readbyte(void)
-	{
-		int loop;
-		int result=0;
-	
-		for(loop=0;loop<8;loop++)
-			result = result + (readx()<<loop);
-		return result;
-	}
     
 	if(ds_reset()) printk("DS not responding!!! - please report\n");
 	writebyte(0x33);
