@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm_enx.c,v $
+ *   Revision 1.4  2001/11/26 23:20:20  obi
+ *   struct pcm_state moved to pcm.h
+ *
  *   Revision 1.3  2001/03/29 14:05:01  fnbrd
  *   Siehe vorher, war falsche Datei.
  *
@@ -62,7 +65,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.3 $
+ *   $Revision: 1.4 $
  *
  */
 
@@ -111,12 +114,6 @@ MODULE_DESCRIPTION("eNX-PCM Driver");
 #endif
 
 #include "dprintkRegBits.c" // I know, bad style
-
-struct pcm_state {
-  /* soundcore stuff */
-  int dev_audio;
-  int dev_mixer;
-};
 
 struct pcm_state s;
 
