@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cxa2092.c,v $
+ *   Revision 1.19  2001/07/03 19:24:19  gillem
+ *   - some changes
+ *
  *   Revision 1.18  2001/04/28 07:15:09  gillem
  *   - fix mute
  *
@@ -71,7 +74,7 @@
  *   Revision 1.3  2001/01/06 10:05:43  gillem
  *   cvs check
  *
- *   $Revision: 1.18 $
+ *   $Revision: 1.19 $
  *
  */
 
@@ -101,30 +104,30 @@
 
 typedef struct s_cxa2092_data {
  /* Data 1 */
- unsigned char evc : 3;
- unsigned char evf : 3;
- unsigned char tvmute1 : 1;
- unsigned char zcd : 1;
+ unsigned char evc 		: 3;
+ unsigned char evf 		: 3;
+ unsigned char tvmute1 	: 1;
+ unsigned char zcd 		: 1;
  /* Data 2 */
- unsigned char fblk : 2;
- unsigned char vsw1 : 3;
- unsigned char asw1 : 3;
+ unsigned char fblk 	: 2;
+ unsigned char vsw1 	: 3;
+ unsigned char asw1 	: 3;
  /* Data 3 */
- unsigned char fnc : 2;
- unsigned char vsw2 : 3;
- unsigned char asw2 : 3;
+ unsigned char fnc 		: 2;
+ unsigned char vsw2 	: 3;
+ unsigned char asw2 	: 3;
  /* Data 4 */
- unsigned char ycm : 1;
- unsigned char res1 : 1;
- unsigned char vsw3 : 3;
- unsigned char asw3 : 3;
+ unsigned char ycm 		: 1;
+ unsigned char res1 	: 1;
+ unsigned char vsw3 	: 3;
+ unsigned char asw3 	: 3;
  /* Data 5 */
- unsigned char tvmute2 : 1;
- unsigned char res2 : 3;
- unsigned char log1 : 1;
- unsigned char log2 : 1;
- unsigned char log3 : 1;
- unsigned char log4 : 1;
+ unsigned char tvmute2 	: 1;
+ unsigned char res2 	: 3;
+ unsigned char log1 	: 1;
+ unsigned char log2 	: 1;
+ unsigned char log3 	: 1;
+ unsigned char log4 	: 1;
 } s_cxa2092_data;
 
 #define CXA2092_DATA_SIZE sizeof(s_cxa2092_data)
@@ -432,11 +435,11 @@ static int cxa2092_getstatus(struct i2c_client *client)
 int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 {
 	int val;
-	dprintk("[AVS]: command\n");
+	dprintk("[AVS]: command %x\n",cmd);
 	
 	if (cmd&AVSIOSET)
 	{
-		if ( get_user(val,(int*)arg) )
+		if ( copy_from_user(&val,arg,sizeof(val)) )
 		{
 			return -EFAULT;
         }
