@@ -19,6 +19,10 @@
 #include "commproc.h"
 #include <linux/i2c.h>
 
+static int debug;
+
+#define PDEBUG(level, fmt, args...) if (debug>=level) printk("[" __PRETTY_FUNCTION__ ":%d]" fmt, __LINE__ )
+
 #define TXBD_R 0x8000  /* Transmit buffer ready to send */
 #define TXBD_W 0x2000  /* Wrap, last buffer in buffer circle */
 #define TXBD_I 0x1000
@@ -40,6 +44,9 @@
 
 #define I2C_TX_LEN      128
 #define I2C_RX_LEN      128
+
+#define I2C_PPC_MASTER			1
+#define I2C_PPC_SLAVE				0
 
 typedef volatile struct I2C_BD
 {
@@ -131,18 +138,24 @@ static int i2c_setrate (int hz, int speed)
   return 1 ;
 }
 
-void i2c_init(int speed)
+int i2c_init(int speed)
 {
+	int ret = 0;
+
+	/* get immap addr */
   immap_t *immap=(immap_t*)IMAP_ADDR;
-  
+
+	/* get cpm */
   cp = (cpm8xx_t *)&immap->im_cpm ;
+	/* get i2c */
   iip = (iic_t *)&cp->cp_dparam[PROFF_IIC];
+	/* get i2c ppc */
   i2c = (i2c8xx_t *)&(immap->im_i2c);
 
-  // Disable relocation
+  /* disable relocation */
   iip->iic_rbase = 0 ;
 
-  // Initialize Port B I2C pins.
+  /* Initialize Port B I2C pins. */
   cp->cp_pbpar |= 0x00000030;
   cp->cp_pbdir |= 0x00000030;
   cp->cp_pbodr |= 0x00000030;
@@ -157,9 +170,8 @@ void i2c_init(int speed)
   // divide BRGCLK by 1)
   i2c_setrate (66*1024*1024, speed) ;
   
-  /* Set I2C controller in master mode
-   */
-  i2c->i2c_i2com = 0x01;
+  /* Set I2C controller in master mode */
+  i2c->i2c_i2com = I2C_PPC_MASTER;
 
   // Set SDMA bus arbitration level to 5 (SDCR)
   immap->im_siu_conf.sc_sdcr = 0x0001 ;
@@ -170,7 +182,7 @@ void i2c_init(int speed)
   rxbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_rbase]);
   txbd = (I2C_BD *)((unsigned char *)&cp->cp_dpmem[iip->iic_tbase]);
 
-  printk("RBASE = %04x\n", iip->iic_rbase);
+  PDEBUG("RBASE = %04x\n", iip->iic_rbase);
   printk("TBASE = %04x\n", iip->iic_tbase);
   printk("RXBD1 = %08x\n", (int)rxbd);
   printk("TXBD1 = %08x\n", (int)txbd);
@@ -193,6 +205,7 @@ void i2c_init(int speed)
 	if (rxbuf==0)
 	{
 		printk("INIT ERROR: no RXBUF mem available\n");
+		return -1;
 	}
 
   rxbd->addr = (unsigned char*)__pa(rxbuf);
@@ -206,6 +219,7 @@ void i2c_init(int speed)
 	if (txbuf==0)
 	{
 		printk("INIT ERROR: no TXBUF mem available\n");
+		return -1;
 	}
 
   txbd->addr = (unsigned char*)__pa(txbuf);
@@ -222,6 +236,8 @@ void i2c_init(int speed)
 	// Clear events and interrupts
   i2c->i2c_i2cer = 0xff ;
   i2c->i2c_i2cmr = 0 ;
+
+	return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -307,7 +323,7 @@ int i2c_send( unsigned char address,  unsigned short size, unsigned char *dataou
 int i2c_receive(unsigned char address,
                 unsigned short size_to_expect, unsigned char *datain )
 {
-  int i,j,ret;
+  int i,ret;
 
   if( size_to_expect > I2C_RX_LEN )
 	{
@@ -479,7 +495,12 @@ static struct i2c_adapter adap;
 static int __init i2c_algo_8xx_init (void)
 {
   printk("i2c-8xx.o: mpc 8xx i2c init\n");
-  i2c_init(100000);
+
+  if ( i2c_init(100000) < 0 )
+	{
+	  printk("i2c-8xx.o: init failed\n");
+		return -1;
+	}
 
   adap.id=i2c_8xx_algo.id;
   adap.algo=&i2c_8xx_algo;
@@ -518,15 +539,13 @@ int i2c_8xx_del_bus(struct i2c_adapter *adap)
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>, gillem <XXX@XXX.XXX>");
 MODULE_DESCRIPTION("I2C-Bus MPC8xx Intgrated I2C");
 
-MODULE_PARM(i2c_debug,"i");
-
-MODULE_PARM_DESC(i2c_debug,
+MODULE_PARM(debug,"i");
+MODULE_PARM_DESC(debug,
             "debug level - 0 off; 1 normal; 2,3 more verbose; 9 bit-protocol");
 
 int init_module(void)
 {
-  i2c_algo_8xx_init();
-  return 0;
+  return i2c_algo_8xx_init();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
