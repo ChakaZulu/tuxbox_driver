@@ -1,5 +1,5 @@
 /* 
- * $Id: tda8044h.c,v 1.19 2002/11/04 18:27:31 obi Exp $
+ * $Id: tda8044h.c,v 1.20 2002/11/22 11:04:00 thegoodguy Exp $
  *   
  * Philips TDA8044H QPSK Demodulator DVB API driver
  *
@@ -48,7 +48,7 @@ struct dvb_frontend_info tda8044_info = {
 	notifier_delay: 0,
 	caps:	FE_CAN_INVERSION_AUTO |
 		FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-		FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_5_6 |
+		FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
 		FE_CAN_FEC_7_8 | FE_CAN_FEC_8_9 | FE_CAN_FEC_AUTO |
 		FE_CAN_QPSK |
 		FE_CAN_MUTE_TS
