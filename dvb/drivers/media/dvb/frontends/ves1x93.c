@@ -601,12 +601,14 @@ int ves1x93_ioctl (struct dvb_frontend *fe, unsigned int cmd, void *arg)
 	case FE_GET_FRONTEND:
 	{
 		struct dvb_frontend_parameters *p = arg;
+#if 0
 		s32 afc;
 
 		afc = ((int)((char)(ves1x93_readreg (i2c, 0x0a) << 1)))/2;
 		afc = (afc * (int)(p->u.qpsk.symbol_rate/8))/16;
 
 		p->frequency += afc;
+#endif
 		p->inversion = (ves1x93_readreg (i2c, 0x0f) & 2) ? 
 					INVERSION_ON : INVERSION_OFF;
 		p->u.qpsk.fec_inner = ves1x93_get_fec (i2c);
