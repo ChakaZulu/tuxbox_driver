@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_pig.c,v $
+ *   Revision 1.17  2002/05/01 21:51:35  Jolt
+ *   Merge
+ *
  *   Revision 1.16  2002/04/24 09:08:57  obi
  *   fixed check for S
  *
@@ -50,7 +53,7 @@
  *
  *
  *
- *   $Revision: 1.16 $
+ *   $Revision: 1.17 $
  *
  */
 	
@@ -177,17 +180,17 @@ int avia_gt_pig_set_pos(unsigned char pig_nr, unsigned short x, unsigned short y
     dprintk("avia_gt_pig_set_pos (x=%d, y=%d)\n", x ,y);
     
     if (pig_nr >= pig_count)
-	return -ENODEV;
+		return -ENODEV;
 
     if (avia_gt_chip(ENX)) {
     
-	enx_reg_s(VPP1)->HPOS = 63 + (x / 2);
+		enx_reg_s(VPP1)->HPOS = 63 + (x / 2);
         enx_reg_s(VPP1)->VPOS = 21 + (y / 2);
 	
     } else if (avia_gt_chip(GTX)) {
     
         gtx_reg_s(VPP)->HPOS = 63 + (x / 2) - (gtx_reg_s(VPS)->S ? 3 : 0);
-	gtx_reg_s(VPP)->VPOS = 21 + (y / 2);
+		gtx_reg_s(VPP)->VPOS = 21 + (y / 2);
 	
     }
     
@@ -201,12 +204,13 @@ int avia_gt_pig_set_stack(unsigned char pig_nr, unsigned char stack_order)
     dprintk("avia_gt_pig_set_stack (pig_nr=%d, stack_order=%d)\n", pig_nr, stack_order);
 
     if (pig_nr >= pig_count)
-	return -ENODEV;
+		return -ENODEV;
 	
     if (avia_gt_chip(ENX))
 	enx_reg_s(VPSO1)->SO = stack_order;
     else if (avia_gt_chip(GTX))
-	gtx_reg_s(VPS)->P = (stack_order != 0);
+//	gtx_reg_s(VPS)->P = (stack_order != 0);
+	gtx_reg_s(VPS)->P = 1;
 	
     return 0;
     
@@ -220,7 +224,7 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
     dprintk("avia_gt_pig_set_size (width=%d, height=%d, stretch=%d)\n", width, height, stretch);
     
     if (pig_nr >= pig_count)
-	return -ENODEV;
+		return -ENODEV;
 	
     if (pig_busy[pig_nr])
 	return -EBUSY;
@@ -232,19 +236,21 @@ int avia_gt_pig_set_size(unsigned char pig_nr, unsigned short width, unsigned sh
 
     if (avia_gt_chip(ENX)) {
 
-	enx_reg_s(VPSZ1)->WIDTH = width / 2;
-	enx_reg_s(VPSZ1)->S = stretch;
-	enx_reg_s(VPSZ1)->HEIGHT = height / 2;
+		enx_reg_s(VPSZ1)->WIDTH = width / 2;
+		enx_reg_s(VPSZ1)->S = stretch;
+		enx_reg_s(VPSZ1)->HEIGHT = height / 2;
+
+		dprintk("avia_gt_pig: WIDTH=0x%X, S=0x%X, HEIGHT=0x%X\n", enx_reg_s(VPSZ1)->WIDTH, enx_reg_s(VPSZ1)->S, enx_reg_s(VPSZ1)->HEIGHT);
 	
     } else if (avia_gt_chip(GTX)) {
 
-	gtx_reg_s(VPS)->WIDTH = width / 2;
+		gtx_reg_s(VPS)->WIDTH = width / 2;
         gtx_reg_s(VPS)->S = stretch;
         gtx_reg_s(VPS)->HEIGHT = height / 2;
 
+		dprintk("avia_gt_pig: WIDTH=0x%X, S=0x%X, HEIGHT=0x%X\n", gtx_reg_s(VPS)->WIDTH, gtx_reg_s(VPS)->S, gtx_reg_s(VPS)->HEIGHT);
+		
     }
-    
-    dprintk("avia_gt_pig: WIDTH=0x%X, S=0x%X, HEIGHT=0x%X\n", enx_reg_s(VPSZ1)->WIDTH, enx_reg_s(VPSZ1)->S, enx_reg_s(VPSZ1)->HEIGHT);
     
     return 0;
     
@@ -256,10 +262,10 @@ int avia_gt_pig_show(unsigned char pig_nr)
     dprintk("avia_gt_pig_show (pig_nr=%d)\n", pig_nr);
 
     if (pig_nr >= pig_count)
-	return -ENODEV;
+		return -ENODEV;
 	
     if (pig_busy[pig_nr])
-	return -EBUSY;
+		return -EBUSY;
 
     avia_gt_capture_set_input_pos(0, 0);
     avia_gt_capture_set_input_size(CAPTURE_WIDTH, CAPTURE_HEIGHT);
@@ -269,9 +275,9 @@ int avia_gt_pig_show(unsigned char pig_nr)
 
     if (avia_gt_chip(ENX)) {
 
-	enx_reg_16(VPSTR1) = 0;				
+		enx_reg_16(VPSTR1) = 0;				
         enx_reg_16(VPSTR1) |= (((((unsigned int)(pig_stride[pig_nr])) / 4) & 0x7FF) << 2);
-	enx_reg_16(VPSTR1) |= 0;				// Enable hardware double buffering
+		enx_reg_16(VPSTR1) |= 0;				// Enable hardware double buffering
     
         enx_reg_s(VPSZ1)->P = 0;
     
@@ -279,20 +285,20 @@ int avia_gt_pig_show(unsigned char pig_nr)
     
     	enx_reg_s(VPOFFS1)->OFFSET = ((unsigned int)(pig_stride[pig_nr])) >> 2;
 
-	enx_reg_s(VPP1)->U = 0;
+		enx_reg_s(VPP1)->U = 0;
         enx_reg_s(VPP1)->F = 0;
         
-	enx_reg_s(VPSA1)->E = 1;
+		enx_reg_s(VPSA1)->E = 1;
 	
     } else if (avia_gt_chip(GTX)) {
 
-	gtx_reg_s(VPO)->OFFSET = ((unsigned int)(pig_stride[pig_nr])) >> 2;
-        gtx_reg_s(VPO)->STRIDE = ((unsigned int)(pig_stride[pig_nr])) >> 2;
-	gtx_reg_s(VPO)->B = 0;                                                              // Enable hardware double buffering
+		gtx_reg_s(VPO)->OFFSET = (((unsigned int)(pig_stride[pig_nr])) / 2);
+        gtx_reg_s(VPO)->STRIDE = ((unsigned int)(pig_stride[pig_nr])) >> 1;
+		gtx_reg_s(VPO)->B = 0;                                                              // Enable hardware double buffering
 	        
         gtx_reg_s(VPSA)->Addr = ((unsigned int)(pig_buffer[pig_nr])) >> 1;                  // Set buffer address (for non d-buffer mode)
 		
-	gtx_reg_s(VPP)->F = 0;
+		gtx_reg_s(VPP)->F = 0;
 
         gtx_reg_s(VPSA)->E = 1;
     
@@ -310,7 +316,7 @@ int __init avia_gt_pig_init(void)
     char devname[128];
     unsigned char pig_nr;
 
-    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.16 2002/04/24 09:08:57 obi Exp $\n");
+    printk("avia_gt_pig: $Id: avia_gt_pig.c,v 1.17 2002/05/01 21:51:35 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     

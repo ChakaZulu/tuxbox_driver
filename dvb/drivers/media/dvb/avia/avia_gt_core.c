@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.13  2002/05/01 21:51:35  Jolt
+ *   Merge
+ *
  *   Revision 1.12  2002/04/24 08:17:42  obi
  *   enabled pig
  *
@@ -58,7 +61,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.13 $
  *
  */
 
@@ -245,7 +248,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.12 2002/04/24 08:17:42 obi Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.13 2002/05/01 21:51:35 Jolt Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -330,15 +333,25 @@ int __init avia_gt_init(void)
     init_state = 5;
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (avia_gt_gv_init()) {
+    if (avia_gt_dmx_init()) {
 
-	avia_gt_exit();
+		avia_gt_exit();
       
-	return -1;
+		return -1;
 	
     }
 
     init_state = 6;
+    
+    if (avia_gt_gv_init()) {
+
+		avia_gt_exit();
+      
+		return -1;
+	
+    }
+
+    init_state = 7;
     
     if (avia_gt_pcm_init()) {
 
@@ -348,7 +361,7 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 7;
+    init_state = 8;
     
     if (avia_gt_capture_init()) {
 
@@ -358,17 +371,17 @@ int __init avia_gt_init(void)
 	
     }
 
-    init_state = 8;
+    init_state = 9;
     
     if (avia_gt_pig_init()) {
 
-	avia_gt_exit();
+		avia_gt_exit();
       
-	return -1;
+		return -1;
 	
     }
 
-    init_state = 9;
+    init_state = 10;
     
 #endif
 	    
@@ -382,45 +395,48 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-    if (init_state >= 9)
+    if (init_state >= 10)
         avia_gt_pig_exit();
 	
-    if (init_state >= 8)
+    if (init_state >= 9)
         avia_gt_capture_exit();
 	
-    if (init_state >= 7)
-	avia_gt_pcm_exit();
+    if (init_state >= 8)
+		avia_gt_pcm_exit();
 	
+    if (init_state >= 7)
+		avia_gt_gv_exit();
+
     if (init_state >= 6)
-	avia_gt_gv_exit();
+		avia_gt_dmx_exit();
 #endif
 
     if (init_state >= 5) {
     
-	if (avia_gt_chip(ENX))
+		if (avia_gt_chip(ENX))
     	    avia_gt_enx_exit();
-   	else if (avia_gt_chip(GTX))
-		avia_gt_gtx_exit();
+ 	  	else if (avia_gt_chip(GTX))
+			avia_gt_gtx_exit();
 
     }
 
     if (init_state >= 4) {
     
         if (avia_gt_chip(ENX))
-	    free_irq(ENX_INTERRUPT, 0);
+	    	free_irq(ENX_INTERRUPT, 0);
     	else if (avia_gt_chip(GTX))
-	    free_irq(GTX_INTERRUPT, 0);
+		    free_irq(GTX_INTERRUPT, 0);
 
     }
 
     if (init_state >= 3)
-	iounmap(gt_info->mem_addr);
+		iounmap(gt_info->mem_addr);
 	
     if (init_state >= 2)
-	iounmap(gt_info->reg_addr);
+		iounmap(gt_info->reg_addr);
     
     if (init_state >= 1)
-	kfree(gt_info);
+		kfree(gt_info);
 
 }
 

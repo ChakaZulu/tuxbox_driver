@@ -1,5 +1,4 @@
 #include <linux/types.h>
-#include "crc32.h"
 
 // CRC32 lookup table for polynomial 0x04c11db7
 

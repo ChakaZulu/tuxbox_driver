@@ -5,18 +5,17 @@
 DEBUG = 0
 STANDALONE = 0
 
-M_OBJS   = avia_gt.o avia_gt_dmx.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia.o osd.o
-obj-m    = avia_gt.o avia_gt_dmx.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia.o osd.o
+M_OBJS   = avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia.o osd.o
+obj-m    = avia_gt.o avia_gt_napi.o avia_gt_fb.o avia_gt_oss.o avia_gt_vbi.o avia.o osd.o
 
 AVIA_OBJS = avia_core.o
 AVIA_OSD  = avia_osd.o
 
 FB_GEN = $(KERNEL_LOCATION)/drivers/video/fbgen.o
 
-AVIA_GT_MODS = avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
+AVIA_GT_MODS = avia_gt_dmx.o avia_gt_gv.o avia_gt_pcm.o avia_gt_capture.o avia_gt_pig.o
 AVIA_GT      = avia_gt_core.o avia_gt_enx.o avia_gt_gtx.o
 AVIA_GT_FB   = avia_gt_fb_core.o $(FB_GEN)
-AVIA_GT_DMX  = avia_gt_dmx_core.o crc32.o
 
 EXTRA_CFLAGS = -I../include -DEXPORT_SYMTAB
 
@@ -43,7 +42,7 @@ install:
 
 clean:
 	-rm -f $(M_OBJS) $(O_TARGET) $(AVIA_OBJS) $(AVIA_OSD)	\
-		$(AVIA_GT_DMX) $(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~
+		$(AVIA_GT) $(AVIA_GT_FB) .*.o.flags *~
 
 avia.o: $(AVIA_OBJS) 
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_OBJS)
@@ -53,9 +52,6 @@ osd.o: $(AVIA_OSD)
 
 avia_gt.o: $(AVIA_GT)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT)
-
-avia_gt_dmx.o: $(AVIA_GT_DMX)
-	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT_DMX)
 
 avia_gt_fb.o: $(AVIA_GT_FB)
 	$(LD) -m elf32ppclinux -r -o $@ $(AVIA_GT_FB)

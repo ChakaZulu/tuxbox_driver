@@ -64,19 +64,19 @@ static void avia_gt_vbi_reset(unsigned char reenable)
 {
 
     if (avia_gt_chip(ENX))
-	enx_reg_s(RSTR0)->TTX = 1;
+		enx_reg_s(RSTR0)->TTX = 1;
     else if (avia_gt_chip(GTX))
-	gtx_reg_s(RR1)->TTX = 1;
+		gtx_reg_s(RR1)->TTX = 1;
 
     if (reenable) {
 
-	if (avia_gt_chip(ENX))
-	    enx_reg_s(RSTR0)->TTX = 0;
-	else if (avia_gt_chip(GTX))
-	    gtx_reg_s(RR1)->TTX = 0;
-    
+		if (avia_gt_chip(ENX))
+			enx_reg_s(RSTR0)->TTX = 0;
+		else if (avia_gt_chip(GTX))
+			gtx_reg_s(RR1)->TTX = 0;
+
     }
-    
+
 }
 
 static int avia_gt_vbi_stop_vtxt(void)
@@ -84,16 +84,17 @@ static int avia_gt_vbi_stop_vtxt(void)
 
     if (active_vtxt_pid >= 0) {
 
-	avia_gt_vbi_reset(0);
+		avia_gt_vbi_reset(0);
 
-	if (feed_vtxt->stop_filtering(feed_vtxt) < 0) {
+		if (feed_vtxt->stop_filtering(feed_vtxt) < 0) {
   
-	    printk("avia_gt_vbi: error while stoping vtxt feed\n");  
-	    return -EIO;
+	    	printk("avia_gt_vbi: error while stoping vtxt feed\n");  
+		
+			return -EIO;
 	    
-	}    
+		}    
 	
-	active_vtxt_pid = -1;
+		active_vtxt_pid = -1;
   
     }
 
@@ -108,41 +109,32 @@ static int avia_gt_vbi_start_vtxt(unsigned long pid)
 
     avia_gt_vbi_stop_vtxt();
 
-    if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
+	if (feed_vtxt->set(feed_vtxt, pid, 188 * 10, 188 * 10, 0, timeout) < 0) {
   
-	printk("avia_gt_vbi: error while setting vtxt feed\n");  
+		printk("avia_gt_vbi: error while setting vtxt feed\n");  
 	
-	return -EIO;
+		return -EIO;
   
-    }
+	}
 
     if (feed_vtxt->start_filtering(feed_vtxt) < 0) {
   
-	printk("avia_gt_vbi: error while starting vtxt feed\n");  
+		printk("avia_gt_vbi: error while starting vtxt feed\n");  
 	
-	return -EIO;
+		return -EIO;
   
-    }
+	}
     
     avia_gt_vbi_reset(1);
     
-    if (avia_gt_chip(ENX)) {
+    if (avia_gt_chip(ENX))
+		enx_reg_s(TCNTL)->GO = 1;
+	else if (avia_gt_chip(GTX))
+		rh(TTCR) |= (1 << 9);
 
-	enx_reg_s(RSTR0)->TTX = 0;
-	enx_reg_16(TCNTL) |= (1 << 15);   
-	 enx_reg_16(TCNTL) |= (1 << 9); 
-    // 	enx_reg_s(TCNTL)->GO = 1;
-    
-    } else if (avia_gt_chip(GTX)) {
-    
-	rh(TTCR) |= (1 << 14);
-	rh(TTCR) |= (1 << 9);
+	active_vtxt_pid = pid;
 
-    }	
-
-    active_vtxt_pid = pid;
-
-    return 0;
+	return 0;
 
 }
 
@@ -153,7 +145,7 @@ static int avia_gt_vbi_ioctl(struct inode *inode, struct file *file, unsigned in
     
 	case AVIA_VBI_START_VTXT:
 	
-	    printk("avia_gt_vbi: start_vtxt (pid = 0x%X)\n", (int)arg);
+	    dprintk("avia_gt_vbi: start_vtxt (pid = 0x%X)\n", (int)arg);
 	    
 	    return avia_gt_vbi_start_vtxt(arg);
 	    
@@ -161,7 +153,7 @@ static int avia_gt_vbi_ioctl(struct inode *inode, struct file *file, unsigned in
 	
 	case AVIA_VBI_STOP_VTXT:
 	
-	    printk("avia_gt_vbi: stop_vtxt)\n");
+	    dprintk("avia_gt_vbi: stop_vtxt)\n");
 	    
 	    return avia_gt_vbi_stop_vtxt();
 	    
@@ -189,7 +181,7 @@ static struct file_operations avia_gt_vbi_fops = {
 int dmx_ts_callback(__u8* buffer1, size_t buffer1_length, __u8* buffer2, size_t buffer2_length, dmx_ts_feed_t *source, dmx_success_t success)
 {
 
-    printk("VBI-IRQ!!!!\n");
+    dprintk("VBI-IRQ!!!!\n");
 
     return 0;
 
@@ -200,29 +192,30 @@ static int __init avia_gt_vbi_init(void)
 
     struct list_head *dmx_list;
 
-    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.7 2002/04/23 00:10:44 Jolt Exp $\n");
+    printk("avia_gt_vbi: $Id: avia_gt_vbi.c,v 1.8 2002/05/01 21:51:35 Jolt Exp $\n");
 
     gt_info = avia_gt_get_info();
     
     if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 	
-	printk("avia_gt_vbi: Unsupported chip type\n");
+		printk("avia_gt_vbi: Unsupported chip type\n");
 		
-	return -EIO;
+		return -EIO;
 			
     }
 
     if (avia_gt_chip(ENX))
-	enx_reg_s(CFGR0)->TCP = 0;
+		enx_reg_s(CFGR0)->TCP = 0;
     else if (avia_gt_chip(GTX))
-	rh(CR1) &= ~(1 << 3);
+		rh(CR1) &= ~(1 << 3);
 			        
     devfs_handle = devfs_register(NULL, "dbox/vbi0", DEVFS_FL_DEFAULT, 0, 0, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &avia_gt_vbi_fops, NULL);
 
     if (!devfs_handle) {
   
         printk("avia_gt_vbi: error - can't register devfs handle\n");  
-	return -EIO;
+
+		return -EIO;
     
     }
 
@@ -231,7 +224,8 @@ static int __init avia_gt_vbi_init(void)
     if (!dmx_list) {
 
         printk("avia_gt_vbi: error - no demux found\n");  
-	return -EIO;
+	
+		return -EIO;
   
     }
   
@@ -240,9 +234,9 @@ static int __init avia_gt_vbi_init(void)
   
     if (dmx_demux->allocate_ts_feed(dmx_demux, &feed_vtxt, dmx_ts_callback, TS_PACKET, DMX_TS_PES_TELETEXT) < 0) {
   
-	printk("avia_gt_vbi: error while allocating vtxt feed\n");  
+		printk("avia_gt_vbi: error while allocating vtxt feed\n");  
 	
-	return -EIO;
+		return -EIO;
   
     }
 
@@ -254,15 +248,12 @@ static void __exit avia_gt_vbi_exit(void)
 {
 
     avia_gt_vbi_stop_vtxt();
-    
+
     dmx_demux->release_ts_feed(dmx_demux, feed_vtxt);
 
     devfs_unregister (devfs_handle);
 
-    if (avia_gt_chip(ENX))
-	enx_reg_s(RSTR0)->TTX = 1;
-    else if (avia_gt_chip(GTX))
-	gtx_reg_s(RR1)->TTX = 1;
+    avia_gt_vbi_reset(0);
 
 }
 

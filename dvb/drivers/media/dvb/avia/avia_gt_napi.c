@@ -1,5 +1,5 @@
 /*
- *	 gen-dmx.c - AViA GTX demux driver (dbox-II-project)
+ *	 avia_gt_napi.c - AViA GTX demux driver (dbox-II-project)
  *
  *	 Homepage: http://dbox2.elxsi.de
  *
@@ -20,8 +20,11 @@
  *	 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *   $Revision: 1.79 $
+ *   $Revision: 1.80 $
  *   $Log: avia_gt_napi.c,v $
+ *   Revision 1.80  2002/05/01 21:51:35  Jolt
+ *   Merge
+ *
  *   Revision 1.79  2002/04/22 17:40:01  Jolt
  *   Major cleanup
  *
@@ -279,23 +282,19 @@
 
 #include <dbox/avia_gt.h>
 #include <dbox/avia_gt_dmx.h>
-#include "crc32.h"
+#include "crc32.c"
 
 static sAviaGtInfo *gt_info;
 
 // #undef GTX_SECTIONS
 
-static char *ucode = 0;
-
 #ifdef MODULE
-MODULE_PARM(ucode,"s");
 MODULE_AUTHOR("Felix Domke <tmbinc@gmx.net>");
 MODULE_DESCRIPTION("Avia eNX/GTX demux driver");
 #endif
 
 static gtx_demux_t gtx;
 
-static u32 gtx_get_queue_wptr(int queue);
 static Pcr_t gtx_read_transport_pcr(void);
 static Pcr_t gtx_read_latched_clk(void);
 static Pcr_t gtx_read_current_clk(void);
@@ -376,109 +375,6 @@ void enx_tdp_trace(void)
 }
 #endif
 
-void enx_tdp_start(void)
-{
-	enx_reg_32(RSTR0) &= ~(1 << 22); //clear tdp-reset bit
-//	enx_tdp_trace();
-	enx_reg_16(EC)=0;  // dann mal los...	
-}
-
-void enx_tdp_stop(void)
-{
-	enx_reg_32(EC) = 2;			//stop tdp
-}
-
-void enx_tdp_init(u8 *microcode)
-{
-	unsigned short *instr_ram = (unsigned short*)enx_reg_o(TDP_INSTR_RAM);
-	unsigned short *src = (unsigned short*)microcode;
-	int		 words=0x800/2;
-
-	while (words--) {
-		udelay(100);
-		*instr_ram++ = *src++;
-	}
-}
-
-void LoaduCode (u8 * microcode)
-{
-	unsigned short *dst=(unsigned short*)&rh (RISC);
-	unsigned short *src=(unsigned short*)microcode;
-	int words=0x800/2;
-
-	rh(RR1) |= 1 << 5;				 // reset RISC
-	udelay (10);
-	rh(RR1) &= ~(1 << 5);
-
-	while (words--)
-	{
-		udelay(100);
-		*dst++=*src++;
-	}
-
-	dst=(unsigned short*) &rh (RISC);
-	src=(unsigned short*) microcode;
-	words=0x800 / 2;
-	while (words--)
-		if (*dst++ != *src++)
-			break;
-	if (words>=0)
-	{
-		printk(KERN_CRIT "microcode validation failed at %x\n", 0x800 - words);
-		return;
-	}
-}
-
-static int errno;
-
-static int
-do_firmread (const char *fn, char **fp)
-{
-	int		fd;
-	loff_t l;
-	char	*dp;
-
-	if ((fd = open (fn, 0, 0)) < 0)
-	{
-		printk (KERN_ERR "%s: %s: Unable to load '%s'.\n",
-			__FILE__, __FUNCTION__, fn);
-		return 0;
-	}
-
-	l = lseek (fd, 0L, 2);
-	if (l <= 0) {
-		printk (KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
-			__FILE__, __FUNCTION__, fn);
-		sys_close (fd);
-	return 0;
-	}
-
-	lseek (fd, 0L, 0);
-	dp = vmalloc (l);
-
-	if (dp == NULL)
-	{
-		printk (KERN_ERR "%s: %s: Out of memory loading '%s'.\n",
-			__FILE__, __FUNCTION__, fn);
-		sys_close (fd);
-		return 0;
-	}
-
-	if (read (fd, dp, l) != l)
-	{
-		printk (KERN_ERR "%s: %s: Failed to read '%s'.\n",
-			__FILE__, __FUNCTION__, fn);
-		vfree (dp);
-		sys_close (fd);
-		return 0;
-	}
-
-	close (fd);
-	*fp = dp;
-	return (int) l;
-}
-
-
 void gtx_set_pid_table(int entry, int wait_pusi, int invalid, int pid)
 {
 
@@ -543,10 +439,10 @@ void gtx_set_pid_control_table_section(int entry, int type, int queue, int fork,
 	w[2]|=(!!pec)<<5;
 	w[2]|=filt_tab_idx;
 	w[3]=no_of_filters;
-	dprintk("gtx_dmx: no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
+	dprintk("avia_gt_napi: no_of_filters %x (%08x)\n", no_of_filters, *(u32*)w);
 	rw(RISC+0x740+entry*4)=*(u32*)w;
 	udelay(1000*1000);
-	dprintk("gtx_dmx: read %08x\n", rw(RISC+0x740+entry*4));
+	dprintk("avia_gt_napi: read %08x\n", rw(RISC+0x740+entry*4));
 }
 
 void gtx_set_filter_definition_table(int entry, int and_or_flag, int filter_param_id)
@@ -584,206 +480,18 @@ void gtx_set_filter_parameter_table(int entry, u8 mask[8], u8 param[8], int not_
 }
 #endif
 
-void gtx_set_queue(int queue, u32 wp, u8 size)
-{
-
-	/* the 32 queue pointers are visible to the
-	 * host processor in two banks of 16.
-	 */
-
-    if (avia_gt_chip(ENX)) {
-    
-	if (queue>=16)
-		enx_reg_32(CFGR0)|=0x10;
-	else
-		enx_reg_32(CFGR0)&=~0x10;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	if (queue>=16)
-		rh(CR1)|=0x10;
-	else
-		rh(CR1)&=~0x10;
-
-    }
-
-	mb(); 
-	queue &= 0xF;
-
-    if (avia_gt_chip(ENX)) {
-    
-	enx_reg_16n(0x882+4*queue)=((wp>>16)&63)|(size<<6);
-	enx_reg_16n(0x880+4*queue)=wp&0xFFFF;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	rh(QWPnL+4*queue)=wp&0xFFFF;
-	rh(QWPnH+4*queue)=((wp>>16)&63)|(size<<6);
-	
-    }	
-    
-}
-
-void set_queue_interrupt_address(int queue, int boundary)
-{
-
-    if (avia_gt_chip(ENX)) {
-    
-	if (queue >= 16)
-		enx_reg_32(CFGR0) |= 0x10;
-	else
-		enx_reg_32(CFGR0) &= ~0x10;
-		
-	queue &= 0xF;
-	
-	mb();
-	
-	enx_reg_16n(0x8C0 + queue * 2) = (boundary == -1) ? 0 : ((1 << 15) | boundary);
-
-    } else if (avia_gt_chip(GTX)) {
-
-	rh(QI0 + queue * 2) = (boundary == -1) ? 0 : ((1 << 15) | boundary);					// das geht irgendwie nicht :(
-
-    }		
-    
-}
-
-u32 gtx_get_queue_wptr(int queue)
-{
-	u32 wp=-1, oldwp;
-
-    if (avia_gt_chip(ENX)) {
-    
-	if (queue>=16)
-		enx_reg_32(CFGR0)|=0x10;
-	else
-		enx_reg_32(CFGR0)&=~0x10;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	if (queue>=16)
-		rh(CR1)|=0x10;
-	else
-		rh(CR1)&=~0x10;
-		
-    }			
-    
-	mb();
-	queue &= 0xF;
-	
-	do
-	{
-		oldwp=wp;
-
-    if (avia_gt_chip(ENX)) {
-    
-		wp=enx_reg_16n(0x880+4*queue);
-		wp|=(enx_reg_16n(0x882+4*queue)&63)<<16;
-
-    } else if (avia_gt_chip(GTX)) {
-
-		wp=rh(QWPnL+4*queue);
-		wp|=(rh(QWPnH+4*queue)&63)<<16;
-		
-    }
-
-	} while (wp!=oldwp);
-	return wp;
-}
-
 #define Q_VIDEO				 2
 #define Q_AUDIO				 0
 #define Q_TELETEXT			1
 
-void gtx_set_queue_pointer(int queue, u32 read, u32 write, int size, int halt)
-{
-
-    int base;
-    
-    if (avia_gt_chip(ENX)) {
-    
-	base = queue * 8 + 0x8E0;
-	
-	enx_reg_16n(base) = read & 0xFFFF;
-	enx_reg_16n(base + 4) = write & 0xFFFF;
-	enx_reg_16n(base + 6) = ((write >> 16) & 63) | (size << 6);
-	enx_reg_16n(base + 2) = ((read >> 16) & 63);
-
-    } else if (avia_gt_chip(GTX)) {
-
-	base = queue * 8 + 0x1E0;
-	
-	rhn(base) = read & 0xFFFF;
-	rhn(base + 4) = write & 0xFFFF;
-	rhn(base + 6) = ((write >> 16) & 63) | (size << 6);
-	rhn(base + 2) = ((read >> 16) & 63) | (halt << 15);
-	
-    }	
-	
-}
-
-void gtx_set_system_queue_rptr(int queue, u32 read)
-{
-
-    int base;
-    
-    if (avia_gt_chip(ENX)) {
-    
-	base = queue * 8 + 0x8E0;
-	enx_reg_16n(base) = read & 0xFFFF;
-	enx_reg_16n(base + 2) = (read >> 16) & 63;
-
-    } else if (avia_gt_chip(GTX)) {
-
-	base = queue * 8 + 0x1E0;
-	rhn(base) = read & 0xFFFF;
-	rhn(base + 2) = ((read >> 16) & 63) | (rhn(base + 2) & (1 << 15));
-	
-    }	
-	
-}
-
-void gtx_set_system_queue_wptr(int queue, u32 write)
-{
-
-    int base;
-    
-    if (avia_gt_chip(ENX)) {
-    
-	base=queue*8+0x8E0;
-	enx_reg_16n(base+4)=write&0xFFFF;
-	enx_reg_16n(base+6)=((write>>16)&63)|(enx_reg_16n(base+6)&~63);
-
-    } else if (avia_gt_chip(GTX)) {
-
-	base=queue*8+0x1E0;
-	rhn(base+4)=write&0xFFFF;
-	rhn(base+6)=((write>>16)&63)|(rhn(base+6)&~63);
-	
-    }
-	
-}
-
 void gtx_reset_queue(gtx_demux_feed_t *feed)
 {
-	int rqueue;
-	feed->readptr=gtx_get_queue_wptr(feed->index);
-	switch (feed->index)
-	{
-	case 0:
-		rqueue=Q_VIDEO;
-		break;
-	case 1:
-		rqueue=Q_AUDIO;
-		break;
-	case 2:
-		rqueue=Q_TELETEXT;
-		break;
-	default:
-		return;
-	}
-	gtx_set_system_queue_wptr(rqueue, feed->readptr);
-	//gtx_set_system_queue_rptr(rqueue, feed->readptr);
+
+	feed->readptr = avia_gt_dmx_get_queue_write_pointer(feed->index);
+	
+	avia_gt_dmx_set_queue_write_pointer(feed->index, feed->readptr);
+	//avia_gt_dmx_set_queue_read_pointer(feed->index, feed->readptr);
+	
 }
 
 static __u32 datamask=0;
@@ -1073,89 +781,6 @@ static void gtx_dmx_set_pcr_source(int pid)
 }
 
 extern int register_demux(struct dmx_demux_s *demux);
-
-int gtx_dmx_init(void)
-{
-
-	u8 *microcode;
-	mm_segment_t fs;
-
-	printk(KERN_DEBUG "gtx_dmx: \n");
-
-	fs = get_fs();
-	set_fs(get_ds());
-	if(do_firmread(ucode,(char**)&microcode)==0){
-		set_fs(fs);
-	return -EIO;
-	}
-	set_fs(fs);
-	
-    if (avia_gt_chip(ENX)) {
-    
-	enx_reg_32(RSTR0)|=(1<<31)|(1<<23)|(1<<22);
-	enx_tdp_init(microcode);
-	enx_tdp_start();
-
-    } else if (avia_gt_chip(GTX)) {
-
-	LoaduCode(microcode);
-
-    }
-    
-	vfree(microcode);
-
-    if (avia_gt_chip(ENX)) {
-    
-	enx_reg_32(RSTR0) &= ~(1 << 27);
-	enx_reg_32(RSTR0) &= ~(1 << 13);
-	enx_reg_32(RSTR0) &= ~(1 << 11);
-	enx_reg_32(RSTR0) &= ~(1 << 9);
-	enx_reg_32(RSTR0) &= ~(1 << 23);
-	enx_reg_32(RSTR0) &= ~(1 << 31);
-	
-	enx_reg_32(CFGR0) &= ~(1 << 3);
-	enx_reg_32(CFGR0) &= ~(1 << 1);
-	enx_reg_32(CFGR0) &= ~(1 << 0);
-	
-	enx_reg_16(FC) = 0x9147;
-	enx_reg_16(SYNC_HYST) =0x21;
-	enx_reg_16(BQ) = 0x00BC;
-	
-	enx_reg_32(CFGR0) |= 1 << 24;		// enable dac output
-
-	enx_reg_16(AVI_0) = 0xF;					// 0x6CF geht nicht (ordentlich)
-	enx_reg_16(AVI_1) = 0xA;
-	
-	enx_reg_32(CFGR0) &= ~3; 				// disable clip mode
-
-	printk("ENX-INITed -> %x\n", enx_reg_16(FIFO_PDCT));
-
-	if (!enx_reg_16(FIFO_PDCT))
-		printk("there MIGHT be no TS :(\n");
-
-    } else if (avia_gt_chip(GTX)) {
-
-//	rh(RR1)&=~0x1C;							 // take framer, ci, avi module out of reset
-	rh(RR1)|=1<<6;
-	rh(RR1)&=~(1<<6);
-	rh(RR0)=0;						// autsch, das muss so. kann das mal wer überprüfen?
-	rh(RR1)=0;
-	rh(RISCCON)=0;
-
-	rh(FCR)=0x9147;							 // byte wide input
-	rh(SYNCH)=0x21;
-
-	rh(AVI)=0x71F;
-	rh(AVI+2)=0xF;
-	
-    }
-
-	GtxDmxInit(&gtx);
-	register_demux(&gtx.dmx);
-	
-	return 0;
-}
-
 extern int unregister_demux(struct dmx_demux_s *demux);
 
 void gtx_dmx_close(void)
@@ -1256,17 +881,17 @@ static void gtx_task(void *data)
 					__u8 *b1, *b2;
 					size_t b1l, b2l;
 
-					wptr = gtx_get_queue_wptr(queue);
+					wptr = avia_gt_dmx_get_queue_write_pointer(queue);
 					rptr = gtxfeed->readptr;
 
 					if (wptr < gtxfeed->base)
 					{
-						printk("gtxdmx: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
+						printk("avia_gt_napi: wptr < base (is: %x, base is %x, queue %d)!\n", wptr, gtxfeed->base, queue);
 						break;
 					}
 					if (wptr >= (gtxfeed->base+gtxfeed->size))
 					{
-						printk("gtxdmx: wptr out of bounds! (is %x)\n", wptr);
+						printk("avia_gt_napi: wptr out of bounds! (is %x)\n", wptr);
 						break;
 					}
 
@@ -1730,7 +1355,7 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed_s* feed)
 		return -EINVAL;
 	}
 
-	gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
+	gtxfeed->readptr=avia_gt_dmx_get_queue_write_pointer(gtxfeed->index);
 	gtx_reset_queue(gtxfeed);
 
 	filter->start_up=1;
@@ -1757,30 +1382,42 @@ static int dmx_ts_feed_set_type(struct dmx_ts_feed_s* feed, int type, dmx_ts_pes
 
 static int dmx_ts_feed_stop_filtering(struct dmx_ts_feed_s* feed)
 {
-	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
-	gtx_demux_filter_t *filter=gtxfeed->filter;
-	filter->invalid=1;
+
+	gtx_demux_feed_t *gtxfeed = (gtx_demux_feed_t *)feed;
+	gtx_demux_filter_t *filter = gtxfeed->filter;
+	
+	filter->invalid = 1;
+	
 	dmx_set_filter(gtxfeed->filter);
 	
-	feed->is_filtering=0;
+	feed->is_filtering = 0;
 
-	gtxfeed->state=DMX_STATE_READY;
+	gtxfeed->state = DMX_STATE_READY;
+	
 	dmx_update_pid(gtxfeed->demux, gtxfeed->pid);
+	
 	dmx_disable_tap(gtxfeed);
 
-	gtxfeed->readptr=gtx_get_queue_wptr(gtxfeed->index);
+	gtxfeed->readptr = avia_gt_dmx_get_queue_write_pointer(gtxfeed->index);
+	
 	gtx_reset_queue(gtxfeed);
+	
 	return 0;	
+	
 }
 
 static int dmx_allocate_ts_feed (struct dmx_demux_s* demux, dmx_ts_feed_t** feed, dmx_ts_cb callback, int type, dmx_ts_pes_t pes_type)
 {
-	gtx_demux_t *gtx=(gtx_demux_t*)demux;
+
+	gtx_demux_t *gtx = (gtx_demux_t *)demux;
 	gtx_demux_feed_t *gtxfeed;
-	if (!(gtxfeed=GtxDmxFeedAlloc(gtx, pes_type)))
-	{
+	
+	if (!(gtxfeed = GtxDmxFeedAlloc(gtx, pes_type))) {
+	
 		dprintk(KERN_ERR "gtx_dmx: couldn't get gtx feed\n");
+		
 		return -EBUSY;
+		
 	}
 
 	gtxfeed->type=DMX_TYPE_TS;
@@ -1869,8 +1506,7 @@ static int dmx_section_feed_allocate_filter (struct dmx_section_feed_s* feed, dm
 	return 0;
 }
 
-static int dmx_section_feed_release_filter(dmx_section_feed_t *feed,
-																dmx_section_filter_t* filter)
+static int dmx_section_feed_release_filter(dmx_section_feed_t *feed, dmx_section_filter_t* filter)
 {
 	gtx_demux_feed_t *gtxfeed=(gtx_demux_feed_t*)feed;
 	gtx_demux_secfilter_t *f, *gtxfilter=(gtx_demux_secfilter_t*)filter;
@@ -2108,7 +1744,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		gtx_set_pid_table(i, 0, 1, 0);
 	
 	for (i=0; i<NUM_QUEUES; i++)
-		set_queue_interrupt_address(i, -1);
+		avia_gt_dmx_set_queue_irq(i, 0, 0);
 
 	ptr=AVIA_GT_MEM_DMX_OFFS;
 	
@@ -2117,7 +1753,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		gtxdemux->feed[i].size=(1<<buffersize[i])*64;
 		if (ptr&(gtxdemux->feed[i].size-1))
 		{
-			printk("gtx-dmx: warning, misaligned queue %d (is %x, size %x), aligning...\n", i, ptr, gtxdemux->feed[i].size);
+			printk("avia_gt_napi: warning, misaligned queue %d (is %x, size %x), aligning...\n", i, ptr, gtxdemux->feed[i].size);
 			ptr+=gtxdemux->feed[i].size;
 			ptr&=~(gtxdemux->feed[i].size-1);
 		}
@@ -2125,7 +1761,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		ptr+=gtxdemux->feed[i].size;
 		gtxdemux->feed[i].end=gtxdemux->feed[i].base+gtxdemux->feed[i].size;
 		//		gtx_queue[i].base=avia_gt_alloc_dram(gtx_queue[i].size, gtx_queue[i].size);
-		gtx_set_queue(i, gtxdemux->feed[i].base, buffersize[i]);
+		avia_gt_dmx_set_queue((unsigned char)i, gtxdemux->feed[i].base, buffersize[i]);
 		gtxdemux->feed[i].index=i;
 		gtxdemux->feed[i].state=DMX_STATE_FREE;
 		gtxdemux->feed[i].tap=0;
@@ -2150,7 +1786,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 
 	dmx->id="demux0";
 	dmx->vendor="C-Cube";
-	dmx->model="AViA GTX/DMX";
+	dmx->model="AViA eNX/GTX";
 	dmx->frontend=0;
 	dmx->reg_list.next=dmx->reg_list.prev=&dmx->reg_list;
 	dmx->priv=(void *) gtxdemux;
@@ -2184,6 +1820,7 @@ int GtxDmxInit(gtx_demux_t *gtxdemux)
 		return -1;
 
 	return 0;
+	
 }
 
 int GtxDmxCleanup(gtx_demux_t *gtxdemux)
@@ -2196,26 +1833,29 @@ int GtxDmxCleanup(gtx_demux_t *gtxdemux)
 	return 0;
 }
 
-int __init avia_gt_dmx_init(void)
+int __init avia_gt_napi_init(void)
 {
 
-    printk("avia_gt_dmx: $Id: avia_gt_napi.c,v 1.79 2002/04/22 17:40:01 Jolt Exp $\n");
+	printk("avia_gt_napi: $Id: avia_gt_napi.c,v 1.80 2002/05/01 21:51:35 Jolt Exp $\n");
 
-    gt_info = avia_gt_get_info();
+	gt_info = avia_gt_get_info();
     
-    if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
+	if ((!gt_info) || ((!avia_gt_chip(ENX)) && (!avia_gt_chip(GTX)))) {
 	
-	printk("avia_gt_dmx: Unsupported chip type\n");
-		
-	return -EIO;
+		printk("avia_gt_napi: Unsupported chip type\n");
+
+		return -EIO;
 			
-    }
+	}
+
+	GtxDmxInit(&gtx);
+	register_demux(&gtx.dmx);
 			    
-    return gtx_dmx_init();
+	return 0;
 
 }
 
-void __exit avia_gt_dmx_exit(void)
+void __exit avia_gt_napi_exit(void)
 {
 
 	gtx_dmx_close();
@@ -2223,6 +1863,6 @@ void __exit avia_gt_dmx_exit(void)
 }
 
 #ifdef MODULE
-module_init(avia_gt_dmx_init);
-module_exit(avia_gt_dmx_exit);
+module_init(avia_gt_napi_init);
+module_exit(avia_gt_napi_exit);
 #endif
