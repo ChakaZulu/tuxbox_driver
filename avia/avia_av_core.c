@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.9  2001/03/07 20:58:07  gillem
+ *   - add bitstream info @ procfs
+ *
  *   Revision 1.8  2001/02/25 16:12:53  gillem
  *   - fix "volume" for AVIA600L
  *
@@ -68,7 +71,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.8 $
+ *   $Revision: 1.9 $
  *
  */
 
@@ -88,6 +91,7 @@
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/proc_fs.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
@@ -147,6 +151,24 @@ static DECLARE_MUTEX(avia_wait_cmd_mutex);
 #define NTSC_16MB_PL_ROM_SRAM   		9
 #define PAL_16MB_WO_ROM_SRAM    		10
 #define PAL_20MB_WO_ROM_SRAM    		12
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef CONFIG_PROC_FS
+
+static int avia_proc_init(void);
+static int avia_proc_cleanup(void);
+
+static int read_bitstream_settings(char *buf, char **start, off_t offset, int len,
+                           int *eof , void *private);
+static int avia_proc_initialized;
+
+#else /* undef CONFIG_PROC_FS */
+
+#define avia_proc_init() 0
+#define avia_proc_cleanup() 0
+
+#endif /* CONFIG_PROC_FS */
 
 /* ---------------------------------------------------------------------- */
 
@@ -1036,6 +1058,9 @@ static int init_avia(void)
 		return -EIO;
 	}
 
+
+	avia_proc_init();
+
 	avia_wait(avia_command(Abort, 0));
 
 //	wDR(OSD_BUFFER_START, 0x1f0000);
@@ -1062,6 +1087,69 @@ static int init_avia(void)
 
 /* ---------------------------------------------------------------------- */
 
+#ifdef CONFIG_PROC_FS
+
+int avia_proc_init(void)
+{
+	struct proc_dir_entry *proc_bus_avia;
+
+	avia_proc_initialized = 0;
+
+	if (!proc_bus) {
+		printk("avia_core.o: /proc/bus/ does not exist");
+		avia_proc_cleanup();
+		return -ENOENT;
+ 	}
+
+	proc_bus_avia = create_proc_entry("bitstream", 0, proc_bus);
+
+	if (!proc_bus_avia) {
+		printk("avia_core.o: Could not create /proc/bus/bitstream");
+		avia_proc_cleanup();
+		return -ENOENT;
+ 	}
+
+	proc_bus_avia->read_proc = &read_bitstream_settings;
+	proc_bus_avia->owner = THIS_MODULE;
+	avia_proc_initialized += 2;
+	return 0;
+}
+
+/* ----------------------------------------------------
+ * The /proc functions
+ * ----------------------------------------------------
+ */
+
+int read_bitstream_settings(char *buf, char **start, off_t offset, int len, int *eof,
+                 void *private)
+{
+	int nr = 0;
+
+	nr  = sprintf(buf,"Bitstream Settings:\n");
+	nr += sprintf(buf+nr,"H_SIZE:  %d\n",rDR(H_SIZE)&0xFFFF);
+	nr += sprintf(buf+nr,"V_SIZE:  %d\n",rDR(V_SIZE)&0xFFFF);
+	nr += sprintf(buf+nr,"A_RATIO: %d\n",rDR(ASPECT_RATIO)&0xFFFF);
+	nr += sprintf(buf+nr,"F_RATE:  %d\n",rDR(FRAME_RATE)&0xFFFF);
+	nr += sprintf(buf+nr,"B_RATE:  %d\n",rDR(BIT_RATE)&0xFFFF);
+	nr += sprintf(buf+nr,"VB_SIZE: %d\n",rDR(VBV_SIZE)&0xFFFF);
+	nr += sprintf(buf+nr,"A_TYPE:  %d\n",rDR(AUDIO_TYPE)&0xFFFF);
+	return nr;
+}
+
+int avia_proc_cleanup(void)
+{
+  if (avia_proc_initialized >= 1)
+  {
+    remove_proc_entry("bitstream", proc_bus);
+    avia_proc_initialized-=2;
+  }
+  return 0;
+}
+
+#endif /* def CONFIG_PROC_FS */
+
+/* ---------------------------------------------------------------------- */
+
 EXPORT_SYMBOL(avia_wr);
 EXPORT_SYMBOL(avia_rd);
 EXPORT_SYMBOL(avia_wait);
@@ -1083,6 +1171,8 @@ int init_module(void)
 
 void cleanup_module(void)
 {
+	avia_proc_cleanup();
+
 	free_irq(AVIA_INTERRUPT, &dev);
 
 	if (aviamem)
