@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_timer.c,v 1.13 2003/09/19 15:56:46 alexw Exp $
+ * $Id: dbox2_fp_timer.c,v 1.14 2005/01/02 19:45:47 carjay Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -99,7 +99,7 @@ dbox2_fp_timer_get (void)
 	if (fp_cmd(fp_i2c_client, cmd, id, sizeof(id)))
 		return -1;
 
-	return ((id[0] + id[1]) << 8);
+	return (id[0] + (id[1] << 8));
 }
 
 
@@ -135,4 +135,3 @@ dbox2_fp_timer_clear (void)
 	}
 	return 0;
 }
-
