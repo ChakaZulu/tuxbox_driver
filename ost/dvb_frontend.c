@@ -1,5 +1,5 @@
 /*
- * $Id: dvb_frontend.c,v 1.3 2002/02/24 16:09:56 woglinde Exp $
+ * $Id: dvb_frontend.c,v 1.4 2002/02/28 19:25:14 obi Exp $
  *
  * dvb_frontend.c: DVB frontend driver module
  *
@@ -22,6 +22,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  * $Log: dvb_frontend.c,v $
+ * Revision 1.4  2002/02/28 19:25:14  obi
+ * replaced get_fast_time by do_gettimeofday for kernel 2.4.18 compatibility
+ *
  * Revision 1.3  2002/02/24 16:09:56  woglinde
  * 2 files for new-api, were not added
  *
@@ -60,7 +63,7 @@ fe_add_event(DVBFEEvents *events, FrontendEvent *ev)
 	int wp;
 	struct timeval tv;
 
-	get_fast_time(&tv);
+	do_gettimeofday(&tv);
 	ev->timestamp=tv.tv_sec;
 	
 	spin_lock(&events->eventlock);
