@@ -20,6 +20,9 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	$Log: event.c,v $
+ *	Revision 1.7  2002/03/03 13:58:39  gillem
+ *	- handle more events
+ *	
  *	Revision 1.6  2002/03/02 17:03:58  waldi
  *	merge new_tuning_api
  *	
@@ -42,7 +45,7 @@
  *	- initial release (not ready today)
  *	
  *
- *	$Revision: 1.6 $
+ *	$Revision: 1.7 $
  *
  */
 
@@ -113,13 +116,13 @@ static int debug = 0;
 
 int event_write_message( struct event_t * event, size_t count )
 {
-	int i;
+	int i,s;
 
 	spin_lock (&event_lock);
 
-	printk("write event ...\n");
-	// only one event at a time	
-	if ( count == 1 )
+	printk("write %d event's ...\n",count);
+
+	for(s=0;s<count;s++)
 	{
 		for(i=0;i<MAX_EVENT_OPEN;i++)
 		{
@@ -127,11 +130,11 @@ int event_write_message( struct event_t * event, size_t count )
 			{
 				printk("write event ... free found\n");
 
-				if ( (event_private[i]->event_data.event_free > 0) && (event->event&event_private[i]->event_filter) )
+				if ( (event_private[i]->event_data.event_free > 0) && (event[s].event&event_private[i]->event_filter) )
 				{
 					printk("write event ... filter ok\n");
 					event_private[i]->event_data.event_free--;
-					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], event, sizeof(event_t) );
+					memcpy( &event_private[i]->event_data.event[event_private[i]->event_data.event_ptr], &event[s], sizeof(event_t) );
 		                        event_private[i]->event_data.event_ptr++;
 					if ( EVENTBUFFERSIZE == event_private[i]->event_data.event_ptr )
 			                        event_private[i]->event_data.event_ptr = 0;
