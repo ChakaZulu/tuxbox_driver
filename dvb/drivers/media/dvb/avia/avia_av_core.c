@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_av_core.c,v $
+ *   Revision 1.51  2002/12/27 21:03:52  wjoost
+ *   Abort tuts auch (und passt auch besser).
+ *
  *   Revision 1.50  2002/12/27 16:50:25  wjoost
  *   AVIA 500 AC3 (kein Wunder das es die nicht mehr gibt)
  *
@@ -206,7 +209,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.50 $
+ *   $Revision: 1.51 $
  *
  */
 
@@ -1353,7 +1356,8 @@ int avia_av_play_state_set_audio(u8 new_play_state)
 
 			if ((play_state_video == AVIA_AV_PLAY_STATE_PLAYING) && bypass_mode_changed && aviarev)
 			{
-				avia_command(Reset);
+//				avia_command(Reset);
+				avia_command(Abort,0);
 				avia_command(SelectStream,3 - bypass_mode,pid_audio);
 				avia_command(SelectStream,0,pid_video);
 				avia_command(Play,0,pid_video,pid_audio);
@@ -1658,7 +1662,7 @@ init_module (void)
 
 	int err;
 
-	printk ("avia_av: $Id: avia_av_core.c,v 1.50 2002/12/27 16:50:25 wjoost Exp $\n");
+	printk ("avia_av: $Id: avia_av_core.c,v 1.51 2002/12/27 21:03:52 wjoost Exp $\n");
 
 	aviamem = 0;
 
