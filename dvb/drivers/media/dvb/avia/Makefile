@@ -42,11 +42,11 @@ endif
 
 EXTRA_CFLAGS    += -I$(DRIVER_TOPDIR)/dvb/drivers/media/dvb/dvb-core
 
-ifeq ($(DEBUG),1)
+ifeq ($(CONFIG_AVIA_DEBUG),y)
 EXTRA_CFLAGS	+= -DDEBUG
 endif
 
-ifeq ($(STANDALONE),1)
+ifeq ($(CONFIG_AVIA_STANDALONE),y)
 obj-m		+= $(av-misc-objs) $(gt-misc-objs)
 EXTRA_CFLAGS	+= -DSTANDALONE
 else
@@ -75,12 +75,14 @@ $(obj-m): avia_gt_config.h
 # create a default makefile configuration if there is no custom .config
 #
 .config:
-	if [ ! -e .config ]; then				\
-		echo CONFIG_AVIA_GT_CAPTURE=y	>  .config;	\
-		echo CONFIG_AVIA_GT_DMX=y	>> .config;	\
-		echo CONFIG_AVIA_GT_GV=y	>> .config;	\
-		echo CONFIG_AVIA_GT_IR=y	>> .config;	\
-		echo CONFIG_AVIA_GT_PCM=y	>> .config;	\
+	if [ ! -e .config ]; then						\
+		echo \# CONFIG_AVIA_DEBUG is not set		>> .config;	\
+		echo CONFIG_AVIA_GT_CAPTURE=y			>> .config;	\
+		echo CONFIG_AVIA_GT_DMX=y			>> .config;	\
+		echo CONFIG_AVIA_GT_GV=y			>> .config;	\
+		echo CONFIG_AVIA_GT_IR=y			>> .config;	\
+		echo CONFIG_AVIA_GT_PCM=y			>> .config;	\
+		echo \# CONFIG_AVIA_STANDALONE is not set	>> .config;	\
 	fi
 
 #
@@ -89,27 +91,27 @@ $(obj-m): avia_gt_config.h
 avia_gt_config.h: .config
 	@echo \#ifndef __avia_gt_config_h__		>  avia_gt_config.h
 	@echo \#define __avia_gt_config_h__		>> avia_gt_config.h
-	@if [ $(CONFIG_AVIA_GT_CAPTURE) = y ]; then				\
+	@if [ "$(CONFIG_AVIA_GT_CAPTURE)" = "y" ]; then				\
 		echo \#define CONFIG_AVIA_GT_CAPTURE 1	>> avia_gt_config.h;	\
 	else									\
 		echo \#undef CONFIG_AVIA_GT_CAPTURE	>> avia_gt_config.h;	\
 	fi
-	@if [ $(CONFIG_AVIA_GT_DMX) = y ]; then					\
+	@if [ "$(CONFIG_AVIA_GT_DMX)" = "y" ]; then				\
 		echo \#define CONFIG_AVIA_GT_DMX 1	>> avia_gt_config.h;	\
 	else									\
 		echo \#undef CONFIG_AVIA_GT_DMX		>> avia_gt_config.h;	\
 	fi
-	@if [ $(CONFIG_AVIA_GT_GV) = y ]; then					\
+	@if [ "$(CONFIG_AVIA_GT_GV)" = "y" ]; then				\
 		echo \#define CONFIG_AVIA_GT_GV 1	>> avia_gt_config.h;	\
 	else									\
 		echo \#undef CONFIG_AVIA_GT_GV		>> avia_gt_config.h;	\
 	fi
-	@if [ $(CONFIG_AVIA_GT_IR) = y ]; then					\
+	@if [ "$(CONFIG_AVIA_GT_IR)" = "y" ]; then				\
 		echo \#define CONFIG_AVIA_GT_IR 1	>> avia_gt_config.h;	\
 	else									\
 		echo \#undef CONFIG_AVIA_GT_IR		>> avia_gt_config.h;	\
 	fi
-	@if [ $(CONFIG_AVIA_GT_PCM) = y ]; then					\
+	@if [ "$(CONFIG_AVIA_GT_PCM)" = "y" ]; then				\
 		echo \#define CONFIG_AVIA_GT_PCM 1	>> avia_gt_config.h;	\
 	else									\
 		echo \#undef CONFIG_AVIA_GT_PCM		>> avia_gt_config.h;	\
