@@ -13,7 +13,7 @@
 #include <ost/sec.h>
 #include <ost/video.h>
 
-#define BSIZE 1024
+#define BSIZE 10000
 
 int main(int argc, char **argv)
 {
@@ -35,11 +35,12 @@ int main(int argc, char **argv)
     sscanf(argv[1], "%x", &pid);
     flt.pid=pid;
   }
+
   memset(&flt.filter.filter, 0, DMX_FILTER_SIZE);
   memset(&flt.filter.mask, 0, DMX_FILTER_SIZE);
   flt.filter.mask[0]  =0xFF;
   if (flt.pid)
-    flt.filter.filter[0]=2;                 // PMT
+    flt.filter.filter[0]=0x50;                 // PMT
   else
     flt.filter.filter[0]=0;                 // PAT
   flt.timeout=10000;
