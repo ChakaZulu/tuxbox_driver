@@ -21,6 +21,9 @@
  *
  *
  *   $Log: avia_gt_core.c,v $
+ *   Revision 1.12  2002/04/24 08:17:42  obi
+ *   enabled pig
+ *
  *   Revision 1.11  2002/04/22 17:40:01  Jolt
  *   Major cleanup
  *
@@ -55,7 +58,7 @@
  *   eNX/GTX merge
  *
  *
- *   $Revision: 1.11 $
+ *   $Revision: 1.12 $
  *
  */
 
@@ -242,7 +245,7 @@ int __init avia_gt_init(void)
 
     int result;
 
-    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.11 2002/04/22 17:40:01 Jolt Exp $\n");
+    printk("avia_gt_core: $Id: avia_gt_core.c,v 1.12 2002/04/24 08:17:42 obi Exp $\n");
     
     if ((chip_type != AVIA_GT_CHIP_TYPE_ENX) && (chip_type != AVIA_GT_CHIP_TYPE_GTX)) {
     
@@ -357,14 +360,14 @@ int __init avia_gt_init(void)
 
     init_state = 8;
     
-/*    if (avia_gt_pig_init()) {
+    if (avia_gt_pig_init()) {
 
 	avia_gt_exit();
       
 	return -1;
 	
     }
-*/
+
     init_state = 9;
     
 #endif
@@ -379,9 +382,9 @@ void avia_gt_exit(void)
 {
 
 #if (!defined(MODULE)) || (defined(MODULE) && !defined(STANDALONE))
-/*    if (init_state >= 9)
+    if (init_state >= 9)
         avia_gt_pig_exit();
-*/	
+	
     if (init_state >= 8)
         avia_gt_capture_exit();
 	
