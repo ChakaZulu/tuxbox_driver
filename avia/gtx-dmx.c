@@ -21,6 +21,9 @@
  *
  *
  *   $Log: gtx-dmx.c,v $
+ *   Revision 1.23  2001/03/12 22:32:01  gillem
+ *   - test only ... sections not work
+ *
  *   Revision 1.22  2001/03/11 22:58:09  gillem
  *   - fix ts parser
  *
@@ -66,7 +69,7 @@
  *   Revision 1.8  2001/01/31 17:17:46  tmbinc
  *   Cleaned up avia drivers. - tmb
  *
- *   $Revision: 1.22 $
+ *   $Revision: 1.23 $
  *
  */
 
@@ -266,8 +269,10 @@ __u32 datamask=0;
 static void gtx_queue_interrupt(int nr, int bit)
 {
   int queue=(nr-2)*16+bit;
+
   datamask|=1<<queue;
   wantirq++;
+
   if (gtx_tasklet.data)
     schedule_task(&gtx_tasklet);
 }
@@ -464,19 +469,35 @@ void gtx_dmx_close(void)
 static void gtx_handle_section(gtx_demux_feed_t *gtxfeed)
 {
   gtx_demux_secfilter_t *secfilter;
+
   if (gtxfeed->sec_recv != gtxfeed->sec_len)
+  {
     dprintk("have: %d, want %d\n", gtxfeed->sec_recv, gtxfeed->sec_len);
+  }
+
   if (!gtxfeed->sec_recv)
+	{
     return;
+	}
+
   for (secfilter=gtxfeed->secfilter; secfilter; secfilter=secfilter->next)
   {
     int ok=1, i;
+
     for (i=0; i<DMX_MAX_FILTER_SIZE && ok; i++)
+		{
       if ((gtxfeed->sec_buffer[i]^secfilter->filter.filter_value[i])&secfilter->filter.filter_mask[i])
+			{
         ok=0;
+			}
+		}
+
     if (ok)
+		{
       gtxfeed->cb.sec(gtxfeed->sec_buffer, gtxfeed->sec_len, 0, 0, &secfilter->filter, 0);
+		}
   }
+
   gtxfeed->sec_len=gtxfeed->sec_recv=0;
 }
 
@@ -485,33 +506,40 @@ static void gtx_task(void *data)
   gtx_demux_t *gtx=(gtx_demux_t*)data;
   int queue;
   static int c;
+
   for (queue=0; datamask && queue<32; queue++)
+
     if (datamask&(1<<queue))
     {
       gtx_demux_feed_t *gtxfeed=gtx->feed+queue;
-      if (gtxfeed->state!=DMX_STATE_GO) {
+
+      if (gtxfeed->state!=DMX_STATE_GO)
+			{
         dprintk("gtx_dmx: DEBUG: interrupt on non-GO feed\n!");
-	  }
+			}
       else
       {
         if (gtxfeed->output&TS_PACKET)
         {
-          int wptr=gtx_get_queue_wptr(queue);
-          int rptr=gtx->feed[queue].readptr;
+          int wptr;
+          int rptr;
           static int lastw, lastr;
         
           __u8 *b1, *b2;
           size_t b1l, b2l;
        
+					wptr = gtx_get_queue_wptr(queue);
+					rptr = gtx->feed[queue].readptr;
+
+          b1=gtxmem+rptr;
+
           if (wptr>rptr)  // normal case
           {
-            b1=gtxmem+rptr;
             b1l=wptr-rptr;
             b2=0;
-            b2l=0;
+						b2l=0;
           } else
           {
-            b1=gtxmem+rptr;
             b1l=gtx->feed[queue].end-rptr;
             b2=gtxmem+gtx->feed[queue].base;
             b2l=wptr-gtx->feed[queue].base;
@@ -519,108 +547,134 @@ static void gtx_task(void *data)
           
           switch (gtx->feed[queue].type)
           {
-          case DMX_TYPE_TS:
-            gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0); break;
-          case DMX_TYPE_SEC:
-          {
-            static __u8 tsbuf[188];
+						// handle TS
+	          case DMX_TYPE_TS:
+  	          gtx->feed[queue].cb.ts(b1, b1l, b2, b2l, &gtx->feed[queue].feed.ts, 0);
+							break;
 
-            if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
-            {
-              dprintk("gtx_dmx: there's a BIG out of sync problem\n");
-              break;
-            }
+						// handle section
+	          case DMX_TYPE_SEC:
+	          {
+	            static __u8 tsbuf[188];
 
-            while (b1l || b2l)
-            {
-              int tr=b1l, r=0, p=4;
+							// check header & sync
+	            if (((b1l+b2l)%188) || (((char*)b1)[0]!=0x47))
+	            {
+	              dprintk("gtx_dmx: there's a BIG out of sync problem\n");
+	              break;
+	            }
 
-              if (tr>188)
-                tr=188;
-              memcpy(tsbuf, b1, tr);
-              r+=tr;
-              b1l-=tr;
+							// let's rock
+	            while (b1l || b2l)
+	            {
+	              int tr=b1l, r=0, p=4;
+
+	              if (tr>188)
+	                tr=188;
+
+              	memcpy(tsbuf, b1, tr);
+
+              	r+=tr;
+              	b1l-=tr;
               
-              tr=b2l;
-              if (tr>(188-r))
-                tr=(188-r);
-              memcpy(tsbuf+r, b2, tr);
-              b2l-=tr;
+             		tr=b2l;
+
+             		if (tr>(188-r))
+               		tr=(188-r);
+
+             		memcpy(tsbuf+r, b2, tr);
+
+             		b2l-=tr;
+
+              	tr=184;
               
-              tr=184;
-              
-			  // no payload
-              if (!(tsbuf[3]&0x10))
-			  {
-                continue;
-			  }
+			  				// no payload
+              	if (!(tsbuf[3]&0x10))
+			  				{
+                	continue;
+			  				}
 
-			  // af + pl
-              if (tsbuf[3]&0x20)                // adaption field
-              {
-				// go home paket !
-				if ( tsbuf[4] > 182 )
-				{
-					dprintk("warning afle=%d (ignore)\n",tsbuf[4]);
-	                continue;
-				}
-                tr-=tsbuf[4]+1;
-                p+=tsbuf[4]+1;
+			  				// af + pl
+              	if (tsbuf[3]&0x20)                // adaption field
+              	{
+									// go home paket !
+									if ( tsbuf[4] > 182 )
+									{
+										dprintk("warning afle=%d (ignore)\n",tsbuf[4]);
+	                	continue;
+									}
 
-				// go home paket !
-				if ( (tsbuf[p]+tsbuf[4]) > 182 )
-				{
-					dprintk("warning afle=%d plle=%d (ignore)\n",tsbuf[4],tsbuf[p]);
-	                continue;
-				}
-              } else
-  			  if ( tsbuf[4] > 183 )
-			  {
-				dprintk("warning plle=%d (ignore)\n",tsbuf[4]);
-                continue;
-			  }
+                	tr-=tsbuf[4]+1;
+                	p+=tsbuf[4]+1;
 
-              if (tsbuf[1]&0x40)                // PUSI
-              {
-				int op;
-                // rest kopieren
-                r=gtxfeed->sec_len-gtxfeed->sec_recv;
-                if (r>tsbuf[p])
-                  r=tsbuf[p];
-                memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
-                gtxfeed->sec_recv+=r;
-				op = p;
-                p+=tsbuf[p]+1;
+									// go home paket !
+									if ( (tsbuf[p]+tsbuf[4]) > 182 )
+									{
+										dprintk("warning afle=%d plle=%d (ignore)\n",tsbuf[4],tsbuf[p]);
+	                	continue;
+									}
+								} else
+								{
+  			  				if ( tsbuf[4] > 183 )
+						  		{
+										dprintk("warning plle=%d (ignore)\n",tsbuf[4]);
+                		continue;
+						  		}
+								}
 
-                dprintk("special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
+              	if (tsbuf[1]&0x40)                // PUSI
+              	{
+									int op;
 
-                gtx_handle_section(gtxfeed);
+	               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
+									printk("!!! COPY 0x40 !!! %d\n",r);
 
-                gtxfeed->sec_len=(((tsbuf[p+1]&0xF)<<8)|(tsbuf[p+2])) + 3;
-                gtxfeed->sec_recv=0;
-                tr=188-p;
-              }
-              
-              r=gtxfeed->sec_len-gtxfeed->sec_recv;
-              if (r>tr)
-                r=tr;
+                	// rest kopieren
+                	if (r>tsbuf[p])
+                  	r=tsbuf[p];
 
-              memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p, r);
-              gtxfeed->sec_recv+=r;
-            }
+                	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p+1, r);
+//                	gtxfeed->sec_recv+=r;
+
+									op = p;
+                	p+=tsbuf[p]+1;
+
+                	dprintk("special case: %d / %d read, pointer is %d / %d\n", gtxfeed->sec_recv, gtxfeed->sec_len, p, op);
+
+                	gtx_handle_section(gtxfeed);
+
+                	gtxfeed->sec_len=(((tsbuf[p+1]&0xF)<<8)|(tsbuf[p+2])) + 3;
+                	gtxfeed->sec_recv=0;
+                	tr=188-p;
+              	}
+
+               	r=gtxfeed->sec_len-gtxfeed->sec_recv;
+								printk("!!! COPY NORMAL !!! %d %d\n",r,tr);
+
+              	if (r>tr)
+                	r=tr;
+
+              	memcpy(gtxfeed->sec_buffer+gtxfeed->sec_recv, tsbuf+p, r);
+	             	gtxfeed->sec_recv+=r;
+            	}
+						}
+
             break;
-          }
-          case DMX_TYPE_PES:
-  //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0); break;
-          }
+
+         		case DMX_TYPE_PES:
+  //          gtx->feed[queue].cb.pes(b1, b1l, b2, b2l, & gtxfeed->feed.pes, 0);
+							break;
+
+					} // switch end
+
           gtxfeed->readptr=wptr;
           lastw=wptr;
           lastr=rptr;
-        }
-      }
-      datamask&=~(1<<queue);
-    }
-  
+	      }
+	    }
+		datamask&=~(1<<queue);
+	}
+
   if (c++ > 100)
   {
     // display wantirq stat
