@@ -53,7 +53,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-/* $Id: demux.h,v 1.2 2001/04/08 02:05:40 tmbinc Exp $ */ 
+/* $Id: demux.h,v 1.3 2001/12/17 18:38:07 gillem Exp $ */ 
 
 #ifndef __DEMUX_H 
 #define __DEMUX_H 
@@ -109,6 +109,7 @@ typedef enum {
 
 typedef enum
 {
+	DMX_TS_PES_USER,
         DMX_TS_PES_AUDIO,   /* also send packets to audio decoder (if it exists) */
 	DMX_TS_PES_VIDEO,   /* ... */
 	DMX_TS_PES_TELETEXT,

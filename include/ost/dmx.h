@@ -34,11 +34,23 @@
 #define EBUFFEROVERFLOW 769
 #endif
 
+#undef OSTNET		/* define this for nokia ostnet */
+
 /* pid_t conflicts with linux/include/linux/types.h !!!*/
 
-typedef uint16_t dvb_pid_t;  
+#ifdef OSTNET
+typedef uint16_t    PID_t;      /* ostnet Packet identifier */
+#else
+typedef uint16_t dvb_pid_t;
+#endif
 
 #define DMX_FILTER_SIZE 16
+
+typedef enum
+{
+	DMX_IN_FRONTEND, /* Input from a front-end device.  */
+	DMX_IN_DVR       /* Input from the logical DVR device.  */
+} dmxInput_t;
 
 typedef enum
 {
@@ -50,16 +62,9 @@ typedef enum
 	                 /* logical DVR device).                 */
 } dmxOutput_t;
 
-
 typedef enum
 {
-	DMX_IN_FRONTEND, /* Input from a front-end device.  */
-	DMX_IN_DVR       /* Input from the logical DVR device.  */
-} dmxInput_t;
-
-
-typedef enum
-{
+	DMX_PES_USER,
         DMX_PES_AUDIO,
 	DMX_PES_VIDEO,
 	DMX_PES_TELETEXT,
@@ -95,26 +100,49 @@ struct dmxFrontEnd
   //TBD             tbd;
 };
 
-
+/**
+ * The dmxSctFilterParams structure defines the input parameters for
+ * the set section filter function.
+ */
 struct dmxSctFilterParams
 {
-	dvb_pid_t                    pid;
+#ifdef OSTNET
+	struct dmxFilter	     filter;	/* new api from ostdev (nokia) */
+#else
 	dmxFilter_t                  filter;
+#endif
+#ifdef OSTNET
+	PID_t                        PID;	/* new api from ostdev (nokia) */
+#else
+	dvb_pid_t                    pid;
+#endif
 	uint32_t                     timeout;
 	uint32_t                     flags;
+
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
 #define DMX_KERNEL_CLIENT   0x8000
 };
 
-
+/**
+ * The dmxPesFilterParams structure defines the input parameters for
+ * the set PES filter function.
+ */
 struct dmxPesFilterParams
 {
+#ifdef OSTNET
+	struct dmxPesType_t          pesType;
+#else
+	dmxPesType_t                 pesType;
+#endif
+#ifdef OSTNET
+	PID_t                        PID;
+#else
 	dvb_pid_t                    pid;
+#endif
 	dmxInput_t                   input;
 	dmxOutput_t                  output;
-	dmxPesType_t                 pesType;
 	uint32_t                     flags;
 };
 
@@ -129,13 +157,66 @@ struct dmxEvent
 	} u;
 };
 
+/*
+ * ioctl command numbers
+ */
+#ifdef OSTNET
+#define DMX_IOCTL0       3
+#define DMX_IOCTL1       4
+#define DMX_IOCTL2       5
+#define DMX_IOCTL3       6
+#define DMX_IOCTL4       7
+#define DMX_IOCTL5       8
+#else
+#define DMX_IOCTL0       41
+#define DMX_IOCTL1       42
+#define DMX_IOCTL2       43
+#define DMX_IOCTL3       44
+#define DMX_IOCTL4       45
+#define DMX_IOCTL5       46
+#define DMX_IOCTL5       47
+#endif
 
-#define DMX_START                _IOW('o',41,int) 
-#define DMX_STOP                 _IOW('o',42,int)
-#define DMX_SET_FILTER           _IOW('o',43,struct dmxSctFilterParams *)
-#define DMX_SET_PES_FILTER       _IOW('o',44,struct dmxPesFilterParams *)
-#define DMX_SET_BUFFER_SIZE      _IOW('o',45,unsigned long)
-#define DMX_GET_EVENT            _IOR('o',46,struct dmxEvent *)
-#define DMX_GET_PES_PIDS         _IOR('o',47,dvb_pid_t *)
+/** Start filtering */
+#ifdef OSTNET
+#define DMX_START           _IO(OST_IOCTL,  DMX_IOCTL1)
+#else
+#define DMX_START           _IOW('o',DMX_IOCTL1,int)
+#endif
+/** Change buffer size */
+#ifdef OSTNET
+#define DMX_SET_BUFFER_SIZE _IOW(OST_IOCTL, DMX_IOCTL4, unsigned long)
+#else
+#define DMX_SET_BUFFER_SIZE _IOW('o',DMX_IOCTL4,unsigned long)
+#endif
+/** Set a new section filter */
+#ifdef OSTNET
+#define DMX_SET_FILTER      _IOW(OST_IOCTL, DMX_IOCTL2, struct dmxSctFilterParams)
+#else
+#define DMX_SET_FILTER      _IOW('o',DMX_IOCTL2,struct dmxSctFilterParams *)
+#endif
+/** Stop filtering */
+#ifdef OSTNET
+#define DMX_STOP            _IO(OST_IOCTL,  DMX_IOCTL0)
+#else
+#define DMX_STOP            _IOW('o',DMX_IOCTL0,int)
+#endif
+/** Set a new PES filter */
+#ifdef OSTNET
+#define DMX_SET_PES_FILTER  _IOW(OST_IOCTL, DMX_IOCTL3, struct dmxPesFilterParams)
+#else
+#define DMX_SET_PES_FILTER  _IOW('o',DMX_IOCTL3,struct dmxPesFilterParams *)
+#endif
+/** Change buffer size */
+#ifdef OSTNET
+#define DMX_GET_EVENT       _IOR(OST_IOCTL, DMX_IOCTL5, struct dmxEvent)
+#else
+#define DMX_GET_EVENT       _IOR('o',DMX_IOCTL5,struct dmxEvent *)
+#endif
+/** Get the pes pids */
+#ifdef OSTNET
+#else
+#define DMX_GET_PES_PIDS    _IOR('o',DMX_IOCTL6,dvb_pid_t *)
+#endif
 
 #endif /*_OST_DMX_H_*/
