@@ -24,6 +24,9 @@
  *  /dev/mixer  standard /dev/mixer device, (mostly) OSS compatible
  *
  *   $Log: pcm.c,v $
+ *   Revision 1.7  2001/01/07 20:52:31  gillem
+ *   add volume to mixer ioctl
+ *
  *   Revision 1.6  2001/01/06 10:24:06  gillem
  *   add some mixer stuff (not work now)
  *
@@ -34,7 +37,7 @@
  *   cvs check
  *
  *
- *   $Revision: 1.6 $
+ *   $Revision: 1.7 $
  *
  */
 
@@ -402,6 +405,27 @@ static const struct {
 
 static int mixer_ioctl(struct pcm_state *s, unsigned int cmd, unsigned long arg)
 {
+	if (_SIOC_DIR(cmd) & _SIOC_WRITE)
+	{
+		switch(cmd) {
+			case SOUND_MIXER_VOLUME:
+				rw(PCMN) = (rw(PCMN) & 0xFFFF) | (*(int*)arg << 16);
+				break;
+		default:
+				return -EINVAL;
+		}
+	}
+	else
+	{
+		switch(cmd) {
+			case SOUND_MIXER_VOLUME:
+				*(int*)arg = (rw(PCMN)>>16)&0xffff;
+				break;
+		default:
+				return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
