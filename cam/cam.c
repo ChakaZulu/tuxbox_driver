@@ -21,6 +21,9 @@
  *
  *
  *   $Log: cam.c,v $
+ *   Revision 1.5  2001/03/10 12:23:04  gillem
+ *   - add exports
+ *
  *   Revision 1.4  2001/03/03 18:01:06  waldi
  *   complete change to devfs; doesn't compile without devfs
  *
@@ -28,7 +31,7 @@
  *   - add option firmware,debug
  *
  *
- *   $Revision: 1.4 $
+ *   $Revision: 1.5 $
  *
  */
 
@@ -137,6 +140,8 @@ static int cam_release(struct inode *inode, struct file *file);
 
 static void cam_interrupt(int irq, void *dev, struct pt_regs * regs);
 
+int cam_reset(void);
+
         /*
           queue data:
             6f len 23 dd dd ss
@@ -163,7 +168,13 @@ static struct file_operations cam_fops = {
 static int cam_ioctl (struct inode *inode, struct file *file, unsigned int cmd,
                       unsigned long arg)
 {
-  return -ENOSYS;
+	unsigned int minor = MINOR (file->f_dentry->d_inode->i_rdev);
+
+	if (minor==CAM_MINOR)
+	{
+	}
+
+	return -ENOSYS;
 }
 
 static ssize_t cam_write (struct file *file, const char *buf, size_t count, loff_t *offset)
@@ -458,6 +469,13 @@ static void cam_interrupt(int irq, void *dev, struct pt_regs * regs)
 
 /* ---------------------------------------------------------------------- */
 
+int cam_reset()
+{
+	return fp_do_reset(0xAF);
+}
+
+/* ---------------------------------------------------------------------- */
+
 static void do_firmwrite( u32 *buffer )
 {
     int size,i;
@@ -486,7 +504,8 @@ static void do_firmwrite( u32 *buffer )
 		udelay(100);
 	}
 
-	fp_do_reset(0xAF);
+	cam_reset();
+
 	cp->cp_pbdat&=~1;
 
 	memcpy(code_base, base, size);
@@ -495,9 +514,10 @@ static void do_firmwrite( u32 *buffer )
 	cp->cp_pbdat|=1;
 	cp->cp_pbdat&=~2;
 	cp->cp_pbdat|=2;
+
 	udelay(100);
 
-	fp_do_reset(0xAF);
+	cam_reset();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -688,6 +708,10 @@ void cam_fini(void)
 		return;
 	}
 }
+
+/* ---------------------------------------------------------------------- */
+
+EXPORT_SYMBOL(cam_reset);
 
 /* ---------------------------------------------------------------------- */
 
