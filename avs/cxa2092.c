@@ -67,7 +67,7 @@ static struct file_operations scartswitch_fops = {
 ///////////////////////////////////////////////////////////////////////////////
 
 #define I2C_DRIVERID_SCARTSWITCH	1
-#define SCARTSWITCH_MAJOR 40
+#define SCARTSWITCH_MAJOR 				40
 
 static int debug =  0; /* insmod parameter */
 static int type  =  -1;
