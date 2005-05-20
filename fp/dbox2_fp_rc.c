@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_rc.c,v 1.23 2004/06/02 23:01:19 carjay Exp $
+ * $Id: dbox2_fp_rc.c,v 1.24 2005/05/20 00:28:48 carjay Exp $
  *
  * Copyright (C) 2002 by Florian Schirmer <jolt@tuxbox.org>
  *
@@ -172,11 +172,14 @@ static void dbox2_fp_new_rc_queue_handler(u8 queue_nr)
 		if (key->value_new == (rc_code & 0x1f)) {
 			if (timer_pending(&keyup_timer)) {
 				del_timer_sync(&keyup_timer);
-				if ((fupsnew.last_key->code != key->code) || (fupsnew.toggle_bits != ((rc_code >> 6) & 0x03)))
-					if (fupsnew.toggle_bits!=0xff) {
-						input_event(rc_input_dev, EV_KEY, fupsnew.last_key->code, KEY_RELEASED);
-						fupsnew.toggle_bits=0xff;
+				if (fupsnew.last_key) {	/* timer might have expired in between! */
+					if ((fupsnew.last_key->code != key->code) || (fupsnew.toggle_bits != ((rc_code >> 6) & 0x03))) {
+						if (fupsnew.toggle_bits!=0xff) {
+							input_event(rc_input_dev, EV_KEY, fupsnew.last_key->code, KEY_RELEASED);
+							fupsnew.toggle_bits=0xff;
+						}
 					}
+				}
 			}
 			if ((fupsnew.toggle_bits!=0xff)&&(fupsnew.toggle_bits == ((rc_code >> 6) & 0x03)))
 				input_event(rc_input_dev, EV_KEY, key->code, KEY_AUTOREPEAT);
