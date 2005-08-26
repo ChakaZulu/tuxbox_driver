@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.45 2004/12/01 02:51:42 carjay Exp $
+ * $Id: saa7126_core.c,v 1.46 2005/08/26 20:58:03 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -499,8 +499,10 @@ static int saa7126_detect_client(struct i2c_adapter *adapter, int address,
 			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH,
 			&saa7126_fops, encoder);
 
-	if (!encoder->devfs_handle)
+	if (!encoder->devfs_handle) {
+		kfree(client);
 		return -EIO;
+	}
 
 	if ((ret = i2c_attach_client(client))) {
 		kfree(client);
@@ -702,7 +704,7 @@ static int saa7126_wss_set(struct i2c_client *client, int i)
 		return -EINVAL;
 
 	saa7126_writereg(client, 0x26, wss_data[i]);
-	saa7126_writereg(client, 0x27, 0x80);
+	saa7126_writereg(client, 0x27, 0x90);
 
 	return 0;
 }
