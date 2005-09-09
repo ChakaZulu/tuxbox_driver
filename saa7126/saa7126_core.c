@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.46 2005/08/26 20:58:03 carjay Exp $
+ * $Id: saa7126_core.c,v 1.47 2005/09/09 15:10:37 rasc Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -704,7 +704,7 @@ static int saa7126_wss_set(struct i2c_client *client, int i)
 		return -EINVAL;
 
 	saa7126_writereg(client, 0x26, wss_data[i]);
-	saa7126_writereg(client, 0x27, 0x90);
+	saa7126_writereg(client, 0x27, 0x80); // no WSS (c) bit set by default!
 
 	return 0;
 }
