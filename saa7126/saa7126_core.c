@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.47 2005/09/09 15:10:37 rasc Exp $
+ * $Id: saa7126_core.c,v 1.48 2005/10/25 18:32:37 carjay Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -318,6 +318,15 @@ static int saa7126_write_inittab (struct i2c_client *client, char init)
 	default:
 		return -EINVAL;
 	}
+
+	/* init all null register with 0x00 */
+	for (i = 0x01; i <= 0x25; i++  )
+		saa7126_writereg(client, i, 0x00);
+		
+	for (i = 0x2e; i <= 0x37; i++ )
+		saa7126_writereg(client, i, 0x00);
+
+	saa7126_writereg(client, 0x60, 0x00);
 
 	for (i = 0; inittab[i].id != 0xff; i++){
 		if (inittab[i].id & (1 << (tuxbox_dbox2_mid - 1))){
