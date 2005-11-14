@@ -230,7 +230,7 @@
 #define MR_PIC_PTS			0x02f0
 #define MR_PIC_STC			0x02f4
 
-#define MRC_ID				0x02a0
+#define MRC_ID				0x02a4
 #define MRC_STATUS			0x02a8
 
 #define N_AUD_DECODED			0x02f8
