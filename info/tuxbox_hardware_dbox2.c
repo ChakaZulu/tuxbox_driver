@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * $Id: tuxbox_hardware_dbox2.c,v 1.6 2005/12/03 21:30:34 carjay Exp $
+ * $Id: tuxbox_hardware_dbox2.c,v 1.7 2005/12/03 23:00:57 carjay Exp $
  */
 
 #include <linux/module.h>
@@ -80,30 +80,41 @@ static int flash_read_mid(void)
 		for permission to access the bootloader.
 	*/
 
+	int ret = 0;
 	size_t retlen;
 	char mid;
 
 	register_mtd_user(&mtd);
+	
 	if (!bmon_part_info) {
 		printk(KERN_ERR "tuxbox: BMon partition \"%s\" not found\n",bmonname);
-		return -EIO;
+		ret = -EIO;
+		goto frm_exit;
 	}
 
 	if (bmon_part_info->size!=0x20000) {
-		printk(KERN_ERR "tuxbxo: BMon partition has unexpected size %d\n",bmon_part_info->size);
-		return -EIO;
+		printk(KERN_ERR "tuxbox: BMon partition has unexpected size %d\n",bmon_part_info->size);
+		ret = -EIO;
+		goto frm_exit;
 	}
 
-	bmon_part_info->read(bmon_part_info, 0x1FFE0, 1, &retlen, &mid);
-	if (!retlen) {
+	ret = bmon_part_info->read(bmon_part_info, 0x1FFE0, 1, &retlen, &mid);
+	if (ret) {
 		printk(KERN_ERR "tuxbox: BMon partition read error\n");
-		return -EIO;
+		goto frm_exit;
 	}
-	unregister_mtd_user(&mtd);
+	
+	if (!retlen) {
+		printk(KERN_ERR "tuxbox: BMon partition read returned 0 bytes\n");
+		ret = -EIO;
+		goto frm_exit;
+	}
 
 	tuxbox_dbox2_mid = mid;
 
-	return 0;
+frm_exit:
+	unregister_mtd_user(&mtd);
+	return ret;
 }
 
 #else /* CONFIG_MTD */
