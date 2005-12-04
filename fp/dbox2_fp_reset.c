@@ -1,5 +1,5 @@
 /*
- * $Id: dbox2_fp_reset.c,v 1.4 2003/03/05 09:52:17 waldi Exp $
+ * $Id: dbox2_fp_reset.c,v 1.5 2005/12/04 12:31:25 carjay Exp $
  *
  * Copyright (C) 2002 by Andreas Oberritter <obi@tuxbox.org>
  *
@@ -22,24 +22,41 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <asm/io.h>
 
 #include <dbox/dbox2_fp_core.h>
 #include <dbox/dbox2_fp_reset.h>
 
 static struct i2c_client * fp_i2c_client;
 
-void
-dbox2_fp_reset_init (void)
+void dbox2_fp_reset_init (void)
 {
 	fp_i2c_client = fp_get_i2c();
 }
 
-
-void
-dbox2_fp_restart (char * cmd)
+void dbox2_fp_restart (char * cmd)
 {
+	volatile u32 *flash;
+	u32 *addr;
+	local_irq_disable();
+	
 	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
+		/* 
+			We have a problem here if the flash
+		  	is not in read-array mode. In theory
+			the reset circuit should take care
+			of this but somehow that doesn't
+			happen for some Nokias, so we simply 
+			force the chip into the read array 
+			mode, no matter what state it was in.
+		 */
+		flash = addr = ioremap(0x10000000,4);
+		if (flash) {
+			*flash = 0x00ff00ff; /* Intel */
+			*flash = 0x00f000f0; /* AMD */
+			iounmap(addr);
+		}
 		fp_sendcmd(fp_i2c_client, 0x00, 0x14);
 		break;
 	case TUXBOX_DBOX2_MID_PHILIPS:
@@ -52,8 +69,7 @@ dbox2_fp_restart (char * cmd)
 }
 
 
-void
-dbox2_fp_power_off (void)
+void dbox2_fp_power_off (void)
 {
 	switch (mid) {
 	case TUXBOX_DBOX2_MID_NOKIA:
@@ -69,8 +85,7 @@ dbox2_fp_power_off (void)
 }
 
 
-int
-dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
+int dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
 {
 	u8 msg [] = { 0x05, 0xef };
 
@@ -95,8 +110,7 @@ dbox2_fp_reset_cam (void) /* needed for sagem / philips? */
 }
 
 
-int
-dbox2_fp_reset (u8 type)
+int dbox2_fp_reset (u8 type)
 {
 	u8 msg [] = { 0x22, type };
 
