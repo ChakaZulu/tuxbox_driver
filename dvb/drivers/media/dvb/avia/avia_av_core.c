@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.98 2004/11/21 20:33:38 carjay Exp $
+ * $Id: avia_av_core.c,v 1.99 2006/01/08 21:36:22 carjay Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -103,6 +103,8 @@ static u16 video_aspect_ratio;
 #define NTSC_16MB_PL_ROM_SRAM		9
 #define PAL_16MB_WO_ROM_SRAM		10
 #define PAL_20MB_WO_ROM_SRAM		12
+
+#define UCODEVERSION(a,b,c,d) (a<<24|b<<16|c<<8|d)
 
 /* ---------------------------------------------------------------------- */
 
@@ -785,7 +787,11 @@ void avia_av_set_default(void)
 	avia_av_dram_write(INTERPRET_USER_DATA_MASK, 0);
 
 	/* osd */
-	avia_av_dram_write(DISABLE_OSD, 3);
+	if (avia_av_dram_read(UCODE_VERSION)==UCODEVERSION('d','0','3','0'))
+		avia_av_dram_write(DISABLE_OSD, 1); /* this creates problems with tearing in scaled 16:9 
+											   mode but the ucode won't work otherwise */
+	else
+		avia_av_dram_write(DISABLE_OSD, 3);
 
 	/* disable osd */
 	avia_av_dram_write(OSD_EVEN_FIELD, 0);
@@ -892,7 +898,7 @@ int avia_av_firmware_read(const char *fn, char **fp)
 
 	l = lseek(fd, 0L, 2);
 
-	if ((l <= 0) || (l >= 128 * 1024)) {
+	if ((l <= 0) || (l >= 144 * 1024)) {
 		printk(KERN_ERR "%s: %s: Firmware wrong size '%s'.\n",
 			__FILE__, __FUNCTION__, firmwarePath);
 		sys_close(fd);
@@ -1512,7 +1518,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.98 2004/11/21 20:33:38 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.99 2006/01/08 21:36:22 carjay Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
