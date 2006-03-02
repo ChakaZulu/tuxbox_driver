@@ -606,11 +606,15 @@ static void tda80xx_read_status(struct tda80xx *tda)
 	if (val & 0x20) /* frontend can not lock */
 		tda->status |= FE_TIMEDOUT;
 
+#if 0 
+	/* DBox2 fix */
 	if ((tda->status & (FE_HAS_CARRIER)) && (tda->afc_loop)) {
 		printk("tda80xx: closing loop\n");
 		tda80xx_close_loop(tda->i2c);
 		tda->afc_loop = 0;
 	}
+	/* DBox2 fix */
+#endif
 
 	if (tda->status & (FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK)) {
 		val = tda80xx_readreg(tda->i2c, 0x0e);
@@ -634,7 +638,11 @@ static int tda80xx_set_frontend(struct tda80xx *tda, struct dvb_frontend_paramet
 	tda80xx_set_parameters(tda, p->inversion, p->u.qpsk.symbol_rate, p->u.qpsk.fec_inner);
 	tda80xx_set_clk(i2c);
 	//tda80xx_set_scpc_freq_offset(i2c);
-	tda->afc_loop = 1;
+
+	/* DBox2 fix */
+//	tda->afc_loop = 1;
+	tda80xx_close_loop(i2c);
+	/* DBox2 fix */
 
 	return 0;
 }
