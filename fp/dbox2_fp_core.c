@@ -550,6 +550,17 @@ static void fp_interrupt(int irq, void *vdev, struct pt_regs *regs)
 }
 
 
+/*****************************************************************************\
+ *   Scart signal loop through init (Sagem)
+\*****************************************************************************/
+
+void dbox2_fp_scart_init(void)
+{
+	if (mid == TUXBOX_DBOX2_MID_SAGEM) {
+		fp_sendcmd(defdata->client, 0x4D, 0x18);
+	}
+}
+
 
 /*****************************************************************************\
  *   Module Initialization / Module Cleanup
@@ -604,6 +615,7 @@ static int __init fp_init(void)
 	dbox2_fp_sec_init();
 	dbox2_fp_timer_init();
 	dbox2_fp_tuner_init();
+	dbox2_fp_scart_init();
 
 	return 0;
 }
