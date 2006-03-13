@@ -202,19 +202,20 @@ static int tua6010_setfreq(struct dvb_i2c_bus *i2c, u32 freq)
 	u8 buf[4];
 	u8 vu, p2, p1, p0;
 
-	if ((freq < 50000000) || (freq > 900000000))
+	/* 47 MHz ... 862 MHz */
+	if ((freq < 47000000) || (freq > 862000000))
 		return -EINVAL;
 
-	div = (freq + 36125000) / 62500;
+	div = (freq + 36118750 + 31250) / 62500;
 
-	if (freq > 400000000)
-		vu = 1;
+	if (freq > 401250000)
+		vu = 1;	/* UHF */
 	else
-		vu = 0;
+		vu = 0; /* VHF */
 
-	if (freq > 400000000)
+	if (freq > 401250000)
 		p2 = 1, p1 = 0, p0 = 1;
-	else if (freq > 140000000)
+	else if (freq > 117250000)
 		p2 = 1, p1 = 1, p0 = 0;
 	else
 		p2 = 0, p1 = 1, p0 = 1;
