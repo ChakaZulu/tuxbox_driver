@@ -25,33 +25,12 @@ MODULE_DESCRIPTION("Driver MMC/SD-Cards");
 MODULE_SUPPORTED_DEVICE("Nokia dbox2 on com2");
 MODULE_LICENSE("GPL");
 
-// dbox2 connection scheme and driver update by TaGana/2006
-//
-//     |
-//    _----------------------------------------
-//   | |        dbox2 tuner                   |
-//    ~----------------------------------------
-//     |
-//     |
-//     |        1  3  5  7  9 11 13 15 17 19
-//     |        2  4  6  8 10 12 14 16 18 20
-//     |
-
 #define SD_DO  0x0100 // pin 14 (on SD/MMC card pin 7)
 #define SD_DI  0x1000 // pin 17 (on SD/MMC card pin 2)
 #define SD_CLK 0x0200 // pin 18 (on SD/MMC card pin 5)
 #define SD_CS  0x0100 // pin 5  (on SD/MMC card pin 1)
-//      GND           // pin 10 (on SD/MMC card pin 3+6)
-//      VCC (3V)      // pin 16 (on SD/MMC card pin 4)
-//
-// Also connect a pullup resistor 100 KOhm from pin14 (SD_DO) to pin16 (VCC)
-//
-//                     ----------------
-//                    / 1 2 3 4 5 6 7 x| MMC/SC Card
-//                    |x               |
-//
 
-immap_t *immap=(immap_t *)IMAP_ADDR ;
+volatile immap_t *immap=(immap_t *)IMAP_ADDR ;
 
 /* we have only one device */
 static int hd_sizes[1<<6];
@@ -68,13 +47,13 @@ typedef unsigned int uint32;
 
 static void mmc_spi_cs_low(void)
 {
-  cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
+  volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
   cp->cp_pbdat &= ~(SD_CS);
 }
 
 static void mmc_spi_cs_high(void)
 {
-  cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
+  volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
   cp->cp_pbdat |= SD_CS;
 }
 
@@ -84,8 +63,8 @@ static unsigned char mmc_spi_io(unsigned char data_out)
 {
   int i;
   unsigned char result = 0;
-  cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
-  iop8xx_t *cpi = (iop8xx_t *) &immap->im_ioport;
+  volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
+  volatile iop8xx_t *cpi = (iop8xx_t *) &immap->im_ioport;
 
   for(i=0; i<8; i++) {
     if (data_out & bitarray[i])
@@ -509,8 +488,8 @@ static int mmc_card_config(void)
 
 static int mmc_hardware_init(void)
 {
-  cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
-  iop8xx_t *cpi = (iop8xx_t *) &immap->im_ioport;
+  volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
+  volatile iop8xx_t *cpi = (iop8xx_t *) &immap->im_ioport;
 
   printk("mmc Hardware init\n");
   cp->cp_pbpar &=  ~(SD_CLK | SD_DI | SD_CS);

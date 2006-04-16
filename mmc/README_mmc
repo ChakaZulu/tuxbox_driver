@@ -1,0 +1,42 @@
+// SD/MMC card connection sheme
+//                     ----------------
+//                    / 1 2 3 4 5 6 7 x| MMC/SC Card
+//                    |x               |
+//
+
+
+
+// dbox2 Nokia connection scheme and driver update by TaGana/2006
+//
+//     |
+//    _----------------------------------------
+//   | |        dbox2 tuner                   |
+//    ~----------------------------------------
+//     |
+//     |
+//     |        1  3  5  7  9 11 13 15 17 19
+//     |        2  4  6  8 10 12 14 16 18 20
+//     |
+
+
+// PA7  = SD_DO = 0x0100 = SD_Card Pin 7   = Modem_CN 14 
+// PB19 = SD_DI = 0x1000 = SD_Card Pin 2   = Modem_CN 17
+// PB22 = SD_CLK= 0x0200 = SD_Card Pin 5   = Modem_CN 18
+// PB23 = SD_CS = 0x0100 = SD_Card Pin 1   = Modem_CN 5 
+// GND  =       = Masse  = SD_Card Pin 3,6 = Modem_CN 10
+// VCC  =       = 3,3V   = SD_Card Pin 4   = Modem_CN 16 
+//
+// Also connect a pullup resistor 100 KOhm from pin14 (SD_DO) to pin16 (VCC)
+//
+
+// dbox2 Sagem connection scheme and driver update by mgerald21/2006
+//
+// For Sagem please refer to http://forum.tuxbox.org/forum/viewtopic.php?p=296481#296481
+// Maybe someone writes a nice article in the Tuxbox-Wiki? *hint*hint*
+
+
+// dbox2 Philips connection scheme 
+// not supported yet by this driver
+
+** Note: Please be careful you can realy damage your box!
+** Nobody issues any guarantee!
