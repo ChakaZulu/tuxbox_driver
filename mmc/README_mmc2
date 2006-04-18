@@ -16,11 +16,11 @@
 //
 //
 
-// PA9  = SD_DO = 0x0040 = SD_Card Pin 7   = Modem_CN 2 (RxD)
-// PA8  = SD_DI = 0x0080 = SD_Card Pin 2   = Modem_CN 1 (TxD)
-// PB17 = SD_CLK= 0x4000 = SD_Card Pin 5   = Modem_CN 6 (DTR)
-// PB16 = SD_CS = 0x8000 = SD_Card Pin 1   = Modem_CN 10 (RTS)
-// GND  =       = Masse  = SD_Card Pin 3,6 = Modem_CN 3
+// PA9  = SD_DO = 0x0040 = SD_Card Pin 7   = Modem_CN 2  (RxD)
+// PA8  = SD_DI = 0x0080 = SD_Card Pin 2   = Modem_CN 1  (TxD)
+// PB17 = SD_CLK= 0x4000 = SD_Card Pin 5   = Modem_CN 10 (RTS)
+// PB16 = SD_CS = 0x8000 = SD_Card Pin 1   = Modem_CN 6  (RTS)
+// GND  =       = Masse  = SD_Card Pin 3,6 = Modem_CN 3  (DTR)
 // VCC  =       = 3,3V   = SD_Card Pin 4   = Modem_CN 5
 //
 // Also connect a pullup resistor 100 KOhm from SD/MMC card pin 7 (SD_DO) to SD/MMC card pin 4 (VCC)
@@ -65,7 +65,7 @@
 //
 // Also connect a pullup resistor 100 KOhm from SD/MMC card pin 7 (SD_DO) to SD/MMC card pin 4 (VCC)
 // Attention: The Philips modem connector provides 5V only,
-// so we connect in series 3 Diodes (1N4007)from MODEM_CN 1 to SD/MMC card pin 4
+// so we connect in series 3 Diodes (1N4007) from MODEM_CN 1 to SD/MMC card pin 4
 
-** Note: Please be careful you can realy damage your box!
+** Note: Please be careful you can really damage your box!
 ** Nobody issues any guarantee!
