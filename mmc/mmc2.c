@@ -25,10 +25,10 @@ MODULE_DESCRIPTION("Driver MMC/SD-Cards");
 MODULE_SUPPORTED_DEVICE("all dbox2 on com2 connector");
 MODULE_LICENSE("GPL");
 
-#define SD_DO  0x0040 // pin 2  (on SD/MMC card pin 7)
-#define SD_DI  0x0080 // pin 1  (on SD/MMC card pin 2)
-#define SD_CLK 0x4000 // pin 6  (on SD/MMC card pin 5)
-#define SD_CS  0x8000 // pin 10 (on SD/MMC card pin 1)
+#define SD_DO  0x0040 // on SD/MMC card pin 7
+#define SD_DI  0x0080 // on SD/MMC card pin 2
+#define SD_CLK 0x4000 // on SD/MMC card pin 5
+#define SD_CS  0x8000 // on SD/MMC card pin 1
 
 typedef unsigned int uint32;
 
@@ -654,9 +654,10 @@ static void __exit mmc_driver_exit(void)
 	for (i = 0; i < (1 << 6); i++)
 		fsync_dev(MKDEV(MAJOR_NR, i));
 
-	blk_cleanup_queue(BLK_DEFAULT_QUEUE(MAJOR_NR));
-	del_gendisk(&hd_gendisk);
+	devfs_register_partitions(&hd_gendisk, 0<<6, 1);
 	devfs_unregister_blkdev(MAJOR_NR, DEVICE_NAME);
+	del_gendisk(&hd_gendisk);
+	blk_cleanup_queue(BLK_DEFAULT_QUEUE(MAJOR_NR));
 	mmc_exit();
 	printk("removing mmc2.o\n");
 }

@@ -25,10 +25,10 @@ MODULE_DESCRIPTION("Driver MMC/SD-Cards");
 MODULE_SUPPORTED_DEVICE("Nokia dbox2 on com2");
 MODULE_LICENSE("GPL");
 
-#define SD_DO  0x0100 // pin 14 (on SD/MMC card pin 7)
-#define SD_DI  0x1000 // pin 17 (on SD/MMC card pin 2)
-#define SD_CLK 0x0200 // pin 18 (on SD/MMC card pin 5)
-#define SD_CS  0x0100 // pin 5  (on SD/MMC card pin 1)
+#define SD_DO  0x0100 // on SD/MMC card pin 7
+#define SD_DI  0x1000 // on SD/MMC card pin 2
+#define SD_CLK 0x0200 // on SD/MMC card pin 5
+#define SD_CS  0x0100 // on SD/MMC card pin 1
 
 volatile immap_t *immap=(immap_t *)IMAP_ADDR ;
 
@@ -657,10 +657,12 @@ static void __exit mmc_driver_exit(void)
 	for (i = 0; i < (1 << 6); i++)
 		fsync_dev(MKDEV(MAJOR_NR, i));
 
-	blk_cleanup_queue(BLK_DEFAULT_QUEUE(MAJOR_NR));
-	del_gendisk(&hd_gendisk);
+	devfs_register_partitions(&hd_gendisk, 0<<6, 1);
 	devfs_unregister_blkdev(MAJOR_NR, DEVICE_NAME);
+	del_gendisk(&hd_gendisk);
+	blk_cleanup_queue(BLK_DEFAULT_QUEUE(MAJOR_NR));
 	mmc_exit();
+	printk("removing mmc.o\n");
 }
 
 module_init(mmc_driver_init);
