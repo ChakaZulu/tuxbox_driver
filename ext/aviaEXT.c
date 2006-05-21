@@ -2,7 +2,7 @@
  * Extension device for non-API covered stuff for the Avia
  * (hopefully will disappear at some point)
  *
- * $Id: aviaEXT.c,v 1.4 2005/01/05 06:00:20 carjay Exp $
+ * $Id: aviaEXT.c,v 1.5 2006/05/21 23:01:10 rasc Exp $
  *
  * Copyright (C) 2004 Carsten Juttner <carjay@gmx.net>
  *
@@ -62,7 +62,18 @@ static int aviaEXT_ioctl(struct inode *inode, struct file *file,
 	case AVIA_EXT_AVIA_PLAYBACK_MODE_SET:
 		avia_gt_set_playback_mode(arg);
 		break;
-	
+
+	case AVIA_EXT_VIDEO_DIGEST:
+		/* 2006-05-15 rasc */
+ 		avia_av_cmd (Digest,
+			((struct videoDigest *) arg)->x,
+			((struct videoDigest *) arg)->y,
+			((struct videoDigest *) arg)->skip,
+			((struct videoDigest *) arg)->decimation,
+			((struct videoDigest *) arg)->threshold,
+			((struct videoDigest *) arg)->pictureID);
+		break;
+		
 	default:
 		printk (KERN_WARNING "aviaEXT: unknown ioctl: %d\n",cmd);
 		break;
