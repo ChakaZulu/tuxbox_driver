@@ -1,5 +1,5 @@
 /*
- * $Id: saa7126_core.c,v 1.48 2005/10/25 18:32:37 carjay Exp $
+ * $Id: saa7126_core.c,v 1.49 2006/05/27 10:24:37 barf Exp $
  * 
  * Philips SAA7126 digital video encoder
  *
@@ -348,6 +348,11 @@ static int saa7126_write_inittab (struct i2c_client *client, char init)
 	return 0;
 }
 
+#define REG_2D_RGB 	0x0f /* RGB + CVBS (for sync) */
+#define REG_2D_FBAS	0x9e /* 10011110   */
+#define REG_2D_SVIDEO	0xbf /* 10111111   */
+#define REG_2D_YUV_V 	0xcf /* reg 2D = 11001111, all DAC's on, RGB + VBS */
+#define REG_2D_YUV_C	0x8f /* reg 2D = 10001111, all DAC's on, RGB + CVBS */
 
 static int saa7126_set_mode(struct i2c_client *client, int inp)
 {
@@ -358,20 +363,20 @@ static int saa7126_set_mode(struct i2c_client *client, int inp)
 	
 	switch (inp) {
 	case SAA_MODE_RGB:
-		encoder->reg_2d = 0x0f; /* RGB + CVBS (for sync) */
+		encoder->reg_2d = REG_2D_RGB;
 		break;
 	case SAA_MODE_FBAS:
-		encoder->reg_2d = 0x08; /* 00001000 CVBS only, RGB DAC's off (high impedance mode) !!! */
+		encoder->reg_2d = REG_2D_FBAS;
 		break;
 	case SAA_MODE_SVIDEO:
-		encoder->reg_2d = 0xff; /* 11111111  croma -> R, luma -> CVBS + G + B */
+	  	encoder->reg_2d = REG_2D_SVIDEO;
 		break;
 	case SAA_MODE_YUV_V:
-		encoder->reg_2d = 0xcf; /* reg 2D = 11001111, all DAC's on, RGB + VBS */
+		encoder->reg_2d = REG_2D_YUV_V;
 		encoder->reg_3a = 0x0b; /* reg 3A = 00001011, bypass RGB-matrix */
 		break;
 	case SAA_MODE_YUV_C:
-		encoder->reg_2d = 0x8f; /* reg 2D = 10001111, all DAC's on, RGB + CVBS */
+		encoder->reg_2d = REG_2D_YUV_C;
 		encoder->reg_3a = 0x0b; /* reg 3A = 00001011, bypass RGB-matrix */
 		break;
 	default:
@@ -388,18 +393,21 @@ static int saa7126_get_mode(struct i2c_client *client)
 	struct saa7126 *encoder = (struct saa7126 *) client->data;
 
 	switch (encoder->reg_2d) {
-	case 0x0f:
+	case REG_2D_RGB:
 		return SAA_MODE_RGB;
 		break;
-	case 0x08:
+#if REG_2D_FBAS != REG_2D_SVIDEO 
+	case REG_2D_FBAS:
 		return SAA_MODE_FBAS;
 		break;
-	case 0xff:
+#endif
+	case REG_2D_SVIDEO:
 		return SAA_MODE_SVIDEO;
-	case 0xcf:
+		break;
+	case REG_2D_YUV_V:
 		return SAA_MODE_YUV_V;
 		break;
-	case 0x8f:
+	case REG_2D_YUV_C:
 		return SAA_MODE_YUV_C;
 		break;
 	default:
