@@ -92,9 +92,9 @@ gtx_underlay_InitLayer( CoreLayer                   *layer,
                         DFBColorAdjustment          *adjustment)
 {
   description->type = DLTF_VIDEO;
-  
+
   return DFB_OK;
-} 
+}
 
 static DFBResult
 gtx_underlay_TestRegion( CoreLayer                  *layer,
@@ -449,12 +449,12 @@ gtxBlit (void *drv, void *dev,
     {
       int odd = odd1, w = width;
 
-      if (gtx) 
+      if (gtx)
         {
           gtx_out32 (mmio, GTX_CDA, cda); /* Set destination address */
           gtx_out32 (mmio, GTX_CSA, csa); /* Set source address */
-        } 
-      else if (enx) 
+        }
+      else if (enx)
         {
           gtx_out32 (mmio, ENX_GCDST, cda); /* Set destination address */
           gtx_out32 (mmio, ENX_GCSRC, csa); /* Set source address */
@@ -527,7 +527,8 @@ static DFBResult
 driver_init_driver( GraphicsDevice      *device,
                     GraphicsDeviceFuncs *funcs,
                     void                *driver_data,
-                    void                *device_data )
+		    void                *device_data,
+		    CoreDFB             *core )
 {
   GTXDriverData *gdrv = (GTXDriverData*) driver_data;
 
@@ -543,7 +544,7 @@ driver_init_driver( GraphicsDevice      *device,
 
   /* register video underlay */
   dfb_layers_register( device, driver_data, &gtx_underlay_funcs );
-  
+
   return DFB_OK;
 }
 
@@ -562,7 +563,7 @@ driver_init_device( GraphicsDevice     *device,
 
   /* calculate framebuffer offset within GTX DRAM */
   gdev->mem_offset = dfb_gfxcard_memory_physical (NULL,0) & 0xFFFFFF;
-  
+
   /* fill device info */
   snprintf( device_info->name,
 	    DFB_GRAPHICS_DEVICE_INFO_NAME_LENGTH, "Avia eNX/GTX" );
@@ -607,7 +608,7 @@ driver_close_device (GraphicsDevice *device,
 
   (void) gdrv;
   (void) gdev;
-  
+
   /*restore TCR */
   if (gtx)
     gtx_out16 (gdrv->mmio_base, GTX_TCR, gdev->orig_tcr & 0xFFFF);
