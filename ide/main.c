@@ -1,12 +1,11 @@
-/*
- * $Id: main.c,v 1.1 2006/08/09 20:02:12 carjay Exp $
+/*L
+ * $Id: main.c,v 1.2 2006/08/16 17:44:56 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation; (version 2 of the License)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -28,6 +27,7 @@
 #include <asm/errno.h>
 #include <asm/irq.h>
 #include <asm/8xx_immap.h>
+#include <asm/commproc.h>
 
 static uint idebase = 0;
 static int ideindex = -1;
@@ -56,34 +56,57 @@ static int ideindex = -1;
 #define CPLD_IN(offset) ( *(volatile uint*)(idebase+(offset)))
 #define CPLD_FIFO_LEVEL() (CPLD_IN( CPLD_READ_CTRL)>>28)
 
+/* hidden(?) function of linux ide part */
+extern void ide_probe_module(int);
 
-inline int mapped_level_read(void)
-{
-  uint level = CPLD_IN( CPLD_READ_CTRL);
-  return (level & 0x30000000) == 0x30000000;
-}
+/* assembler implementation of transfer loops */
+extern void dboxide_insw_loop(
+  uint ctrl_address,
+  uint data_address,
+  void* dest,
+  int count);
 
-extern void dboxide_insw_loop(void);
-extern void dboxide_outsw_loop(void);
+extern void dboxide_outsw_loop(
+  uint ctrl_address,
+  uint data_address,
+  void* src,
+  int count);
 
+/* trace routines */
+extern void dboxide_log_trace(unsigned int typ, unsigned int a, unsigned int b);
+extern void dboxide_print_trace(void);
 
+#define TRACE_LOG_INB   0x01
+#define TRACE_LOG_INW   0x02
+#define TRACE_LOG_INSW  0x03
+#define TRACE_LOG_OUTB  0x04
+#define TRACE_LOG_OUTW  0x05
+#define TRACE_LOG_OUTSW 0x06
 
-/* if you want a real slow IDE Interface, but want to know everything 
-   that happens: activate this... */
-#if 0
-#define DBOXIDEINFO(txt, a...) printk( "dboxide:" txt, ##a )
-#else
-#define DBOXIDEINFO(txt, a...) do {} while(0)
-#endif
+const char * dboxide_trace_msg[] = {
+  NULL,
+  "INB  ",
+  "INW  ",
+  "INSW ",
+  "OUTB ",
+  "OUTW ",
+  "OUTSW",
+};
+
 
 /* some functions are not implemented and I don't expect we ever
    need them. But if one of them is called, we can work on that. */
 #define NOT_IMPL(txt, a...) printk( "dboxide: NOT IMPLEMENTED: "txt, ##a )
 
+/* whenever a something didn't work as expected: print everything
+   that might be interesting for the developers what has happened */
+void dboxide_problem( const char * msg )
+{
+  printk("dboxide: %s\n", msg );
+  printk("CPLD Status is %08x\n", CPLD_IN( CPLD_READ_CTRL));
+  dboxide_print_trace();
+}
 
-#if 0
-#define WAIT_FOR_FIFO_EMPTY() while (CPLD_FIFO_LEVEL()!=0) {}
-#else
 #define WAIT_FOR_FIFO_EMPTY() wait_for_fifo_empty()
 #define MAX_WAIT_FOR_FIFO_EMPTY  1000
 static void wait_for_fifo_empty(void)
@@ -97,21 +120,21 @@ static void wait_for_fifo_empty(void)
   } while ((level!=0) && (cnt>0));
 
   if (cnt<=0)
-    printk( "dboxide: warning: fifo didn't get empty in time\n");
+    dboxide_problem( "fifo didn't get empty in time");
 }
-#endif
+
 
 /*---------------------------------------------------------*/
-/* These functions are called via function pointer by the  */ 
+/* These functions are called via function pointer by the  */
 /* IDE Subsystem of the Linux Kernel                       */
 /*---------------------------------------------------------*/
 
 /* inb reads one byte from an IDE Register */
 static u8 dboxide_inb (unsigned long port)
-{	
+{
   int val;
 
-  if (CPLD_FIFO_LEVEL() != 0) printk( "dboxide: inb: fifo not empty?!\n");
+  if (CPLD_FIFO_LEVEL() != 0) dboxide_problem( "inb: fifo not empty?!\n");
 
   CPLD_OUT( CPLD_WRITE_CTRL, port );
   CPLD_OUT( CPLD_WRITE_CTRL, port | CPLD_CTRL_ENABLE );
@@ -122,20 +145,20 @@ static u8 dboxide_inb (unsigned long port)
 
   val >>= 8;
   val &= 0xFF;
-        
-  DBOXIDEINFO( "inb  %lx: %02x\n", port, val );
 
-  return val; 
+  dboxide_log_trace( TRACE_LOG_INB, port, val );
+
+  return val;
 }
 
-/* inw reads one word from an IDE Register 
+/* inw reads one word from an IDE Register
    As only the data register has 16 bit, and that is read
    with insw, this function might never be called */
 static u16 dboxide_inw (unsigned long port)
 {
   int val;
 
-  if (CPLD_FIFO_LEVEL() != 0) printk( "dboxide: inw: fifo not empty?!\n");
+  if (CPLD_FIFO_LEVEL() != 0) dboxide_problem( "inw: fifo not empty?!");
 
   CPLD_OUT( CPLD_WRITE_CTRL, port );
   CPLD_OUT( CPLD_WRITE_CTRL, port | CPLD_CTRL_ENABLE );
@@ -145,27 +168,30 @@ static u16 dboxide_inw (unsigned long port)
   val = CPLD_IN( CPLD_READ_FIFO );
 
   val &= 0xFFFF;
-	
-  DBOXIDEINFO( "inw  %lx: %02x\n", port, val );
+
+  dboxide_log_trace( TRACE_LOG_INW, port, val );
 
   return val;
 }
 
-/* insw reads several words from an IDE register. 
+/* insw reads several words from an IDE register.
    Typically from the data register. This is the most important
    function to read data */
 static void dboxide_insw (unsigned long port, void *addr, u32 count)
 {
   uint * dest = addr;
-  
-  DBOXIDEINFO( "read %d words from %d\n", (int)count, (int)port);
-  if (CPLD_FIFO_LEVEL() != 0) printk( "dboxide: insw: fifo not empty?!\n");
+
+  if (CPLD_FIFO_LEVEL() != 0) dboxide_problem( "insw: fifo not empty?!");
+  dboxide_log_trace( TRACE_LOG_INSW, port, count );
 
   /* activate reading to fifo with auto repeat */
   CPLD_OUT( CPLD_WRITE_CTRL, port );
   CPLD_OUT( CPLD_WRITE_CTRL, port | CPLD_CTRL_ENABLE | CPLD_CTRL_REPEAT );
 
-  dboxide_insw_loop();
+  /* todo: replace the code below by an assembler implementation in this
+     routine */
+  dboxide_insw_loop(idebase+CPLD_READ_CTRL,idebase+CPLD_READ_FIFO,
+     dest, count);
 
   {
     register uint a;
@@ -188,7 +214,7 @@ static void dboxide_insw (unsigned long port, void *addr, u32 count)
       count-=8;
       dest+=4;
     }
-    
+
     while (count > 4)
     {
       while (CPLD_FIFO_LEVEL()!=0xF) {};
@@ -201,7 +227,7 @@ static void dboxide_insw (unsigned long port, void *addr, u32 count)
     }
 
   }
-  
+
   if (count!=4)
     printk("dboxide: oops: insw: something has gone wrong: count is %d\n", count );
 
@@ -212,13 +238,13 @@ static void dboxide_insw (unsigned long port, void *addr, u32 count)
   CPLD_OUT( CPLD_WRITE_CTRL, port );
 
   /* and read the final 4 16 bit words */
-  dest[0] = CPLD_IN( CPLD_READ_FIFO ); 
-  dest[1] = CPLD_IN( CPLD_READ_FIFO ); 
+  dest[0] = CPLD_IN( CPLD_READ_FIFO );
+  dest[1] = CPLD_IN( CPLD_READ_FIFO );
 }
 
 
-/* insl reads several 32 bit words from an IDE register. 
-   The IDE Bus has only 16 bit words, but the CPLD always 
+/* insl reads several 32 bit words from an IDE register.
+   The IDE Bus has only 16 bit words, but the CPLD always
    generates 32 Bit words from that, so the same routine
    as for 16 bit can be used. */
 static void dboxide_insl (unsigned long port, void *addr, u32 count)
@@ -227,7 +253,7 @@ static void dboxide_insl (unsigned long port, void *addr, u32 count)
 }
 
 /* inl: read a single 32 bit word from IDE. 
-   As there are no 32 Bit IDE registers, this function 
+   As there are no 32 Bit IDE registers, this function
    is not implemented. */
 static u32 dboxide_inl (unsigned long port)
 {
@@ -238,14 +264,14 @@ static u32 dboxide_inl (unsigned long port)
 /* outb: write a single byte to an IDE register */
 static void dboxide_outb (u8 value, unsigned long port)
 {
-  if (CPLD_FIFO_LEVEL() != 0) printk( "dboxide: fifo not empty?!\n");
+  if (CPLD_FIFO_LEVEL() != 0) dboxide_problem( "outb: fifo not empty?!");
+
+  dboxide_log_trace( TRACE_LOG_OUTB, port, value ); 
 
   CPLD_OUT( CPLD_WRITE_CTRL, port | CPLD_CTRL_ENABLE | CPLD_CTRL_WRITING );
   CPLD_OUT( CPLD_WRITE_FIFO_LOW, value<<8);
 
   WAIT_FOR_FIFO_EMPTY();
-        
-  DBOXIDEINFO( "outb %x: %02x\n", (int)port, (int)value );
 }
 
 /* outbsync: write a single byte to an IDE register, typically
@@ -253,9 +279,7 @@ static void dboxide_outb (u8 value, unsigned long port)
 /* todo: the sync is related to interrupts */
 static void dboxide_outbsync (ide_drive_t *drive, u8 value, unsigned long port)
 {
-  DBOXIDEINFO( "outbsync:\n");
-
-  /* todo: use a different cycle-length here */
+  /* todo: use a different cycle-length here?! */
   dboxide_outb( value, port );
 }
 
@@ -281,14 +305,17 @@ static void dboxide_outl (u32 value, unsigned long port)
 static void dboxide_outsw (unsigned long port, void *addr, u32 count)
 {
   uint * src = addr;
-  
-  DBOXIDEINFO( "write %d words to %d\n", (int)count, (int)port);
-  if (CPLD_FIFO_LEVEL() != 0) printk( "dboxide: fifo not empty?!\n");
+
+  if (CPLD_FIFO_LEVEL() != 0) dboxide_problem( "outsw: fifo not empty?!");
+
+  dboxide_log_trace( TRACE_LOG_OUTSW, port, count ); 
 
   /* activate writing to fifo with auto repeat */
-  CPLD_OUT( CPLD_WRITE_CTRL, port | CPLD_CTRL_WRITING | CPLD_CTRL_ENABLE | CPLD_CTRL_REPEAT );
+  CPLD_OUT( CPLD_WRITE_CTRL,
+    port | CPLD_CTRL_WRITING | CPLD_CTRL_ENABLE | CPLD_CTRL_REPEAT );
 
-  dboxide_outsw_loop();
+  dboxide_outsw_loop(idebase+CPLD_READ_CTRL,idebase+CPLD_READ_FIFO,
+     src, count);
 
   {
     register int a;
@@ -322,33 +349,25 @@ static void dboxide_outsl (unsigned long port, void *addr, u32 count)
 }
 
 
-/* lost irq is called when it has happened (requires
-   a patched kernel: the original kernel code calls this
-   when a irq was lost during DMA)
-*/
-static volatile int dummydelay;
-static int dboxide_lostirq(ide_drive_t *drive)
+/*---------------------------------------------------------*/
+/* acknowledge the interrupt? */
+/*---------------------------------------------------------*/
+
+int dboxide_ack_intr(ide_hwif_t* hwif)
 {
-#if 0
-  immap_t *immap=(immap_t *)IMAP_ADDR ;
-  volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;
-  unsigned long pin = 0x4000;
+  printk("dboxide: ack irq\n");
+  return 1;
+}
 
-  int i;
-
-
-
-  cp->cp_pbpar &= ~pin;
-  cp->cp_pbodr &= ~pin;
-  cp->cp_pbdir |=  pin;
-
-  cp->cp_pbdat ^= pin;
-  for (i=0; i<100; i++) dummydelay=i;
-  cp->cp_pbdat ^= pin;
+/*---------------------------------------------------------*/
+/* some other functions that might be important, but it    */
+/* also works without them                                 */
+/*---------------------------------------------------------*/
 
 
-#endif
-  return 0;
+void dboxide_tuneproc(ide_drive_t *drive, u8 pio)
+{
+  printk("dboxide: tuneproc called: %d\n", pio );
 }
 
 /*---------------------------------------------------------*/
@@ -356,8 +375,7 @@ static int dboxide_lostirq(ide_drive_t *drive)
 /*---------------------------------------------------------*/
 
 
-
-/* set the function pointer in the kernel structur to our 
+/* set the function pointer in the kernel structur to our
    functions */
 static void set_access_functions( ide_hwif_t * hwif )
 {
@@ -375,7 +393,11 @@ static void set_access_functions( ide_hwif_t * hwif )
   hwif->INSW      = dboxide_insw;
   hwif->INSL      = dboxide_insl;
 
-  hwif->ide_dma_lostirq = dboxide_lostirq;
+  hwif->tuneproc  = dboxide_tuneproc;
+
+#if 0
+  hwif->ack_intr = dboxide_ack_intr;
+#endif
 
   /* now, after setting the function pointer, the port info is not
      an address anymore, so remove the idebase again */
@@ -393,32 +415,31 @@ static void set_access_functions( ide_hwif_t * hwif )
   }
 }
 
-extern void ide_probe_module(int);
 
 static void dboxide_register(void)
 {
   ide_hwif_t *hwif = NULL;
   hw_regs_t hw;
 
-  /* 
+  /*
   I think this is a hack, but it works...
 
   the following values are not really used as addresses by
-  this driver and, of course, they will not really work if 
-  used like that. 
-  "Not really" because the kernel might use the default 
+  this driver and, of course, they will not really work if
+  used like that.
+  "Not really" because the kernel might use the default
   inb/etc. routines if the detect module is already loaded.
-  To avoid problems with that I use addresses where I know 
-  what happens, because these addresses access the CPLD: 
+  To avoid problems with that I use addresses where I know
+  what happens, because these addresses access the CPLD:
 
-  Writing to these addresses does nothing, and reading will 
-  return the data register, which is (should be) at this 
-  time FFFFFFFF  (see cpld_detect). 
+  Writing to these addresses does nothing, and reading will
+  return the data register, which is (should be) at this
+  time FFFFFFFF  (see cpld_detect).
 
-  The result is that the detection of a disk will fail when 
+  The result is that the detection of a disk will fail when
   it is done with the original kernel functions.
 
-  A clean order is to load the ide-detect module after 
+  A clean order is to load the ide-detect module after
   loading this module!
   */
   memset(&hw, 0, sizeof(hw));
@@ -434,7 +455,7 @@ static void dboxide_register(void)
   hw.io_ports[IDE_CONTROL_OFFSET]	= idebase+0x004E;
   hw.io_ports[IDE_IRQ_OFFSET]		= idebase+0x004E;
 
-  hw.irq      = 31 + CPM_IRQ_OFFSET;
+  hw.irq      = CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
 
   ideindex = ide_register_hw(&hw, &hwif);
 
@@ -445,23 +466,24 @@ static void dboxide_register(void)
       /* registering failed? This is not wrong because for the
          kernel there is no drive on this controller because
          wrong routines were used to check that.
-         Or the kernel didn't check at all. 
-         But to unregister this driver, we will need this 
+         Or the kernel didn't check at all.
+         But to unregister this driver, we will need this
          index. */
 
       ideindex = hwif - ide_hwifs;
-    } 
-     
+    }
+
     /* now change the IO Access functions and use the
        real values for the IDE Ports */
     set_access_functions( hwif );
 
     SELECT_DRIVE( &hwif->drives[0] );
 
-    /* finally: probe again: this time with my routines, 
-       so this time the detection will not fail (if there 
+    /* finally: probe again: this time with my routines,
+       so this time the detection will not fail (if there
        is a drive connected) */
     ide_probe_module(1);
+
   }
   else
   {
@@ -496,8 +518,7 @@ static int activate_cs2(void)
 
   printk("dboxide: activating cs2\n");
   memctl->memc_br2 = br2;
-
-  dboxide_lostirq(NULL);
+  immap->im_ioport.iop_pcint |= 0x0001;
 
   return 1;
 }
@@ -533,8 +554,8 @@ static int detect_cpld(void)
   /* This detection code not only checks that there is a CPLD,
      but also that it does work more or less as expected.  */
 
-  /* first perform a walking bit test via data register: 
-     this checks that there is a data register and 
+  /* first perform a walking bit test via data register:
+     this checks that there is a data register and
      that the data bus is correctly connected */
 
   for (i=0; i<31; i++)
@@ -560,7 +581,7 @@ static int detect_cpld(void)
     }
   }
 
-  /* second: check ctrl register. 
+  /* second: check ctrl register.
      this also activates the IDE Reset. */
   check = 0x00FF0007;
   CPLD_OUT( CPLD_WRITE_CTRL_TIMING, check );
@@ -571,7 +592,7 @@ static int detect_cpld(void)
     return 0;
   }
 
-  /* Now test the fifo: 
+  /* Now test the fifo:
      If there is still data inside, read it out to clear it */
   for (i=3; (i>0) && ((back & 0xF0000000)!=0); i--)
   {
@@ -610,7 +631,7 @@ static int detect_cpld(void)
     printk("dboxide: fifo not empty after test\n");
     return 0;
   }
- 
+
   /* Clean up: clear bits in fifo */
   check = 0;
   CPLD_OUT( CPLD_WRITE_FIFO, check );
@@ -621,8 +642,8 @@ static int detect_cpld(void)
     return 0;
   }
 
-  /* CPLD is valid! 
-     Hopefully the IDE part will also work: 
+  /* CPLD is valid!
+     Hopefully the IDE part will also work:
      A test for that part is not implemented, but the kernel
      will probe for drives etc, so this will check a lot
   */
@@ -634,7 +655,7 @@ static int detect_cpld(void)
   CPLD_OUT( CPLD_WRITE_CTRL_TIMING, 0x0012001F );
 
   /* finally set all bits in data register, so nothing
-     useful is read when the CPLD is accessed by the 
+     useful is read when the CPLD is accessed by the
      original inb/w/l routines */
   CPLD_OUT( CPLD_WRITE_DATA, 0xFFFFFFFF );
 
@@ -736,7 +757,7 @@ static void __exit dbox_ide_exit(void)
 
     ide_unregister( ideindex );
   }
- 
+
   unmap_memory();
   deactivate_cs2();
 
