@@ -1,5 +1,5 @@
 /*L
- * $Id: main.c,v 1.2 2006/08/16 17:44:56 carjay Exp $
+ * $Id: main.c,v 1.3 2006/08/24 17:24:08 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  *
@@ -374,6 +374,20 @@ void dboxide_tuneproc(ide_drive_t *drive, u8 pio)
 /* end of functions called via function pointer */
 /*---------------------------------------------------------*/
 
+static int configure_interrupt(void)
+{
+  immap_t *immap=(immap_t *)IMAP_ADDR ;
+
+  /* configure Port C, Pin 15 so, that it creates interrupts 
+   only on the falling edge. (That it will create interrupts
+   at all is done by the Kernel itself) */
+
+  immap->im_ioport.iop_pcint |= 0x0001;
+  /* As this routine is the only one that needs to know about
+   wich interrupt is used in this code, it returns the number
+   so it can be given to the kernel */
+  return CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
+}
 
 /* set the function pointer in the kernel structur to our
    functions */
@@ -455,7 +469,7 @@ static void dboxide_register(void)
   hw.io_ports[IDE_CONTROL_OFFSET]	= idebase+0x004E;
   hw.io_ports[IDE_IRQ_OFFSET]		= idebase+0x004E;
 
-  hw.irq      = CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
+  hw.irq      = configure_interrupt();
 
   ideindex = ide_register_hw(&hw, &hwif);
 
@@ -518,7 +532,6 @@ static int activate_cs2(void)
 
   printk("dboxide: activating cs2\n");
   memctl->memc_br2 = br2;
-  immap->im_ioport.iop_pcint |= 0x0001;
 
   return 1;
 }
@@ -661,7 +674,6 @@ static int detect_cpld(void)
 
   return 1;
 }
-
 
 /* map_memory: we know the physical address of our chip. 
    But the kernel has to give us a virtual address. */
