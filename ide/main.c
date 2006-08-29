@@ -1,5 +1,5 @@
 /*L
- * $Id: main.c,v 1.3 2006/08/24 17:24:08 carjay Exp $
+ * $Id: main.c,v 1.4 2006/08/29 01:29:45 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  *
@@ -742,6 +742,7 @@ static int __init dbox_ide_init(void)
 {
   /* register driver will call the scan function above, maybe immediately 
      when we are a module, or later when it thinks it is time to do so */
+	printk(KERN_INFO "dbox2ide: $Id: main.c,v 1.4 2006/08/29 01:29:45 carjay Exp $\n");
 
   ide_register_driver( dboxide_scan );
 
