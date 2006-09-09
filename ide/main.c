@@ -1,7 +1,8 @@
-/*L
- * $Id: main.c,v 1.5 2006/09/09 08:37:39 carjay Exp $
+/*
+ * $Id: main.c,v 1.6 2006/09/09 09:50:04 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
+ * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,14 +24,23 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/ide.h>
+#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/errno.h>
 #include <asm/irq.h>
 #include <asm/8xx_immap.h>
 #include <asm/commproc.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
+#include <linux/device.h>
+#include <linux/platform_device.h>
+#endif
 
 static uint idebase = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
+static struct platform_device *ide_dev;
+#else
 static int ideindex = -1;
+#endif
 
 /* address-offsets of features in the CPLD 
   (we can't call them registers...) */
@@ -99,6 +109,17 @@ void dbox2ide_problem(const char *msg)
 	printk("CPLD Status is %08x\n", CPLD_IN(CPLD_READ_CTRL));
 	dbox2ide_print_trace();
 }
+
+/* compat code for 2.6 kernel */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#define IDE_DELAY() ide_delay_50ms()
+#else
+#define IDE_DELAY() \
+	do {
+		__set_current_state(TASK_UNINTERRUPTIBLE); \
+		schedule_timeout(1+HZ/20);
+	} while (0);
+#endif
 
 #define WAIT_FOR_FIFO_EMPTY() wait_for_fifo_empty()
 #define MAX_WAIT_FOR_FIFO_EMPTY  1000
@@ -390,11 +411,28 @@ static int configure_interrupt(void)
 	return CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+static void reset_function_pointer(ide_hwif_t *hwif)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(hwif->hw.io_ports); i++) {
+		uint addr;
+
+		addr = hwif->hw.io_ports[i];
+		if ((addr > idebase) && (addr <= idebase + 0x100))
+			hwif->hw.io_ports[i] = addr - idebase;
+
+		addr = hwif->io_ports[i];
+		if ((addr > idebase) && (addr <= idebase + 0x100))
+			hwif->io_ports[i] = addr - idebase;
+	}
+}
+#endif
+
 /* set the function pointer in the kernel structur to our
    functions */
 static void set_access_functions(ide_hwif_t * hwif)
 {
-	int i;
 	hwif->mmio = 2;
 	hwif->OUTB = dbox2ide_outb;
 	hwif->OUTBSYNC = dbox2ide_outbsync;
@@ -416,19 +454,10 @@ static void set_access_functions(ide_hwif_t * hwif)
 
 	/* now, after setting the function pointer, the port info is not
 	   an address anymore, so remove the idebase again */
-	for (i = 0;
-	     i < sizeof(hwif->hw.io_ports) / sizeof(hwif->hw.io_ports[0]);
-	     i++) {
-		uint addr;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+	reset_function_pointer(hwif);
+#endif
 
-		addr = hwif->hw.io_ports[i];
-		if ((addr > idebase) && (addr <= idebase + 0x100))
-			hwif->hw.io_ports[i] = addr - idebase;
-
-		addr = hwif->io_ports[i];
-		if ((addr > idebase) && (addr <= idebase + 0x100))
-			hwif->io_ports[i] = addr - idebase;
-	}
 }
 
 static void dbox2ide_register(void)
@@ -654,7 +683,7 @@ static int detect_cpld(void)
 
 	/* before going releasing IDE Reset, wait some time... */
 	for (i = 0; i < 10; i++)
-		ide_delay_50ms();
+		IDE_DELAY();
 
 	/* Activate PIO Mode 4 timing and remove IDE Reset */
 	CPLD_OUT(CPLD_WRITE_CTRL_TIMING, 0x0012001F);
@@ -703,9 +732,8 @@ static void dbox2ide_scan(void)
 
 	/* check BR2 register that CS2 is enabled.  if so, then something has activated it. 
 	   Maybe there is RAM or a different hardware?  Don't try to use the CPLD then.  */
-	if (activate_cs2() == 0) {
+	if (activate_cs2() == 0)
 		return;
-	}
 
 	map_memory();
 
@@ -728,12 +756,12 @@ static void dbox2ide_scan(void)
 }
 
 /* dbox_ide_init is called when the module is loaded */
-static int __init dbox_ide_init(void)
+static int __init dbox2ide_init(void)
 {
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dbox2ide: $Id: main.c,v 1.5 2006/09/09 08:37:39 carjay Exp $\n");
+	       "dbox2ide: $Id: main.c,v 1.6 2006/09/09 09:50:04 carjay Exp $\n");
 
 	ide_register_driver(dbox2ide_scan);
 
@@ -741,7 +769,7 @@ static int __init dbox_ide_init(void)
 }
 
 /* dbox_ide_exit is called when the module is unloaded */
-static void __exit dbox_ide_exit(void)
+static void __exit dbox2ide_exit(void)
 {
 	if (idebase != 0) {
 		CPLD_OUT(CPLD_WRITE_CTRL_TIMING, 0x00FF0007);
@@ -766,8 +794,8 @@ static void __exit dbox_ide_exit(void)
 	printk("dbox2ide: driver unloaded\n");
 }
 
-module_init(dbox_ide_init);
-module_exit(dbox_ide_exit);
+module_init(dbox2ide_init);
+module_exit(dbox2ide_exit);
 
 MODULE_AUTHOR("Uli Tessel <utessel@gmx.de>");
 MODULE_DESCRIPTION("DBOX IDE CPLD Interface driver");
