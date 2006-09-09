@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.6 2006/09/09 09:50:04 carjay Exp $
+ * $Id: main.c,v 1.7 2006/09/09 10:11:34 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -452,84 +452,47 @@ static void set_access_functions(ide_hwif_t * hwif)
 	hwif->ack_intr = dbox2ide_ack_intr;
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	/* now, after setting the function pointer, the port info is not
 	   an address anymore, so remove the idebase again */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 	reset_function_pointer(hwif);
 #endif
 
 }
 
-static void dbox2ide_register(void)
+/* common function to setup the io_ports. "idebase" is necessary
+   for the 2.4 kernel since the first time the ports are
+   used as addresses which is not what we really want so the
+   initial address is different for 2.4 and 2.6. */
+static void init_hw_struct( ide_hwif_t *hwif, unsigned long idebase)
 {
-	ide_hwif_t *hwif = NULL;
-	hw_regs_t hw;
+	hw_regs_t *hw;
 
-	/*
-	   I think this is a hack, but it works...
+	hwif->chipset = ide_unknown;
+	hwif->tuneproc = NULL;
+	hwif->mate = NULL;
+	hwif->channel = 0;
 
-	   the following values are not really used as addresses by
-	   this driver and, of course, they will not really work if
-	   used like that.
-	   "Not really" because the kernel might use the default
-	   inb/etc. routines if the detect module is already loaded.
-	   To avoid problems with that I use addresses where I know
-	   what happens, because these addresses access the CPLD:
+	strncpy (hwif->name, "dbox2 ide", sizeof(hwif->name));
 
-	   Writing to these addresses does nothing, and reading will
-	   return the data register, which is (should be) at this
-	   time FFFFFFFF  (see cpld_detect).
+	hw = &hwif->hw;
+	memset(hw, 0, sizeof(hw_regs_t));
 
-	   The result is that the detection of a disk will fail when
-	   it is done with the original kernel functions.
+	hw->io_ports[IDE_DATA_OFFSET] 		= idebase + 0x0010;
+	hw->io_ports[IDE_ERROR_OFFSET] 		= idebase + 0x0011;
+	hw->io_ports[IDE_NSECTOR_OFFSET] 	= idebase + 0x0012;
+	hw->io_ports[IDE_SECTOR_OFFSET] 	= idebase + 0x0013;
+	hw->io_ports[IDE_LCYL_OFFSET] 		= idebase + 0x0014;
+	hw->io_ports[IDE_HCYL_OFFSET] 		= idebase + 0x0015;
+	hw->io_ports[IDE_SELECT_OFFSET] 	= idebase + 0x0016;
+	hw->io_ports[IDE_STATUS_OFFSET] 	= idebase + 0x0017;
 
-	   A clean order is to load the ide-detect module after
-	   loading this module!
-	 */
-	memset(&hw, 0, sizeof(hw));
-	hw.io_ports[IDE_DATA_OFFSET] = idebase + 0x0010;
-	hw.io_ports[IDE_ERROR_OFFSET] = idebase + 0x0011;
-	hw.io_ports[IDE_NSECTOR_OFFSET] = idebase + 0x0012;
-	hw.io_ports[IDE_SECTOR_OFFSET] = idebase + 0x0013;
-	hw.io_ports[IDE_LCYL_OFFSET] = idebase + 0x0014;
-	hw.io_ports[IDE_HCYL_OFFSET] = idebase + 0x0015;
-	hw.io_ports[IDE_SELECT_OFFSET] = idebase + 0x0016;
-	hw.io_ports[IDE_STATUS_OFFSET] = idebase + 0x0017;
+	hw->io_ports[IDE_CONTROL_OFFSET] 	= idebase + 0x004E;
+	hw->io_ports[IDE_IRQ_OFFSET] 		= idebase + 0x004E;
 
-	hw.io_ports[IDE_CONTROL_OFFSET] = idebase + 0x004E;
-	hw.io_ports[IDE_IRQ_OFFSET] = idebase + 0x004E;
+	hwif->irq = hw->irq = configure_interrupt();
 
-	hw.irq = configure_interrupt();
-
-	ideindex = ide_register_hw(&hw, &hwif);
-
-	if (hwif != NULL) {
-		if (ideindex == -1) {
-			/* registering failed? This is not wrong because for the
-			   kernel there is no drive on this controller because
-			   wrong routines were used to check that.
-			   Or the kernel didn't check at all.
-			   But to unregister this driver, we will need this
-			   index. */
-
-			ideindex = hwif - ide_hwifs;
-		}
-
-		/* now change the IO Access functions and use the
-		   real values for the IDE Ports */
-		set_access_functions(hwif);
-
-		SELECT_DRIVE(&hwif->drives[0]);
-
-		/* finally: probe again: this time with my routines,
-		   so this time the detection will not fail (if there
-		   is a drive connected) */
-		ide_probe_module(1);
-
-	} else {
-		printk("dbox2ide: no hwif was given\n");
-	}
-
+	memcpy(hwif->io_ports, hw->io_ports, sizeof(hw->io_ports));
 }
 
 /* the CPLD is connected to CS2, which should be inactive.
@@ -719,6 +682,65 @@ static void unmap_memory(void)
 	}
 }
 
+static void dbox2ide_register(void)
+{
+	ide_hwif_t *hwif = NULL;
+	hw_regs_t hw;
+
+	/*
+	   I think this is a hack, but it works...
+
+	   the following values are not really used as addresses by
+	   this driver and, of course, they will not really work if
+	   used like that.
+	   "Not really" because the kernel might use the default
+	   inb/etc. routines if the detect module is already loaded.
+	   To avoid problems with that I use addresses where I know
+	   what happens, because these addresses access the CPLD:
+
+	   Writing to these addresses does nothing, and reading will
+	   return the data register, which is (should be) at this
+	   time FFFFFFFF  (see cpld_detect).
+
+	   The result is that the detection of a disk will fail when
+	   it is done with the original kernel functions.
+
+	   A clean order is to load the ide-detect module after
+	   loading this module!
+	 */
+	 
+	init_hw_struct(hwif, idebase);
+
+	ideindex = ide_register_hw(&hw, &hwif);
+
+	if (hwif != NULL) {
+		if (ideindex == -1) {
+			/* registering failed? This is not wrong because for the
+			   kernel there is no drive on this controller because
+			   wrong routines were used to check that.
+			   Or the kernel didn't check at all.
+			   But to unregister this driver, we will need this
+			   index. */
+
+			ideindex = hwif - ide_hwifs;
+		}
+
+		/* now change the IO Access functions and use the
+		   real values for the IDE Ports */
+		set_access_functions(hwif);
+
+		SELECT_DRIVE(&hwif->drives[0]);
+
+		/* finally: probe again: this time with my routines,
+		   so this time the detection will not fail (if there
+		   is a drive connected) */
+		ide_probe_module(1);
+
+	} else {
+		printk("dbox2ide: no hwif was given\n");
+	}
+}
+
 /* dbox2ide_scan: this is called by the IDE part of the kernel via
    a function pointer when the kernel thinks it is time to check
    this ide controller. So here the real activation of the CPLD
@@ -761,7 +783,7 @@ static int __init dbox2ide_init(void)
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dbox2ide: $Id: main.c,v 1.6 2006/09/09 09:50:04 carjay Exp $\n");
+	       "dbox2ide: $Id: main.c,v 1.7 2006/09/09 10:11:34 carjay Exp $\n");
 
 	ide_register_driver(dbox2ide_scan);
 
@@ -777,16 +799,8 @@ static void __exit dbox2ide_exit(void)
 
 	idebase = 0;
 
-	if (ideindex != -1) {
-		ide_hwif_t *hwif = &ide_hwifs[ideindex];
-
-		hwif->chipset = ide_unknown;
-		hwif->tuneproc = NULL;
-		hwif->mate = NULL;
-		hwif->channel = 0;
-
+	if (ideindex != -1)
 		ide_unregister(ideindex);
-	}
 
 	unmap_memory();
 	deactivate_cs2();
