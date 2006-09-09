@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <asm/time.h>
 #include <asm/uaccess.h>
 
@@ -10,7 +11,9 @@
 #define STACK_DEPTH 4
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 extern void m8xx_wdt_reset(void);
+#endif
 
 extern char *dbox2ide_trace_msg[];
 
@@ -36,21 +39,20 @@ static void log_backtrace(IDETraceData * td)
 	unsigned long i;
 	unsigned long *sp;
 
-      asm("mr %0,1":"=r"(sp));
+	asm("mr %0,1":"=r"(sp));
 
 	while (sp) {
-		if (__get_user(i, &sp[1]))
-			break;
+		i = sp[1];
 
-		if (cnt > 0)
+		if (cnt > 0) {
 			td->stack[cnt - 1] = i;
+		}
 		cnt++;
 
 		if (cnt > STACK_DEPTH)
 			break;
 
-		if (__get_user(sp, (unsigned long **)sp))
-			break;
+		sp = *(unsigned long **)sp;
 	}
 #endif
 }
@@ -101,9 +103,12 @@ void dbox2ide_print_trace(void)
 
 		print_callstack(t);
 
-		/* this can take a while and when not printing to console the watchdog is not served */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+		/* this can take a while and when not printing to console the watchdog is not served 
+           FIXME: symbol is not (yet) exposed in 2.6 */
 		if ((i & 7) == 0)
 			m8xx_wdt_reset();
+#endif
 
 		t->typ = 0;
 	}
