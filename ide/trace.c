@@ -15,7 +15,7 @@
 extern void m8xx_wdt_reset(void);
 #endif
 
-extern char *dbox2ide_trace_msg[];
+extern char *dboxide_trace_msg[];
 
 typedef struct IDETraceData {
 	unsigned long time;
@@ -73,7 +73,7 @@ static void print_callstack(IDETraceData * t)
 #endif
 }
 
-void dbox2ide_log_trace(unsigned int typ, unsigned int a, unsigned int b)
+void dboxide_log_trace(unsigned int typ, unsigned int a, unsigned int b)
 {
 	IDETraceData *t = &trace[traceIdx];
 	traceIdx = (traceIdx + 1) & ((TRACE_DEPTH) - 1);
@@ -86,11 +86,11 @@ void dbox2ide_log_trace(unsigned int typ, unsigned int a, unsigned int b)
 	log_backtrace(t);
 }
 
-void dbox2ide_print_trace(void)
+void dboxide_print_trace(void)
 {
 	int i;
 	IDETraceData *t;
-	printk("dbox2ide: trace\n");
+	printk("dboxide: trace\n");
 	for (i = TRACE_DEPTH - 1; i > 0; i--) {
 		int idx = (traceIdx + i) & ((TRACE_DEPTH) - 1);
 		t = &trace[idx];
@@ -99,7 +99,7 @@ void dbox2ide_print_trace(void)
 			continue;
 
 		printk("%08lx: %s %8x %8x\n", t->time,
-		       dbox2ide_trace_msg[t->typ], t->a, t->b);
+		       dboxide_trace_msg[t->typ], t->a, t->b);
 
 		print_callstack(t);
 

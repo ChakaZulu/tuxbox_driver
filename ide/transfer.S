@@ -1,6 +1,6 @@
 
 /*****************************************************************************
-  void * dbox2ide_insw_loop(void * dest, void * end, void * src, void * level)
+  void * dboxide_insw_loop(void * dest, void * end, void * src, void * level)
 
   main data transfer loop to read data
 
@@ -12,15 +12,15 @@
   level is the address of the level register
 *****************************************************************************/
 .text
-.globl dbox2ide_insw_loop
-dbox2ide_insw_loop:
+.globl dboxide_insw_loop
+dboxide_insw_loop:
   nop
   nop
   /* not yet implemented */
   blr
 
 /*****************************************************************************
-  void * dbox2ide_outsw_loop(void * src, void * end, void * dest, void * level)
+  void * dboxide_outsw_loop(void * src, void * end, void * dest, void * level)
 
   main data transfer loop to write data
 
@@ -33,8 +33,8 @@ dbox2ide_insw_loop:
   level is the address of the level register
 *****************************************************************************/
 .text
-.globl dbox2ide_outsw_loop
-dbox2ide_outsw_loop:
+.globl dboxide_outsw_loop
+dboxide_outsw_loop:
   nop
   nop
   /* not yet implemented */
