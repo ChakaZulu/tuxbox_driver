@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.9 2006/09/11 17:30:00 carjay Exp $
+ * $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -198,6 +198,19 @@ static void dboxide_insw(unsigned long port, void *addr, u32 count)
 {
 	uint *dest = addr;
 
+	/* special for ATAPI: the kernel calls insw with count=1?! */
+	if (count<4)
+	{
+		short * sdest = addr;
+		/*printk("dboxide: short insw %d\n", (int)count);*/
+		for (;count>0;count--)
+		{
+			*sdest++ = dboxide_inw( port ); 
+		}
+		return;
+	}
+
+
 	if (CPLD_FIFO_LEVEL() != 0)
 		dboxide_problem("insw: fifo not empty?!");
 	dboxide_log_trace(TRACE_LOG_INSW, port, count);
@@ -354,6 +367,13 @@ static void dboxide_outsw(unsigned long port, void *addr, u32 count)
 			CPLD_OUT(CPLD_WRITE_FIFO, b);
 
 			count -= 4;
+		}
+
+		if (count == 2) {
+			a = *src++; 
+			while (CPLD_FIFO_LEVEL()!=0) {
+			};
+			CPLD_OUT( CPLD_WRITE_FIFO, a );
 		}
 	}
 
@@ -796,7 +816,7 @@ static int __init dboxide_init(void)
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.9 2006/09/11 17:30:00 carjay Exp $\n");
+	       "dboxide: $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $\n");
 
 	ide_register_driver(dboxide_scan);
 
@@ -863,7 +883,7 @@ static int __init dboxide_init(void) {
 	int ret;
 
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.9 2006/09/11 17:30:00 carjay Exp $\n");
+	       "dboxide: $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $\n");
 
 	ret = setup_cpld();
 	if (ret < 0)
