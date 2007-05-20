@@ -1,0 +1,26 @@
+/*
+mmccombo.c readme
+
+Ausführliche deutschsprachige Infos im Board unter:
+http://tuxbox-forum.dreambox-fan.de/forum/viewtopic.php?t=45650
+
+
+This driver combines different connection schemes and low-level IO routines for optimized and failsafe access. With release of this driver, a new connection scheme is introduced, using PortB[16:19] pins, suitable for Philips (and Nokia) boxes, without disturbing PA[8:9], used by tts/1.
+
+Features:
+- Support for connection scheme 1 (introduced with mmc.o)
+- Support for connection scheme 2 (introduced with mmc2.o)
+- Support for connection scheme 4 (PB[16:19])
+- Uses reado-ptimization like used in mmc2.c for all connection schemes
+- Write-optimization for connection scheme 1 and 4 is about 1/3 faster (low-level part) than mmc2
+- With argument opt=[0:1] (defaults to 1) optimization can be toogled on/off
+- Does not use GPIOs mapped to the CPM unless forced by forcehw=1 (defaults to 0)
+- Connection scheme selectable with wiringopt=[0:4], while 0 is autodetection and 3 is not supported
+
+For more information see comments in source file and German language thread mentioned above.
+
+*/
+
+ 
+
+  

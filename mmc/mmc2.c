@@ -1,4 +1,4 @@
-//  $Id: mmc2.c,v 1.3 2006/08/24 22:09:05 guenther Exp $
+//  $Id: mmc2.c,v 1.4 2007/05/20 13:42:05 satsuse Exp $
 //
 //  MMC2.c
 //  General MMC device driver for dbox Modem Connector
@@ -144,7 +144,9 @@ static unsigned char mmc_spi_io(unsigned char data_out) {
     else
       cpi->iop_padat &= ~SD_DI;
 
+    // latch data on SD_DI into card
     cp->cp_pbdat |= SD_CLK;
+    // shouldn't data be read after clk h->l?
     if (cpi->iop_padat & SD_DO) {
     	result |= i;
     }
@@ -787,7 +789,7 @@ static int __init mmc_driver_init(void)
 {
 	int rc;
 
-    printk("mmc2 Driver $Id: mmc2.c,v 1.3 2006/08/24 22:09:05 guenther Exp $\n");
+    printk("mmc2 Driver $Id: mmc2.c,v 1.4 2007/05/20 13:42:05 satsuse Exp $\n");
 	rc = devfs_register_blkdev(MAJOR_NR, DEVICE_NAME, &mmc_bdops);
 	if (rc < 0)
 	{
