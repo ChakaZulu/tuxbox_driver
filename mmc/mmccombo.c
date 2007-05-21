@@ -32,6 +32,9 @@
 //
 /*
 $Log: mmccombo.c,v $
+Revision 1.2  2007/05/21 08:37:28  satsuse
+faster low-level write for wo={1, 4}
+
 Revision 1.1  2007/05/20 08:55:14  satsuse
 combined mmc driver
 
@@ -415,16 +418,17 @@ static void mmc_spi_write_14(unsigned char *data_out, unsigned short charcnt) {
 	// point cpm in memorymap
 	volatile cpm8xx_t *cp  = (cpm8xx_t *) &immap->im_cpm;		
 	
-	unsigned int cldl;	// setup data: clock low data low
-	unsigned int cldh;	// setup data : clock low data high
-	unsigned int chdl; 	// latch : clock high data low
-	unsigned int chdh; 	// latch : clock high data high
+	unsigned int cldl;	
+	unsigned int cldh;	
+	unsigned int chdl; 	
+	unsigned int chdh; 	
+	unsigned int byte_out;
 
 	if (wiringopt == 1) {
-		cldl = cp->cp_pbdat & ~(MMCPB19 | MMCPB22);
-		cldh = (cp->cp_pbdat | MMCPB19) & ~MMCPB22 ;
-		chdl = (cp->cp_pbdat | MMCPB22) & ~MMCPB19;
-		chdh = cp->cp_pbdat | MMCPB22 | MMCPB19;
+		cldl = cp->cp_pbdat & ~(MMCPB19 | MMCPB22);  // setup data: clock low data low
+		cldh = (cp->cp_pbdat | MMCPB19) & ~MMCPB22 ; // setup data : clock low data high
+		chdl = (cp->cp_pbdat | MMCPB22) & ~MMCPB19;  // latch : clock high data low
+		chdh = cp->cp_pbdat | MMCPB22 | MMCPB19;     // latch : clock high data high
 	} else {
 		// must be 4
 		cldl = cp->cp_pbdat & ~(MMCPB19 | MMCPB17);
@@ -433,87 +437,122 @@ static void mmc_spi_write_14(unsigned char *data_out, unsigned short charcnt) {
 		chdh = cp->cp_pbdat | MMCPB17 | MMCPB19;
 	}
 
-	unsigned char *pntend = data_out + charcnt;
 
-	for(; data_out < pntend; data_out++)
+	while(charcnt > 0)
 	{
+		byte_out = *data_out++;
+		// needs 1 clock less, if done here and not directly in the while statement
+		charcnt--;			
+
 		// bit 7
-		if (*data_out & 0x80) {
+		if (byte_out & 0x80) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 6
-		if (*data_out & 0x40) {
+		if (byte_out & 0x40) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 5
-		if (*data_out & 0x20) {
+		if (byte_out & 0x20) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 4
-		if (*data_out & 0x10) {
+		if (byte_out & 0x10) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 3
-		if (*data_out & 0x08) {
+		if (byte_out & 0x08) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 2
-		if (*data_out & 0x04) {
+		if (byte_out & 0x04) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
 	 		cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 1
-		if (*data_out & 0x02) {
+		if (byte_out & 0x02) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
 		// bit 0
-		if (*data_out & 0x01) {
+		if (byte_out & 0x01) {
+			wmb();
 			cp->cp_pbdat = cldh;	// set data-high
+			wmb();
  			cp->cp_pbdat = chdh;	// latch
 		}     
 		else {
+			wmb();
 			cp->cp_pbdat = cldl;	// set data-low
+			wmb();
 			cp->cp_pbdat = chdl;	// latch
 		}
 
@@ -1303,7 +1342,7 @@ static int mmc_release(struct inode *inode, struct file *filp)
 
 static void assign_pnt(void) {
 
-	// init function call pointers
+	// init function call pointer
 	switch (wiringopt) 
 	{
 		case 1:
@@ -1354,7 +1393,7 @@ static int __init mmc_driver_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "$Id: mmccombo.c,v 1.1 2007/05/20 08:55:14 satsuse Exp $\n");
+	printk(KERN_INFO "$Id: mmccombo.c,v 1.2 2007/05/21 08:37:28 satsuse Exp $\n");
 
 	if ((wiringopt > 4) || (wiringopt == 3))
 	{
