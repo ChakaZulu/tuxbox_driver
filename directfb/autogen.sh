@@ -26,12 +26,18 @@ cd $srcdir
 
 check_version ()
 {
-    if expr $1 \>= $2 > /dev/null; then
-	echo "yes (version $1)"
-    else
-	echo "Too old (found version $1)!"
-	DIE=1
-    fi
+	found_major=`echo $1 | awk -F '.' '{print$1}'`
+	found_minor=`echo $1 | awk -F '.' '{print$2}'`
+
+	req_major=`echo $2 | awk -F '.' '{print$1}'`
+	req_minor=`echo $2 | awk -F '.' '{print$2}'`
+
+	if [ $found_major -ge $req_major -a $found_minor -ge $req_minor ]; then
+		echo "yes (version $1)"
+	else
+		echo "Too old (found version $1)!"
+		DIE=1
+	fi 
 }
 
 echo
