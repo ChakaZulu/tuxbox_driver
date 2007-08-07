@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $
+ * $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -211,53 +211,57 @@ static void dboxide_insw(unsigned long port, void *addr, u32 count)
 	}
 
 
+	/* outcommented for better performance, errorchecking is not needed
+	
 	if (CPLD_FIFO_LEVEL() != 0)
 		dboxide_problem("insw: fifo not empty?!");
-	dboxide_log_trace(TRACE_LOG_INSW, port, count);
+	dboxide_log_trace(TRACE_LOG_INSW, port, count);'
+	
+	*/
 
 	/* activate reading to fifo with auto repeat */
 	CPLD_OUT(CPLD_WRITE_CTRL, port);
 	CPLD_OUT(CPLD_WRITE_CTRL, port | CPLD_CTRL_ENABLE | CPLD_CTRL_REPEAT);
 
 	/* todo: replace the code below by an assembler implementation in this
-	   routine */
+	   routine 
+	
 	dboxide_insw_loop(idebase + CPLD_READ_CTRL, idebase + CPLD_READ_FIFO,
 			  dest, count);
+	*/
 
 	{
 		register uint a;
 		register uint b;
-		register uint c;
-		register uint d;
+/*		register uint c;
+		register uint d;*/
 
 		while (count > 16) {
-			while (CPLD_FIFO_LEVEL() != 0xF) {
-			};
+			while (CPLD_FIFO_LEVEL() != 0xF) {};
 			a = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
 			b = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
-			while (CPLD_FIFO_LEVEL() != 0xF) {
-			};
-			c = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
-			d = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
 			dest[0] = a;
 			dest[1] = b;
-			dest[2] = c;
-			dest[3] = d;
+			while (CPLD_FIFO_LEVEL() != 0xF) {};
+			a = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
+			b = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
+			dest[2] = a;
+			dest[3] = b;
+
 			count -= 8;
 			dest += 4;
 		}
 
 		while (count > 4) {
-			while (CPLD_FIFO_LEVEL() != 0xF) {
-			};
+			while (CPLD_FIFO_LEVEL() != 0xF) {};
 			a = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
 			b = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
 			dest[0] = a;
 			dest[1] = b;
+
 			count -= 4;
 			dest += 2;
 		}
-
 	}
 
 	if (count != 4)
@@ -272,9 +276,14 @@ static void dboxide_insw(unsigned long port, void *addr, u32 count)
 	/* then stop reading from ide */
 	CPLD_OUT(CPLD_WRITE_CTRL, port);
 
+	register uint a;
+	register uint b;
+
 	/* and read the final 4 16 bit words */
-	dest[0] = CPLD_IN(CPLD_READ_FIFO);
-	dest[1] = CPLD_IN(CPLD_READ_FIFO);
+	a = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
+	b = CPLD_IN(CPLD_READ_FIFO);	/* read 2 16 bit words */
+	dest[0] = a;
+	dest[1] = b;
 }
 
 /* insl reads several 32 bit words from an IDE register.
@@ -341,18 +350,22 @@ static void dboxide_outsw(unsigned long port, void *addr, u32 count)
 {
 	uint *src = addr;
 
+/*	
 	if (CPLD_FIFO_LEVEL() != 0)
 		dboxide_problem("outsw: fifo not empty?!");
 
 	dboxide_log_trace(TRACE_LOG_OUTSW, port, count);
+*/
 
 	/* activate writing to fifo with auto repeat */
 	CPLD_OUT(CPLD_WRITE_CTRL,
 		 port | CPLD_CTRL_WRITING | CPLD_CTRL_ENABLE |
 		 CPLD_CTRL_REPEAT);
 
+/*
 	dboxide_outsw_loop(idebase + CPLD_READ_CTRL, idebase + CPLD_READ_FIFO,
 			   src, count);
+*/
 
 	{
 		register int a;
@@ -524,21 +537,18 @@ static int activate_cs2(void)
 	memctl8xx_t *memctl = &immap->im_memctl;
 	uint br2 = memctl->memc_br2;
 
-	if (br2 & 0x1) {
-		printk("dboxide: cs2 already activated\n");
-		return 0;
-	}
+	if ((memctl->memc_br2 & 0xFFFF8000) < 0x02000000) 
+		printk("dboxide: Less than 32MByte of onboard-memory detected.\n         Upgrade is strongly recommend!\n");
 
-	if (br2 != 0x02000080) {
-		printk("dboxide: cs2: unexpected value for br2: %08x\n", br2);
-		return 0;
+	if (br2 & 0x1) {
+		printk("dboxide: memory-bank already in use, lets try it\n");
+		//return 0;
 	}
 
 	br2 |= 0x1;
 
 	printk("dboxide: activating cs2\n");
 	memctl->memc_br2 = br2;
-
 	return 1;
 }
 
@@ -549,14 +559,13 @@ static int deactivate_cs2(void)
 	memctl8xx_t *memctl = &immap->im_memctl;
 	uint br2 = memctl->memc_br2;
 
-	if (br2 != 0x02000081) {
-		printk("dboxide: cs2 configuration unexpected: %08x\n", br2);
+	if (!(br2 & 0x1)) {
+		printk("dboxide: cs2 already deactivated\n");
 		return 0;
 	}
 
-	br2 &= ~1;
-
 	printk("dboxide: deactivating cs2\n");
+	br2 &= ~1;
 	memctl->memc_br2 = br2;
 
 	return 1;
@@ -583,7 +592,7 @@ static int detect_cpld(void)
 		back = CPLD_IN(CPLD_READ_DATA);
 		if (check != back) {
 			printk
-			    ("dboxide: probing dbox2 IDE CPLD: walking bit test failed: %08x != %08x\n",
+			    ("dboxide: probing dbox2 IDE CPLD: walking bit test failed: 0x%08x != 0x%08x\n",
 			     check, back);
 			return 0;
 		}
@@ -594,7 +603,7 @@ static int detect_cpld(void)
 		back = CPLD_IN(CPLD_READ_DATA);
 		if (check != back) {
 			printk
-			    ("dboxide: probing dbox2 IDE CPLD: walking bit test failed: %08x != %08x\n",
+			    ("dboxide: probing dbox2 IDE CPLD: walking bit test failed: 0x%08x != 0x%08x\n",
 			     check, back);
 			return 0;
 		}
@@ -607,7 +616,7 @@ static int detect_cpld(void)
 	back = CPLD_IN(CPLD_READ_CTRL);
 	if ((back & check) != check) {
 		printk
-		    ("dboxide: probing dbox2 IDE CPLD: ctrl register not valid: %08x != %08x\n",
+		    ("dboxide: probing dbox2 IDE CPLD: ctrl register not valid: 0x%08x != 0x%08x\n",
 		     check, back & check);
 		return 0;
 	}
@@ -653,7 +662,7 @@ static int detect_cpld(void)
 	CPLD_OUT(CPLD_WRITE_FIFO, check);
 	back = CPLD_IN(CPLD_READ_FIFO);
 	if (back != check) {
-		printk("dboxide: final fifo clear did not work: %x!=%x\n", back,
+		printk("dboxide: final fifo clear did not work: 0x%08x != 0x%08x\n", back,
 		       check);
 		return 0;
 	}
@@ -683,8 +692,15 @@ static int detect_cpld(void)
    But the kernel has to give us a virtual address. */
 static void map_memory(void)
 {
+
 	unsigned long mem_addr = 0x02000000;
 	unsigned long mem_size = 0x00001000;
+
+	immap_t *immap = (immap_t *) IMAP_ADDR;
+	memctl8xx_t *memctl = &immap->im_memctl;
+	mem_addr = (memctl->memc_br2 & 0xFFFF8000);
+
+
 	/* ioremap also activates the guard bit in the mmu, 
 	   so the MPC8xx core does not do speculative reads
 	   to these addresses
@@ -710,14 +726,14 @@ static int setup_cpld(void)
 	map_memory();
 
 	if (idebase == 0) {
-		printk(KERN_ERR "dboxide: address space of dbox2 IDE CPLD not mapped to kernel address space\n");
+		printk(KERN_ERR "dboxide: address space of IDE-Interface not mapped to kernel address space\n");
 		return -ENOMEM;
 	}
 
-	printk(KERN_INFO "dboxide: address space of DBox2 IDE CPLD is at: 0x%08x\n", idebase);
+	printk(KERN_INFO "dboxide: address space of IDE-Interface is at: 0x%08x\n", idebase);
 
 	if (detect_cpld() == 0) {
-		printk(KERN_ERR "dboxide: not a valid dbox2 IDE CPLD detected\n");
+		printk(KERN_ERR "dboxide: no valid IDE-Interface detected\n");
 		unmap_memory();
 		return -ENODEV;
 	}
@@ -816,7 +832,7 @@ static int __init dboxide_init(void)
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $\n");
+	       "dboxide: $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $\n");
 
 	ide_register_driver(dboxide_scan);
 
@@ -883,7 +899,7 @@ static int __init dboxide_init(void) {
 	int ret;
 
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.10 2006/10/04 00:36:41 carjay Exp $\n");
+	       "dboxide: $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $\n");
 
 	ret = setup_cpld();
 	if (ret < 0)
@@ -915,8 +931,10 @@ static void __exit dboxide_exit(void)
 
 	platform_driver_unregister(&dbox2_ide_driver);
 
-	unmap_memory();
-	deactivate_cs2();
+	if (idebase != 0) {
+		unmap_memory();
+		deactivate_cs2();
+	}
 
 	printk("dboxide: driver unloaded\n");
 }
