@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $
+ * $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/version.h>
 #include <asm/io.h>
@@ -40,6 +41,7 @@ static uint idebase = 0;
 static struct platform_device *ide_dev;
 #else
 static int ideindex = -1;
+static int irq6 = 0;
 #endif
 
 /* address-offsets of features in the CPLD 
@@ -441,7 +443,10 @@ static int configure_interrupt(void)
 	/* As this routine is the only one that needs to know about
 	   wich interrupt is used in this code, it returns the number
 	   so it can be given to the kernel */
-	return CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
+if (irq6){
+    return CPM_IRQ_OFFSET - 4; 
+    }
+    return CPM_IRQ_OFFSET + CPMVEC_PIO_PC15;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
@@ -571,6 +576,51 @@ static int deactivate_cs2(void)
 	return 1;
 }
 
+/*read out id-code, this value can only get on first read!*/
+static unsigned int read_if_idcode(void) 
+{
+	static unsigned int idcode;
+	static int alreadyread = 0;
+	if (!alreadyread) {
+		idcode = CPLD_IN(CPLD_READ_FIFO);
+		alreadyread = 1;
+	}
+	return idcode;
+}
+
+static int write_if_idcodeback(unsigned int idcode) 
+{
+	CPLD_OUT(CPLD_WRITE_FIFO, idcode);
+}
+
+static int ide_software_reset_drives(void) 
+{
+        int i, j, tmp;
+
+	for (i = 0; i<10; i++) {
+		dboxide_outb(0x0E, 0x4E/*IDE_CONTROL_REG*/);
+		udelay(10);
+		dboxide_outb(0x0A, 0x4E/*IDE_CONTROL_REG*/);
+		udelay(10);
+		for (j = 0; j < 600; j++) {
+			tmp = dboxide_inb(0x17/*IDE_STATUS_REG*/);
+			if (!(tmp & 0x80))
+				break;
+			IDE_DELAY();
+	        }
+        	if (tmp & 0x80)
+			printk("dboxide: timeout, drive is still busy\n");
+		tmp = dboxide_inb(0x11 /*IDE_ERROR_REG*/);
+
+        	if (tmp == 1) {
+			printk("dboxide: sreset succeeded\n");
+			return 1;
+		}
+	}
+	printk("dboxide: sreset failed, status: 0x%04x\n", tmp);
+	return 0;
+}
+
 /* detect_cpld: Check that the CPLD really works */
 static int detect_cpld(void)
 {
@@ -580,6 +630,9 @@ static int detect_cpld(void)
 
 	/* This detection code not only checks that there is a CPLD,
 	   but also that it does work more or less as expected.  */
+
+	/*read out identifynumber*/
+	unsigned int idcode = read_if_idcode();
 
 	/* first perform a walking bit test via data register:
 	   this checks that there is a data register and
@@ -609,9 +662,9 @@ static int detect_cpld(void)
 		}
 	}
 
-	/* second: check ctrl register.
-	   this also activates the IDE Reset. */
-	check = 0x00FF0007;
+	/* second: check ctrl register.*/
+	check = 0x0012001F; /* Activate PIO Mode 4 timing and remove IDE Reset */
+
 	CPLD_OUT(CPLD_WRITE_CTRL_TIMING, check);
 	back = CPLD_IN(CPLD_READ_CTRL);
 	if ((back & check) != check) {
@@ -673,12 +726,23 @@ static int detect_cpld(void)
 	   will probe for drives etc, so this will check a lot
 	 */
 
-	/* before going releasing IDE Reset, wait some time... */
-	for (i = 0; i < 10; i++)
-		IDE_DELAY();
+	char vendor[30];
+	if ((idcode==0) || (idcode==0x50505050))
+		strcpy(vendor, "Gurgel\0");
+	else if (idcode == 0x556c6954)
+		strcpy(vendor, "DboxBaer or kpt.ahab/Stingray\0");
+	else
+		strcpy(vendor, "Unknown\0");
+	printk("dboxide: IDE-Interface detected, Vendor: %s\n", vendor);
 
-	/* Activate PIO Mode 4 timing and remove IDE Reset */
-	CPLD_OUT(CPLD_WRITE_CTRL_TIMING, 0x0012001F);
+
+
+	for (i = 0; i < 10; i++) {
+		IDE_DELAY();
+        }
+
+	/*Reset Drives via IDE-Device-Control-Register (SRST)*/
+	ide_software_reset_drives();
 
 	/* finally set all bits in data register, so nothing
 	   useful is read when the CPLD is accessed by the
@@ -832,7 +896,7 @@ static int __init dboxide_init(void)
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $\n");
 
 	ide_register_driver(dboxide_scan);
 
@@ -844,6 +908,7 @@ static void __exit dboxide_exit(void)
 {
 	if (idebase != 0) {
 		CPLD_OUT(CPLD_WRITE_CTRL_TIMING, 0x00FF0007);
+		write_if_idcodeback(read_if_idcode());
 	}
 
 	idebase = 0;
@@ -899,7 +964,7 @@ static int __init dboxide_init(void) {
 	int ret;
 
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.11 2007/08/07 09:02:15 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $\n");
 
 	ret = setup_cpld();
 	if (ret < 0)
@@ -923,8 +988,10 @@ static int __init dboxide_init(void) {
 /* dbox_ide_exit is called when the module is unloaded */
 static void __exit dboxide_exit(void)
 {
-	if (idebase != 0)
+	if (idebase != 0) {
 		CPLD_OUT(CPLD_WRITE_CTRL_TIMING, 0x00FF0007);
+		write_if_idcodeback(read_if_idcode());
+	}
 
 	if (ide_dev)
 		platform_device_unregister(ide_dev);
@@ -943,6 +1010,7 @@ static void __exit dboxide_exit(void)
 module_init(dboxide_init);
 module_exit(dboxide_exit);
 
+MODULE_PARM(irq6,"i");
 MODULE_AUTHOR("Uli Tessel <utessel@gmx.de>");
 MODULE_DESCRIPTION("DBOX IDE CPLD Interface driver");
 MODULE_LICENSE("GPL");
