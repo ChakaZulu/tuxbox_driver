@@ -52,7 +52,7 @@ static struct dvb_frontend_info tda8044_info = {
 	.frequency_min = 500000,
 	.frequency_max = 2700000,
 	.frequency_stepsize = 125,
-	.symbol_rate_min = 4500000,
+	.symbol_rate_min = 1000000,
 	.symbol_rate_max = 45000000,
 	.notifier_delay = 0,
 	.caps =	FE_CAN_INVERSION_AUTO |
@@ -262,11 +262,20 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 				  fe_code_rate_t fec_inner)
 {
 	u8 buf[16];
+	u8 clkbuf[3];
 	u64 ratio;
 	u32 clk = 96000000;
 	u32 k = (1 << 21);
 	u32 sr = symbol_rate;
 	u32 gcd;
+
+	/* CLK setup */
+	/* register */
+	clkbuf[0x00] = 0x17;
+	/* CLK proportional part */
+	clkbuf[0x01] = 0x68;
+	/* CLK integral part */
+	clkbuf[0x02] = 0x9a;
 
 	/* register */
 	buf[0x00] = 0x01;
@@ -279,10 +288,195 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 	 */
 	buf[0x01] = 0x00;
 
+	/* initialization of (default) values, will be changed depending
+	   on the symbol rate later */
+	/* nyquist filter roll-off factor 35% */
+	buf[0x05] = 0x20;
+	/* Sigma Delta converter */
+	buf[0x06] = 0x00;
+	/* carrier lock detector threshold value */
+	buf[0x08] = 0x30;
+	/* AFC1: proportional part settings */
+	buf[0x09] = 0x42;
+	/* AFC1: integral part settings */
+	buf[0x0a] = 0x98;
+	/* PD: Leaky integrator SCPC mode */
+	buf[0x0b] = 0x28;
+	/* AFC2, AFC1 controls */
+	buf[0x0c] = 0x30;
+	/* PD: proportional part settings */
+	buf[0x0d] = 0x42;
+	/* PD: integral part settings */
+	buf[0x0e] = 0x99;
+	/* AGC */
+	buf[0x0f] = 0x50;
+
+	/* FEC: Possible puncturing rates */
+	if (fec_inner == FEC_NONE)
+		buf[0x07] = 0x00;
+	else if ((fec_inner >= FEC_1_2) && (fec_inner <= FEC_8_9))
+		buf[0x07] = (1 << (8 - fec_inner));
+	else if (fec_inner == FEC_AUTO)
+		buf[0x07] = 0xff;
+	else
+		return -EINVAL;
+
 	if (inversion == INVERSION_ON)
 		buf[0x01] |= 0x60;
 	else if (inversion == INVERSION_OFF)
 		buf[0x01] |= 0x20;
+
+	/* the two most common rates are handled first */
+	if (symbol_rate == 22000000) {
+		buf[0x02] = 0x8b;
+		buf[0x03] = 0xa2;
+		buf[0x04] = 0xe9;
+		buf[0x05] = 0x23;
+		goto end_write;
+	}
+	if (symbol_rate == 27500000) {
+		buf[0x02] = 0x6f;
+		buf[0x03] = 0xb5;
+		buf[0x04] = 0x87;
+		buf[0x05] = 0x22;
+		goto end_write;
+	}
+
+	if (symbol_rate < 1000000)
+		printk("%s: unsupported symbol rate: %d\n", __FILE__, symbol_rate);
+
+	else if (symbol_rate < 5000000) {
+		buf[0x05] |= 0x07;
+		buf[0x09] = 0x20;
+		buf[0x0a] = 0x76;
+		buf[0x0d] = 0x33;
+		buf[0x0e] = 0x7a;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x8a;
+		clkbuf[0x02] = 0x9f;
+		clk = 24000000;
+	}
+
+	else if (symbol_rate < 6750000) {
+		buf[0x05] |= 0x07;
+		buf[0x09] = 0x30;
+		buf[0x0a] = 0x76;
+		buf[0x0d] = 0x52;
+		buf[0x0e] = 0xb9;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x8a;
+		clkbuf[0x02] = 0x9f;
+		clk = 24000000;
+	}
+
+	else if (symbol_rate < 9750000) {
+		buf[0x05] |= 0x06;
+		buf[0x09] = 0x30;
+		buf[0x0a] = 0x76;
+		buf[0x0d] = 0x52;
+		buf[0x0e] = 0xb9;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x8a;
+		clkbuf[0x02] = 0x9f;
+		clk = 24000000;
+	}
+
+	else if (symbol_rate < 10000000) {
+		buf[0x05] |= 0x05;
+		buf[0x09] = 0x30;
+		buf[0x0a] = 0x76;
+		buf[0x0d] = 0x52;
+		buf[0x0e] = 0xb9;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x8a;
+		clkbuf[0x02] = 0x9f;
+		clk = 24000000;
+	}
+
+	else if (symbol_rate < 13500000) {
+		buf[0x05] |= 0x05;
+		buf[0x09] = 0x51;
+		buf[0x0a] = 0x78;
+		buf[0x0d] = 0x42;
+		buf[0x0e] = 0x79;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x69;
+		clkbuf[0x02] = 0x9c;
+		clk = 48000000;
+	}
+
+	else if (symbol_rate < 19500000) {
+		buf[0x05] |= 0x04;
+		buf[0x09] = 0x51;
+		buf[0x0a] = 0x78;
+		buf[0x0d] = 0x42;
+		buf[0x0e] = 0x79;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x69;
+		clkbuf[0x02] = 0x9c;
+		clk = 48000000;
+	}
+
+	else if (symbol_rate < 20000000) {
+		buf[0x05] |= 0x03;
+		buf[0x09] = 0x51;
+		buf[0x0a] = 0x78;
+		buf[0x0d] = 0x42;
+		buf[0x0e] = 0x79;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x69;
+		clkbuf[0x02] = 0x9c;
+		clk = 96000000;
+	}
+
+	else if (symbol_rate < 25500000) {
+		buf[0x05] |= 0x03;
+		buf[0x09] = 0x42;
+		buf[0x0a] = 0x98;
+		buf[0x0d] = 0x42;
+		buf[0x0e] = 0x99;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x68;
+		clkbuf[0x02] = 0x9a;
+		clk = 96000000;
+	}
+
+	else if (symbol_rate < 30000000) {
+		buf[0x05] |= 0x02;
+		buf[0x09] = 0x42;
+		buf[0x0a] = 0x98;
+		buf[0x0d] = 0x42;
+		buf[0x0e] = 0x99;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x68;
+		clkbuf[0x02] = 0x9a;
+		clk = 96000000;
+	}
+
+	else if (symbol_rate < 39000000) {
+		buf[0x05] |= 0x02;
+		buf[0x09] = 0x42;
+		buf[0x0a] = 0x99;
+		buf[0x0d] = 0x32;
+		buf[0x0e] = 0x98;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x68;
+		clkbuf[0x02] = 0x9a;
+		clk = 96000000;
+	}
+
+	else if (symbol_rate <= 45000000) {
+		buf[0x05] |= 0x00;
+		buf[0x09] = 0x42;
+		buf[0x0a] = 0x98;
+		buf[0x0d] = 0x32;
+		buf[0x0e] = 0x98;
+		buf[0x0f] = 0x50;
+		clkbuf[0x01] = 0x68;
+		clkbuf[0x02] = 0x9a;
+		clk = 96000000;
+	} else
+		printk("%s: unsupported symbol rate: %d\n", __FILE__, symbol_rate);
 
 	/*
 	 * CLK ratio:
@@ -304,9 +498,7 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 	buf[0x03] = ratio >> 8;
 	buf[0x04] = ratio;
 
-	/* nyquist filter roll-off factor 35% */
-	buf[0x05] = 0x20;
-
+#if 0
 	/* Anti Alias Filter */
 	if (symbol_rate < 4500000)
 		printk("%s: unsupported symbol rate: %d\n", __FILE__, symbol_rate);
@@ -326,41 +518,14 @@ static int tda8044_set_parameters(struct dvb_i2c_bus *i2c,
 		buf[0x05] |= 0x01;
 	else
 		printk("%s: unsupported symbol rate: %d\n", __FILE__, symbol_rate);
+#endif
 
-	/* Sigma Delta converter */
-	buf[0x06] = 0x00;
-
-	/* FEC: Possible puncturing rates */
-	if (fec_inner == FEC_NONE)
-		buf[0x07] = 0x00;
-	else if ((fec_inner >= FEC_1_2) && (fec_inner <= FEC_8_9))
-		buf[0x07] = (1 << (8 - fec_inner));
-	else if (fec_inner == FEC_AUTO)
-		buf[0x07] = 0xff;
-	else
-		return -EINVAL;
-
-	/* carrier lock detector threshold value */
-	buf[0x08] = 0x30;
-	/* AFC1: proportional part settings */
-	buf[0x09] = 0x42;
-	/* AFC1: integral part settings */
-	buf[0x0a] = 0x98;
-	/* PD: Leaky integrator SCPC mode */
-	buf[0x0b] = 0x28;
-	/* AFC2, AFC1 controls */
-	buf[0x0c] = 0x30;
-	/* PD: proportional part settings */
-	buf[0x0d] = 0x42;
-	/* PD: integral part settings */
-	buf[0x0e] = 0x99;
-	/* AGC */
-	buf[0x0f] = 0x50;
-
+ end_write:
+	tda8044_write_buf(i2c, clkbuf, sizeof(clkbuf));
 	return tda8044_write_buf(i2c, buf, sizeof(buf));
 }
 
-
+#if 0
 static int tda8044_set_clk(struct dvb_i2c_bus *i2c)
 {
 	u8 buf[3];
@@ -374,7 +539,7 @@ static int tda8044_set_clk(struct dvb_i2c_bus *i2c)
 
 	return tda8044_write_buf(i2c, buf, sizeof(buf));
 }
-
+#endif
 
 static int tda8044_set_scpc_freq_offset(struct dvb_i2c_bus *i2c)
 {
@@ -517,7 +682,9 @@ static int tda8044_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 
 		tsa5059_set_freq(fe->i2c, p->frequency);
 		tda8044_set_parameters(fe->i2c, p->inversion, p->u.qpsk.symbol_rate, p->u.qpsk.fec_inner);
+/* set_clk is now done also in set_parameters
 		tda8044_set_clk(fe->i2c);
+ */
 		tda8044_set_scpc_freq_offset(fe->i2c);
 		tda8044_close_loop(fe->i2c);
 		break;
