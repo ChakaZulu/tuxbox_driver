@@ -36,6 +36,8 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#include <linux/delay.h>
+
 #if defined(__powerpc__)
 #include <asm/bitops.h>
 #endif
@@ -50,7 +52,7 @@ static u8 at76c651_revision;
 
 #define dprintk	if (debug) printk
 
-// #define AT76C651_PROC_INTERFACE
+#define AT76C651_PROC_INTERFACE
 
 #ifdef AT76C651_PROC_INTERFACE
 #include <linux/proc_fs.h>
@@ -149,11 +151,30 @@ static int at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
 	 * Performance optimizations, should be done after autoconfig
 	 */
 	at76c651_writereg(i2c, 0x10, 0x06);
-	at76c651_writereg(i2c, 0x11, ((at76c651_qam == 5) || (at76c651_qam == 7)) ? 0x12 : 0x10);
+	at76c651_writereg(i2c, 0x11, ((at76c651_qam == 5) || (at76c651_qam == 7)) ? 0x12 : 0x17);
+
+	/* at76c651_writereg(i2c, 0x13, 100);
+	   at76c651_writereg(i2c, 0x14, 180); */
+
 	at76c651_writereg(i2c, 0x15, 0x28);
-	at76c651_writereg(i2c, 0x20, 0x09);
-	at76c651_writereg(i2c, 0x24, ((at76c651_qam == 5) || (at76c651_qam == 7)) ? 0xC0 : 0x90);
+	at76c651_writereg(i2c, 0x20, 0x01);
+
+
+	switch (at76c651_qam) {
+	case 5:
+	case 7:
+		at76c651_writereg(i2c, 0x24, 0xC0);
+		break;
+	case 8:
+		at76c651_writereg(i2c, 0x24, 0xB0);
+		break;
+	default:
+		at76c651_writereg(i2c, 0x24, 0x90);
+	}
+
+	/* default 0x14/0x90 */
 	at76c651_writereg(i2c, 0x30, 0x90);
+
 	if (at76c651_qam == 5)
 		at76c651_writereg(i2c, 0x35, 0x2A);
 
@@ -164,6 +185,12 @@ static int at76c651_set_auto_config(struct dvb_i2c_bus *i2c)
 		at76c651_writereg(i2c, 0x2E, 0x38);
 		at76c651_writereg(i2c, 0x2F, 0x13);
 	}
+
+	/* automatic */
+	at76c651_writereg(i2c, 0x33, 0x8a);
+	at76c651_writereg(i2c, 0x34, 0xad); /* v12 bd */
+	at76c651_writereg(i2c, 0x51, 0x12); /* 11     */
+
 
 	at76c651_disable_interrupts(i2c);
 
@@ -207,6 +234,8 @@ static int tua6010_setfreq(struct dvb_i2c_bus *i2c, u32 freq)
 		return -EINVAL;
 
 	div = (freq + 36118750 + 31250) / 62500;
+	if (freq < 122000000) div+=4;
+	else div+=3;
 
 	if (freq > 401250000)
 		vu = 1;	/* UHF */
@@ -221,10 +250,9 @@ static int tua6010_setfreq(struct dvb_i2c_bus *i2c, u32 freq)
 		p2 = 0, p1 = 1, p0 = 1;
 
 	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = (div >> 0) & 0xff;
+	buf[1] = div & 0xff;
 	buf[2] = 0x8e;
 	buf[3] = (vu << 7) | (p2 << 2) | (p1 << 1) | p0;
-
 	return at76c651_pll_write(i2c, buf, 4);
 }
 
@@ -388,14 +416,13 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 		*ber = (at76c651_readreg(fe->i2c, 0x81) & 0x0F) << 16;
 		*ber |= at76c651_readreg(fe->i2c, 0x82) << 8;
 		*ber |= at76c651_readreg(fe->i2c, 0x83);
-		*ber *= 10;
 		break;
 	}
 
 	case FE_READ_SIGNAL_STRENGTH:
 	{
-		u8 gain = ~at76c651_readreg(fe->i2c, 0x91);
-		*(u16 *)arg = (gain << 8) | gain;
+		u8 gain = at76c651_readreg(fe->i2c, 0x91);
+		*(u16 *)arg = gain;
 		break;
 	}
 
@@ -435,6 +462,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 static int at76c651_proc_read(char *buf, char **start, off_t offset, int len, int *eof, void *i2c)
 {
 	int nr;
+int i, j;
 	u8 val;
 	int idx;
 	u8 bit;
@@ -449,7 +477,7 @@ static int at76c651_proc_read(char *buf, char **start, off_t offset, int len, in
 		nr = sprintf(buf, "Status of AT76C651B demodulator:\n");
 
 	val = at76c651_readreg(i2c, 0x80);
-	nr += sprintf(buf, "Lock (0x%02X): ", val);
+	nr += sprintf(buf + nr, "Lock (0x%02X): ", val);
 
 	bit = 0x80;
 
@@ -477,11 +505,54 @@ static int at76c651_proc_read(char *buf, char **start, off_t offset, int len, in
 		nr += sprintf(buf + nr, "FEC: manual mode, %s\n",
 				(val & 0x01) ? "inverse" : "normal");
 	else
-		nr += sprintf(buf + nr, "FEC: automatic mode, %s\n",
+		nr += sprintf(buf + nr, "FEC: automatic mode, %s\n\n",
 				(val & 0x04) ? "inverse" : "normal");
 
+	nr += sprintf(buf + nr, "   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
+	for (j=0; j<=0x90; j+=0x10) {
+		nr += sprintf(buf + nr, "%02X ", j);
+		for (i=0; i<=0xF; i++) {
+			nr += sprintf(buf + nr, "%02X ", at76c651_readreg(i2c, j+i));
+		}
+		nr += sprintf(buf + nr, "\n");
+	}
 	return nr;
 }
+
+
+static int at76c651_proc_write(struct file *file, const char *buf, unsigned long count, void *i2c)
+{
+	static char command[32];
+	char *token, *cmd;
+	int len;
+	int data[16];
+	int i,j;
+
+	len=count;
+	MOD_INC_USE_COUNT;
+	if (len == 0 || len > 31) {
+		MOD_DEC_USE_COUNT;
+		return -EFAULT;
+	}
+	copy_from_user(command, buf, len);
+	command[len]=0;
+
+	i=0;
+	cmd=command;
+	token=cmd+1;
+
+	do {
+		data[i++] = (int) simple_strtol(cmd, &token, 16);
+		if (cmd != token) cmd=token+1;
+	} while (token!=NULL && token!=cmd);
+	i-=2;
+	for (j=1; j<=i; j++)  at76c651_writereg(i2c, data[0]+j-1, data[j]);
+	at76c651_writereg(i2c, 0x07, 0x01);
+
+	MOD_DEC_USE_COUNT;
+	return len;
+}
+
 
 static int at76c651_register_proc(struct dvb_i2c_bus *i2c)
 {
@@ -490,13 +561,15 @@ static int at76c651_register_proc(struct dvb_i2c_bus *i2c)
 	if (!proc_bus)
 		return -ENOENT;
 
-	proc_bus_at76c651 = create_proc_read_entry("at76c651", 0, proc_bus,
-			&at76c651_proc_read,i2c);
-
+	proc_bus_at76c651 = create_proc_entry("driver/at76c651", 0666, NULL);
 	if (!proc_bus_at76c651) {
 		printk(KERN_ERR "Cannot create /proc/bus/at76c651\n");
 		return -ENOENT;
 	}
+	proc_bus_at76c651->read_proc = &at76c651_proc_read;
+	proc_bus_at76c651->write_proc = &at76c651_proc_write;
+
+	proc_bus_at76c651->data = i2c;
 
 	at76c651_proc_registered = 1;
 
