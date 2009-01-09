@@ -462,7 +462,7 @@ static int at76c651_ioctl(struct dvb_frontend *fe, unsigned int cmd, void *arg)
 static int at76c651_proc_read(char *buf, char **start, off_t offset, int len, int *eof, void *i2c)
 {
 	int nr;
-int i, j;
+	int i, j;
 	u8 val;
 	int idx;
 	u8 bit;
