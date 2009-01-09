@@ -563,7 +563,7 @@ static int at76c651_register_proc(struct dvb_i2c_bus *i2c)
 
 	proc_bus_at76c651 = create_proc_entry("driver/at76c651", 0666, NULL);
 	if (!proc_bus_at76c651) {
-		printk(KERN_ERR "Cannot create /proc/bus/at76c651\n");
+		printk(KERN_ERR "Cannot create /proc/bus/driver/at76c651\n");
 		return -ENOENT;
 	}
 	proc_bus_at76c651->read_proc = &at76c651_proc_read;
