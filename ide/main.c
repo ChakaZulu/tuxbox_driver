@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $
+ * $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -602,7 +602,7 @@ static int ide_software_reset_drives(void)
 		udelay(10);
 		dboxide_outb(0x0A, 0x4E/*IDE_CONTROL_REG*/);
 		udelay(10);
-		for (j = 0; j < 600; j++) {
+		for (j = 0; j < 200; j++) {
 			tmp = dboxide_inb(0x17/*IDE_STATUS_REG*/);
 			if (!(tmp & 0x80))
 				break;
@@ -896,7 +896,7 @@ static int __init dboxide_init(void)
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $\n");
 
 	ide_register_driver(dboxide_scan);
 
@@ -964,7 +964,7 @@ static int __init dboxide_init(void) {
 	int ret;
 
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.12 2008/07/22 19:25:14 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $\n");
 
 	ret = setup_cpld();
 	if (ret < 0)
