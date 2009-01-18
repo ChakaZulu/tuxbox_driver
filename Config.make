@@ -42,6 +42,10 @@ CONFIG_HARDWARE_DBOX2		:= m
 endif
 endif
 
+ifeq ($(DRIVER_MMC),yes)
+CONFIG_DBOX2_MMC		:= m
+endif
+
 export	TOPDIR HPATH
 
 ifeq (.depend,$(wildcard .depend))
