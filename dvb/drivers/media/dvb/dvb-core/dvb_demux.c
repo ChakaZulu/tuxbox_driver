@@ -276,7 +276,6 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8
 		while (count > 0) {
 
 			sec->crc_val = ~0;
-
 			if ((count>2) && // enough data to determine sec length?
 			    ((sec->seclen = section_length(buf+p)) <= count)) {
 				if (sec->seclen>4096) 
@@ -288,7 +287,6 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8
 				sec->secbufp = sec->seclen;
 				p += sec->seclen;
 				count = 188 - p;
-
 				dvb_dmx_swfilter_section_feed(feed);
 
 				// filling bytes until packet end?
@@ -296,6 +294,13 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed, const u8
 					count=0;
 
 			} else { // section continues to following TS packet
+				// The following is a workaround for Nokia boxes which hang for around 4 minutes on certain APS transponders
+				// On hang situations the demux->memcopy call will not finish for some reason. The interrupts are still coming in but the bh function 
+				// and therefore the complete kernel tasklist is stuck.
+				if (count <= 2) {
+//					printk("Nokia epg workaround (%d)!\n", count);
+					return -1;
+				}
 				demux->memcopy(feed, sec->secbuf, buf+p, count);
 				sec->secbufp+=count;
 				count=0;
