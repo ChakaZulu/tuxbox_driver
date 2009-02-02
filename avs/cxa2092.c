@@ -419,7 +419,8 @@ int cxa2092_command(struct i2c_client *client, unsigned int cmd, void *arg )
 			default:
 				return -EINVAL;
 		}
-	} else
+	}
+	else
 	{
 		switch (cmd)
 		{
@@ -501,14 +502,14 @@ int cxa2092_init(struct i2c_client *client)
 	memset((void*)&cxa2092_data,0,CXA2092_DATA_SIZE);
 
 	/* default values */
-	cxa2092_data.asw1 = 1;
+	cxa2092_data.asw1 = 0; // start with audio outputs disabled
 	cxa2092_data.vsw1 = 5;
 
 	cxa2092_data.vsw2 = 1;
-	cxa2092_data.asw2 = 1;
+	cxa2092_data.asw2 = 0; // start with audio outputs disabled
 
 	cxa2092_data.fnc  = 2;
-	cxa2092_data.asw3 = 1;
+	cxa2092_data.asw3 = 0; // start with audio outputs disabled
 
 	return cxa2092_set(client);
 }
