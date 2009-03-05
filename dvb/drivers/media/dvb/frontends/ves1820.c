@@ -144,7 +144,6 @@ static int ves1820_writereg (struct dvb_frontend *fe, u8 reg, u8 data)
 			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			fe->i2c->adapter->num, __FUNCTION__, reg, data, ret);
 
-	dvb_delay(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
@@ -267,7 +266,7 @@ static int ves1820_init (struct dvb_frontend *fe)
 	ves1820_inittab[2] &= ~0x08;
 #endif
 
-	for (i=0; i<53; i++)
+	for (i = 0; i < sizeof(ves1820_inittab); i++)
                 ves1820_writereg (fe, i, ves1820_inittab[i]);
 
 	ves1820_writereg (fe, 0x34, GET_PWM(fe->data));
