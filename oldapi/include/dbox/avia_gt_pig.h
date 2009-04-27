@@ -20,8 +20,8 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#if (! defined HAVE_DREAMBOX_HARDWARE) || (HAVE_DVB_API_VERSION > 1)
-#error avia_gt_pig.h must only be included on old dreambox builds!
+#if ((! defined HAVE_DREAMBOX_HARDWARE) && (! defined HAVE_IPBOX_HARDWARE)) || (HAVE_DVB_API_VERSION > 1)
+#error avia_gt_pig.h must only be included on old dreambox/ipbox builds!
 #endif
 
 extern int avia_gt_pig_hide(unsigned char pig_nr);
