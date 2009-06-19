@@ -1,5 +1,5 @@
 /*
- * $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $
+ * $Id: main.c,v 1.14 2009/06/19 14:39:26 seife Exp $
  *
  * Copyright (C) 2006 Uli Tessel <utessel@gmx.de>
  * Linux 2.6 port: Copyright (C) 2006 Carsten Juttner <carjay@gmx.net>
@@ -891,12 +891,15 @@ static void dboxide_scan(void)
 }
 
 /* dbox_ide_init is called when the module is loaded */
-static int __init dboxide_init(void)
+#ifdef MODULE
+static
+#endif
+int __init dboxide_init(void)
 {
 	/* register driver will call the scan function above, maybe immediately 
 	   when we are a module, or later when it thinks it is time to do so */
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.14 2009/06/19 14:39:26 seife Exp $\n");
 
 	ide_register_driver(dboxide_scan);
 
@@ -960,11 +963,14 @@ static struct platform_driver dbox2_ide_driver = {
 };
 
 /* dbox_ide_init is called when the module is loaded */
-static int __init dboxide_init(void) {
+#ifdef MODULE
+static
+#endif
+int __init dboxide_init(void) {
 	int ret;
 
 	printk(KERN_INFO
-	       "dboxide: $Id: main.c,v 1.13 2009/01/13 22:13:23 dbt Exp $\n");
+	       "dboxide: $Id: main.c,v 1.14 2009/06/19 14:39:26 seife Exp $\n");
 
 	ret = setup_cpld();
 	if (ret < 0)
