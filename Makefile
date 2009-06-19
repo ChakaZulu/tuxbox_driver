@@ -9,7 +9,10 @@ subdir-$(CONFIG_DBOX2_MMC)	+= mmc
 
 # catch if IDE is built-in
 ifeq ($(CONFIG_IDE),y)
+# only if dboxide is module
+ifneq ($(CONFIG_BLK_DEV_DBOX2IDE),y)
 subdir-m			+= ide
+endif
 endif
 ifeq ($(CONFIG_DBOX2_MMC),y)
 subdir-m			+= mmc
