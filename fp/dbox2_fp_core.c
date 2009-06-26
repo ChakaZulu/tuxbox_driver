@@ -563,6 +563,19 @@ void dbox2_fp_scart_init(void)
 
 
 /*****************************************************************************\
+ *   Initialize LCD, force dimm-off, power-on was already sent by u-boot
+\*****************************************************************************/
+
+void dbox2_fp_lcd_init(void)
+{
+	int val = 150;
+	if (fp_revision >= 0x80)
+		fp_sendcmd(defdata->client, 0x18, val & 0xff);
+	else
+		fp_sendcmd(defdata->client, 0x06, val & 0xff);
+}
+
+/*****************************************************************************\
  *   Module Initialization / Module Cleanup
 \*****************************************************************************/
 
@@ -616,6 +629,7 @@ static int __init fp_init(void)
 	dbox2_fp_timer_init();
 	dbox2_fp_tuner_init();
 	dbox2_fp_scart_init();
+	dbox2_fp_lcd_init();
 
 	return 0;
 }
