@@ -1,5 +1,5 @@
 /*
- * $Id: avia_av_core.c,v 1.99 2006/01/08 21:36:22 carjay Exp $
+ * $Id: avia_av_core.c,v 1.100 2009/09/11 05:58:41 rhabarber1848 Exp $
  *
  * AViA 500/600 core driver (dbox-II-project)
  *
@@ -51,6 +51,7 @@
 
 TUXBOX_INFO(dbox2_gt);
 
+static int sptsfix = 0;
 static int tv_standard;
 static int no_watchdog;
 static char *firmware;
@@ -1022,10 +1023,10 @@ static int avia_av_init(void)
 
 	switch (aviarev) {
 	case 0:
-		dprintk(KERN_INFO "AVIA: AVIA 600L found.\n");
+		printk(KERN_INFO "avia_av: AVIA 600L found.\n");
 		break;
 	case 1:
-		dprintk(KERN_INFO "AVIA: AVIA 500 LB3 found. (no microcode)\n");
+		printk(KERN_INFO "avia_av: AVIA 500 LB3 found (no microcode), sptsfix is %s\n", sptsfix?"on":"off");
 		break;
 #if 0
 	case 3:
@@ -1033,7 +1034,7 @@ static int avia_av_init(void)
 		break;
 #endif
 	default:
-		dprintk(KERN_INFO "AVIA: AVIA 500 LB4 found. (nice)\n");
+		printk(KERN_INFO "avia_av: AVIA 500 LB4 found, sptsfix is %s\n", sptsfix?"on":"off");
 		break;
 	}
 
@@ -1229,6 +1230,12 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 			avia_av_cmd(SelectStream, 0x00, (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF);
 			avia_av_cmd(Play, 0x00, (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF, pid_audio);
 		}
+
+		if (sptsfix == 1) {
+			if ((aviarev) && (play_state_audio != AVIA_AV_PLAY_STATE_PAUSED)) // oder nur  if (aviarev)
+				avia_av_cmd(Play, 0x00, (play_state_video == AVIA_AV_PLAY_STATE_PLAYING) ? pid_video : 0xFFFF, pid_audio);
+		}
+
 		bypass_mode_changed = 0;
 		break;
 
@@ -1240,8 +1247,16 @@ int avia_av_play_state_set_audio(const u8 new_play_state)
 		dprintk("avia_av: stopping audio decoder\n");
 
 		if (play_state_video == AVIA_AV_PLAY_STATE_STOPPED) {
+			if (sptsfix == 1) {
+				if (aviarev) {
+					avia_av_cmd(SelectStream, 0x03 - bypass_mode, 0xFFFF); // ???
+					avia_av_cmd(Abort, 0x00);
+				}
+			}
+
 			avia_av_dram_write(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
-			avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
+			if (!sptsfix || !aviarev)
+				avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
 		}
 		else {
 			avia_av_cmd(SelectStream, 0x03 - bypass_mode, 0xFFFF);
@@ -1287,8 +1302,15 @@ int avia_av_play_state_set_video(const u8 new_play_state)
 		dprintk("avia_av: stopping video decoder\n");
 
 		if (play_state_audio == AVIA_AV_PLAY_STATE_STOPPED) {
+			if (sptsfix == 1) {
+				if (aviarev) {
+					avia_av_cmd(SelectStream, 0x00, 0xFFFF); // ???
+					avia_av_cmd(Abort, 0x00);
+				}
+			}
 			avia_av_dram_write(AV_SYNC_MODE, AVIA_AV_SYNC_MODE_NONE);
-			avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
+			if (!sptsfix || !aviarev)
+				avia_av_cmd(NewChannel, 0x00, 0xFFFF, 0xFFFF);
 		}
 		else {
 			avia_av_cmd(SelectStream, 0x00, 0xFFFF);
@@ -1518,7 +1540,7 @@ int __init avia_av_core_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.99 2006/01/08 21:36:22 carjay Exp $\n");
+	printk(KERN_INFO "avia_av: $Id: avia_av_core.c,v 1.100 2009/09/11 05:58:41 rhabarber1848 Exp $\n");
 
 	if ((tv_standard < AVIA_AV_VIDEO_SYSTEM_PAL) ||
 		(tv_standard > AVIA_AV_VIDEO_SYSTEM_NTSC))
@@ -1558,3 +1580,5 @@ MODULE_PARM_DESC(debug, "1: enable debug messages");
 MODULE_PARM_DESC(tv_standard, "0: PAL, 1: NTSC");
 MODULE_PARM_DESC(no_watchdog, "0: wd enabled, 1: wd disabled");
 MODULE_PARM_DESC(firmware, "path to microcode");
+MODULE_PARM(sptsfix,"i");
+MODULE_PARM_DESC(sptsfix, "0: OFF, 1: ON");
