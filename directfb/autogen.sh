@@ -34,6 +34,8 @@ check_version ()
 
 	if [ $found_major -ge $req_major -a $found_minor -ge $req_minor ]; then
 		echo "yes (version $1)"
+	elif [ $found_major -gt $req_major ]; then
+		echo "yes (version $1)"
 	else
 		echo "Too old (found version $1)!"
 		DIE=1
