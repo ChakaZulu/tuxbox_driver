@@ -30,15 +30,6 @@
 // to do:
 // - a lot! - I would consider this still to be experimental
 //
-/*
-$Log: mmccombo.c,v $
-Revision 1.2  2007/05/21 08:37:28  satsuse
-faster low-level write for wo={1, 4}
-
-Revision 1.1  2007/05/20 08:55:14  satsuse
-combined mmc driver
-
-*/
 
 #include <linux/delay.h>
 #include <linux/timer.h>
@@ -1393,7 +1384,7 @@ static int __init mmc_driver_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO "$Id: mmccombo.c,v 1.2 2007/05/21 08:37:28 satsuse Exp $\n");
+	printk(KERN_INFO "$Id: mmccombo.c,v 1.3 2009/11/22 15:37:18 rhabarber1848 Exp $\n");
 
 	if ((wiringopt > 4) || (wiringopt == 3))
 	{
